@@ -1,0 +1,40 @@
+{
+  "name": "@bach.software/vue-dynamic-form",
+  "version": "0.1.0",
+  "description": "A simple yet highly extendable dynamic form system, inspired by the flexibility of XSD and powered by Vee-Validate.",
+  "keywords": [
+    "dynamic-form",
+    "typescript",
+    "vee-validate",
+    "form",
+    "vue"
+  ],
+  "homepage": "https://github.com/jeroenbach/dynamic-form",
+  "bugs": {
+    "url": "https://github.com/jeroenbach/dynamic-form/issues"
+  },
+  "author": "Jeroen Bach <jeroen@bach.software> (https://bach.software)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeroenbach/dynamic-form.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "dev": "vitest",
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "check-format": "prettier --check .",
+    "ci": "npm run build && npm run check-format && npm run test"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
