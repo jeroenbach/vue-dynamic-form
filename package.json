@@ -1,6 +1,6 @@
 {
   "name": "@bach.software/vue-dynamic-form",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A simple yet highly extendable dynamic form system, inspired by the flexibility of XSD and powered by Vee-Validate.",
   "keywords": [
     "dynamic-form",

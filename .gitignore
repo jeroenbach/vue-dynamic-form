@@ -1,2 +1,9 @@
+# Build outputs
+dist
+.cache
+
 node_modules
 dist
+
+# Misc
+.DS_Store
