@@ -9,7 +9,84 @@ export type FieldMetadata<
   path?: string;
   minOccurs?: number;
   maxOccurs?: number;
+  /**
+   * Simple restrictions to the data
+   */
+  restrictions?: {
+    maxLength?: number;
+    minLength?: number;
+    pattern?: string;
+    minInclusive?: number;
+    maxInclusive?: number;
+    enumeration?: string;
+    length?: number;
+    whiteSpace?: string;
+    fractionDigits?: number;
+    totalDigits?: number;
+  };
   children?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[];
+  /**
+   * Choice is similar to children, with the difference that only one of the items in the array 
+   * needs to be present. If you combine this with minOccurs, you can for example create a form where
+   * only the email or phone number is required.
+   * 
+   * This is inspired by the choice element in xsd (XML Schema Definition), for example:
+   * 
+   * ```xml
+   * <?xml version="1.0" encoding="UTF-8"?>
+   * <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+   *
+   *   <xs:element name="ContactInfo">
+   *     <xs:complexType>
+   *       <xs:choice>
+   *         <xs:element name="Email" type="xs:string"/>
+   *         <xs:element name="Phone" type="xs:string"/>
+   *         <xs:element name="Fax" type="xs:string"/>
+   *       </xs:choice>
+   *     </xs:complexType>
+   *   </xs:element>
+   * 
+   * </xs:schema>
+   * ```
+   * 
+   * This will allow the following xml options
+   * ```xml
+   * <ContactInfo>
+   *   <Email>someone@example.com</Email>
+   * </ContactInfo>
+   * or
+   * <ContactInfo>
+   *   <Phone>+31 123 456 789</Phone>
+   * </ContactInfo>
+   *
+   * but this is invalid:
+   * <ContactInfo>
+   * </ContactInfo>
+   * 
+   * ```
+   * 
+   */
+  choice?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[];
+
+  /**
+   * Attributes are additional metadata that can be attached to a field.
+   * These attributes can be used to provide extra information about the field,
+   * such as for example whether the data is verified.
+   * 
+   * These attributes will be shown when the parent will have a value filled in. 
+   *
+   * For example:
+   * ```
+   * <ContactInfo>
+   *   <Phone certainty="unverified">+31 123 456 789</Phone>
+   * </ContactInfo>
+   * or
+   * <ContactInfo>
+   *   <Phone certainty="verified">+31 123 456 789</Phone>
+   * </ContactInfo>
+   * ```
+   */
+  attributes?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[];
   /**
    * The parent of the current field.
    */
@@ -26,8 +103,14 @@ export type FieldMetadata<
   transformReactively?: ((
     thisField: Omit<
       FieldMetadata<ExtendedFieldTypes, ExtendedProperties>,
-      'children' // Not allowed to change the children of this field, create a transform for those fields specifically
-    >,
+       'name'    // At this point name will always be present
+      // Not allowed to change the children, choice or attributes of this field, create a transform for those fields specifically 
+      |'children'  
+      | 'choice'  
+      | 'attributes'
+    > & {
+      name: string;
+    },
     fieldValue?: WatchSource<any>,
   ) => Omit<
     FieldMetadata<ExtendedFieldTypes, ExtendedProperties>,
@@ -49,10 +132,11 @@ export type GetMetadataType<T extends MetadataConfiguration> = FieldMetadata<T['
  * @returns 
  */
 export function defineMetadata<ExtendedProperties extends object, const FieldTypes extends readonly string[]>(fieldTypes: FieldTypes, extendedProperties: ExtendedProperties){
-  type FieldTypeMetadata = Exclude<typeof fieldTypes[number], 'input' | 'children'>;
-  const exclude = new Set(['input', 'children']);
-  const filtered = fieldTypes.filter(v => !exclude.has(v));
-  
+  const exclude = ['input', 'children', 'choice', 'array'] as const;
+  type FieldTypeMetadata = Exclude<typeof fieldTypes[number], (typeof exclude)[number]>;
+  const excludeSet = new Set<string>(exclude);
+  const filtered = fieldTypes.filter(v => !excludeSet.has(v));
+
   return {
     fieldTypes: filtered as unknown as readonly FieldTypeMetadata[],
     extendedProperties,

@@ -3,7 +3,7 @@ import DynamicFormTemplate from '@bach.software/vue-dynamic-form/src/components/
 import  { type GetMetadataType, defineMetadata } from '@bach.software/vue-dynamic-form/src/types/FieldMetadata';
 
 type ExtendedProperties = {
-  label: string;
+  label?: string;
   options?: { key: string, value: string}[];
 };
 
@@ -13,6 +13,12 @@ export type Metadata = GetMetadataType<typeof metadata>;
 </script>
 <template>
   <DynamicFormTemplate :metadataConfiguration="metadata">
+    <template #array="{ field }">
+
+    </template>
+    <template #choice="{ field }">
+      
+    </template>
     <template #default="{ field }">
       <div class="flex flex-col gap-2">
         <label>{{ field.label }}</label>

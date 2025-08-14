@@ -51,6 +51,8 @@ defineOptions({ name: 'DynamicFormConfiguration' });
 type SlotsFromMetadata =
   { default(props: { field: NonNullable<Props['field']> }): any } &
   { 'default-input'(props: { field: NonNullable<Props['field']> }): any } &
+  { 'array'(props: { field: NonNullable<Props['field']> }): any } &
+  { 'choice'(props: { field: NonNullable<Props['field']> }): any } &
   {
     [K in TMetadataConfiguration['fieldTypes'][number]]: (props: { field: NonNullable<Props['field']> }) => any;
   } &
