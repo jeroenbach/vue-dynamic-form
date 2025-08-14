@@ -1,6 +1,0 @@
-# Ignore build output
-dist/
-node_modules/
-
-# Ignore specific files
-pnpm-lock.yaml

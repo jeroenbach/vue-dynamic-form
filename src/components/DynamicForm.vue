@@ -1,39 +1,41 @@
 <script lang="ts" setup generic="Metadata extends FieldMetadata">
-import { computed, useAttrs, type DefineComponent } from 'vue';
-import type { FieldMetadata } from '~/types/FieldMetadata';
-export interface Props<Metadata extends FieldMetadata> {
-  metadata: Metadata | Metadata[];
-  template: DefineComponent<{}, {}, any>;
-};
+import type { DefineComponent } from 'vue';
 
-const { metadata, template } = defineProps<Props<Metadata>>();
+import type { FieldMetadata } from '@/types/FieldMetadata';
+import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
+import { computed } from 'vue';
+
+import DynamicFormItem from '@/components/DynamicFormItem.vue';
+
+export interface DynamicFormProps<Metadata extends FieldMetadata> {
+  metadata: Metadata | Metadata[]
+  template: DefineComponent<object, object, any>
+}
+type Props = DynamicFormProps<Metadata>;
+
 defineOptions({ name: 'DynamicForm', inheritAttrs: false });
-const { recursive } = useAttrs();
+const { metadata, template } = defineProps<Props>();
+const metadataAsArray = computed(() =>
+  Array.isArray(metadata) ? metadata : [metadata],
+);
 
-const typedTemplate = computed(() => template as DefineComponent<{}, {}, {
-    input?: ((props: {}) => any) | undefined;
-    children?: ((props: {}) => any) | undefined;
-    attributes?: ((props: {}) => any) | undefined;
-    choice?: ((props: {}) => any) | undefined;
-    array?: ((props: {}) => any) | undefined;
-  }>)
-const metadataAsArray = computed(() => Array.isArray(metadata) ? metadata : [metadata]);
+const metadataWithDefaults = computed(() =>
+  metadataAsArray.value?.map((x, index) => correctMetadata(x, index)),
+);
 
-const metadataWithDefaults = computed(() => {
-  // Only set the defaults once
-  if (recursive !== undefined) return metadataAsArray.value;
-
-  return metadataAsArray.value?.map((x, index) => correctMetadata(x, index));
-});
-
-function correctMetadata(field: Metadata, index?: number, parent?: Metadata) {
-  if (!field) return field;
+function correctMetadata(
+  field: Metadata,
+  index?: number,
+  parent?: InternalFieldMetadata<Metadata>,
+) {
+  if (!field)
+    return field;
 
   const backupName = `field-${index}`;
-
-  const copy: Metadata = {
+  const copy: InternalFieldMetadata<Metadata> = {
     // Set defaults
     name: backupName,
+    type: 'text', // Default type
     path: field.name ?? backupName,
     minOccurs: 1, // by default required
     maxOccurs: 1, // by default not repeatable
@@ -43,32 +45,41 @@ function correctMetadata(field: Metadata, index?: number, parent?: Metadata) {
     parent,
   };
 
-  // Recursively go through the tree 
-  copy.children = (field.children ?? []).map((x, index) => correctMetadata(x as Metadata, index, copy));
-  copy.choice = (field.choice ?? []).map((x, index) => correctMetadata(x as Metadata, index, copy));
-  copy.attributes = (field.attributes ?? []).map((x, index) => correctMetadata(x as Metadata, index, copy));
+  // Recursively go through the tree
+  copy.children = (field.children ?? []).map((x, index) =>
+    correctMetadata(x as Metadata, index, copy),
+  );
+  copy.choice = (field.choice ?? []).map((x, index) =>
+    correctMetadata(x as Metadata, index, copy),
+  );
+  copy.attributes = (field.attributes ?? []).map((x, index) =>
+    correctMetadata(x as Metadata, index, copy),
+  );
 
   return copy;
 }
 
+const typedTemplate = computed(
+  () =>
+    template as DefineComponent<
+      object,
+      object,
+      {
+        input?: ((props: object) => any) | undefined
+        children?: ((props: object) => any) | undefined
+        attributes?: ((props: object) => any) | undefined
+        choice?: ((props: object) => any) | undefined
+        array?: ((props: object) => any) | undefined
+      }
+    >,
+);
 </script>
+
 <template>
-  <component
-    v-for="value in metadataWithDefaults"
-    :is="typedTemplate"
-    :key="value.name"
-    :type="value.type"
-    :field="value"
-  >
-    <template #input>
-      <component
-        :is="typedTemplate"
-        :type="`${value.type}-input`"
-        :field="value"
-      />
-    </template>
-    <template #children>
-      <DynamicForm v-if="value.children" :metadata="(value.children as Metadata[])" :template="typedTemplate" recursive />
-    </template>
-  </component>
+  <DynamicFormItem
+    v-for="field in metadataWithDefaults"
+    :key="field.name"
+    :template="typedTemplate"
+    :field="field as InternalFieldMetadata<FieldMetadata>"
+  />
 </template>

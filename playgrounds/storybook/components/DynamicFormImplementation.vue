@@ -1,24 +1,26 @@
 <script lang="ts" setup>
-import DynamicFormTemplate from '@bach.software/vue-dynamic-form/src/components/DynamicFormTemplate.vue';
-import  { type GetMetadataType, defineMetadata } from '@bach.software/vue-dynamic-form/src/types/FieldMetadata';
+import type { GetMetadataType } from '@bach.software/vue-dynamic-form'
+import {
+  defineMetadata,
+  DynamicFormTemplate,
+} from '@bach.software/vue-dynamic-form'
 
-type ExtendedProperties = {
-  label?: string;
-  options?: { key: string, value: string}[];
-};
+interface ExtendedProperties {
+  label?: string
+  options?: { key: string, value: string }[]
+}
 
-const metadata = defineMetadata(["text", "select", "checkbox", "heading", 'input', 'children'], {} as ExtendedProperties);
-export type Metadata = GetMetadataType<typeof metadata>;
-
+const metadata = defineMetadata(
+  ['text', 'select', 'checkbox', 'heading', 'input', 'children'],
+  {} as ExtendedProperties,
+)
+export type Metadata = GetMetadataType<typeof metadata>
 </script>
-<template>
-  <DynamicFormTemplate :metadataConfiguration="metadata">
-    <template #array="{ field }">
 
-    </template>
-    <template #choice="{ field }">
-      
-    </template>
+<template>
+  <DynamicFormTemplate :metadata-configuration="metadata">
+    <template #array="{ field }" />
+    <template #choice="{ field }" />
     <template #default="{ field }">
       <div class="flex flex-col gap-2">
         <label>{{ field.label }}</label>
@@ -26,11 +28,13 @@ export type Metadata = GetMetadataType<typeof metadata>;
       </div>
     </template>
     <template #default-input="{}">
-      <input type="text" class="bg-blue-200" />
+      <input type="text" class="bg-blue-200">
     </template>
     <template #heading="{ field }">
       <div class="mt-4">
-        <h3 class="text-xl font-bold">{{ field.label }}</h3>
+        <h3 class="text-xl font-bold">
+          {{ field.label }}
+        </h3>
         <slot name="children" />
       </div>
     </template>
@@ -41,7 +45,7 @@ export type Metadata = GetMetadataType<typeof metadata>;
       </div>
     </template>
     <template #text-input="{}">
-      <input type="text" class="bg-gray-200" />
+      <input type="text" class="bg-gray-200">
     </template>
     <template #select-input="{ field }">
       <select class="bg-gray-200">
@@ -51,7 +55,7 @@ export type Metadata = GetMetadataType<typeof metadata>;
       </select>
     </template>
     <template #checkbox-input="{}">
-      <input type="checkbox" class="bg-gray-200" />
+      <input type="checkbox" class="bg-gray-200">
     </template>
   </DynamicFormTemplate>
 </template>

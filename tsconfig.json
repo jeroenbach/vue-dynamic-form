@@ -1,34 +1,23 @@
 {
   "compilerOptions": {
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "target": "es2022",
-    "allowJs": true,
-    "resolveJsonModule": true,
-    "moduleDetection": "force",
-    "isolatedModules": true,
-    "verbatimModuleSyntax": true,
-
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-
-    "module": "NodeNext",
-    "outDir": "dist",
-    "rootDir": "src",
-    "sourceMap": true,
-
-    "declaration": true,
-    "composite": true,
-    "tsBuildInfoFile": "./.cache/buildinfo.json",
-    "declarationMap": true,
-
-    "lib": ["es2022"],
+    "target": "esnext",
+    "jsx": "preserve",
+    "lib": ["esnext", "dom", "dom.iterable", "scripthost"],
+    "useDefineForClassFields": true,
+    "baseUrl": "./",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "paths": {
-      "~": ["./src/"],
-      "~/*": ["./src/*"],
-    }
+      "@/*": ["src/*"]
+    },
+    "strict": true,
+    "declaration": true,
+    "outDir": "dist",
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
-  "exclude": ["node_modules", "**/*.md", "**/dist", "playgrounds"]
+  "include": ["vite.config.*", "env.d.ts", "src/**/*", "src/**/*.vue"],
+  "exclude": ["playgrounds"]
 }

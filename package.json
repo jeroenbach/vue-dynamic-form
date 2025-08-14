@@ -1,7 +1,17 @@
 {
   "name": "@bach.software/vue-dynamic-form",
+  "type": "module",
   "version": "0.1.0",
   "description": "A simple yet highly extendable dynamic form system, inspired by the flexibility of XSD and powered by Vee-Validate.",
+  "author": "Jeroen Bach <jeroen@bach.software> (https://bach.software)",
+  "homepage": "https://github.com/jeroenbach/dynamic-form",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeroenbach/dynamic-form.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jeroenbach/dynamic-form/issues"
+  },
   "keywords": [
     "dynamic-form",
     "typescript",
@@ -9,40 +19,51 @@
     "form",
     "vue"
   ],
-  "homepage": "https://github.com/jeroenbach/dynamic-form",
-  "bugs": {
-    "url": "https://github.com/jeroenbach/dynamic-form/issues"
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/vue-dynamic-form.es.js",
+      "require": "./dist/vue-dynamic-form.umd.js"
+    }
   },
-  "author": "Jeroen Bach <jeroen@bach.software> (https://bach.software)",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/jeroenbach/dynamic-form.git"
-  },
+  "main": "./dist/vue-dynamic-form.umd.js",
+  "module": "./dist/vue-dynamic-form.es.js",
+  "types": "./dist/src/index.d.ts",
   "files": [
     "dist"
   ],
-  "type": "module",
-  "main": "src/index.ts",
-  "license": "MIT",
   "scripts": {
-    "build": "tsc",
-    "dev": "vitest",
+    "check-updates": "pnpm dlx npm-check-updates -i --format group",
+    "dev": "pnpm build:watch & cd ./playgrounds/storybook && pnpm dev",
+    "build": "vite build && vue-tsc --emitDeclarationOnly && tsc-alias",
+    "build:watch": "vite build --watch & vue-tsc --emitDeclarationOnly --watch & tsc-alias --watch",
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
     "test": "vitest run",
-    "format": "prettier --write .",
-    "check-format": "prettier --check .",
-    "ci": "npm run build && npm run check-format && npm run test",
     "prepublishOnly": "npm run ci",
-    "local-release": "changeset version && changeset publish",
-    "changeset": "changeset"
-  },
-  "devDependencies": {
-    "@changesets/cli": "^2.29.5",
-    "prettier": "^3.6.2",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "ci": "pnpm build && pnpm typecheck && pnpm lint && pnpm test",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "pnpm ci && changeset publish"
   },
   "peerDependencies": {
+    "vee-validate": ">=4.15",
+    "vue": ">=3.5"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^5.2.1",
+    "@changesets/cli": "2.29.5",
+    "@types/node": "24.2.1",
+    "@vitejs/plugin-vue": "6.0.1",
+    "eslint": "9.33.0",
+    "eslint-plugin-format": "^1.0.1",
+    "tsc-alias": "1.8.16",
+    "typescript": "5.9.2",
+    "vee-validate": "4.15.1",
+    "vite": "7.1.2",
+    "vitest": "^3.2.4",
     "vue": ">=3.5",
-    "vee-validate": "^4.15.1"
+    "vue-tsc": "3.0.5"
   }
 }
