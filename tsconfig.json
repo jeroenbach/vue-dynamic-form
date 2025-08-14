@@ -23,8 +23,12 @@
     "tsBuildInfoFile": "./.cache/buildinfo.json",
     "declarationMap": true,
 
-    "lib": ["es2022"]
+    "lib": ["es2022"],
+    "paths": {
+      "~": ["./src/"],
+      "~/*": ["./src/*"],
+    }
   },
-
-  "exclude": ["node_modules", "**/*.md", "**/dist"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
+  "exclude": ["node_modules", "**/*.md", "**/dist", "playgrounds"]
 }

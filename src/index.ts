@@ -1,2 +1,3 @@
-// export * from "./components/DynamicForm.vue";
-export * from './utils.js';
+export { default as DynamicForm } from './components/DynamicForm.vue';
+export { default as DynamicFormTemplate } from './components/DynamicFormTemplate.vue';
+
