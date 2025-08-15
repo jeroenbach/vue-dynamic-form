@@ -1,4 +1,4 @@
-# Vue Dynamic Form
+# Vue Dynamic Form - Under development (Not ready to use)
 
 A simple yet highly extendable dynamic form system, inspired by the flexibility of XSD and powered by Vee-Validate.
 
