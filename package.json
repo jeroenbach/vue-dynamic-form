@@ -42,7 +42,10 @@
     "lint:fix": "eslint --fix",
     "test": "vitest run",
     "prepublishOnly": "npm run ci",
-    "ci": "pnpm build && pnpm typecheck && pnpm lint && pnpm test",
+    "ci": "pnpm ci:test && pnpm ci:lint && pnpm ci:typecheck",
+    "ci:test": "TZ=Europe/Amsterdam vitest run",
+    "ci:lint": "eslint",
+    "ci:typecheck": "vue-tsc --noEmit",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:publish": "pnpm ci && changeset publish"
