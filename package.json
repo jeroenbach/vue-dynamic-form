@@ -1,7 +1,7 @@
 {
   "name": "@bach.software/vue-dynamic-form",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A simple yet highly extendable dynamic form system, inspired by the flexibility of XSD and powered by Vee-Validate.",
   "author": "Jeroen Bach <jeroen@bach.software> (https://bach.software)",
   "homepage": "https://github.com/jeroenbach/dynamic-form",
@@ -42,10 +42,11 @@
     "lint:fix": "eslint --fix",
     "test": "vitest run",
     "prepublishOnly": "npm run ci",
-    "ci": "pnpm build && pnpm typecheck && pnpm lint && pnpm test",
-    "changeset": "changeset",
-    "changeset:version": "changeset version",
-    "changeset:publish": "pnpm ci && changeset publish"
+    "ci": "pnpm ci:test && pnpm ci:lint && pnpm ci:typecheck",
+    "ci:test": "TZ=Europe/Amsterdam vitest run",
+    "ci:lint": "eslint",
+    "ci:typecheck": "vue-tsc --noEmit",
+    "changeset": "changeset"
   },
   "peerDependencies": {
     "vee-validate": ">=4.15",
