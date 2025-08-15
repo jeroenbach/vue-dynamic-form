@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/vue3-vite'
+import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import SimpleForm from './SimpleForm.vue'
+import SimpleForm from './SimpleForm.vue';
 
 const meta = {
   title: 'Forms/SimpleForm',
@@ -12,10 +12,9 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
   },
-  tags: ['autodocs'],
-} satisfies Meta<typeof SimpleForm>
+} satisfies Meta<typeof SimpleForm>;
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
-export const Simple: Story = {}
+export const Simple: Story = {};

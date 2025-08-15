@@ -6,5 +6,4 @@ export default antfu({
   rules: {
     'style/semi': ['error', 'always'],
   },
-  ignores: ['playgrounds'],
 });

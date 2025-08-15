@@ -1,9 +1,11 @@
 <script lang="ts" setup>
-import type { GetMetadataType } from '@bach.software/vue-dynamic-form'
+import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
 import {
   defineMetadata,
   DynamicFormTemplate,
-} from '@bach.software/vue-dynamic-form'
+} from '@bach.software/vue-dynamic-form';
+
+export type Metadata = GetMetadataType<typeof metadata>;
 
 interface ExtendedProperties {
   label?: string
@@ -13,21 +15,20 @@ interface ExtendedProperties {
 const metadata = defineMetadata(
   ['text', 'select', 'checkbox', 'heading', 'input', 'children'],
   {} as ExtendedProperties,
-)
-export type Metadata = GetMetadataType<typeof metadata>
+);
 </script>
 
 <template>
   <DynamicFormTemplate :metadata-configuration="metadata">
-    <template #array="{ field }" />
-    <template #choice="{ field }" />
+    <template #array />
+    <template #choice />
     <template #default="{ field }">
       <div class="flex flex-col gap-2">
         <label>{{ field.label }}</label>
         <slot name="input" />
       </div>
     </template>
-    <template #default-input="{}">
+    <template #default-input>
       <input type="text" class="bg-blue-200">
     </template>
     <template #heading="{ field }">
@@ -44,7 +45,7 @@ export type Metadata = GetMetadataType<typeof metadata>
         <slot name="input" />
       </div>
     </template>
-    <template #text-input="{}">
+    <template #text-input>
       <input type="text" class="bg-gray-200">
     </template>
     <template #select-input="{ field }">
@@ -54,7 +55,7 @@ export type Metadata = GetMetadataType<typeof metadata>
         </option>
       </select>
     </template>
-    <template #checkbox-input="{}">
+    <template #checkbox-input>
       <input type="checkbox" class="bg-gray-200">
     </template>
   </DynamicFormTemplate>
