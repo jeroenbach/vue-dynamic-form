@@ -1,5 +1,11 @@
 # @bach.software/vue-dynamic-form
 
+## 0.1.3
+
+### Patch Changes
+
+- ea8448d: Updated readme to prevent downloads
+
 ## 0.1.2
 
 ### Patch Changes
