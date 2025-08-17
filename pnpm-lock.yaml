@@ -58,6 +58,9 @@ importers:
 
   .:
     devDependencies:
+      '@antfu/eslint-config':
+        specifier: catalog:dev
+        version: 5.2.1(@vue/compiler-sfc@3.5.18)(eslint-plugin-format@1.0.1(eslint@9.33.0))(eslint@9.33.0)(typescript@5.9.2)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.2.1)(yaml@2.8.1))
       '@changesets/cli':
         specifier: catalog:tooling
         version: 2.29.5

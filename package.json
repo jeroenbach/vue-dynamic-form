@@ -10,9 +10,14 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "ci": "pnpm -r ci",
+    "ci:lint": "pnpm -r ci:lint",
+    "ci:test": "pnpm -r ci:test",
+    "ci:typecheck": "pnpm -r ci:typecheck",
+    "ci:build": "pnpm -r ci:build",
     "changeset": "changeset"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "catalog:dev",
     "@changesets/cli": "catalog:tooling"
   }
 }
