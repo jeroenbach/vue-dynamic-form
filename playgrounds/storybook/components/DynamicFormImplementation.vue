@@ -19,7 +19,7 @@ const metadata = defineMetadata(
 </script>
 
 <template>
-  <DynamicFormTemplate :metadata-configuration="metadata">
+  <DynamicFormTemplate :metadataConfiguration="metadata">
     <template #array />
     <template #choice />
     <template #default="{ field }">

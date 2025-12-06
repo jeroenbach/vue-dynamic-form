@@ -6,6 +6,7 @@
     "postinstall": "cd playgrounds/storybook && pnpm install --ignore-workspace",
     "dev": "cd packages/core && pnpm build:watch & cd playgrounds/storybook && pnpm dev",
     "build": "pnpm -r build",
+    "build:watch": "cd packages/core && pnpm build:watch",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",

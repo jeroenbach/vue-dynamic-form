@@ -54,15 +54,34 @@ export type FieldMetadata<
    * <ContactInfo>
    *   <Email>someone@example.com</Email>
    * </ContactInfo>
-   * or
+   * <!-- or -->
    * <ContactInfo>
    *   <Phone>+31 123 456 789</Phone>
    * </ContactInfo>
    *
-   * but this is invalid:
+   * <!-- but this is invalid: -->
    * <ContactInfo>
    * </ContactInfo>
+   * ```
    *
+   * Or json
+   * ```json
+   * {
+   *  "contactInfo": {
+   *     "email": "someone@example.com"
+   *  }
+   * }
+   * <!-- or -->
+   * {
+   *  "contactInfo": {
+   *   "phone": "+31 123 456 789"
+   *  }
+   * }
+   *
+   * <!-- but this is invalid: -->
+   * {
+   * "contactInfo": { }
+   * }
    * ```
    *
    */
@@ -74,23 +93,39 @@ export type FieldMetadata<
    * such as for example whether the data is verified.
    *
    * These attributes will be shown when the parent will have a value filled in.
+   * The field automatically becomes a complex type, meaning that the value will be
+   * an object containing the value and the attributes.
    *
    * For example:
    * ```
    * <ContactInfo>
    *   <Phone certainty="unverified">+31 123 456 789</Phone>
    * </ContactInfo>
-   * or
+   * <!-- or -->
    * <ContactInfo>
    *   <Phone certainty="verified">+31 123 456 789</Phone>
    * </ContactInfo>
    * ```
    */
   attributes?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[]
+
+  /**
+   * To support generating a form based on a xsd, we need to be able to work with complex types.
+   * In case a SimpleContent has a ComplexType as parent, the json converter creates a value object
+   * with the value inside i.e. { value: 'the actual value' } and the attributes alongside it.
+   *
+   * By setting isComplexType to true, the form generator knows it needs to look for the value inside
+   * the value property.
+   *
+   * When attributes are present, isComplexType is automatically set to true.
+   */
+  isComplexType?: boolean
+
   /**
    * The parent of the current field.
    */
   parent?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>
+
   /**
    * You can add methods that transform the field metadata based on other external values.
    * Make sure to include the reactive value's in your function, so that the function is re-evaluated once

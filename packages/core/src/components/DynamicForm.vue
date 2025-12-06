@@ -11,10 +11,9 @@ export interface DynamicFormProps<Metadata extends FieldMetadata> {
   metadata: Metadata | Metadata[]
   template: DefineComponent<object, object, any>
 }
-type Props = DynamicFormProps<Metadata>;
 
 defineOptions({ name: 'DynamicForm', inheritAttrs: false });
-const { metadata, template } = defineProps<Props>();
+const { metadata, template } = defineProps<DynamicFormProps<Metadata>>();
 const metadataAsArray = computed(() =>
   Array.isArray(metadata) ? metadata : [metadata],
 );
@@ -39,6 +38,7 @@ function correctMetadata(
     path: field.name ?? backupName,
     minOccurs: 1, // by default required
     maxOccurs: 1, // by default not repeatable
+
     ...field,
     // Override some of the field properties
     transformReactively: [...(field.transformReactively ?? [])],

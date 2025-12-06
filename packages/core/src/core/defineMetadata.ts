@@ -8,11 +8,14 @@ export function defineMetadata<
   ExtendedProperties extends object,
   const FieldTypes extends readonly string[],
 >(fieldTypes: FieldTypes, extendedProperties: ExtendedProperties) {
+  // Exclude some reserved field types and always include 'text'
   const exclude = ['text', 'input', 'children', 'choice', 'array'] as const;
   const include = ['text'] as const;
+
   type FieldTypeMetadata
     = | Exclude<(typeof fieldTypes)[number], (typeof exclude)[number]>
       | (typeof include)[number];
+
   const excludeSet = new Set<string>(exclude);
   const filtered = [
     ...include,

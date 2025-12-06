@@ -10,17 +10,17 @@ catalogs:
     vue-tsc: 3.0.5
 
   dev:
-    '@antfu/eslint-config': ^5.2.1
+    '@antfu/eslint-config': 5.2.1
     eslint: 9.33.0
-    eslint-plugin-format: ^1.0.1
+    eslint-plugin-format: 1.0.1
 
   framework:
-    element-plus: ^2.8.10
+    element-plus: 2.8.10
     vee-validate: 4.15.1
     vue: '>=3.5'
 
   test:
-    vitest: ^3.2.4
+    vitest: 3.2.4
 
   tooling:
     '@changesets/cli': 2.29.5
