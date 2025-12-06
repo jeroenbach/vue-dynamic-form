@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { Metadata } from '../components/DynamicFormImplementation.vue';
-import { DynamicForm } from '@bach.software/vue-dynamic-form';
-import { reactive } from 'vue';
+import { DynamicForm, useDynamicForm,  } from '@bach.software/vue-dynamic-form';
+import { reactive, ref } from 'vue';
 import DynamicFormImplementation from '../components/DynamicFormImplementation.vue';
 
 const loadedOptions = reactive<
@@ -16,17 +16,35 @@ loadedOptions.select = [
 ];
 //
 
+interface FormModel{
+  text: string,
+  select: string,
+  checkbox: boolean,
+  'weird name': string,
+  heading2: {
+    textComplexType: {
+      value: string,
+    },
+    textAutomaticComplexType: {
+      value: string,
+      certainty: string,
+    },
+  }
+}
+
 const metadata: Metadata[] = [
   {
     name: 'text',
     type: 'text',
     label: 'Text Input',
+    path: 'with.custom.structure',
     restrictions: { maxLength: 10 },
   },
   {
     name: 'heading',
-    label: 'Heading',
+    label: 'Heading without path',
     type: 'heading',
+    path: '', // no path, means its children will be at this parent level
     children: [
       { name: 'text', label: 'Text Input', type: 'text' },
       {
@@ -43,14 +61,20 @@ const metadata: Metadata[] = [
       { name: 'checkbox', label: 'Checkbox', type: 'checkbox' },
       // @ts-expect-error type is not correct, but that's what we want to demonstrate
       { name: 'notexisting', label: 'Not existing', type: 'notexisting' },
+      { name: 'weird name', label: 'Weird name', type: 'text' },
       {
         name: 'heading2',
         label: 'Sub Heading',
         type: 'heading',
         children: [
           {
-            name: 'text',
+            name: 'textComplexType',
             label: 'Text Input 2',
+            type: 'text',
+            isComplexType: true,
+          },{
+            name: 'textNotComplexType',
+            label: 'Text Input 3',
             type: 'text',
             attributes: [
               {
@@ -75,8 +99,18 @@ const metadata: Metadata[] = [
     ],
   },
 ];
+
+const { values } = useDynamicForm<FormModel>();
+
+const modelValue = ref<FormModel>();
 </script>
 
 <template>
-  <DynamicForm :template="DynamicFormImplementation" :metadata="metadata" />
+  <DynamicForm 
+  :template="DynamicFormImplementation" 
+  :metadata="metadata" 
+  @update:modelValue="modelValue = $event"
+  />
+  <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">{{ JSON.stringify(values, null, 2) }}</pre>
+
 </template>

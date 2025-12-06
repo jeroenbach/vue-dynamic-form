@@ -1,29 +1,50 @@
 /**
- * Creates metadata based on your configuration.
- * @param fieldTypes an array of fields that you would like to define. (Note: you can't use 'input' or 'children', they're reserved)
- * @param extendedProperties extra properties that you would like to include in your metadata
- * @returns a metadata object that can be passed to the DynamicFormTemplate component
+ * Helps you to create a metadata configuration with strongly-typed field definitions.
+ * Field value types are directly inferred from the provided type interface.
+ *
+ * Simply pass an interface where keys are field names and values are the expected value types.
+ * Use `never` for fields that don't hold values (like headings).
+ * Note: you can't use the following reserved field names: 'input', 'children', 'choice', 'array'.
+ * 
+ * Use the extended properties to add custom metadata to each field definition. *
+ * @returns Typed configuration object for DynamicFormTemplate consumption
+ *
+ * @example
+ * const config = defineMetadata<
+ *   {
+ *     text: string;
+ *     checkbox: boolean;
+ *     age: number;
+ *     address: { street: string; city: string };
+ *     heading: never;
+ *   },
+ *   {
+ *     // This will add a label and options property to each field's metadata
+ *     label?: string;
+ *     options?: Array<{ key: string; value: string }>;
+ *   }
+ * >();
  */
 export function defineMetadata<
-  ExtendedProperties extends object,
-  const FieldTypes extends readonly string[],
->(fieldTypes: FieldTypes, extendedProperties: ExtendedProperties) {
-  // Exclude some reserved field types and always include 'text'
-  const exclude = ['text', 'input', 'children', 'choice', 'array'] as const;
-  const include = ['text'] as const;
+  const FieldValueTypes extends Record<string, any>,
+  ExtendedFieldProperties extends object,
+>() {
+  // Reserved field identifiers that cannot be defined by the user
+  const exclude = ['input', 'children', 'choice', 'array'] as const;
+  const include = ['default'] as const;
 
   type FieldTypeMetadata
-    = | Exclude<(typeof fieldTypes)[number], (typeof exclude)[number]>
+    = | Exclude<keyof FieldValueTypes, (typeof exclude)[number]>
       | (typeof include)[number];
 
-  const excludeSet = new Set<string>(exclude);
-  const filtered = [
-    ...include,
-    ...fieldTypes.filter(v => !excludeSet.has(v)),
-  ];
+  // Value types are directly from the generic parameter, default is always included and always a string
+  type ValueTypeMap = FieldValueTypes & {
+    default: string
+  };
 
   return {
-    fieldTypes: filtered as unknown as readonly FieldTypeMetadata[],
-    extendedProperties,
+    fieldTypes: Object.keys({} as FieldValueTypes) as unknown as readonly FieldTypeMetadata[],
+    extendedProperties: {} as ExtendedFieldProperties,
+    valueTypes: {} as ValueTypeMap,
   };
 }

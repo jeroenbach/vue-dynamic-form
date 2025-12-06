@@ -1,3 +1,4 @@
+import { RuleExpression } from 'vee-validate';
 import type { WatchSource } from 'vue';
 
 export type FieldMetadata<
@@ -10,20 +11,34 @@ export type FieldMetadata<
   minOccurs?: number
   maxOccurs?: number
   /**
-   * Simple restrictions to the data
+   * Simple restrictions to the data: TODO: move to different level and use validation instead
    */
   restrictions?: {
     maxLength?: number
+    maxLengthMessage?: string
     minLength?: number
+    minLengthMessage?: string
     pattern?: string
+    patternMessage?: string
     minInclusive?: number
+    minInclusiveMessage?: string
     maxInclusive?: number
+    maxInclusiveMessage?: string
     enumeration?: string
+    enumerationMessage?: string
     length?: number
+    lengthMessage?: string
     whiteSpace?: string
+    whiteSpaceMessage?: string
     fractionDigits?: number
+    fractionDigitsMessage?: string
     totalDigits?: number
+    totalDigitsMessage?: string
   }
+  /**
+   * Validation rules that should be applied to this field.
+   */
+  validation?: RuleExpression<unknown>,
   children?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[]
   /**
    * Choice is similar to children, with the difference that only one of the items in the array

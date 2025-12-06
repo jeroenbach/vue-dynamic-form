@@ -1,10 +1,29 @@
 <script lang="ts" setup>
-import { ref } from 'vue';
-import { DynamicForm } from '@bach.software/vue-dynamic-form';
-import { ElementPlusDynamicForm } from '@bach.software/vue-dynamic-form-element-plus';
+import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
+import ElementPlusDynamicFormImplementation from '../components/ElementPlusDynamicFormImplementation.vue';
 import 'element-plus/dist/index.css';
 
-const formData = ref({});
+interface FormModel {
+  firstName: string;
+  email: string;
+  age: number;
+  profile: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  preferences: {
+    theme: string;
+    language: string;
+    notifications: boolean;
+    newsletter: boolean;
+  };
+  details: {
+    birthDate: Date;
+    rating: number;
+    satisfaction: number;
+  };
+}
 
 const basicMetadata = [
   {
@@ -124,6 +143,10 @@ const advancedMetadata = [
     ],
   },
 ];
+
+
+const { values } = useDynamicForm<FormModel>();
+
 </script>
 
 <template>
@@ -134,7 +157,7 @@ const advancedMetadata = [
     <div class="space-y-4">
       <h2 class="text-xl font-semibold">Basic Form</h2>
       <div class="border border-gray-200 rounded-lg p-4">
-        <DynamicForm :metadata="basicMetadata" :template="ElementPlusDynamicForm" />
+        <DynamicForm :metadata="basicMetadata" :template="ElementPlusDynamicFormImplementation" />
       </div>
     </div>
 
@@ -142,14 +165,14 @@ const advancedMetadata = [
     <div class="space-y-4">
       <h2 class="text-xl font-semibold">Advanced Form with All Components</h2>
       <div class="border border-gray-200 rounded-lg p-4">
-        <DynamicForm :metadata="advancedMetadata" :template="ElementPlusDynamicForm" />
+        <DynamicForm :metadata="advancedMetadata" :template="ElementPlusDynamicFormImplementation" />
       </div>
     </div>
 
     <!-- Form Data Display -->
     <div class="space-y-4">
       <h2 class="text-xl font-semibold">Form Data (JSON)</h2>
-      <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">{{ JSON.stringify(formData, null, 2) }}</pre>
+      <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">{{ JSON.stringify(values, null, 2) }}</pre>
     </div>
   </div>
 </template>

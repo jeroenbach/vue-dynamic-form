@@ -5,6 +5,8 @@ import {
   DynamicFormTemplate,
 } from '@bach.software/vue-dynamic-form';
 import {
+  CascaderValue,
+  CheckboxValueType,
   ElButton,
   ElCascader,
   ElCheckbox,
@@ -24,11 +26,32 @@ import {
   ElTimePicker,
   ElTransfer,
   ElUpload,
+  TransferKey,
 } from 'element-plus';
 
 export type Metadata = GetMetadataType<typeof metadata>;
 
-interface ExtendedProperties {
+const metadata = defineMetadata<
+  {
+    text: string
+    select: string | number
+    checkbox: CheckboxValueType
+    radio: string | number | boolean | undefined
+    date: string
+    time: string
+    datetime: string
+    'switch': string | number | boolean
+    number: number | undefined
+    rate: number
+    slider: number | number[]
+    color: string | null
+    cascader: CascaderValue | null | undefined
+    transfer: TransferKey[]
+    upload: any[]
+    heading: never
+    divider: never
+  },
+  {
   label?: string
   placeholder?: string
   options?: { label: string, value: string | number }[]
@@ -59,31 +82,7 @@ interface ExtendedProperties {
   autoUpload?: boolean
   showFileList?: boolean
 }
-
-const metadata = defineMetadata(
-  [
-    'text',
-    'select',
-    'checkbox',
-    'radio',
-    'date',
-    'time',
-    'datetime',
-    'switch',
-    'number',
-    'rate',
-    'slider',
-    'color',
-    'cascader',
-    'transfer',
-    'upload',
-    'heading',
-    'divider',
-    'input',
-    'children',
-  ],
-  {} as ExtendedProperties,
-);
+>();
 </script>
 
 <template>
@@ -92,47 +91,57 @@ const metadata = defineMetadata(
     <template #choice />
 
     <!-- Default wrapper with form item -->
-    <template #default="{ field }">
-      <ElFormItem
-        :label="field.label"
-        :size="field.size"
-        :required="(field.minOccurs ?? 0) > 0"
-      >
-        <slot name="input" />
-      </ElFormItem>
+    <template #default="slotProps">
+      <slot name="default" v-bind="slotProps">
+        <ElFormItem
+          :label="slotProps.field.label"
+          :size="slotProps.field.size"
+          :required="slotProps.isRequired"
+        >
+          <slot name="input" />
+        </ElFormItem>
+      </slot>
     </template>
 
     <!-- Default input fallback -->
-    <template #default-input="{ field }">
-      <ElInput
-        :placeholder="field.placeholder"
-        :disabled="field.disabled"
-        :readonly="field.readonly"
-        :size="field.size"
-        :clearable="field.clearable"
-      />
+    <template #default-input="slotProps">
+      <slot name="default-input" v-bind="slotProps">
+        <ElInput
+          :modelValue="slotProps.value"
+          :placeholder="slotProps.field.placeholder"
+          :disabled="slotProps.field.disabled"
+          :readonly="slotProps.field.readonly"
+          :size="slotProps.field.size"
+          :clearable="slotProps.field.clearable"
+          @update:modelValue="slotProps.update"
+        />
+      </slot>
     </template>
 
     <!-- Text input -->
-    <template #text-input="{ field }">
+    <template #text-input="{ field, value, update }">
       <ElInput
+        :modelValue="value"
         :placeholder="field.placeholder"
         :disabled="field.disabled"
         :readonly="field.readonly"
         :size="field.size"
         :clearable="field.clearable"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- Select -->
-    <template #select-input="{ field }">
+    <template #select-input="{ field, value, update }">
       <ElSelect
+        :modelValue="value"
         :placeholder="field.placeholder"
         :disabled="field.disabled"
         :size="field.size"
         :clearable="field.clearable"
         :filterable="field.filterable"
         :multiple="field.multiple"
+        @update:modelValue="update"
       >
         <ElOption
           v-for="option in field.options"
@@ -150,20 +159,24 @@ const metadata = defineMetadata(
       </div>
     </template>
 
-    <template #checkbox-input="{ field }">
+    <template #checkbox-input="{ field, value, update }">
       <ElCheckbox
+        :modelValue="value"
         :disabled="field.disabled"
         :size="field.size"
+        @update:modelValue="update"
       >
         {{ field.label }}
       </ElCheckbox>
     </template>
 
     <!-- Radio Group -->
-    <template #radio-input="{ field }">
+    <template #radio-input="{ field, value, update }">
       <ElRadioGroup
+        :modelValue="value"
         :disabled="field.disabled"
         :size="field.size"
+        @update:modelValue="update"
       >
         <ElRadio
           v-for="option in field.options"
@@ -176,8 +189,9 @@ const metadata = defineMetadata(
     </template>
 
     <!-- Date picker -->
-    <template #date-input="{ field }">
+    <template #date-input="{ field, value, update }">
       <ElDatePicker
+        :modelValue="value"
         :type="field.type || 'date'"
         :placeholder="field.placeholder"
         :disabled="field.disabled"
@@ -185,26 +199,30 @@ const metadata = defineMetadata(
         :size="field.size"
         :clearable="field.clearable"
         :format="field.format"
-        :value-format="field.valueFormat"
+        :valueFormat="field.valueFormat"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- Time picker -->
-    <template #time-input="{ field }">
+    <template #time-input="{ field, value, update }">
       <ElTimePicker
+        :modelValue="value"
         :placeholder="field.placeholder"
         :disabled="field.disabled"
         :readonly="field.readonly"
         :size="field.size"
         :clearable="field.clearable"
         :format="field.format"
-        :value-format="field.valueFormat"
+        :valueFormat="field.valueFormat"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- DateTime picker -->
-    <template #datetime-input="{ field }">
+    <template #datetime-input="{ field, value, update }">
       <ElDatePicker
+        :modelValue="value"
         type="datetime"
         :placeholder="field.placeholder"
         :disabled="field.disabled"
@@ -212,7 +230,8 @@ const metadata = defineMetadata(
         :size="field.size"
         :clearable="field.clearable"
         :format="field.format"
-        :value-format="field.valueFormat"
+        :valueFormat="field.valueFormat"
+        @update:modelValue="update"
       />
     </template>
 
@@ -224,16 +243,19 @@ const metadata = defineMetadata(
       </div>
     </template>
 
-    <template #switch-input="{ field }">
+    <template #switch-input="{ field, value, update }">
       <ElSwitch
+        :modelValue="value"
         :disabled="field.disabled"
         :size="field.size"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- Number input -->
-    <template #number-input="{ field }">
+    <template #number-input="{ field, value, update }">
       <ElInputNumber
+        :modelValue="value"
         :placeholder="field.placeholder"
         :disabled="field.disabled"
         :readonly="field.readonly"
@@ -242,42 +264,50 @@ const metadata = defineMetadata(
         :max="field.max"
         :step="field.step"
         :precision="field.precision"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- Rate -->
-    <template #rate-input="{ field }">
+    <template #rate-input="{ field, value, update }">
       <ElRate
+        :modelValue="value"
         :disabled="field.disabled"
         :max="field.max || 5"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- Slider -->
-    <template #slider-input="{ field }">
+    <template #slider-input="{ field, value, update }">
       <ElSlider
+        :modelValue="value"
         :disabled="field.disabled"
         :min="field.min"
         :max="field.max"
         :step="field.step"
-        :show-stops="field.showStops"
+        :showStops="field.showStops"
         :range="field.range"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- Color picker -->
-    <template #color-input="{ field }">
+    <template #color-input="{ field, value, update }">
       <ElColorPicker
+        :modelValue="value"
         :disabled="field.disabled"
         :size="field.size"
-        :show-alpha="field.showAlpha"
-        :color-format="field.colorFormat"
+        :showAlpha="field.showAlpha"
+        :colorFormat="field.colorFormat"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- Cascader -->
-    <template #cascader-input="{ field }">
+    <template #cascader-input="{ field, value, update }">
       <ElCascader
+        :modelValue="value"
         :options="field.options"
         :props="field.props"
         :placeholder="field.placeholder"
@@ -285,27 +315,32 @@ const metadata = defineMetadata(
         :size="field.size"
         :clearable="field.clearable"
         :filterable="field.filterable"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- Transfer -->
-    <template #transfer-input="{ field }">
+    <template #transfer-input="{ field, value, update }">
       <ElTransfer
+        :modelValue="value"
         :data="field.data"
-        :target-keys="field.targetKeys"
+        :targetKeys="field.targetKeys"
         :filterable="field.filterable"
+        @update:modelValue="update"
       />
     </template>
 
     <!-- Upload -->
-    <template #upload-input="{ field }">
+    <template #upload-input="{ field, value, update }">
       <ElUpload
+        :modelValue="value"
         :action="field.action"
         :accept="field.accept"
-        :list-type="field.listType"
-        :auto-upload="field.autoUpload"
-        :show-file-list="field.showFileList"
+        :listType="field.listType"
+        :autoUpload="field.autoUpload"
+        :showFileList="field.showFileList"
         :disabled="field.disabled"
+        @update:modelValue="update"
       >
         <ElButton :size="field.size" :disabled="field.disabled">
           Click to upload

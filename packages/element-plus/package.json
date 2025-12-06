@@ -4,13 +4,13 @@
   "version": "0.1.0",
   "description": "Element Plus components for Vue Dynamic Form",
   "author": "Jeroen Bach <jeroen@bach.software> (https://bach.software)",
-  "homepage": "https://github.com/jeroenbach/dynamic-form",
+  "homepage": "https://github.com/jeroenbach/vue-dynamic-form",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jeroenbach/dynamic-form.git"
+    "url": "git+https://github.com/jeroenbach/vue-dynamic-form.git"
   },
   "bugs": {
-    "url": "https://github.com/jeroenbach/dynamic-form/issues"
+    "url": "https://github.com/jeroenbach/vue-dynamic-form/issues"
   },
   "keywords": [
     "dynamic-form",

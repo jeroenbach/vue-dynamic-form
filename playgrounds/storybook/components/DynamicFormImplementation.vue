@@ -7,15 +7,18 @@ import {
 
 export type Metadata = GetMetadataType<typeof metadata>;
 
-interface ExtendedProperties {
-  label?: string
-  options?: { key: string, value: string }[]
-}
-
-const metadata = defineMetadata(
-  ['text', 'select', 'checkbox', 'heading', 'input', 'children'],
-  {} as ExtendedProperties,
-);
+const metadata = defineMetadata<
+  {
+    text: string;
+    select: string;
+    checkbox: boolean;
+    heading: never;
+  },
+  {
+    label?: string
+    options?: { key: string, value: string }[]
+  }
+>();
 </script>
 
 <template>
@@ -28,9 +31,6 @@ const metadata = defineMetadata(
         <slot name="input" />
       </div>
     </template>
-    <template #default-input>
-      <input type="text" class="bg-blue-200">
-    </template>
     <template #heading="{ field }">
       <div class="mt-4">
         <h3 class="text-xl font-bold">
@@ -39,24 +39,27 @@ const metadata = defineMetadata(
         <slot name="children" />
       </div>
     </template>
-    <template #checkbox="{ field }">
+    <template #checkbox="{ field, update, value }">
       <div>
         <label>{{ field.label }}</label>
         <slot name="input" />
       </div>
     </template>
-    <template #text-input>
-      <input type="text" class="bg-gray-200">
+    <template #text-input="{ value, update, type }">
+      <input type="text" class="bg-gray-200" :value="value" @input="event => update((event.target as HTMLInputElement).value)">
     </template>
-    <template #select-input="{ field }">
+    <template #select-input="{ field, value, update }">
       <select class="bg-gray-200">
         <option v-for="{ key, value } in field.options" :key="key" :value="key">
           {{ value }}
         </option>
       </select>
     </template>
-    <template #checkbox-input>
-      <input type="checkbox" class="bg-gray-200">
+    <template #checkbox-input="{ value, update }">
+      <input type="checkbox" class="bg-gray-200" :checked="value" @change="event => update((event.target as HTMLInputElement).checked)" />
+    </template>
+    <template #default-input="{ value, update }">
+      <input type="text" class="bg-blue-200" :value="value" @input="event => update((event.target as HTMLInputElement).value)">
     </template>
   </DynamicFormTemplate>
 </template>

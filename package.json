@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "postinstall": "cd playgrounds/storybook && pnpm install --ignore-workspace",
-    "dev": "cd packages/core && pnpm build:watch & cd playgrounds/storybook && pnpm dev",
+    "dev": "pnpm build:watch & cd playgrounds/storybook && pnpm dev",
     "build": "pnpm -r build",
-    "build:watch": "cd packages/core && pnpm build:watch",
+    "build:watch": "pnpm -r --parallel build:watch",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",

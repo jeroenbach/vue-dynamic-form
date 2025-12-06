@@ -34,7 +34,6 @@
   ],
   "scripts": {
     "check-updates": "pnpm dlx npm-check-updates -i --format group",
-    "dev": "pnpm build:watch & cd ./playgrounds/storybook && pnpm dev",
     "build": "vite build && vue-tsc --emitDeclarationOnly && tsc-alias",
     "build:watch": "vite build --watch & vue-tsc --emitDeclarationOnly --watch & tsc-alias --watch",
     "typecheck": "vue-tsc --noEmit",
