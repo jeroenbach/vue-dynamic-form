@@ -1,4 +1,4 @@
-import { RuleExpression } from 'vee-validate';
+import type { RuleExpression } from 'vee-validate';
 import type { WatchSource } from 'vue';
 
 export type FieldMetadata<
@@ -38,7 +38,7 @@ export type FieldMetadata<
   /**
    * Validation rules that should be applied to this field.
    */
-  validation?: RuleExpression<unknown>,
+  validation?: RuleExpression<unknown>
   children?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[]
   /**
    * Choice is similar to children, with the difference that only one of the items in the array
@@ -142,28 +142,32 @@ export type FieldMetadata<
   parent?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>
 
   /**
-   * You can add methods that transform the field metadata based on other external values.
-   * Make sure to include the reactive value's in your function, so that the function is re-evaluated once
-   * the value changes (internally we use a computed that is re-valuated when one of the used reactive values is changed).
-   * This way we can for example change the property minOccurs to 1 (required) if another field has a value or change one of the ExtendedAttributes.
+   * A list of functions that are executed inside a computed. This means that if you have links to computed, refs, etc,
+   * these functions will be re-evaluated once one of the used reactive values changes.
+   * This way you can create dynamic field metadata that changes based on other values in the form.
    *
    * @param thisField the reactive & cloned current MetadataField that can be changed.
    * @returns A transformed FieldMetadata
    */
   transformReactively?: ((
-    thisField: Omit<
-      FieldMetadata<ExtendedFieldTypes, ExtendedProperties>,
-      | 'name' // At this point name will always be present
+    thisField: TransformReactivelyType<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>,
+    fieldValue?: WatchSource<unknown>,
+  ) => TransformReactivelyType<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>)[]
+  /**
+   * To opt-in to having the reactive transformer re-evaluated on value changes, set this to true.
+   * This is useful when the transformation logic depends on the current value of the field.
+   */
+  transformOnValueChange?: boolean
+} & ExtendedProperties;
+
+export type TransformReactivelyType<T> = Omit<
+      T,
+      | 'name' // At this point name will always be present, so remove it
       // Not allowed to change the children, choice or attributes of this field, create a transform for those fields specifically
       | 'children'
       | 'choice'
       | 'attributes'
     > & {
+      // Add the name back as required
       name: string
-    },
-    fieldValue?: WatchSource<any>,
-  ) => Omit<
-    FieldMetadata<ExtendedFieldTypes, ExtendedProperties>,
-    'children'
-  >)[]
-} & ExtendedProperties;
+    };

@@ -6,9 +6,19 @@
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
+import { computed } from 'vue';
+import { overridePath } from '@/utils/overridePath';
 
 type Props = DynamicFormItemProps<InternalMetadata>;
-const { template, field } = defineProps<Props>();
+const props = defineProps<Props>();
+
+// The path of this field, while taking the override into consideration
+const path = computed(() => {
+  if (!props.field?.path)
+    return '';
+
+  return overridePath(props.field.path, props.pathOverride);
+});
 </script>
 
 <template>
@@ -17,7 +27,8 @@ const { template, field } = defineProps<Props>();
       <DynamicFormItem
         v-for="child in field.choice"
         :key="child.name"
-        :field="child as InternalMetadata"
+        :field="(child as InternalMetadata)"
+        :path-override="path"
         :template="template"
       />
     </template>

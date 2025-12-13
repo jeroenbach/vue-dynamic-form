@@ -23,10 +23,15 @@
     ".": {
       "types": "./dist/src/index.d.ts",
       "import": "./dist/vue-dynamic-form.es.js",
-      "require": "./dist/vue-dynamic-form.umd.js"
+      "require": "./dist/vue-dynamic-form.cjs.js"
+    },
+    "./examples": {
+      "types": "./dist/src/examples/index.d.ts",
+      "import": "./dist/examples.es.js",
+      "require": "./dist/examples.cjs.js"
     }
   },
-  "main": "./dist/vue-dynamic-form.umd.js",
+  "main": "./dist/vue-dynamic-form.cjs.js",
   "module": "./dist/vue-dynamic-form.es.js",
   "types": "./dist/src/index.d.ts",
   "files": [
@@ -56,8 +61,10 @@
     "@changesets/cli": "catalog:tooling",
     "@types/node": "catalog:types",
     "@vitejs/plugin-vue": "catalog:build",
+    "@vue/test-utils": "catalog:test",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
+    "jsdom": "catalog:test",
     "tsc-alias": "catalog:build",
     "typescript": "catalog:types",
     "vee-validate": "catalog:framework",

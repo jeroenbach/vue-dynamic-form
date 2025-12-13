@@ -3,38 +3,39 @@
   setup
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
+import type { WatchSource } from 'vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
-import type { FieldMetadata } from '@/types/FieldMetadata';
+import type { FieldMetadata, TransformReactivelyType } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
+import { useField } from 'vee-validate';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
+import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { normalizePath } from '@/utils/normalizePath';
 import { overridePath } from '@/utils/overridePath';
-import { useField } from 'vee-validate';
-import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 
 // #region Interfaces
 export interface Emit {
-  (e: 'update:modelValue', value: any, index?: number): void;
-  (e: 'addItem'): void;
-  (e: 'removeItem'): void;
+  (e: 'update:modelValue', value: unknown): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;
 // #endregion
 
-// #region Analytics: to test reactivity and prevent unnecessary rerenders.
-// They're not reactive to avoid infinite loops.
-let _analytics_renderCount = 0;
-let _analytics_constructValidationCount = 0;
-let _analytics_fieldChangedCount = 0;
-// #endregion
-
 // #region Props and State
 const props = defineProps<Props>();
-const emit = defineEmits<Emit>();
+const emits = defineEmits<Emit>();
+// #endregion
 
+// #region Analytics: to test reactivity and prevent unnecessary rerenders.
+// They're not reactive to avoid infinite loops.
+// eslint-disable-next-line prefer-const
+let _analytics_renderCount = 0;
+// eslint-disable-next-line prefer-const
+let _analytics_constructValidationCount = 0;
+let _analytics_fieldChangedCount = 0;
+let _analytics_fieldTransformCount = 0;
 // Elements without a path should be ignored, as they cannot be linked to a value in vee-validate
 const validElement = computed(() => !!props.field?.path);
 
@@ -45,7 +46,8 @@ const isFieldCollection = computed(
 
 // The path of this field, while taking the override into consideration
 const path = computed(() => {
-  if (!props.field?.path) return '';
+  if (!props.field?.path)
+    return '';
 
   return overridePath(props.field.path, props.pathOverride);
 });
@@ -71,7 +73,8 @@ const minOccurs = computed(() => {
     return props.minOccursOverride;
 
   // In case this element is part of an array field, make the field optional
-  if (props.partOfArrayField) return 0;
+  if (props.partOfArrayField)
+    return 0;
 
   return field.value?.minOccurs ?? 1;
 });
@@ -93,10 +96,11 @@ const { value, errorMessage } = validElement.value
   ? useField(normalizedPath, field.value?.validation)
   : { value: ref(null), errorMessage: ref(null) };
 
-  const initialUpdate = ref(true);
+const initialUpdate = ref(true);
 
+const isParent = computed(() => !!field.value?.children?.length);
 const isChoice = computed(() => !!field.value?.choice?.length);
-const isArray = computed(() => field.value?.maxOccurs > 1);
+const isArray = computed(() => maxOccurs.value > 1);
 
 // In case this field is optional, we also want to temporarily set the minOccurs to 0 (not required) of the children of this field.
 // if this field is optional and none of the children have values yet. Then all required validation
@@ -104,13 +108,16 @@ const isArray = computed(() => field.value?.maxOccurs > 1);
 const _minOccursOverride = computed(() => {
   // If one of it's parents has set the override, pass it down
   // But only if it's set to 0
-  if (props.minOccursOverride === 0) return props.minOccursOverride;
+  if (props.minOccursOverride === 0)
+    return props.minOccursOverride;
 
   // If the field is required, don't bother continuing (as we don't need to override anything)
-  if (minOccurs.value > 0) return undefined;
+  if (minOccurs.value > 0)
+    return undefined;
 
   // So the field is optional, now check whether there is a value in it
-  if (checkTreeHasValue(value.value)) return undefined;
+  if (checkTreeHasValue(value.value))
+    return undefined;
 
   // No value and the field is optional, set the children to minOccurs = 0 (optional)
   return 0;
@@ -125,16 +132,45 @@ const showAttributes = computed(
   () => field.value?.attributes?.length && checkTreeHasValue(value.value),
 );
 
+/**
+ * In case of an object, the useFieldValue() in vee-validate doesn't react on an update of a value of its children.
+ * Therefore we keep track of an reactive value, that is updated by the children.
+ */
+const readOnlyValue = ref();
+
+const transformedField = computed(() => {
+  _analytics_fieldTransformCount++;
+
+  // We allow to transform the field metadata reactively based on the current value.
+  // To do this we set the value using a readOnlyValue ref. Every time the ref is updated, this transformField is re-executed.
+  // If we don't set the value with the ref, the link is never made and this computed is not re-excuted on value changes.
+  let value: WatchSource<unknown>;
+  if (props.field.transformOnValueChange === true) {
+    value = readOnlyValue.value;
+  }
+
+  const _transformedField = (props.field.transformReactively ?? []).reduce(
+    (field, transformer) => transformer(field, value),
+    {
+      ...props.field,
+      transformReactively: [...(props.field.transformReactively ?? [])],
+    } as TransformReactivelyType<FieldMetadata>,
+  );
+
+  _transformedField.path = path.value;
+
+  return _transformedField as InternalMetadata; // convert back to normal (stop pretending to not have any children)
+});
 // #endregion
 
 // #region Watchers and lifecycle events
 // We watch the value because it can also be updated by other vee-validate methods
 watch(
   value,
-  v => {
+  (v) => {
     // Don't update the parent if the initial value is empty
     if (!initialUpdate.value || v) {
-      emit('update:modelValue', v, props.index);
+      emits('update:modelValue', v);
     }
 
     initialUpdate.value = false;
@@ -149,7 +185,7 @@ onBeforeUnmount(() => {
   if (value.value !== undefined) {
     value.value = undefined;
     // The watch is not executed anymore at this point, therefore manually update the parents
-    emit('update:modelValue', value.value, props.index); 
+    emits('update:modelValue', value.value);
   }
 });
 
@@ -157,51 +193,74 @@ onBeforeUnmount(() => {
 
 // #region Methods
 
-function setFieldValue(_value: unknown){
+function setFieldValue(_value: unknown) {
   // In case of an empty value, remove the element from the parent object by setting it to undefined
   value.value = _value === '' ? undefined : _value; // the watch will emit the update:modelValue
+
+  emits('update:modelValue', value.value);
 }
+
+function updateReadOnlyValue(value: any) {
+  readOnlyValue.value = value;
+  emits('update:modelValue', value);
+};
 
 // #endregion
 </script>
 
-<template>  
+<template>
   <div v-if="analytics" v-show="false">
     <span :data-testid="`${path}-analytics-render-count`">{{
       ++_analytics_renderCount
     }}</span>
   </div>
   <template v-if="isChoice">
-    <component :is="template" type="choice" :field="field">
-      <template #children>
-        <DynamicFormItemChoice :field="field" :template="template" />
-      </template>
-    </component>
+    <DynamicFormItemChoice
+      v-bind="props"
+      :field="transformedField" :template="template"
+      :path-override="path"
+      @update:model-value="updateReadOnlyValue"
+    />
   </template>
   <template v-else-if="isArray">
-    <component :is="template" type="array" :field="field">
-      <template #children>
-        <DynamicFormItemArray :field="field" :template="template" />
+    <DynamicFormItemArray
+      v-bind="props"
+      :field="transformedField"
+      :path-override="path"
+      @update:model-value="updateReadOnlyValue"
+    />
+  </template>
+  <template v-else-if="isParent">
+    <component :is="template" v-bind="props" :type="transformedField.type" :field="transformedField">
+      <template #children="templateAttrs">
+        <DynamicFormItem
+          v-for="child in transformedField.children"
+          :key="child.path"
+          :field="(child as InternalMetadata)"
+          :path-override="path"
+          :template
+          :template-attrs
+          @update:model-value="updateReadOnlyValue"
+        />
       </template>
     </component>
   </template>
   <template v-else>
-    <component :is="template" :type="field.type" :field="field">
-      <template #input>
+    <component
+      :is="template"
+      v-bind="props"
+      :type="transformedField.type"
+      :field="transformedField"
+    >
+      <template #input="templateAttrs">
         <component
           :is="template"
-          :type="`${field.type}-input`"
-          :field="field"
+          v-bind="props"
+          :type="`${transformedField.type}-input`"
+          :field="transformedField"
           :value="value"
+          :template-attrs
           :update="setFieldValue"
-        />
-      </template>
-      <template #children>
-        <DynamicFormItem
-          v-for="child in field.children"
-          :key="child.path"
-          :field="(child as InternalMetadata)"
-          :template="template"
         />
       </template>
     </component>

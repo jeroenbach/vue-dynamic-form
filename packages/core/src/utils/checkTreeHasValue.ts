@@ -6,7 +6,7 @@
  * @param element Data structure to analyze (supports primitives, objects, arrays)
  * @returns Boolean indicating presence of non-nullish values
  */
-export const checkTreeHasValue = (element: unknown): boolean => {
+export function checkTreeHasValue(element: unknown): boolean {
   if (element === null || element === undefined) {
     return false;
   }
@@ -19,4 +19,4 @@ export const checkTreeHasValue = (element: unknown): boolean => {
   }
 
   return true;
-};
+}

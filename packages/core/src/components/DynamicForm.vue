@@ -6,6 +6,7 @@ import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 import { computed, ref } from 'vue';
 
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
+import { setInPath } from '@/utils/setInPath';
 
 // #region Interfaces
 export interface DynamicFormProps<Metadata extends FieldMetadata> {
@@ -17,31 +18,25 @@ export interface Emit {
 }
 // #endregion
 
-// #region Analytics
-/**
- * Some analytics variables to test the reactivity, as we want to make sure we don't cause any unnecessary
- * updates. We don't make them reactive as we don't want to create infinite loops.
- */
-let _analytics_fieldTransformCount = 0;
-// #endregion
-
 // #region Props and State
 defineOptions({ name: 'DynamicForm', inheritAttrs: false });
 
-const { metadata, template } = defineProps<DynamicFormProps<Metadata>>();
-const emit = defineEmits<Emit>();
+const props = defineProps<DynamicFormProps<Metadata>>();
+const emits = defineEmits<Emit>();
+
+const readOnlyValue = ref();
 
 const metadataAsArray = computed(() =>
-  Array.isArray(metadata) ? metadata : [metadata],
+  Array.isArray(props.metadata) ? props.metadata : [props.metadata],
 );
 
 const metadataWithDefaults = computed(() =>
-  metadataAsArray.value?.map((x, index) => correctMetadataAndSetDefaults(x, index)),
+  metadataAsArray.value?.map((x, index) => correctMetadataAndSetDefaults(x, index)) ?? [],
 );
 
 const typedTemplate = computed(
   () =>
-    template as DefineComponent<
+    props.template as DefineComponent<
       object,
       object,
       {
@@ -54,11 +49,6 @@ const typedTemplate = computed(
     >,
 );
 
-/**
- * In case of an object, the useFieldValue() in vee-validate doesn't react on an update of a value of its children.
- * Therefore we keep track of an reactive value, that is updated by the children.
- */
-const readOnlyValue = ref();
 // #endregion
 
 // #region Methods
@@ -71,12 +61,14 @@ function correctMetadataAndSetDefaults(
   if (!field)
     return field;
 
-  const backupName = `field-${index}`;
+  const fieldName = field.name ?? `field-${index}`;
+  // Construct the path with the parent path, unless we specify an override
+  const fieldPath = field.path ?? [parent?.path, fieldName].filter(Boolean).join('.');
   const copy: InternalFieldMetadata<Metadata> = {
     // Set defaults
-    name: backupName,
+    name: fieldName,
+    path: fieldPath,
     type: 'text', // Default type
-    path: field.name ?? backupName,
     minOccurs: 1, // by default required
     maxOccurs: 1, // by default not repeatable
 
@@ -100,9 +92,18 @@ function correctMetadataAndSetDefaults(
   return copy;
 }
 
-function updateReadOnlyValue(value: any){
-  readOnlyValue.value = value;
-  emit('update:modelValue', value);
+function updateReadOnlyValue(value: any, path?: string) {
+  if (path) {
+    // Ensure readOnlyValue is an object if we're setting a path
+    if (!readOnlyValue.value || typeof readOnlyValue.value !== 'object') {
+      readOnlyValue.value = {};
+    }
+    setInPath(readOnlyValue.value, path, value);
+  }
+  else {
+    readOnlyValue.value = value;
+  }
+  emits('update:modelValue', readOnlyValue.value);
 };
 
 // #endregion
@@ -113,6 +114,7 @@ function updateReadOnlyValue(value: any){
     v-for="field in metadataWithDefaults"
     :key="field.name"
     :template="typedTemplate"
-    :field="field as InternalFieldMetadata<FieldMetadata>"
+    :field="(field as InternalFieldMetadata<FieldMetadata>)"
+    @update:model-value="updateReadOnlyValue"
   />
 </template>

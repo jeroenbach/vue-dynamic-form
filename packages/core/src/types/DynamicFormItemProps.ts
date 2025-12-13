@@ -16,9 +16,9 @@ export interface DynamicFormItemProps<
       array?: ((props: object) => any) | undefined
     }
   >
-  field: InternalMetadata,
+  field: InternalMetadata
   /**
-   * In case a parent can occur multiple times, its path will have an index in it. 
+   * In case a parent can occur multiple times, its path will have an index in it.
    * This needs to be passed to the child items so they can adjust their own path accordingly.
    *
    * Example scenario:
@@ -27,7 +27,7 @@ export interface DynamicFormItemProps<
    * - Result: root.collections[3].item.nested.deepItems
    * Full path specification is unnecessary; partial override suffices.
    */
-  pathOverride?: string;
+  pathOverride?: string
   /**
    * Runtime adjustment of minimum occurrence constraint for this field.
    * Controls requirement level: 0 makes optional, 1 enforces presence, higher values demand repetition.
@@ -35,7 +35,7 @@ export interface DynamicFormItemProps<
    * For example: Conditional sections where child validation activates only after
    * user interaction with any descendant field.
    */
-  minOccursOverride?: number;
+  minOccursOverride?: number
   /**
    * Runtime adjustment of maximum occurrence constraint for this field.
    * Values exceeding 1 transform the field into a repeatable collection with multiple instances.
@@ -43,26 +43,30 @@ export interface DynamicFormItemProps<
    * For example: Within choice groups, disable add button when any option
    * reaches the shared occurrence limit.
    */
-  maxOccursOverride?: number;
+  maxOccursOverride?: number
   /**
    * In case this field is part of a array field, it needs to co-operate with that array field and
    * mark all children optional if no value has been filled in.
    */
-  partOfArrayField?: boolean;
+  partOfArrayField?: boolean
   /**
    * In case this field is part of a choice field, it needs to co-operate with that choice field and
    * behave differently in some situations.
    */
-  partOfChoiceField?: boolean;
+  partOfChoiceField?: boolean
   /**
    * Enables diagnostic data output via concealed DOM elements for reactivity testing
    */
-  analytics?: boolean;
-  
+  analytics?: boolean
+
   /**
    * In case this item is part of a field array, we need some extra info
    */
-  index?: number;
-  canAdd?: boolean;
-  canRemove?: boolean;
+  index?: number
+  canAddItems?: boolean
+  canRemoveItems?: boolean
+  addItem?: () => void
+  removeItem?: (index?: number) => void
+
+  templateAttrs?: object
 }

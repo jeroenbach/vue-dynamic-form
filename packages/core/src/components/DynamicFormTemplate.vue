@@ -6,6 +6,7 @@
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { MetadataConfiguration } from '@/types/MetadataConfiguration';
 import { computed, useAttrs } from 'vue';
+import { camelize } from '@/utils/camelize';
 
 // #region Interface
 export interface DynamicFormConfigurationProps<
@@ -20,7 +21,7 @@ export interface DynamicFormConfigurationProps<
 
 /**
  * We define the attributes here instead of the props. This way the user don't see them
- * when using the DynamicFormConfiguration component. 
+ * when using the DynamicFormConfiguration component.
  * The attributes will be passed internally by the other components of the library.
  */
 export interface Attributes<
@@ -41,6 +42,11 @@ export interface Attributes<
   index: number
   canAddItems: boolean
   canRemoveItems: boolean
+  /**
+   * You can provide additional attributes to the slots in your template. They will be passed to the
+   * component below.
+   */
+  templateAttrs: object
   addItem: () => void
   removeItem: () => void
   update: (value: FieldType extends keyof TMetadataConfiguration['valueTypes']
@@ -77,12 +83,21 @@ type SlotsFromMetadata = {
 // #region State
 defineOptions({ name: 'DynamicFormTemplate', inheritAttrs: false });
 defineProps<Props>();
-const attrs = useAttrs() as unknown as Attributes<TMetadataConfiguration>;
-
 const slots = defineSlots<SlotsFromMetadata>();
 
+const rawAttrs = useAttrs();
+
+// Convert kebab-case attributes to camelCase
+const attrs = computed(() => {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(rawAttrs)) {
+    result[camelize(key)] = value;
+  }
+  return result as unknown as Attributes<TMetadataConfiguration>;
+});
+
 const typeWithFallback = computed(() => {
-  const type = attrs.type || 'default';
+  const type = attrs.value.type || 'default';
   if (type && slots[type]) {
     return type;
   }
@@ -97,8 +112,9 @@ const typeWithFallback = computed(() => {
 </script>
 
 <template>
-  <slot v-if="attrs.field"
-  :name="typeWithFallback"
-  v-bind="attrs"
-   />
+  <slot
+    v-if="attrs.field"
+    :name="typeWithFallback"
+    v-bind="attrs"
+  />
 </template>

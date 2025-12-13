@@ -16,8 +16,9 @@
  * @param overrideWithPath Replacement path that will substitute initial segments
  * @returns Modified path with replaced segments
  */
-export const overridePath = (path: string, overrideWithPath: string | undefined) => {
-  if (!path || !overrideWithPath) return path;
+export function overridePath(path: string, overrideWithPath: string | undefined) {
+  if (!path || !overrideWithPath)
+    return path;
 
   // Split both paths and substitute leading segments from the replacement path
   const parentSegments = overrideWithPath.split('.') ?? [];
@@ -26,4 +27,4 @@ export const overridePath = (path: string, overrideWithPath: string | undefined)
     childSegments[index] = parentSegments[index];
   }
   return childSegments.join('.');
-};
+}

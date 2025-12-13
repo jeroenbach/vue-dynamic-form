@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import type { Metadata } from '../components/DynamicFormImplementation.vue';
-import { DynamicForm, useDynamicForm,  } from '@bach.software/vue-dynamic-form';
+import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { reactive, ref } from 'vue';
-import DynamicFormImplementation from '../components/DynamicFormImplementation.vue';
+
+import SimpleDynamicFormImplementation from '../components/DynamicFormImplementation.vue';
 
 const loadedOptions = reactive<
   Partial<Record<string, { key: string, value: string }[]>>
@@ -16,19 +17,19 @@ loadedOptions.select = [
 ];
 //
 
-interface FormModel{
-  text: string,
-  select: string,
-  checkbox: boolean,
-  'weird name': string,
-  heading2: {
+interface FormModel {
+  'text': string
+  'select': string
+  'checkbox': boolean
+  'weird name': string
+  'heading2': {
     textComplexType: {
-      value: string,
-    },
+      value: string
+    }
     textAutomaticComplexType: {
-      value: string,
-      certainty: string,
-    },
+      value: string
+      certainty: string
+    }
   }
 }
 
@@ -72,7 +73,8 @@ const metadata: Metadata[] = [
             label: 'Text Input 2',
             type: 'text',
             isComplexType: true,
-          },{
+          },
+          {
             name: 'textNotComplexType',
             label: 'Text Input 3',
             type: 'text',
@@ -106,11 +108,10 @@ const modelValue = ref<FormModel>();
 </script>
 
 <template>
-  <DynamicForm 
-  :template="DynamicFormImplementation" 
-  :metadata="metadata" 
-  @update:modelValue="modelValue = $event"
+  <DynamicForm
+    :template="SimpleDynamicFormImplementation"
+    :metadata="metadata"
+    @update:model-value="modelValue = $event"
   />
   <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">{{ JSON.stringify(values, null, 2) }}</pre>
-
 </template>

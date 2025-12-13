@@ -5,7 +5,7 @@
  * Simply pass an interface where keys are field names and values are the expected value types.
  * Use `never` for fields that don't hold values (like headings).
  * Note: you can't use the following reserved field names: 'input', 'children', 'choice', 'array'.
- * 
+ *
  * Use the extended properties to add custom metadata to each field definition. *
  * @returns Typed configuration object for DynamicFormTemplate consumption
  *
@@ -30,12 +30,12 @@ export function defineMetadata<
   ExtendedFieldProperties extends object,
 >() {
   // Reserved field identifiers that cannot be defined by the user
-  const exclude = ['input', 'children', 'choice', 'array'] as const;
-  const include = ['default'] as const;
+  type ExcludedFields = 'input' | 'children' | 'choice' | 'array';
+  type IncludeFields = 'default';
 
   type FieldTypeMetadata
-    = | Exclude<keyof FieldValueTypes, (typeof exclude)[number]>
-      | (typeof include)[number];
+    = | Exclude<keyof FieldValueTypes, ExcludedFields>
+      | IncludeFields;
 
   // Value types are directly from the generic parameter, default is always included and always a string
   type ValueTypeMap = FieldValueTypes & {

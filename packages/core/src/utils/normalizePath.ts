@@ -1,7 +1,7 @@
 /**
  * Helper function that converts a path with bracket notation to a dot notation.
  * When adding an extra path segment, we do this by using the bracket notation, i.e.: person['value'].
- * 
+ *
  * Vee-validate can't work with this notation, therefore this function fixes those cases.
  *
  * const actualPath = normalizePath(
@@ -12,5 +12,6 @@
  *
  * @param path to be normalized
  */
-export const normalizePath = (path: string) =>
-  path?.replaceAll(/\[[`'"](.*?)[`'"]\]/g, '.$1') ?? '';
+export function normalizePath(path: string) {
+  return path?.replaceAll(/\[[`'"](.*?)[`'"]\]/g, '.$1') ?? '';
+}
