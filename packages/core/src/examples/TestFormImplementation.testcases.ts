@@ -19,9 +19,9 @@ export const arrayTestCase = createTestCase([{
     { label: 'Optional field (max 3)', minOccurs: 0, maxOccurs: 3 },
     { label: 'Required field (max 3)', maxOccurs: 3 },
     { label: '2 Fields required', minOccurs: 2, maxOccurs: 4 },
-    { label: 'Section (2 sections required)', type: 'heading', minOccurs: 2, maxOccurs: 4, children: [
+    { label: 'Section (2 sections required)', type: 'heading', minOccurs: 2, maxOccurs: 4, fullWidth: true, children: [
       { label: 'Nested field 1' },
-      { label: 'Nested field 2', type: 'select', options: [
+      { label: 'Required Nested field 2', type: 'select', options: [
         { key: 'option1', value: 'Option 1' },
         { key: 'option2', value: 'Option 2' },
         { key: 'option3', value: 'Option 3' },
@@ -30,6 +30,69 @@ export const arrayTestCase = createTestCase([{
     ] },
   ],
 }]);
+
+export const groupTestCase = createTestCase([{
+  label: 'Grouped Fields',
+  type: 'heading',
+  children: [
+    { label: 'Required group', children: [
+      { label: 'Required Nested field 1', fullWidth: true },
+      { label: 'Required Nested field 2', fullWidth: true },
+    ] },
+    { label: 'Optional group', minOccurs: 0, description: `The group is optional, therefore the children will only be required once 1 value is filled in.
+      
+You can test it by filling in one of the fields.`, children: [
+      { label: 'Required Nested field 1', fullWidth: true },
+      { label: 'Required Nested field 2', fullWidth: true },
+    ] },
+  ],
+}, {
+  label: 'Grouped Array Fields',
+  type: 'heading',
+  children: [
+    { label: 'Required group', maxOccurs: 5, fullWidth: true, children: [
+      { label: 'Required Nested field 1' },
+      { label: 'Required Nested field 2' },
+    ] },
+    { label: 'Optional group', minOccurs: 0, maxOccurs: 5, fullWidth: true, children: [
+      { label: 'Required Nested field 1' },
+      { label: 'Required Nested field 2' },
+    ] },
+  ],
+}]);
+
+export const choiceTestCase = createTestCase([
+  {
+    label: 'Choice Fields (minOccurs 1, maxOccurs 1)',
+    type: 'heading',
+    children: [
+      { label: 'Simple Choice Field', fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
+        { label: 'Nested Field 1' },
+        { label: 'Nested Field 2' },
+      ] },
+    ],
+  },
+  {
+    label: 'Choice Grouped Fields (minOccurs 1, maxOccurs 3)',
+    type: 'heading',
+    children: [
+      { label: 'Array Choice Field', maxOccurs: 3, fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
+        { label: 'Nested Field 1', children: [{ label: 'Nested Child Field 1', fullWidth: true }, { label: 'Nested Child Field 2', fullWidth: true }] },
+        { label: 'Nested Field 2', children: [{ label: 'Nested Child Field 1', fullWidth: true }, { label: 'Nested Child Field 2', fullWidth: true }] },
+      ] },
+    ],
+  },
+  {
+    label: 'Choice Array Fields (minOccurs 1, maxOccurs 3)',
+    type: 'heading',
+    children: [
+      { label: 'Array Choice Field', maxOccurs: 3, fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
+        { label: 'Nested Field 1', maxOccurs: 3 },
+        { label: 'Nested Field 2', maxOccurs: 3 },
+      ] },
+    ],
+  },
+]);
 
 export function createTestCase(
   metadata: Metadata[],
@@ -84,7 +147,7 @@ export function createTestCase(
             :metadata
             @update:model-value="manualValues = $event"
           />
-          <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded" data-testid="submit">Submit</button>
+          <button type="submit" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded" data-testid="submit">Submit</button>
           <span v-if="isSubmitted" data-testid="isSubmitted" />
             <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
 // vee-validate updated values:  

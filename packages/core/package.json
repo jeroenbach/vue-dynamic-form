@@ -40,7 +40,7 @@
   "scripts": {
     "check-updates": "pnpm dlx npm-check-updates -i --format group",
     "build": "vite build && vue-tsc --emitDeclarationOnly && tsc-alias",
-    "build:watch": "vite build --watch",
+    "build:watch": "NODE_ENV=development vite build --watch",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint",
     "lint:fix": "eslint --fix",

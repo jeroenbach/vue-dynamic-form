@@ -6,8 +6,8 @@
 import type { WatchSource } from 'vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { FieldMetadata, TransformReactivelyType } from '@/types/FieldMetadata';
-import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 
+import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 import { useField } from 'vee-validate';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
@@ -36,6 +36,11 @@ let _analytics_renderCount = 0;
 let _analytics_constructValidationCount = 0;
 let _analytics_fieldChangedCount = 0;
 let _analytics_fieldTransformCount = 0;
+
+// #endregion
+
+// #region Computed properties and state
+
 // Elements without a path should be ignored, as they cannot be linked to a value in vee-validate
 const validElement = computed(() => !!props.field?.path);
 
@@ -100,7 +105,15 @@ const initialUpdate = ref(true);
 
 const isParent = computed(() => !!field.value?.children?.length);
 const isChoice = computed(() => !!field.value?.choice?.length);
-const isArray = computed(() => maxOccurs.value > 1);
+const isArray = computed(() => {
+  //
+  if (props.isArrayOverride)
+    return true;
+
+  // Check if we can occur multiple times, if yes, we're an array.
+  // This can not be reactive.
+  return maxOccurs.value > 1;
+});
 
 // In case this field is optional, we also want to temporarily set the minOccurs to 0 (not required) of the children of this field.
 // if this field is optional and none of the children have values yet. Then all required validation
@@ -127,6 +140,16 @@ const _minOccursOverride = computed(() => {
 const _maxOccursOverride = computed(() =>
   maxOccurs.value === 0 ? 0 : undefined,
 );
+
+const _canRemoveItems = computed(() => {
+  // If we're part of an array field and we have a value, we can always remove it.
+  // This way the user can just easily press the x button to clear any values.
+  if (props.partOfArrayField && checkTreeHasValue((value.value)))
+    return true;
+
+  // In all other cases, listen to the props
+  return props.canRemoveItems;
+});
 
 const showAttributes = computed(
   () => field.value?.attributes?.length && checkTreeHasValue(value.value),
@@ -217,7 +240,7 @@ function updateReadOnlyValue(value: any) {
   <template v-if="isChoice">
     <DynamicFormItemChoice
       v-bind="props"
-      :field="transformedField" :template="template"
+      :field="transformedField"
       :path-override="path"
       @update:model-value="updateReadOnlyValue"
     />
@@ -230,9 +253,22 @@ function updateReadOnlyValue(value: any) {
       @update:model-value="updateReadOnlyValue"
     />
   </template>
-  <template v-else-if="isParent">
-    <component :is="template" v-bind="props" :type="transformedField.type" :field="transformedField">
-      <template #children="templateAttrs">
+  <template v-else>
+    <component
+      :is="template"
+      :type="transformedField.type"
+      :field="transformedField"
+      :value="value"
+      :template-attrs
+      :is-required
+      :is-disabled
+      :can-add-items
+      :can-remove-items="_canRemoveItems"
+      :add-item
+      :remove-item
+      :update="setFieldValue"
+    >
+      <template v-if="isParent" #children="templateAttrs">
         <DynamicFormItem
           v-for="child in transformedField.children"
           :key="child.path"
@@ -240,26 +276,24 @@ function updateReadOnlyValue(value: any) {
           :path-override="path"
           :template
           :template-attrs
+          :min-occurs-override="_minOccursOverride"
+          :max-occurs-override="_maxOccursOverride"
           @update:model-value="updateReadOnlyValue"
         />
       </template>
-    </component>
-  </template>
-  <template v-else>
-    <component
-      :is="template"
-      v-bind="props"
-      :type="transformedField.type"
-      :field="transformedField"
-    >
-      <template #input="templateAttrs">
+      <template v-if="!isParent" #input="templateAttrs">
         <component
           :is="template"
-          v-bind="props"
           :type="`${transformedField.type}-input`"
           :field="transformedField"
           :value="value"
           :template-attrs
+          :is-required
+          :is-disabled
+          :can-add-items
+          :can-remove-items="_canRemoveItems"
+          :add-item
+          :remove-item
           :update="setFieldValue"
         />
       </template>

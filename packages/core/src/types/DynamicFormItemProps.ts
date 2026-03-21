@@ -55,6 +55,11 @@ export interface DynamicFormItemProps<
    */
   partOfChoiceField?: boolean
   /**
+   * We check the maxOccurs to see if the field is an Array. If we want to override this, we can do so with this property.
+   * In case the field is a child of a choice field, it needs to be made repeatable and we can set this to true.
+   */
+  isArrayOverride?: boolean
+  /**
    * Enables diagnostic data output via concealed DOM elements for reactivity testing
    */
   analytics?: boolean

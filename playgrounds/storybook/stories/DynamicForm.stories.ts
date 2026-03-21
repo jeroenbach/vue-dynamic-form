@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { arrayTestCase, defaultTestCase } from '@bach.software/vue-dynamic-form/examples';
+import { arrayTestCase, choiceTestCase, defaultTestCase, groupTestCase } from '@bach.software/vue-dynamic-form/examples';
 
 const meta = {
   title: 'Forms/DynamicForm',
@@ -23,6 +23,20 @@ export const Default: Story = {
 export const ArrayFields: Story = {
   render: () => ({
     components: { TestCase: arrayTestCase },
+    template: `<TestCase />`,
+  }),
+};
+
+export const GroupFields: Story = {
+  render: () => ({
+    components: { TestCase: groupTestCase },
+    template: `<TestCase />`,
+  }),
+};
+
+export const ChoiceFields: Story = {
+  render: () => ({
+    components: { TestCase: choiceTestCase },
     template: `<TestCase />`,
   }),
 };
