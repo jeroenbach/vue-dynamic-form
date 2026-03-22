@@ -5,20 +5,17 @@
 >
 import type { GenericValidateFunction } from 'vee-validate';
 import type { ComputedRef, WatchSource } from 'vue';
-import type { ValidationRule } from '@/core/validation';
-
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { ComputedPropsType, FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import type { FieldValidationMetaInfo, ValidationMessage } from '@/types/ValidationMessage';
-import { useField, validate } from 'vee-validate';
+import { useField } from 'vee-validate';
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
-import { resolveMessage, ruleParamNames } from '@/core/validation';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
+import { createValidation } from '@/utils/createValidation';
 import { normalizePath } from '@/utils/normalizePath';
 import { overridePath } from '@/utils/overridePath';
 import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
@@ -159,7 +156,6 @@ const combinedValidation = computed<GenericValidateFunction[]>(() => {
 
 const fieldContext = useField(normalizedPath, combinedValidation, field.value?.fieldOptions);
 const value = fieldContext.value;
-const errorMessage = fieldContext.errorMessage;
 
 const initialUpdate = ref(true);
 
@@ -247,7 +243,29 @@ const transformedField = computed(() => {
 // #endregion
 
 // #region Watchers and lifecycle events
-// We watch the value because it can also be updated by other vee-validate methods
+
+// Hook into the fieldContext.value to make sure that if it is an empty string we change the value to undefined.
+// This way the element is removed from the parent object.
+let _transforming = false;
+watch(value, (newValue) => {
+  // We need to use a guard flag, because we're updating the same value we're watching.
+  // Which would cause an endless loop
+  if (_transforming)
+    return;
+
+  _transforming = true;
+
+  // In case of an empty value, remove the element from the parent object by setting it to undefined
+  value.value = newValue === '' ? undefined : newValue;
+
+  _transforming = false;
+}, {
+  flush: 'sync', // we need to override the value before its used somewhere else
+});
+
+// We watch the value because it can also be updated by other vee-validate methods.
+// Every time its updated we let the parent know that the value has changed. This functionality is not present it
+// vee-validate, therefore we implemented manually.
 watch(
   value,
   (v) => {
@@ -275,42 +293,10 @@ onBeforeUnmount(() => {
 // #endregion
 
 // #region Methods
-
-function setFieldValue(_value: unknown) {
-  // In case of an empty value, remove the element from the parent object by setting it to undefined
-  value.value = _value === '' ? undefined : _value; // the watch will emit the update:modelValue
-
-  emits('update:modelValue', value.value);
-}
-
 function updateReadOnlyValue(value: any) {
   readOnlyValue.value = value;
   emits('update:modelValue', value);
 };
-
-/**
- * Creates a validation that uses a globally defined rule in our 'vdf' namespace.
- * When the validation fails we either show the message override from the settings.messages
- * or let the user override the message using the configure.generateMessage
- *
- * @param rule
- * @param param
- * @param customMessage
- */
-function createValidation(rule: ValidationRule, param?: unknown, customMessage?: ValidationMessage) {
-  // Build params as an object so both positional ({0}) and named ({length}, {min}, ...) placeholders work
-  const paramName = ruleParamNames[rule];
-  const params: Record<string, unknown> = param !== undefined
-    ? { 0: param, ...(paramName ? { [paramName]: param } : {}) }
-    : {};
-  return async (value: unknown, ctx: FieldValidationMetaInfo) => {
-    // Pass the field name so generateMessage receives the correct ctx.field (standalone validate() defaults to '{field}')
-    const result = await validate(value, param !== undefined ? { [rule]: param } : rule, { name: ctx.field });
-    if (result.valid)
-      return true;
-    return customMessage ? resolveMessage(customMessage, ctx, params) : result.errors[0];
-  };
-}
 
 // #endregion
 </script>
@@ -342,8 +328,6 @@ function createValidation(rule: ValidationRule, param?: unknown, customMessage?:
       :is="template"
       :type="transformedField.type"
       :field-metadata="transformedField"
-      :value
-      :error-message
       :field-context
       :template-attrs
       :required
@@ -352,7 +336,6 @@ function createValidation(rule: ValidationRule, param?: unknown, customMessage?:
       :can-remove-items="_canRemoveItems"
       :add-item
       :remove-item
-      :update="setFieldValue"
     >
       <template v-if="isParent" #children="templateAttrs">
         <DynamicFormItem
@@ -372,8 +355,6 @@ function createValidation(rule: ValidationRule, param?: unknown, customMessage?:
           :is="template"
           :type="`${transformedField.type}-input`"
           :field-metadata="transformedField"
-          :value
-          :error-message
           :field-context
           :template-attrs
           :required
@@ -382,7 +363,6 @@ function createValidation(rule: ValidationRule, param?: unknown, customMessage?:
           :can-remove-items="_canRemoveItems"
           :add-item
           :remove-item
-          :update="setFieldValue"
         />
       </template>
     </component>

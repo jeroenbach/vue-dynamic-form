@@ -77,7 +77,7 @@ function mapEachMetadataItem(metadata: Metadata, callbackFunc: (item: Metadata) 
         Cancel
       </button>
     </div>
-    <div v-if="Object.values(errors).length" data-testid="errors" class="col-12" style="color: #F8285A;">
+    <div v-if="Object.values(errors).length" data-testid="errors" class="col-12 text-red-600">
       Errors:
       <ul>
         <li v-for="(error, key) in errors" :key="key">

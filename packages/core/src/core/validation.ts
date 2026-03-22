@@ -1,9 +1,11 @@
 import { max, max_value, min, min_value, one_of, regex, required } from '@vee-validate/rules';
 import { defineRule } from 'vee-validate';
+import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 
 export { resolveMessage } from '@/utils/resolveMessage';
 
 export type ValidationRule = 'xsd_required'
+  | 'xsd_minOccurs'
   | 'xsd_minLength'
   | 'xsd_maxLength'
   | 'xsd_pattern'
@@ -19,6 +21,13 @@ export type ValidationRule = 'xsd_required'
 
 // XSD: required
 defineRule('xsd_required' as ValidationRule, required);
+
+// XSD: minOccurs — minimum number of array items that have a value
+defineRule('xsd_minOccurs' as ValidationRule, (value: unknown, [min]: [number]) => {
+  if (!Array.isArray(value))
+    return true;
+  return value.filter(checkTreeHasValue).length >= Number(min);
+});
 
 // XSD: minLength / maxLength — maps to vee-validate's min/max (string length)
 defineRule('xsd_minLength' as ValidationRule, min);
@@ -98,6 +107,7 @@ export const ruleParamNames: Partial<Record<ValidationRule, string>> = {
   xsd_maxExclusive: 'max',
   xsd_fractionDigits: 'digits',
   xsd_totalDigits: 'digits',
+  xsd_minOccurs: 'min',
   xsd_pattern: 'pattern',
   xsd_whiteSpace: 'mode',
 };

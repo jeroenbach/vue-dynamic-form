@@ -3,11 +3,14 @@
   setup
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
+import type { ComputedRef } from 'vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
+import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
+import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 
 // #region Interfaces
@@ -17,9 +20,10 @@ export interface Emit {
 type Props = DynamicFormItemProps<InternalMetadata>;
 // #endregion
 
-// #region Props and State
+// #region Props, Emits and inject
 const props = defineProps<Props>();
 const emits = defineEmits<Emit>();
+const settings = inject<ComputedRef<DynamicFormSettings>>(dynamicFormSettingsKey);
 // #endregion
 
 // #region Analytics: to test reactivity and prevent unnecessary rerenders.
@@ -252,9 +256,8 @@ function updateChildValue(
       <DynamicFormItem
         v-if="singleChild"
         :field-metadata="singleChild"
-        :path-override="pathOverride"
-        :template="template"
-        :analytics="analytics"
+        :path-override
+        :template
         :min-occurs-override="_minOccursOverride"
         :max-occurs-override="_maxOccursOverride"
         @update:model-value="updateChildValue($event, 0, singleChild!.maxOccurs, true)"
@@ -264,9 +267,8 @@ function updateChildValue(
           v-for="(child, index) in fieldMetadata.choice"
           :key="child.name"
           :field-metadata="(child as InternalMetadata)"
-          :path-override="pathOverride"
-          :template="template"
-          :analytics="analytics"
+          :path-override
+          :template
           :min-occurs-override="occurrences[index]?.overrideChildMinOccurrences"
           :max-occurs-override="occurrences[index]?.overrideChildMaxOccurrences"
           :is-array-override="childrenAreArrays"

@@ -13,10 +13,6 @@ export interface Props {
    */
   templateAttrs?: {
     hideLabel?: boolean
-    /**
-     * Example on how to keep track of the levels
-     */
-    level?: number
   }
 }
 
@@ -25,7 +21,6 @@ defineProps<Props>();
 const metadata = defineMetadata<
   {
     text: string
-    textBoundByHandleChange: string
     select: string
     checkbox: boolean
     heading: never
@@ -50,12 +45,12 @@ const metadata = defineMetadata<
         </h3>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
-          v-if="errorMessage.value"
+          v-if="errorMessage"
           class="text-red-600 text-sm"
           :data-testid="`${fieldMetadata.path}-error-message`"
-        >{{ errorMessage.value }}</span>
+        >{{ errorMessage }}</span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <slot name="children" :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot name="children" />
         </div>
       </div>
     </template>
@@ -66,14 +61,14 @@ const metadata = defineMetadata<
           {{ label }}
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
-          <slot name="children" :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot name="children" />
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
-          v-if="errorMessage.value"
+          v-if="errorMessage"
           class="text-red-600 text-sm"
           :data-testid="`${fieldMetadata.path}-error-message`"
-        >{{ errorMessage.value }}</span>
+        >{{ errorMessage }}</span>
       </div>
     </template>
 
@@ -86,10 +81,10 @@ const metadata = defineMetadata<
         <slot name="input" :hide-label="true" />
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
-          v-if="errorMessage.value"
+          v-if="errorMessage"
           class="text-red-600 text-sm"
           :data-testid="`${fieldMetadata.path}-error-message`"
-        >{{ errorMessage.value }}</span>
+        >{{ errorMessage }}</span>
       </div>
       <slot v-else name="input" />
     </template>
@@ -103,14 +98,14 @@ const metadata = defineMetadata<
           <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" color="red" @click="removeItem" />
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
-          <slot name="children" :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot name="children" />
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
-          v-if="errorMessage.value"
+          v-if="errorMessage"
           class="text-red-600 text-sm"
           :data-testid="`${fieldMetadata.path}-error-message`"
-        >{{ errorMessage.value }}</span>
+        >{{ errorMessage }}</span>
       </div>
       <!-- Otherwise load only the slot with the input -->
       <div v-else class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
@@ -123,10 +118,10 @@ const metadata = defineMetadata<
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
-          v-if="errorMessage.value"
+          v-if="errorMessage"
           class="text-red-600 text-sm"
           :data-testid="`${fieldMetadata.path}-error-message`"
-        >{{ errorMessage.value }}</span>
+        >{{ errorMessage }}</span>
       </div>
     </template>
 
@@ -144,10 +139,6 @@ const metadata = defineMetadata<
 
     <template #default-input="{ fieldMetadata, fieldContext: { value }, disabled }">
       <input :id="fieldMetadata.path" v-model="value.value" :disabled="fieldMetadata.disabled || disabled" type="text" class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm">
-    </template>
-
-    <template #textBoundByHandleChange-input="{ fieldMetadata, fieldContext: { value, handleChange }, disabled }">
-      <input :id="fieldMetadata.path" :value="value.value" :disabled="fieldMetadata.disabled || disabled" type="text" class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm" @input="handleChange">
     </template>
   </DynamicFormTemplate>
 </template>

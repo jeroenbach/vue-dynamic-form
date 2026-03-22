@@ -3,16 +3,23 @@
   setup
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
+import type { GenericValidateFunction } from 'vee-validate';
+import type { ComputedRef } from 'vue';
+import type { LimitedFieldContext } from '@/components/DynamicFormTemplate.vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
+import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { useSubmitCount, useValidateField } from 'vee-validate';
-import { computed, watch, watchEffect } from 'vue';
+import { useField, useSubmitCount, useValidateField } from 'vee-validate';
+import { computed, inject, watch, watchEffect } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
+import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
+import { createValidation } from '@/utils/createValidation';
 import { normalizePath } from '@/utils/normalizePath';
 import { overridePath } from '@/utils/overridePath';
+import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
 
 // #region Interfaces
 export interface Emit {
@@ -22,9 +29,10 @@ export interface Emit {
 type Props = DynamicFormItemProps<InternalMetadata>;
 // #endregion
 
-// #region Props and State
+// #region Props, Emits and inject
 const props = defineProps<Props>();
 const emits = defineEmits<Emit>();
+const settings = inject<ComputedRef<DynamicFormSettings>>(dynamicFormSettingsKey);
 // #endregion
 
 // #region Analytics: to test reactivity and prevent unnecessary rerenders.
@@ -32,7 +40,7 @@ const emits = defineEmits<Emit>();
 // eslint-disable-next-line prefer-const
 let _analytics_renderCount = 0;
 let _analytics_occurrencesCalculatedCount = 0;
-// eslint-disable-next-line prefer-const
+
 let _analytics_constructValidationCount = 0;
 let _analytics_fieldChangedCount = 0;
 
@@ -118,16 +126,34 @@ const _canRemoveItems = computed(() => {
   return fields.value?.length > minOccurs.value && fields.value?.length > 1;
 });
 
+const combinedValidation = computed<GenericValidateFunction[]>(() => {
+  _analytics_constructValidationCount++;
+
+  const _validations: GenericValidateFunction[] = [];
+  const _messages = settings?.value?.messages;
+
+  if (required.value)
+    _validations.push(createValidation('xsd_minOccurs', minOccurs.value, _messages?.minOccurs));
+
+  // Add the user defined validations, if they exist
+  if (field.value?.validation)
+    _validations.push(...splitToValidationFunctions(field.value?.validation));
+
+  return _validations;
+});
+
+const { label, errors, errorMessage } = useField(normalizedPath, combinedValidation, field.value?.fieldOptions);
+const fieldContext: LimitedFieldContext = { label, errors, errorMessage };
 // #endregion
 
 // #region Watchers and lifecycle events
 watch(
   values,
   (v) => {
-    // In case the form has been validated, keep validating this field
+    // In case there are validation errors, keep validating this field
     // on each change. This way the error message disappears and appears every time
     // an error is solved or introduced
-    if (submitCount.value > 0) {
+    if (errors.value?.length > 0) {
       validate();
     }
     emits('update:modelValue', v);
@@ -190,7 +216,7 @@ function getValuePath(_path: string, _index: number) {
 </script>
 
 <template>
-  <div v-if="analytics" v-show="false">
+  <div v-if="settings?.analytics" v-show="false">
     <span :data-testid="`${path}-analytics-render-count`">{{
       ++_analytics_renderCount
     }}</span>
@@ -199,6 +225,7 @@ function getValuePath(_path: string, _index: number) {
     :is="template"
     type="array"
     :field-metadata
+    :field-context
     :required
     :disabled
     :index
@@ -217,7 +244,6 @@ function getValuePath(_path: string, _index: number) {
         :path-override="`${path}[${index}]`"
         :max-occurs-override="_maxOccursOverride"
         :index
-        :analytics
         :template-attrs
         :can-add-items="_canAddItems"
         :can-remove-items="_canRemoveItems"

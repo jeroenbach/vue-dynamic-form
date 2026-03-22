@@ -46,7 +46,7 @@ describe('component DynamicForm', () => {
       await wrapper.find('[data-testid="submit"]').trigger('click');
       await flushPromises();
 
-      expect(wrapper.find('[data-testid="errors"]').text()).toContain(expected);
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain(expected);
     });
 
     it.each`
@@ -91,7 +91,7 @@ describe('component DynamicForm', () => {
       await wrapper.find('[data-testid="submit"]').trigger('click');
       await flushPromises();
 
-      expect(wrapper.find('[data-testid="errors"]').text()).toContain(expected);
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain(expected);
     });
     it.each`
     restriction         | minOccurs | fieldRestriction                    | messageKey            | message                                          | inputValue             | expected
@@ -129,7 +129,7 @@ describe('component DynamicForm', () => {
       await wrapper.find('[data-testid="submit"]').trigger('click');
       await flushPromises();
 
-      expect(wrapper.find('[data-testid="errors"]').text()).toContain(expected);
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain(expected);
     });
 
     // Note: ctx.rule.params in generateMessage is always an array for defineRule-based rules,
@@ -170,7 +170,7 @@ describe('component DynamicForm', () => {
       await wrapper.find('[data-testid="submit"]').trigger('click');
       await flushPromises();
 
-      expect(wrapper.find('[data-testid="errors"]').text()).toContain(expected);
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain(expected);
     });
   });
   describe('custom vee-validate validations', () => {
@@ -207,7 +207,7 @@ describe('component DynamicForm', () => {
       await wrapper.find('[data-testid="submit"]').trigger('click');
       await flushPromises();
 
-      expect(wrapper.find('[data-testid="errors"]').text()).toContain(expected);
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain(expected);
     });
   });
 
@@ -249,7 +249,7 @@ describe('component DynamicForm', () => {
       await wrapper.find('[data-testid="submit"]').trigger('click');
       await flushPromises();
 
-      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
     });
   });
 });

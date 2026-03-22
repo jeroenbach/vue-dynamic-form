@@ -20,6 +20,30 @@ describe('validation rules', () => {
     });
   });
 
+  describe('xsd_minOccurs', () => {
+    it('passes when filled item count equals min', async () => {
+      expect(await passes(['a', 'b'], 'xsd_minOccurs', [2])).toBe(true);
+    });
+    it('passes when filled item count exceeds min', async () => {
+      expect(await passes(['a', 'b', 'c'], 'xsd_minOccurs', [2])).toBe(true);
+    });
+    it('fails when filled item count is below min', async () => {
+      expect(await passes(['a'], 'xsd_minOccurs', [2])).toBe(false);
+    });
+    it('does not count null items', async () => {
+      expect(await passes([null, null], 'xsd_minOccurs', [1])).toBe(false);
+    });
+    it('does not count undefined items', async () => {
+      expect(await passes([undefined, 'a'], 'xsd_minOccurs', [2])).toBe(false);
+    });
+    it('does not count empty object items', async () => {
+      expect(await passes([{ value: null }, 'a'], 'xsd_minOccurs', [2])).toBe(false);
+    });
+    it('passes for a non-array value', async () => {
+      expect(await passes('not-an-array', 'xsd_minOccurs', [1])).toBe(true);
+    });
+  });
+
   describe('xsd_minLength', () => {
     it('passes when length equals min', async () => {
       expect(await passes('abc', 'xsd_minLength', [3])).toBe(true);
