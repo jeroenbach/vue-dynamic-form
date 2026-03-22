@@ -7,7 +7,7 @@ import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 import { useSubmitCount, useValidateField } from 'vee-validate';
-import { computed, ref, watch, watchEffect } from 'vue';
+import { computed, watch, watchEffect } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
@@ -38,16 +38,16 @@ let _analytics_fieldChangedCount = 0;
 
 // The path of this field, while taking the override into consideration
 const path = computed(() => {
-  if (!props.field?.path)
+  if (!props.fieldMetadata?.path)
     return '';
 
-  return overridePath(props.field.path, props.pathOverride);
+  return overridePath(props.fieldMetadata.path, props.pathOverride);
 });
 
 // Keep track of changes to the field for analytics
 const field = computed(() => {
   _analytics_fieldChangedCount++;
-  return props.field;
+  return props.fieldMetadata;
 });
 
 // Link the vee-validate field to this metadata field
@@ -95,9 +95,9 @@ const maxOccurs = computed(() =>
     : (field.value?.maxOccurs ?? 1),
 );
 
-const isDisabled = computed(() => maxOccurs.value === 0);
+const disabled = computed(() => maxOccurs.value === 0);
 
-const isRequired = computed(() => minOccurs.value >= 1 && !isDisabled.value);
+const required = computed(() => minOccurs.value >= 1 && !disabled.value);
 
 // An override we pass to the fields, as the sub-items should not be array items themselves
 const _maxOccursOverride = computed(() =>
@@ -146,6 +146,7 @@ watchEffect(() => {
   }
 });
 // #endregion
+
 // #region Methods
 
 function _addItem() {
@@ -180,7 +181,7 @@ function updateItem(value: any, index: number) {
 function getValuePath(_path: string, _index: number) {
   _path = `${_path}[${_index}]`;
   // Add the { value: ... } part for complex types
-  if (props.field?.isComplexType && _path) {
+  if (props.fieldMetadata?.isComplexType && _path) {
     _path = `${_path}['value']`; // we use this notation to still have the same length when splitting the path by '.'
   }
   return _path;
@@ -197,9 +198,9 @@ function getValuePath(_path: string, _index: number) {
   <component
     :is="template"
     type="array"
-    :field
-    :is-required
-    :is-disabled
+    :field-metadata
+    :required
+    :disabled
     :index
     :template-attrs
     :can-add-items="_canAddItems"
@@ -212,7 +213,7 @@ function getValuePath(_path: string, _index: number) {
         v-for="({ key }, index) in fields ?? []"
         :key="key"
         :template="template"
-        :field
+        :field-metadata
         :path-override="`${path}[${index}]`"
         :max-occurs-override="_maxOccursOverride"
         :index

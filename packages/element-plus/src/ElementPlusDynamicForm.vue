@@ -94,9 +94,9 @@ const metadata = defineMetadata<
     <template #default="slotProps">
       <slot name="default" v-bind="slotProps">
         <ElFormItem
-          :label="slotProps.field.label"
-          :size="slotProps.field.size"
-          :required="slotProps.isRequired"
+          :label="slotProps.fieldMetadata.label"
+          :size="slotProps.fieldMetadata.size"
+          :required="slotProps.required"
         >
           <slot name="input" />
         </ElFormItem>
@@ -108,18 +108,18 @@ const metadata = defineMetadata<
       <slot name="default-input" v-bind="slotProps">
         <ElInput
           :model-value="slotProps.value"
-          :placeholder="slotProps.field.placeholder"
-          :disabled="slotProps.field.disabled"
-          :readonly="slotProps.field.readonly"
-          :size="slotProps.field.size"
-          :clearable="slotProps.field.clearable"
+          :placeholder="slotProps.fieldMetadata.placeholder"
+          :disabled="slotProps.fieldMetadata.disabled"
+          :readonly="slotProps.fieldMetadata.readonly"
+          :size="slotProps.fieldMetadata.size"
+          :clearable="slotProps.fieldMetadata.clearable"
           @update:model-value="slotProps.update"
         />
       </slot>
     </template>
 
     <!-- Text input -->
-    <template #text-input="{ field, value, update }">
+    <template #text-input="{ fieldMetadata: field, value, update }">
       <ElInput
         :model-value="value"
         :placeholder="field.placeholder"
@@ -132,7 +132,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Select -->
-    <template #select-input="{ field, value, update }">
+    <template #select-input="{ fieldMetadata: field, value, update }">
       <ElSelect
         :model-value="value"
         :placeholder="field.placeholder"
@@ -159,7 +159,7 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #checkbox-input="{ field, value, update }">
+    <template #checkbox-input="{ fieldMetadata: field, value, update }">
       <ElCheckbox
         :model-value="value"
         :disabled="field.disabled"
@@ -171,7 +171,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Radio Group -->
-    <template #radio-input="{ field, value, update }">
+    <template #radio-input="{ fieldMetadata: field, value, update }">
       <ElRadioGroup
         :model-value="value"
         :disabled="field.disabled"
@@ -189,7 +189,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Date picker -->
-    <template #date-input="{ field, value, update }">
+    <template #date-input="{ fieldMetadata: field, value, update }">
       <ElDatePicker
         :model-value="value"
         :type="field.type || 'date'"
@@ -205,7 +205,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Time picker -->
-    <template #time-input="{ field, value, update }">
+    <template #time-input="{ fieldMetadata: field, value, update }">
       <ElTimePicker
         :model-value="value"
         :placeholder="field.placeholder"
@@ -220,7 +220,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- DateTime picker -->
-    <template #datetime-input="{ field, value, update }">
+    <template #datetime-input="{ fieldMetadata: field, value, update }">
       <ElDatePicker
         :model-value="value"
         type="datetime"
@@ -236,14 +236,14 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Switch -->
-    <template #switch="{ field }">
+    <template #switch="{ fieldMetadata: field }">
       <div class="flex items-center gap-2">
         <span v-if="field.label">{{ field.label }}</span>
         <slot name="input" />
       </div>
     </template>
 
-    <template #switch-input="{ field, value, update }">
+    <template #switch-input="{ fieldMetadata: field, value, update }">
       <ElSwitch
         :model-value="value"
         :disabled="field.disabled"
@@ -253,7 +253,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Number input -->
-    <template #number-input="{ field, value, update }">
+    <template #number-input="{ fieldMetadata: field, value, update }">
       <ElInputNumber
         :model-value="value"
         :placeholder="field.placeholder"
@@ -269,7 +269,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Rate -->
-    <template #rate-input="{ field, value, update }">
+    <template #rate-input="{ fieldMetadata: field, value, update }">
       <ElRate
         :model-value="value"
         :disabled="field.disabled"
@@ -279,7 +279,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Slider -->
-    <template #slider-input="{ field, value, update }">
+    <template #slider-input="{ fieldMetadata: field, value, update }">
       <ElSlider
         :model-value="value"
         :disabled="field.disabled"
@@ -293,7 +293,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Color picker -->
-    <template #color-input="{ field, value, update }">
+    <template #color-input="{ fieldMetadata: field, value, update }">
       <ElColorPicker
         :model-value="value"
         :disabled="field.disabled"
@@ -305,7 +305,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Cascader -->
-    <template #cascader-input="{ field, value, update }">
+    <template #cascader-input="{ fieldMetadata: field, value, update }">
       <ElCascader
         :model-value="value"
         :options="field.options"
@@ -320,7 +320,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Transfer -->
-    <template #transfer-input="{ field, value, update }">
+    <template #transfer-input="{ fieldMetadata: field, value, update }">
       <ElTransfer
         :model-value="value"
         :data="field.data"
@@ -331,7 +331,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Upload -->
-    <template #upload-input="{ field, value, update }">
+    <template #upload-input="{ fieldMetadata: field, value, update }">
       <ElUpload
         :model-value="value"
         :action="field.action"
@@ -349,7 +349,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Heading -->
-    <template #heading="{ field }">
+    <template #heading="{ fieldMetadata: field }">
       <div class="my-4">
         <h3 class="text-lg font-semibold mb-2">
           {{ field.label }}
@@ -359,7 +359,7 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Divider -->
-    <template #divider="{ field }">
+    <template #divider="{ fieldMetadata: field }">
       <ElDivider>
         {{ field.label }}
       </ElDivider>

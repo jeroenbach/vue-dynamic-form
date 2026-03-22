@@ -9,7 +9,7 @@ import { ElementPlusDynamicForm } from '@bach.software/vue-dynamic-form-element-
       <slot :name="name" v-bind="slotProps" />
     </template>
     <!-- Override the default wrapper with form item -->
-    <template #default="{ field, isRequired }">
+    <template #default="{ field, required }">
       <div class="flex flex-col gap-2">
         <label>{{ field.label }}</label>
         <slot name="input" />

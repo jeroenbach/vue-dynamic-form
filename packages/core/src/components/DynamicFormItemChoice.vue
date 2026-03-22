@@ -30,7 +30,7 @@ let _analytics_occurrencesCalculatedCount = 0;
 
 // #region Computed properties and state
 
-const field = computed(() => props.field);
+const field = computed(() => props.fieldMetadata);
 
 const minOccurs = computed(() =>
   props.minOccursOverride !== undefined
@@ -57,9 +57,9 @@ const _maxOccursOverride = computed(() =>
 // Depending on the original maxOccurs of this choice field, we make the all children fieldArray's (if necessary)
 const childrenAreArrays = computed(() => field.value?.maxOccurs > 1);
 
-const isDisabled = computed(() => maxOccurs.value === 0);
+const disabled = computed(() => maxOccurs.value === 0);
 
-const isRequired = computed(() => minOccurs.value >= 1 && !isDisabled.value);
+const required = computed(() => minOccurs.value >= 1 && !disabled.value);
 
 interface ChildValue {
   value: any
@@ -238,11 +238,11 @@ function updateChildValue(
   <component
     :is="template"
     type="choice"
-    :field
+    :field-metadata
     :template-attrs
     :value="childValues"
-    :is-required
-    :is-disabled
+    :required
+    :disabled
     :can-add-items
     :can-remove-items
     :add-item
@@ -251,7 +251,7 @@ function updateChildValue(
     <template #children>
       <DynamicFormItem
         v-if="singleChild"
-        :field="singleChild"
+        :field-metadata="singleChild"
         :path-override="pathOverride"
         :template="template"
         :analytics="analytics"
@@ -261,9 +261,9 @@ function updateChildValue(
       />
       <template v-else>
         <DynamicFormItem
-          v-for="(child, index) in field.choice"
+          v-for="(child, index) in fieldMetadata.choice"
           :key="child.name"
-          :field="(child as InternalMetadata)"
+          :field-metadata="(child as InternalMetadata)"
           :path-override="pathOverride"
           :template="template"
           :analytics="analytics"

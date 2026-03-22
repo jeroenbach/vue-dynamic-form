@@ -1,4 +1,4 @@
-import type { RuleExpression } from 'vee-validate';
+import type { FieldOptions, RuleExpression } from 'vee-validate';
 import type { WatchSource } from 'vue';
 
 export type FieldMetadata<
@@ -8,37 +8,40 @@ export type FieldMetadata<
   name?: string
   type?: ExtendedFieldTypes
   path?: string
+  /**
+   * The minimal occurrence of a value.
+   * Optional fields have a value of 0.
+   * Required fields have a value of 1.
+   * We also allow to specify if you need a minimum higher then 1.
+   */
   minOccurs?: number
+  /**
+   * The maximal occurrence of a value.
+   */
   maxOccurs?: number
   /**
-   * Simple restrictions to the data: TODO: move to different level and use validation instead
+   * Simple restrictions to the data, these are available in XSD and can be applied easily.
+   * For more advance validation use the validation property.
    */
-  restrictions?: {
-    maxLength?: number
-    maxLengthMessage?: string
+  restriction?: {
     minLength?: number
-    minLengthMessage?: string
+    maxLength?: number
     pattern?: string
-    patternMessage?: string
     minInclusive?: number
-    minInclusiveMessage?: string
     maxInclusive?: number
-    maxInclusiveMessage?: string
-    enumeration?: string
-    enumerationMessage?: string
+    minExclusive?: number
+    maxExclusive?: number
+    enumeration?: unknown[]
     length?: number
-    lengthMessage?: string
-    whiteSpace?: string
-    whiteSpaceMessage?: string
+    whiteSpace?: 'preserve' | 'replace' | 'collapse'
     fractionDigits?: number
-    fractionDigitsMessage?: string
     totalDigits?: number
-    totalDigitsMessage?: string
   }
   /**
-   * Validation rules that should be applied to this field.
+   * Vee-Validate validation rules that should be applied to this field.
    */
   validation?: RuleExpression<unknown>
+  fieldOptions?: Partial<FieldOptions<unknown>>
   children?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[]
   /**
    * Choice is similar to children, with the difference that only one of the items in the array
@@ -142,27 +145,31 @@ export type FieldMetadata<
   parent?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>
 
   /**
-   * A list of functions that are executed inside a computed. This means that if you have links to computed, refs, etc,
-   * these functions will be re-evaluated once one of the used reactive values changes.
-   * This way you can create dynamic field metadata that changes based on other values in the form.
+   * Compute field values locally in the component that represents the field.
+   *
+   * This is a list of functions that are executed inside a computed in the component of the field.
+   * This means that if you reference other computed, refs, etc, these functions will be re-evaluated once one of the used reactive values changes.
+   *
+   * Allowing you to change the properties in the fieldMetadata, based on other values in the form, without re-rendering the entire component tree.
    *
    * @param thisField the reactive & cloned current MetadataField that can be changed.
+   * @param fieldValue the value of the field, this is only available when computeOnValueChange is set to true
    * @returns A transformed FieldMetadata
    */
-  transformReactively?: ((
-    thisField: TransformReactivelyType<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>,
+  computedProps?: ((
+    thisField: ComputedPropsType<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>,
     fieldValue?: WatchSource<unknown>,
-  ) => TransformReactivelyType<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>)[]
+  ) => ComputedPropsType<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>)[]
   /**
    * To opt-in to having the reactive transformer re-evaluated on value changes, set this to true.
    * This is useful when the transformation logic depends on the current value of the field.
    */
-  transformOnValueChange?: boolean
+  computeOnValueChange?: boolean
 } & ExtendedProperties;
 
-export type TransformReactivelyType<T> = Omit<
+export type ComputedPropsType<T> = Omit<
       T,
-      | 'name' // At this point name will always be present, so remove it
+      | 'name' // At this point name will always be present, so remove it as being optional
       // Not allowed to change the children, choice or attributes of this field, create a transform for those fields specifically
       | 'children'
       | 'choice'

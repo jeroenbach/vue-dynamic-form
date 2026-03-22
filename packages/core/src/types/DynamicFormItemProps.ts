@@ -16,7 +16,7 @@ export interface DynamicFormItemProps<
       array?: ((props: object) => any) | undefined
     }
   >
-  field: InternalMetadata
+  fieldMetadata: InternalMetadata
   /**
    * In case a parent can occur multiple times, its path will have an index in it.
    * This needs to be passed to the child items so they can adjust their own path accordingly.
@@ -59,10 +59,6 @@ export interface DynamicFormItemProps<
    * In case the field is a child of a choice field, it needs to be made repeatable and we can set this to true.
    */
   isArrayOverride?: boolean
-  /**
-   * Enables diagnostic data output via concealed DOM elements for reactivity testing
-   */
-  analytics?: boolean
 
   /**
    * In case this item is part of a field array, we need some extra info

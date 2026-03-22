@@ -1,0 +1,115 @@
+import type { Metadata } from './TestFormTemplate.vue';
+import { email } from '@vee-validate/rules';
+
+import { defineComponent, h, markRaw } from 'vue';
+import TestForm from './TestForm.vue';
+
+function email2(value: any) {
+  // Field is empty, should pass
+  if (!value || !value.length) {
+    return true;
+  }
+  // Check if email
+  if (!email(value)) {
+    return 'This field must be a valid email';
+  }
+  return true;
+}
+
+export const defaultTestCase = createTestCase([{
+  name: 'text',
+  type: 'text',
+  fieldOptions: { label: 'Text Input' },
+  path: 'with.custom.structure',
+  restriction: { maxLength: 10 },
+}]);
+
+export const arrayTestCase = createTestCase([{
+  fieldOptions: { label: 'Array Fields' },
+  type: 'heading',
+  children: [
+    { fieldOptions: { label: 'Optional field (max 3)' }, minOccurs: 0, maxOccurs: 3 },
+    { fieldOptions: { label: 'Required field (max 3)' }, maxOccurs: 3 },
+    { fieldOptions: { label: '2 Fields required' }, minOccurs: 2, maxOccurs: 4 },
+    { fieldOptions: { label: 'Section (2 sections required)' }, type: 'heading', minOccurs: 2, maxOccurs: 4, fullWidth: true, children: [
+      { fieldOptions: { label: 'Nested field 1' } },
+      { fieldOptions: { label: 'Required Nested field 2' }, type: 'select', options: [
+        { key: 'option1', value: 'Option 1' },
+        { key: 'option2', value: 'Option 2' },
+        { key: 'option3', value: 'Option 3' },
+      ] },
+      { fieldOptions: { label: 'Nested field 3' }, type: 'checkbox' },
+    ] },
+  ],
+}]);
+
+export const groupTestCase = createTestCase([{
+  fieldOptions: { label: 'Grouped Fields' },
+  type: 'heading',
+  children: [
+    { fieldOptions: { label: 'Required group' }, children: [
+      { fieldOptions: { label: 'Required Nested field 1' }, fullWidth: true },
+      { fieldOptions: { label: 'Required Nested field 2' }, fullWidth: true },
+    ] },
+    { fieldOptions: { label: 'Optional group' }, minOccurs: 0, description: `The group is optional, therefore the children will only be required once 1 value is filled in.
+      
+You can test it by filling in one of the fields.`, children: [
+      { fieldOptions: { label: 'Required Nested field 1' }, fullWidth: true },
+      { fieldOptions: { label: 'Required Nested field 2' }, fullWidth: true },
+    ] },
+  ],
+}, {
+  fieldOptions: { label: 'Grouped Array Fields' },
+  type: 'heading',
+  children: [
+    { fieldOptions: { label: 'Required group' }, maxOccurs: 5, fullWidth: true, children: [
+      { fieldOptions: { label: 'Required Nested field 1' } },
+      { fieldOptions: { label: 'Required Nested field 2' } },
+    ] },
+    { fieldOptions: { label: 'Optional group' }, minOccurs: 0, maxOccurs: 5, fullWidth: true, children: [
+      { fieldOptions: { label: 'Required Nested field 1' } },
+      { fieldOptions: { label: 'Required Nested field 2' } },
+    ] },
+  ],
+}]);
+
+export const choiceTestCase = createTestCase([
+  {
+    fieldOptions: { label: 'Choice Fields (minOccurs 1, maxOccurs 1)' },
+    type: 'heading',
+    children: [
+      { fieldOptions: { label: 'Simple Choice Field' }, fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
+        { fieldOptions: { label: 'Nested Field 1' } },
+        { fieldOptions: { label: 'Nested Field 2' } },
+      ] },
+    ],
+  },
+  {
+    fieldOptions: { label: 'Choice Grouped Fields (minOccurs 1, maxOccurs 3)' },
+    type: 'heading',
+    children: [
+      { fieldOptions: { label: 'Array Choice Field' }, maxOccurs: 3, fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
+        { fieldOptions: { label: 'Nested Field 1' }, children: [{ fieldOptions: { label: 'Nested Child Field 1' }, fullWidth: true }, { fieldOptions: { label: 'Nested Child Field 2' }, fullWidth: true }] },
+        { fieldOptions: { label: 'Nested Field 2' }, children: [{ fieldOptions: { label: 'Nested Child Field 1' }, fullWidth: true }, { fieldOptions: { label: 'Nested Child Field 2' }, fullWidth: true }] },
+      ] },
+    ],
+  },
+  {
+    fieldOptions: { label: 'Choice Array Fields (minOccurs 1, maxOccurs 3)' },
+    type: 'heading',
+    children: [
+      { fieldOptions: { label: 'Array Choice Field' }, maxOccurs: 3, fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
+        { fieldOptions: { label: 'Nested Field 1' }, maxOccurs: 3 },
+        { fieldOptions: { label: 'Nested Field 2' }, maxOccurs: 3 },
+      ] },
+    ],
+  },
+]);
+
+export function createTestCase(
+  metadata: Metadata[],
+) {
+  return markRaw(defineComponent({
+    render: () => h(TestForm, { metadata }),
+  }));
+}

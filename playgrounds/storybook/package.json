@@ -14,6 +14,8 @@
   "dependencies": {
     "@bach.software/vue-dynamic-form": "link:../../packages/core",
     "@bach.software/vue-dynamic-form-element-plus": "link:../../packages/element-plus",
+    "@vee-validate/i18n": "^4.15.1",
+    "@vee-validate/rules": "^4.15.1",
     "element-plus": "2.12.0",
     "vee-validate": "4.15.1",
     "vue": "3.5.18"

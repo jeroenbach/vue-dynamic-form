@@ -1,17 +1,20 @@
 <script lang="ts" setup generic="Metadata extends FieldMetadata">
 import type { DefineComponent } from 'vue';
 
+import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { computed, ref } from 'vue';
 
+import { computed, provide, ref } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
+import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { setInPath } from '@/utils/setInPath';
 
 // #region Interfaces
 export interface DynamicFormProps<Metadata extends FieldMetadata> {
   metadata: Metadata | Metadata[]
   template: DefineComponent<object, object, any>
+  settings?: DynamicFormSettings
 }
 export interface Emit {
   (e: 'update:modelValue', value: any): void
@@ -21,13 +24,15 @@ export interface Emit {
 // #region Props and State
 defineOptions({ name: 'DynamicForm', inheritAttrs: false });
 
-const props = defineProps<DynamicFormProps<Metadata>>();
+const { settings, metadata, template } = defineProps<DynamicFormProps<Metadata>>();
 const emits = defineEmits<Emit>();
+
+provide(dynamicFormSettingsKey, computed(() => settings));
 
 const readOnlyValue = ref();
 
 const metadataAsArray = computed(() =>
-  Array.isArray(props.metadata) ? props.metadata : [props.metadata],
+  Array.isArray(metadata) ? metadata : [metadata],
 );
 
 const metadataWithDefaults = computed(() =>
@@ -36,7 +41,7 @@ const metadataWithDefaults = computed(() =>
 
 const typedTemplate = computed(
   () =>
-    props.template as DefineComponent<
+    template as DefineComponent<
       object,
       object,
       {
@@ -54,16 +59,16 @@ const typedTemplate = computed(
 // #region Methods
 
 function correctMetadataAndSetDefaults(
-  field: Metadata,
+  fieldMetadata: Metadata,
   index?: number,
   parent?: InternalFieldMetadata<Metadata>,
 ) {
-  if (!field)
-    return field;
+  if (!fieldMetadata)
+    return fieldMetadata;
 
-  const fieldName = field.name ?? `field-${index}`;
+  const fieldName = fieldMetadata.name ?? `field-${index}`;
   // Construct the path with the parent path, unless we specify an override
-  const fieldPath = field.path ?? [parent?.path, fieldName].filter(Boolean).join('.');
+  const fieldPath = fieldMetadata.path ?? [parent?.path, fieldName].filter(Boolean).join('.');
   const copy: InternalFieldMetadata<Metadata> = {
     // Set defaults
     name: fieldName,
@@ -72,20 +77,20 @@ function correctMetadataAndSetDefaults(
     minOccurs: 1, // by default required
     maxOccurs: 1, // by default not repeatable
 
-    ...field,
+    ...fieldMetadata,
     // Override some of the field properties
-    transformReactively: [...(field.transformReactively ?? [])],
+    computedProps: [...(fieldMetadata.computedProps ?? [])],
     parent,
   };
 
   // Recursively go through the tree
-  copy.children = (field.children ?? []).map((x, index) =>
+  copy.children = (fieldMetadata.children ?? []).map((x, index) =>
     correctMetadataAndSetDefaults(x as Metadata, index, copy),
   );
-  copy.choice = (field.choice ?? []).map((x, index) =>
+  copy.choice = (fieldMetadata.choice ?? []).map((x, index) =>
     correctMetadataAndSetDefaults(x as Metadata, index, copy),
   );
-  copy.attributes = (field.attributes ?? []).map((x, index) =>
+  copy.attributes = (fieldMetadata.attributes ?? []).map((x, index) =>
     correctMetadataAndSetDefaults(x as Metadata, index, copy),
   );
 
@@ -111,10 +116,10 @@ function updateReadOnlyValue(value: any, path?: string) {
 
 <template>
   <DynamicFormItem
-    v-for="field in metadataWithDefaults"
-    :key="field.name"
+    v-for="fieldMetadata in metadataWithDefaults"
+    :key="fieldMetadata.name"
     :template="typedTemplate"
-    :field="(field as InternalFieldMetadata<FieldMetadata>)"
-    @update:model-value="updateReadOnlyValue"
+    :field-metadata="(fieldMetadata as InternalFieldMetadata<FieldMetadata>)"
+    @update:model-value="value => updateReadOnlyValue(value, fieldMetadata.path)"
   />
 </template>

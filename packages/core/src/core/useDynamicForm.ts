@@ -13,6 +13,7 @@ import {
 export function useDynamicForm<TValues extends KeyValue>(): FormContext<TValues> & {
   useFieldValue: <TPath extends Path<TValues>>(path?: MaybeRefOrGetter<TPath>) => Ref<PathValue<TValues, TPath>>
 } {
+  // Type the useFieldValue
   const useFieldValue = <TPath extends Path<TValues>>(path?: MaybeRefOrGetter<TPath>) => {
     return _useFieldValue<PathValue<TValues, TPath>>(path);
   };

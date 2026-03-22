@@ -2,6 +2,20 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
 import { arrayTestCase, choiceTestCase, defaultTestCase, groupTestCase } from '@bach.software/vue-dynamic-form/examples';
 
+import { configure } from 'vee-validate';
+
+/**
+ * This should live in the app entry, not here (normally)
+ */
+configure({
+  generateMessage: (context) => {
+    if (context.rule?.name === 'xsd_required')
+      return `The field ${context.field} is required`;
+
+    return `The field ${context.field} is invalid - Jeroen`;
+  },
+});
+
 const meta = {
   title: 'Forms/DynamicForm',
   component: defaultTestCase,

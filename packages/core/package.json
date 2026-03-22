@@ -53,6 +53,7 @@
     "changeset": "changeset"
   },
   "peerDependencies": {
+    "@vee-validate/rules": "catalog:framework",
     "vee-validate": "catalog:framework",
     "vue": "catalog:framework"
   },

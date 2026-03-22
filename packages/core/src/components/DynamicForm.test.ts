@@ -1,7 +1,11 @@
+import { mount } from '@vue/test-utils';
+// tests/DynamicForm.test.ts
 import { describe, expect, it } from 'vitest';
+import { defaultTestCase } from '@/examples/TestFormTemplate.testcases';
 
-describe('component DynamicForm', () => {
-  it('should render correctly', () => {
-    expect(true).toBe(true); // Placeholder for actual test logic
+describe('dynamicForm Stories', () => {
+  it('renders Default story', () => {
+    const wrapper = mount(defaultTestCase);
+    expect(wrapper.exists()).toBe(true);
   });
 });

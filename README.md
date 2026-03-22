@@ -9,3 +9,7 @@ To create a new release for you PR, follow these steps:
 1. Create a new changeset by running `pnpm changeset`.
 2. Create your PR into the main branch.
 3. The release workflow will automatically be triggered.
+
+
+TODO: 
+- think about the is dirty that is triggered when automatically showing the first field in an arrayfield

@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 // tests/DynamicForm.test.ts
 import { describe, expect, it } from 'vitest';
-import { defaultTestCase } from '@/examples/TestFormImplementation.testcases';
+import { defaultTestCase } from '@/examples/TestFormTemplate.testcases';
 
 describe('dynamicForm Stories', () => {
   it('renders Default story', () => {

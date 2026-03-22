@@ -3,6 +3,7 @@
   setup
   generic="TMetadataConfiguration extends MetadataConfiguration"
 >
+import type { FieldContext } from 'vee-validate';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { MetadataConfiguration } from '@/types/MetadataConfiguration';
 import { computed, useAttrs } from 'vue';
@@ -29,15 +30,19 @@ export interface Attributes<
   FieldType extends string = string,
 > {
   type: TMetadataConfiguration['fieldTypes'][number] | 'default'
-  field: FieldMetadata<
+  fieldMetadata: FieldMetadata<
     TMetadataConfiguration['fieldTypes'][number],
     TMetadataConfiguration['extendedProperties']
   >
   value: FieldType extends keyof TMetadataConfiguration['valueTypes']
     ? TMetadataConfiguration['valueTypes'][FieldType]
     : unknown
-  isRequired: boolean
-  isDisabled: boolean
+  errorMessage: string | undefined
+  fieldContext: FieldContext<FieldType extends keyof TMetadataConfiguration['valueTypes']
+    ? TMetadataConfiguration['valueTypes'][FieldType]
+    : unknown>
+  required: boolean
+  disabled: boolean
   level: number
   index: number
   canAddItems: boolean
@@ -113,7 +118,7 @@ const typeWithFallback = computed(() => {
 
 <template>
   <slot
-    v-if="attrs.field"
+    v-if="attrs.fieldMetadata"
     :name="typeWithFallback"
     v-bind="attrs"
   />
