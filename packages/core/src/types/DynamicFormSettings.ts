@@ -31,6 +31,8 @@ export interface DynamicFormSettings {
     required?: ValidationMessage
     /** XSD: minOccurs. Available placeholders: `{field}`, `{0}` or `{min}` (min number of filled items) */
     minOccurs?: ValidationMessage
+    /** XSD: choiceMinOccurs. Available placeholders: `{field}`, `{0}` or `{min}` (min number of filled items) */
+    choiceMinOccurs?: ValidationMessage
     /** XSD: minLength. Available placeholders: `{field}`, `{0}` or `{length}` (min length) */
     minLength?: ValidationMessage
     /** XSD: maxLength. Available placeholders: `{field}`, `{0}` or `{length}` (max length) */

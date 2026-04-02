@@ -14,41 +14,40 @@ export interface Props {
 
 const { metadata, settings: _settings } = defineProps<Props>();
 
-const { values, handleSubmit, errors: _errors, meta } = useDynamicForm();
+const { values, handleSubmit, errors, meta } = useDynamicForm();
 const manualValues = ref();
-const errors = ref<Partial<Record<string, string>>>({});
 const editMode = ref(true);
 const isSubmitted = ref(false);
 
-const metadataWithEdit = metadata?.map(x => mapEachMetadataItem(x, (item) => {
+// Add edit mode functionality to the form. In case we're not in edit mode, disable all items.
+const metadataWithEdit = computed(() => metadata?.map(x => mapEachMetadataItem(x, (item) => {
   item.computedProps = item.computedProps ?? [];
   item.computedProps?.push((thisField) => {
     // Re-compute the disabled property of each field, when editMode changes
-    thisField.disabled = !editMode.value;
-
-    return thisField;
+    if (!editMode.value)
+      thisField.disabled = true;
   });
   return item;
-}));
+})));
 
-const settings = computed(() => _settings ?? {
+const settings = computed(() => _settings ?? ({
+  analytics: true,
   messages: {
-    required: 'This field is required - from settings',
+    required: '{field} is required',
+    choiceMinOccurs: 'The following fields need to occur at least {min} time(s): {field}',
     minLength: 'The minimum length of {field} is {0}',
     maxLength: 'The maximum length of {field} is {0}',
+    minOccurs: 'At least {min} items required',
   },
-});
+}));
 
 function submit(e?: Event) {
   handleSubmit(
     (_values) => {
-      // Reset errors
-      errors.value = {};
       isSubmitted.value = true;
     },
     ({ errors: _errors }) => {
-      errors.value = _errors;
-      isSubmitted.value = true;
+      isSubmitted.value = false;
     },
   )(e);
 };
@@ -94,12 +93,16 @@ function mapEachMetadataItem(metadata: Metadata, callbackFunc: (item: Metadata) 
     <span v-if="isSubmitted" data-testid="isSubmitted" />
     <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
 IsDirty: {{ meta.dirty }}
+Pending: {{ meta.pending }}
+Touched: {{ meta.touched }}
+Valid: {{ meta.valid }}
+Submitted: {{ isSubmitted }}
 
 // vee-validate updated values:
 {{ JSON.stringify(values, null, 2) }}
             </pre>
     <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
-// manual updated values:
+// component emit updated values (no vee-validate):
 {{ JSON.stringify(manualValues, null, 2) }}
           </pre>
   </form>

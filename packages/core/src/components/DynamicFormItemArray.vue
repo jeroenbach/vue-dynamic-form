@@ -10,8 +10,8 @@ import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { useField, useSubmitCount, useValidateField } from 'vee-validate';
-import { computed, inject, watch, watchEffect } from 'vue';
+import { useField, useForm, useSubmitCount, useValidateField } from 'vee-validate';
+import { computed, inject, ref, watch, watchEffect } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
@@ -144,31 +144,35 @@ const combinedValidation = computed<GenericValidateFunction[]>(() => {
 
 const { label, errors, errorMessage } = useField(normalizedPath, combinedValidation, field.value?.fieldOptions);
 const fieldContext: LimitedFieldContext = { label, errors, errorMessage };
+const { resetField } = useForm();
 // #endregion
 
 // #region Watchers and lifecycle events
-watch(
-  values,
-  (v) => {
-    // In case there are validation errors, keep validating this field
-    // on each change. This way the error message disappears and appears every time
-    // an error is solved or introduced
-    if (errors.value?.length > 0) {
-      validate();
-    }
-    emits('update:modelValue', v);
-  },
-  { immediate: true },
-);
+// watch(
+//   values,
+//   (v) => {
+//     // In case there are validation errors, keep validating this field
+//     // on each change. This way the error message disappears and appears every time
+//     // an error is solved or introduced
+//     if (errors.value?.length > 0) {
+//       validate();
+//     }
+//     emits('update:modelValue', v);
+//   },
+//   { immediate: true },
+// );
 
 watchEffect(() => {
   // Don't add items when part of a choice field
   if (props.partOfChoiceField)
     return;
 
-  // Add items automatically
+  // Auto-add items to meet minOccurs — sync initial value so vee-validate
+  // doesn't count these empty placeholders as user changes (dirty form)
   if (fields.value?.length < 1 || fields.value?.length < minOccurs.value) {
     _addItem();
+    // push(null);
+    // resetField(normalizedPath.value, { value: [...values.value] });
   }
 });
 // #endregion
@@ -179,6 +183,7 @@ function _addItem() {
   push(null); // empty placeholder
   emits('update:modelValue', values.value);
 }
+
 function _removeItem(index?: number) {
   if (_canRemoveItems.value) {
     // Remove the item at the given index or the last one
@@ -191,6 +196,7 @@ function _removeItem(index?: number) {
 
   emits('update:modelValue', values.value);
 }
+
 function updateItem(value: any, index: number) {
   // Workaround for required validation on array items with attributes:
   // When an array item has attributes, the complexType structure may still contain the attribute values

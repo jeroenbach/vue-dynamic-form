@@ -54,6 +54,7 @@
   },
   "peerDependencies": {
     "@vee-validate/rules": "catalog:framework",
+    "type-fest": "catalog:framework",
     "vee-validate": "catalog:framework",
     "vue": "catalog:framework"
   },

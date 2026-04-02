@@ -4,7 +4,7 @@
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
 import type { GenericValidateFunction } from 'vee-validate';
-import type { ComputedRef, WatchSource } from 'vue';
+import type { ComputedRef, Ref } from 'vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { ComputedPropsType, FieldMetadata } from '@/types/FieldMetadata';
@@ -19,6 +19,7 @@ import { createValidation } from '@/utils/createValidation';
 import { normalizePath } from '@/utils/normalizePath';
 import { overridePath } from '@/utils/overridePath';
 import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
+import { syncRef } from '@/utils/syncRef';
 
 // #region Interfaces
 export interface Emit {
@@ -39,40 +40,81 @@ const settings = inject<ComputedRef<DynamicFormSettings>>(dynamicFormSettingsKey
 let _analytics_renderCount = 0;
 let _analytics_constructValidationCount = 0;
 let _analytics_fieldChangedCount = 0;
-let _analytics_fieldTransformCount = 0;
+let _analytics_fieldComputeCount = 0;
 // #endregion
 
 // #region Computed properties and state
 
-// Elements without a path should be ignored, as they cannot be linked to a value in vee-validate
-const validElement = computed(() => !!props.fieldMetadata?.path);
-
-// Sections and Combined fields have a collection of fields
-const isFieldCollection = computed(
-  () => !!(validElement.value && props.fieldMetadata?.children?.length),
-);
-
-// The path of this field, while taking the override into consideration
-const path = computed(() => {
-  if (!props.fieldMetadata?.path)
-    return '';
-
-  return overridePath(props.fieldMetadata.path, props.pathOverride);
-});
-
-// The path that takes value types into consideration
-const itemPath = computed(() => {
-  let _path = path.value;
-  if (props.fieldMetadata?.isComplexType && _path) {
-    _path = `${_path}['value']`; // we use this notation to still be able to count the segments by splitting on '.'
-  }
-  return _path;
-});
+/**
+ * In case of an object, the useFieldValue() in vee-validate doesn't react on an update of a value of its children.
+ * Therefore we keep track of an reactive value, that is updated by the children.
+ */
+const readOnlyValue = ref();
 
 // Keep track of changes to the field for analytics
 const field = computed(() => {
   _analytics_fieldChangedCount++;
   return props.fieldMetadata;
+});
+
+// The path of this field, while taking the override into consideration
+const path = computed(() => {
+  if (!field.value?.path)
+    return '';
+
+  return overridePath(field.value.path, props.pathOverride);
+});
+
+// The path that takes value types into consideration
+const itemPath = computed(() => {
+  let _path = path.value;
+  if (field.value?.isComplexType && _path) {
+    _path = `${_path}['value']`; // we use this notation to still be able to count the segments by splitting on '.'
+  }
+  return _path;
+});
+
+const isParent = computed(() => !!field.value?.children?.length);
+
+const isChoice = computed(() => !!field.value?.choice?.length);
+
+// Link the vee-validate field to this metadata field
+const normalizedPath = computed(() => normalizePath(itemPath.value));
+
+// We use a separate ref for the value that is passed to the computedProps.
+// We need this, because the transformedField is needed before we call useField, but the actual value comes after, so we're stuck in a dependency loop.
+const trackedValue = ref<unknown>();
+// We also keep an untrackedValue in sync, this way we can still provide the value to the computedPropFunction, but don't re-compute when it is changed.
+let untrackedValue: unknown;
+const computedField = computed(() => {
+  _analytics_fieldComputeCount++;
+
+  // We allow to transform the field metadata reactively based on the current value.
+  // To do this we set the value using a readOnlyValue ref. Every time the ref is updated, this transformField is re-executed.
+  // If we don't set the value with the ref, the link is never made and this computed is not re-executed on value changes.
+  let _value: Ref<unknown>;
+  if (field.value?.computeOnValueChange === true) {
+    _value = trackedValue;
+  }
+  else {
+    // Provide the value, but don't re-compute when its changed
+    _value = ref(untrackedValue);
+  }
+
+  const _computedField = (field.value?.computedProps ?? []).reduce(
+    (field, compute) => {
+      compute(field, _value);
+      return field;
+    },
+    // Spread the original object, so we can make changes & add the actual path
+    { ...field.value, path: path.value } as ComputedPropsType<FieldMetadata>,
+  );
+
+  // Path is always reverted back to our calculated value. This way it can be used, but no set.
+  const _internalMetadata = _computedField as InternalMetadata; // convert back to normal (stop pretending to not have any children and other excluded propertie)
+  _internalMetadata.path = path.value;
+
+  return _internalMetadata;
 });
 
 // minOccurs determines how many times this field should appear at minimum
@@ -84,22 +126,28 @@ const minOccurs = computed(() => {
   if (props.partOfArrayField)
     return 0;
 
-  return field.value?.minOccurs ?? 1;
+  return computedField.value?.minOccurs ?? 1;
 });
 
 // maxOccurs determines how many times this field should appear at maximum
 const maxOccurs = computed(() =>
   props.maxOccursOverride !== undefined
     ? props.maxOccursOverride
-    : (field.value?.maxOccurs ?? 1),
+    : (computedField.value?.maxOccurs ?? 1),
 );
+
+const isArray = computed(() => {
+  if (props.isArrayOverride)
+    return true;
+
+  // Check if we can occur multiple times, if yes, we're an array.
+  // This can not be reactive.
+  return maxOccurs.value > 1;
+});
 
 const disabled = computed(() => maxOccurs.value === 0);
 
 const required = computed(() => minOccurs.value >= 1 && !disabled.value);
-
-// Link the vee-validate field to this metadata field
-const normalizedPath = computed(() => normalizePath(itemPath.value));
 
 const combinedValidation = computed<GenericValidateFunction[]>(() => {
   _analytics_constructValidationCount++;
@@ -154,22 +202,11 @@ const combinedValidation = computed<GenericValidateFunction[]>(() => {
   return _validations;
 });
 
+// Create the Vee-validate field context
 const fieldContext = useField(normalizedPath, combinedValidation, field.value?.fieldOptions);
 const value = fieldContext.value;
 
 const initialUpdate = ref(true);
-
-const isParent = computed(() => !!field.value?.children?.length);
-const isChoice = computed(() => !!field.value?.choice?.length);
-const isArray = computed(() => {
-  //
-  if (props.isArrayOverride)
-    return true;
-
-  // Check if we can occur multiple times, if yes, we're an array.
-  // This can not be reactive.
-  return maxOccurs.value > 1;
-});
 
 // In case this field is optional, we also want to temporarily set the minOccurs to 0 (not required) of the children of this field.
 // if this field is optional and none of the children have values yet. Then all required validation
@@ -210,39 +247,16 @@ const _canRemoveItems = computed(() => {
 const showAttributes = computed(
   () => field.value?.attributes?.length && checkTreeHasValue(value.value),
 );
-
-/**
- * In case of an object, the useFieldValue() in vee-validate doesn't react on an update of a value of its children.
- * Therefore we keep track of an reactive value, that is updated by the children.
- */
-const readOnlyValue = ref();
-
-const transformedField = computed(() => {
-  _analytics_fieldTransformCount++;
-
-  // We allow to transform the field metadata reactively based on the current value.
-  // To do this we set the value using a readOnlyValue ref. Every time the ref is updated, this transformField is re-executed.
-  // If we don't set the value with the ref, the link is never made and this computed is not re-excuted on value changes.
-  let value: WatchSource<unknown>;
-  if (props.fieldMetadata.computeOnValueChange === true) {
-    value = readOnlyValue.value;
-  }
-
-  const _transformedField = (props.fieldMetadata.computedProps ?? []).reduce(
-    (field, transformer) => transformer(field, value),
-    {
-      ...props.fieldMetadata,
-      computedProps: [...(props.fieldMetadata.computedProps ?? [])],
-    } as ComputedPropsType<FieldMetadata>,
-  );
-
-  _transformedField.path = path.value;
-
-  return _transformedField as InternalMetadata; // convert back to normal (stop pretending to not have any children)
-});
 // #endregion
 
 // #region Watchers and lifecycle events
+// keep in sync, to allow value updates in the computedField
+syncRef(value, trackedValue, { master: 'b' });
+
+// keep in sync, to allow passing a value to the computedField function, without creating a dependency and forcing a re-compute
+watch(trackedValue, (val) => {
+  untrackedValue = val;
+}, { immediate: true });
 
 // Hook into the fieldContext.value to make sure that if it is an empty string we change the value to undefined.
 // This way the element is removed from the parent object.
@@ -255,8 +269,10 @@ watch(value, (newValue) => {
 
   _transforming = true;
 
-  // In case of an empty value, remove the element from the parent object by setting it to undefined
-  value.value = newValue === '' ? undefined : newValue;
+  // In case of an empty value, remove the element from the parent object by setting it to undefined.
+  // In case of an arrayField we set it back to null
+  if (newValue === '')
+    value.value = props.partOfArrayField ? null : undefined;
 
   _transforming = false;
 }, {
@@ -280,6 +296,13 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  // Array items are cleaned up by useFieldArray's remove() — setting the value to undefined here
+  // would write back to form.values at the (now-removed) index, causing useFieldArray's sync
+  // watcher to detect a mismatch and re-add the entry via initFields().
+  if (props.partOfArrayField) {
+    return;
+  }
+
   // In case of attributes, they're removed depending on whether the parent has a value.
   // We experience the problem that if the value is removed, the attribute field is removed but the value remained.
   // Therefore we have this extra rule to remove any values once a field gets unmounted.
@@ -289,7 +312,6 @@ onBeforeUnmount(() => {
     emits('update:modelValue', value.value);
   }
 });
-
 // #endregion
 
 // #region Methods
@@ -297,7 +319,6 @@ function updateReadOnlyValue(value: any) {
   readOnlyValue.value = value;
   emits('update:modelValue', value);
 };
-
 // #endregion
 </script>
 
@@ -310,7 +331,7 @@ function updateReadOnlyValue(value: any) {
   <template v-if="isChoice">
     <DynamicFormItemChoice
       v-bind="props"
-      :field-metadata="transformedField"
+      :field-metadata="computedField"
       :path-override="path"
       @update:model-value="updateReadOnlyValue"
     />
@@ -318,7 +339,7 @@ function updateReadOnlyValue(value: any) {
   <template v-else-if="isArray">
     <DynamicFormItemArray
       v-bind="props"
-      :field-metadata="transformedField"
+      :field-metadata="computedField"
       :path-override="path"
       @update:model-value="updateReadOnlyValue"
     />
@@ -326,8 +347,8 @@ function updateReadOnlyValue(value: any) {
   <template v-else>
     <component
       :is="template"
-      :type="transformedField.type"
-      :field-metadata="transformedField"
+      :type="computedField.type"
+      :field-metadata="computedField"
       :field-context
       :template-attrs
       :required
@@ -339,7 +360,7 @@ function updateReadOnlyValue(value: any) {
     >
       <template v-if="isParent" #children="templateAttrs">
         <DynamicFormItem
-          v-for="child in transformedField.children"
+          v-for="child in computedField.children"
           :key="child.path"
           :field-metadata="(child as InternalMetadata)"
           :path-override="path"
@@ -353,8 +374,8 @@ function updateReadOnlyValue(value: any) {
       <template v-if="!isParent" #input="templateAttrs">
         <component
           :is="template"
-          :type="`${transformedField.type}-input`"
-          :field-metadata="transformedField"
+          :type="`${computedField.type}-input`"
+          :field-metadata="computedField"
           :field-context
           :template-attrs
           :required

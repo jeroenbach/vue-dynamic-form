@@ -2,6 +2,7 @@ import type { ValidationRule } from '@/core/validation';
 import type { FieldValidationMetaInfo, ValidationMessage } from '@/types/ValidationMessage';
 import { validate } from 'vee-validate';
 import { resolveMessage, ruleParamNames } from '@/core/validation';
+import { getFieldLabel } from '@/utils/getFieldLabel';
 
 /**
  * Creates a validation that uses a globally defined rule in our 'vdf' namespace.
@@ -19,10 +20,19 @@ export function createValidation(rule: ValidationRule, param?: unknown, customMe
     ? { 0: param, ...(paramName ? { [paramName]: param } : {}) }
     : {};
   return async (value: unknown, ctx: FieldValidationMetaInfo) => {
-    // Pass the field name so generateMessage receives the correct ctx.field (standalone validate() defaults to '{field}')
-    const result = await validate(value, param !== undefined ? { [rule]: param } : rule, { name: ctx.field });
+    const fieldName = getFieldLabel(ctx);
+    const validateOptions = fieldName ? { name: fieldName } : undefined;
+    const normalizedCtx = fieldName && ctx.field !== fieldName
+      ? { ...ctx, field: fieldName }
+      : ctx;
+
+    const result = await validate(
+      value,
+      param !== undefined ? { [rule]: param } : rule,
+      validateOptions,
+    );
     if (result.valid)
       return true;
-    return customMessage ? resolveMessage(customMessage, ctx, params) : result.errors[0];
+    return customMessage ? resolveMessage(customMessage, normalizedCtx, params) : result.errors[0];
   };
 }

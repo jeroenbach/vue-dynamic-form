@@ -6,6 +6,7 @@ export { resolveMessage } from '@/utils/resolveMessage';
 
 export type ValidationRule = 'xsd_required'
   | 'xsd_minOccurs'
+  | 'xsd_choiceMinOccurs'
   | 'xsd_minLength'
   | 'xsd_maxLength'
   | 'xsd_pattern'
@@ -27,6 +28,13 @@ defineRule('xsd_minOccurs' as ValidationRule, (value: unknown, [min]: [number]) 
   if (!Array.isArray(value))
     return true;
   return value.filter(checkTreeHasValue).length >= Number(min);
+});
+
+// XSD: choiceMinOccurs — minimum number of choice items that have a value
+defineRule('xsd_choiceMinOccurs' as ValidationRule, () => {
+  // As we can't actually validate a choice field (it doesn't exist in the vee-validate value tree)
+  // we always validate false if this validation is added.
+  return false;
 });
 
 // XSD: minLength / maxLength — maps to vee-validate's min/max (string length)
@@ -98,16 +106,17 @@ defineRule('xsd_totalDigits' as ValidationRule, (value: unknown, [digits]: [numb
  * interpolation (e.g. `{length}`, `{min}`) alongside positional `{0}` in messages.
  */
 export const ruleParamNames: Partial<Record<ValidationRule, string>> = {
+  xsd_minOccurs: 'min',
+  xsd_choiceMinOccurs: 'min',
   xsd_minLength: 'length',
   xsd_maxLength: 'length',
   xsd_length: 'length',
+  xsd_pattern: 'pattern',
   xsd_minInclusive: 'min',
   xsd_maxInclusive: 'max',
   xsd_minExclusive: 'min',
   xsd_maxExclusive: 'max',
+  xsd_whiteSpace: 'mode',
   xsd_fractionDigits: 'digits',
   xsd_totalDigits: 'digits',
-  xsd_minOccurs: 'min',
-  xsd_pattern: 'pattern',
-  xsd_whiteSpace: 'mode',
 };

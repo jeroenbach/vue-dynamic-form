@@ -4,14 +4,17 @@
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
 import type { ComputedRef } from 'vue';
+import type { LimitedFieldContext } from '@/components/DynamicFormTemplate.vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
+import { useField } from 'vee-validate';
 import { computed, inject, ref } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
+import { createValidation } from '@/utils/createValidation';
 
 // #region Interfaces
 export interface Emit {
@@ -188,6 +191,27 @@ const singleChild = computed(() =>
   field.value?.choice?.length === 1 ? field.value?.choice[0] as InternalMetadata : undefined,
 );
 
+// A choice field doesn't have a place in the Vee-Validate values tree, therefore
+// we use a trick to get it validated anyways.
+const combinedValidation = computed(() => {
+  // Don't validate a single child, this one should just be ignored
+  if (singleChild.value)
+    return;
+
+  // If disabled, do nothing
+  if (disabled.value)
+    return;
+
+  // All valid, do nothing
+  if (valuesCount.value >= minOccurs.value)
+    return;
+
+  const _messages = settings?.value?.messages;
+
+  return [createValidation('xsd_choiceMinOccurs', minOccurs.value, _messages?.choiceMinOccurs)];
+});
+const { errors, errorMessage } = useField('', combinedValidation, field.value?.fieldOptions); // Use the root of the value tree for any errors
+const fieldContext: LimitedFieldContext = { label: field.value?.fieldOptions?.label, errors, errorMessage };
 // #endregion
 
 // #region Methods
@@ -243,23 +267,24 @@ function updateChildValue(
     :is="template"
     type="choice"
     :field-metadata
-    :template-attrs
-    :value="childValues"
+    :field-context
     :required
     :disabled
+    :template-attrs
     :can-add-items
     :can-remove-items
     :add-item
     :remove-item
   >
-    <template #children>
+    <template #children="templateAttrs">
       <DynamicFormItem
         v-if="singleChild"
+        :template
         :field-metadata="singleChild"
         :path-override
-        :template
         :min-occurs-override="_minOccursOverride"
         :max-occurs-override="_maxOccursOverride"
+        :template-attrs
         @update:model-value="updateChildValue($event, 0, singleChild!.maxOccurs, true)"
       />
       <template v-else>

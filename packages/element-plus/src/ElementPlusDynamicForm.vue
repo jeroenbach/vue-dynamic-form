@@ -107,41 +107,41 @@ const metadata = defineMetadata<
     <template #default-input="slotProps">
       <slot name="default-input" v-bind="slotProps">
         <ElInput
-          :model-value="slotProps.value"
+          :model-value="slotProps.fieldContext.value.value"
           :placeholder="slotProps.fieldMetadata.placeholder"
-          :disabled="slotProps.fieldMetadata.disabled"
+          :disabled="slotProps.fieldMetadata.disabled || slotProps.disabled"
           :readonly="slotProps.fieldMetadata.readonly"
           :size="slotProps.fieldMetadata.size"
           :clearable="slotProps.fieldMetadata.clearable"
-          @update:model-value="slotProps.update"
+          @update:model-value="slotProps.fieldContext.handleChange"
         />
       </slot>
     </template>
 
     <!-- Text input -->
-    <template #text-input="{ fieldMetadata: field, value, update }">
+    <template #text-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElInput
-        :model-value="value"
+        :model-value="value.value"
         :placeholder="field.placeholder"
-        :disabled="field.disabled"
+        :disabled="field.disabled || disabled"
         :readonly="field.readonly"
         :size="field.size"
         :clearable="field.clearable"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- Select -->
-    <template #select-input="{ fieldMetadata: field, value, update }">
+    <template #select-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElSelect
-        :model-value="value"
+        :model-value="value.value"
         :placeholder="field.placeholder"
-        :disabled="field.disabled"
+        :disabled="field.disabled || disabled"
         :size="field.size"
         :clearable="field.clearable"
         :filterable="field.filterable"
         :multiple="field.multiple"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       >
         <ElOption
           v-for="option in field.options"
@@ -159,24 +159,24 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #checkbox-input="{ fieldMetadata: field, value, update }">
+    <template #checkbox-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElCheckbox
-        :model-value="value"
-        :disabled="field.disabled"
+        :model-value="value.value"
+        :disabled="field.disabled || disabled"
         :size="field.size"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       >
         {{ field.label }}
       </ElCheckbox>
     </template>
 
     <!-- Radio Group -->
-    <template #radio-input="{ fieldMetadata: field, value, update }">
+    <template #radio-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElRadioGroup
-        :model-value="value"
-        :disabled="field.disabled"
+        :model-value="value.value"
+        :disabled="field.disabled || disabled"
         :size="field.size"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       >
         <ElRadio
           v-for="option in field.options"
@@ -189,49 +189,49 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Date picker -->
-    <template #date-input="{ fieldMetadata: field, value, update }">
+    <template #date-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElDatePicker
-        :model-value="value"
+        :model-value="value.value"
         :type="field.type || 'date'"
         :placeholder="field.placeholder"
-        :disabled="field.disabled"
+        :disabled="field.disabled || disabled"
         :readonly="field.readonly"
         :size="field.size"
         :clearable="field.clearable"
         :format="field.format"
         :value-format="field.valueFormat"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- Time picker -->
-    <template #time-input="{ fieldMetadata: field, value, update }">
+    <template #time-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElTimePicker
-        :model-value="value"
+        :model-value="value.value"
         :placeholder="field.placeholder"
-        :disabled="field.disabled"
+        :disabled="field.disabled || disabled"
         :readonly="field.readonly"
         :size="field.size"
         :clearable="field.clearable"
         :format="field.format"
         :value-format="field.valueFormat"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- DateTime picker -->
-    <template #datetime-input="{ fieldMetadata: field, value, update }">
+    <template #datetime-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElDatePicker
-        :model-value="value"
+        :model-value="value.value"
         type="datetime"
         :placeholder="field.placeholder"
-        :disabled="field.disabled"
+        :disabled="field.disabled || disabled"
         :readonly="field.readonly"
         :size="field.size"
         :clearable="field.clearable"
         :format="field.format"
         :value-format="field.valueFormat"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
@@ -243,106 +243,106 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #switch-input="{ fieldMetadata: field, value, update }">
+    <template #switch-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElSwitch
-        :model-value="value"
-        :disabled="field.disabled"
+        :model-value="value.value"
+        :disabled="field.disabled || disabled"
         :size="field.size"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- Number input -->
-    <template #number-input="{ fieldMetadata: field, value, update }">
+    <template #number-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElInputNumber
-        :model-value="value"
+        :model-value="value.value"
         :placeholder="field.placeholder"
-        :disabled="field.disabled"
+        :disabled="field.disabled || disabled"
         :readonly="field.readonly"
         :size="field.size"
         :min="field.min"
         :max="field.max"
         :step="field.step"
         :precision="field.precision"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- Rate -->
-    <template #rate-input="{ fieldMetadata: field, value, update }">
+    <template #rate-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElRate
-        :model-value="value"
-        :disabled="field.disabled"
+        :model-value="value.value"
+        :disabled="field.disabled || disabled"
         :max="field.max || 5"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- Slider -->
-    <template #slider-input="{ fieldMetadata: field, value, update }">
+    <template #slider-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElSlider
-        :model-value="value"
-        :disabled="field.disabled"
+        :model-value="value.value"
+        :disabled="field.disabled || disabled"
         :min="field.min"
         :max="field.max"
         :step="field.step"
         :show-stops="field.showStops"
         :range="field.range"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- Color picker -->
-    <template #color-input="{ fieldMetadata: field, value, update }">
+    <template #color-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElColorPicker
-        :model-value="value"
-        :disabled="field.disabled"
+        :model-value="value.value"
+        :disabled="field.disabled || disabled"
         :size="field.size"
         :show-alpha="field.showAlpha"
         :color-format="field.colorFormat"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- Cascader -->
-    <template #cascader-input="{ fieldMetadata: field, value, update }">
+    <template #cascader-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElCascader
-        :model-value="value"
+        :model-value="value.value"
         :options="field.options"
         :props="field.props"
         :placeholder="field.placeholder"
-        :disabled="field.disabled"
+        :disabled="field.disabled || disabled"
         :size="field.size"
         :clearable="field.clearable"
         :filterable="field.filterable"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- Transfer -->
-    <template #transfer-input="{ fieldMetadata: field, value, update }">
+    <template #transfer-input="{ fieldMetadata: field, fieldContext: { value, handleChange } }">
       <ElTransfer
-        :model-value="value"
+        :model-value="value.value"
         :data="field.data"
         :target-keys="field.targetKeys"
         :filterable="field.filterable"
-        @update:model-value="update"
+        @update:model-value="handleChange"
       />
     </template>
 
     <!-- Upload -->
-    <template #upload-input="{ fieldMetadata: field, value, update }">
+    <template #upload-input="{ fieldMetadata: field, fieldContext: { value, handleChange }, disabled }">
       <ElUpload
-        :model-value="value"
+        :model-value="value.value"
         :action="field.action"
         :accept="field.accept"
         :list-type="field.listType"
         :auto-upload="field.autoUpload"
         :show-file-list="field.showFileList"
-        :disabled="field.disabled"
-        @update:model-value="update"
+        :disabled="field.disabled || disabled"
+        @update:model-value="handleChange"
       >
-        <ElButton :size="field.size" :disabled="field.disabled">
+        <ElButton :size="field.size" :disabled="field.disabled || disabled">
           Click to upload
         </ElButton>
       </ElUpload>

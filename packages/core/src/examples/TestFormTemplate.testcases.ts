@@ -1,20 +1,8 @@
 import type { Metadata } from './TestFormTemplate.vue';
-import { email } from '@vee-validate/rules';
+import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 
 import { defineComponent, h, markRaw } from 'vue';
 import TestForm from './TestForm.vue';
-
-function email2(value: any) {
-  // Field is empty, should pass
-  if (!value || !value.length) {
-    return true;
-  }
-  // Check if email
-  if (!email(value)) {
-    return 'This field must be a valid email';
-  }
-  return true;
-}
 
 export const defaultTestCase = createTestCase([{
   name: 'text',
@@ -106,10 +94,32 @@ export const choiceTestCase = createTestCase([
   },
 ]);
 
+export const individualTestCase = createTestCase([{
+  name: 'items',
+  fieldOptions: { label: 'Items' },
+  minOccurs: 1,
+  // minOccurs: 2,
+  // maxOccurs: 4,
+  restriction: {
+    minLength: 4,
+  },
+  computeOnValueChange: true,
+  computedProps: [
+    (field, value) => {
+      // Remove all whitespaces
+      if (value?.value)
+        value.value = (value.value as string).replaceAll(' ', '');
+    },
+  ],
+}], {
+  messages: { minOccurs: 'At least {min} items required', minLength: 'At least {length} characters required' },
+});
+
 export function createTestCase(
   metadata: Metadata[],
+  settings?: DynamicFormSettings,
 ) {
   return markRaw(defineComponent({
-    render: () => h(TestForm, { metadata }),
+    render: () => h(TestForm, { metadata, settings }),
   }));
 }

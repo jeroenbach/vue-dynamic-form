@@ -1,5 +1,5 @@
 import type { FieldOptions, RuleExpression } from 'vee-validate';
-import type { WatchSource } from 'vue';
+import type { Ref } from 'vue';
 
 export type FieldMetadata<
   ExtendedFieldTypes extends string = string,
@@ -41,6 +41,10 @@ export type FieldMetadata<
    * Vee-Validate validation rules that should be applied to this field.
    */
   validation?: RuleExpression<unknown>
+  /**
+   * The vee-validate field options.
+   * - label: you can set a ref to make this dynamically update.
+   */
   fieldOptions?: Partial<FieldOptions<unknown>>
   children?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[]
   /**
@@ -141,8 +145,9 @@ export type FieldMetadata<
 
   /**
    * The parent of the current field.
+   * This is purely for reference, these values cannot be updated.
    */
-  parent?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>
+  parent?: Readonly<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>
 
   /**
    * Compute field values locally in the component that represents the field.
@@ -158,8 +163,8 @@ export type FieldMetadata<
    */
   computedProps?: ((
     thisField: ComputedPropsType<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>,
-    fieldValue?: WatchSource<unknown>,
-  ) => ComputedPropsType<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>)[]
+    fieldValue: Ref<unknown>,
+  ) => void)[]
   /**
    * To opt-in to having the reactive transformer re-evaluated on value changes, set this to true.
    * This is useful when the transformation logic depends on the current value of the field.
@@ -170,11 +175,18 @@ export type FieldMetadata<
 export type ComputedPropsType<T> = Omit<
       T,
       | 'name' // At this point name will always be present, so remove it as being optional
+      | 'path' // At this point name will always be present, so remove it as being optional
       // Not allowed to change the children, choice or attributes of this field, create a transform for those fields specifically
       | 'children'
       | 'choice'
       | 'attributes'
-    > & {
-      // Add the name back as required
+      // Not allowed to update the fieldOptions, as vee-validate doesn't get updated. If the label needs to be updated
+      // this can be done by passing a ref
+      | 'fieldOptions'
+      // Not allowed to update any of the following values, as they're used initially and are not listened to reactively
+      | 'computedProps'
+    > & Readonly<{
+      // Add the name & path back as not optional and Readonly
       name: string
-    };
+      path: string
+    }>;

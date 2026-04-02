@@ -25,7 +25,7 @@ defineProps<Props>();
 const metadata = defineMetadata<
   {
     text: string
-    textBoundByHandleChange: string
+    textBoundByVModel: string // not recommended, as it doesn't trigger validation on blur
     select: string
     checkbox: boolean
     heading: never
@@ -62,7 +62,7 @@ const metadata = defineMetadata<
 
     <template #choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required }">
       <div class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
-        <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled, 'after:content-[\'*\'] after:ml-0.5 after:text-red-500': required }">
+        <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled, 'after:content-[\'*\'] after:-ml-0.5 after:text-red-500': required }">
           {{ label }}
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
@@ -79,8 +79,9 @@ const metadata = defineMetadata<
 
     <template #array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem }">
       <div v-if="!fieldMetadata.children?.length" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
-        <label :for="`${fieldMetadata.path}[0]`" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled, 'after:content-[\'*\'] after:ml-0.5 after:text-red-500': required }" class="flex gap-2 items-center">
+        <label :for="`${fieldMetadata.path}[0]`" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }" class="flex gap-2 items-center">
           {{ label }}
+          <span v-if="required" class="-ml-0.5 text-red-500">*</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" @click="addItem" />
         </label>
         <slot name="input" :hide-label="true" />
@@ -97,8 +98,9 @@ const metadata = defineMetadata<
     <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem }">
       <!-- In case we have multiple children, this is a grouped field and we load the slot with children -->
       <div v-if="fieldMetadata.children?.length" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
-        <span v-if="!templateAttrs?.hideLabel" class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled, 'after:content-[\'*\'] after:ml-0.5 after:text-red-500': required }">
+        <span v-if="!templateAttrs?.hideLabel" class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
+          <span v-if="required" class="-ml-0.5 text-red-500">*</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" @click="addItem" />
           <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" color="red" @click="removeItem" />
         </span>
@@ -114,7 +116,10 @@ const metadata = defineMetadata<
       </div>
       <!-- Otherwise load only the slot with the input -->
       <div v-else class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
-        <label v-if="!templateAttrs?.hideLabel" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled, 'after:content-[\'*\'] after:ml-0.5 after:text-red-500': required }" :for="fieldMetadata.path">{{ label }}</label>
+        <label v-if="!templateAttrs?.hideLabel" :for="fieldMetadata.path" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
+          {{ label }}
+          <span v-if="required" class="-ml-0.5 text-red-500">*</span>
+        </label>
         <div class="flex gap-2 items-center">
           <div class="flex flex-col grow">
             <slot name="input" />
@@ -130,24 +135,54 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #select-input="{ fieldMetadata, fieldContext: { value }, disabled }">
-      <select :id="fieldMetadata.path" v-model="value.value" :disabled="fieldMetadata.disabled || disabled" class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm">
+    <template #select-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange }, disabled }">
+      <select
+        :id="fieldMetadata.path"
+        :value="value.value"
+        :disabled="fieldMetadata.disabled || disabled"
+        class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
+        @change="handleChange"
+        @blur="handleBlur($event, true)"
+      >
         <option v-for="{ key: optionKey, value: optionValue } in fieldMetadata.options" :key="optionKey" :value="optionKey">
           {{ optionValue }}
         </option>
       </select>
     </template>
 
-    <template #checkbox-input="{ fieldMetadata, fieldContext: { value }, disabled }">
-      <input :id="fieldMetadata.path" v-model="value.value" :disabled="fieldMetadata.disabled || disabled" type="checkbox" class="h-6 bg-gray-100 border-gray-200 border rounded px-3 text-sm">
+    <template #checkbox-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange }, disabled }">
+      <input
+        :id="fieldMetadata.path"
+        :value="value.value"
+        :disabled="fieldMetadata.disabled || disabled"
+        type="checkbox"
+        class="h-6 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
+        @change="handleChange"
+        @blur="handleBlur($event, true)"
+      >
     </template>
 
-    <template #default-input="{ fieldMetadata, fieldContext: { value }, disabled }">
-      <input :id="fieldMetadata.path" v-model="value.value" :disabled="fieldMetadata.disabled || disabled" type="text" class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm">
+    <template #textBoundByVModel-input="{ fieldMetadata, fieldContext: { value, handleBlur }, disabled }">
+      <input
+        :id="fieldMetadata.path"
+        v-model="value.value"
+        :disabled="fieldMetadata.disabled || disabled"
+        type="text"
+        class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
+        @blur="handleBlur($event, true)"
+      >
     </template>
 
-    <template #textBoundByHandleChange-input="{ fieldMetadata, fieldContext: { value, handleChange }, disabled }">
-      <input :id="fieldMetadata.path" :value="value.value" :disabled="fieldMetadata.disabled || disabled" type="text" class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm" @input="handleChange">
+    <template #default-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange }, disabled }">
+      <input
+        :id="fieldMetadata.path"
+        :value="value.value"
+        :disabled="fieldMetadata.disabled || disabled"
+        type="text"
+        class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
+        @input="handleChange"
+        @blur="handleBlur($event, true)"
+      >
     </template>
   </DynamicFormTemplate>
 </template>

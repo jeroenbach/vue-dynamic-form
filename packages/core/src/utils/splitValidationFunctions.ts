@@ -1,6 +1,7 @@
 import type { GenericValidateFunction, RuleExpression } from 'vee-validate';
 import type { FieldValidationMetaInfo } from '@/types/ValidationMessage';
 import { validate } from 'vee-validate';
+import { getFieldLabel } from '@/utils/getFieldLabel';
 
 /**
  * Splits a vee-validate `RuleExpression` into an array of individual `GenericValidateFunction`s,
@@ -26,14 +27,16 @@ GenericValidateFunction[] {
 
   if (typeof userRules === 'string') {
     return userRules.split('|').map(rule => async (value: unknown, ctx: FieldValidationMetaInfo) => {
-      const result = await validate(value, rule, { name: ctx.field });
+      const fieldName = getFieldLabel(ctx);
+      const result = await validate(value, rule, fieldName ? { name: fieldName } : undefined);
       return result.valid ? true : result.errors[0];
     });
   }
 
   // Object format: { required: true, email: true }
   return Object.entries(userRules).map(([key, val]) => async (value: unknown, ctx: FieldValidationMetaInfo) => {
-    const result = await validate(value, { [key]: val }, { name: ctx.field });
+    const fieldName = getFieldLabel(ctx);
+    const result = await validate(value, { [key]: val }, fieldName ? { name: fieldName } : undefined);
     return result.valid ? true : result.errors[0];
   });
 }

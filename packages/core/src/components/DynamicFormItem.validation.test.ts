@@ -3,7 +3,7 @@ import { configure } from 'vee-validate';
 import { afterEach, describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 
-describe('component DynamicForm', () => {
+describe('component DynamicFormItem', () => {
   describe('xSD build in restrictions', () => {
     afterEach(() => {
     // Reset vee-validate's generateMessage after each test so tests don't bleed into each other

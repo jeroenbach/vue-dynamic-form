@@ -35,7 +35,7 @@ export interface LimitedFieldContext {
 export interface Attributes<
   TMetadataConfiguration extends MetadataConfiguration,
 > {
-  type: TMetadataConfiguration['fieldTypes'][number] | 'default'
+  type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'array' | 'choice'
   /**
    * The metadata that you configured for this field
    */
@@ -97,7 +97,7 @@ export interface ArrayChoiceAttributes<
 
 type Props = DynamicFormConfigurationProps<TMetadataConfiguration>;
 type SlotProps<FieldType extends string = string> = ItemAttributes<TMetadataConfiguration, FieldType>; // we pass the attributes as slot props
-type ArrayChoiceSlotProps<FieldType extends string = string> = ArrayChoiceAttributes<TMetadataConfiguration>; // we pass the attributes as slot props
+type ArrayChoiceSlotProps = ArrayChoiceAttributes<TMetadataConfiguration>; // we pass the attributes as slot props
 
 type SlotsFromMetadata = {
   // With the default slot you can define how unknown fields are rendered
@@ -135,18 +135,19 @@ const attrs = computed(() => {
   for (const [key, value] of Object.entries(rawAttrs)) {
     result[camelize(key)] = value;
   }
-  return result as unknown as Attributes<TMetadataConfiguration>;
+  return result as unknown as SlotProps;
 });
 
-const typeWithFallback = computed(() => {
-  const type = attrs.value.type || 'default';
-  if (type && slots[type]) {
-    return type;
+type RegularSlotName = Exclude<keyof SlotsFromMetadata, 'array' | 'choice'>
+
+const typeWithFallback = computed((): RegularSlotName => {
+  const type = attrs.value.type;
+  if (type && type !== 'array' && type !== 'choice' && slots[type as RegularSlotName]) {
+    return type as RegularSlotName;
   }
   if (type?.includes('-input')) {
     return 'default-input';
   }
-
   return 'default';
 });
 
@@ -154,9 +155,9 @@ const typeWithFallback = computed(() => {
 </script>
 
 <template>
-  <slot
-    v-if="attrs.fieldMetadata"
-    :name="typeWithFallback"
-    v-bind="attrs"
-  />
+  <template v-if="attrs.fieldMetadata">
+    <slot v-if="attrs.type === 'array'" name="array" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
+    <slot v-else-if="attrs.type === 'choice'" name="choice" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
+    <slot v-else :name="typeWithFallback" v-bind="attrs" />
+  </template>
 </template>
