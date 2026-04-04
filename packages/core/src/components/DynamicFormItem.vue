@@ -4,7 +4,7 @@
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
 import type { GenericValidateFunction } from 'vee-validate';
-import type { ComputedRef, Ref } from 'vue';
+import type { ComputedRef } from 'vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { ComputedPropsType, FieldMetadata } from '@/types/FieldMetadata';
@@ -43,6 +43,33 @@ let _analytics_fieldChangedCount = 0;
 let _analytics_fieldComputeCount = 0;
 // #endregion
 
+// #region Safety guard
+// Detects non-idempotent value writes in computedProps that would cause an infinite recomputation loop.
+// The counter resets after each microtask, so it only catches computes that happen synchronously.
+const COMPUTE_LOOP_MAX = 10;
+let _computeLoopCount = 0;
+let _computeLoopResetScheduled = false;
+
+function assertNoComputeLoop(fieldPath: string) {
+  _computeLoopCount++;
+  if (!_computeLoopResetScheduled) {
+    _computeLoopResetScheduled = true;
+    Promise.resolve().then(() => {
+      // Reset after all synchronous computes in this tick have settled
+      _computeLoopCount = 0;
+      _computeLoopResetScheduled = false;
+    });
+  }
+  if (_computeLoopCount > COMPUTE_LOOP_MAX) {
+    throw new Error(
+      `[DynamicFormItem] Possible infinite loop detected in computedProps for field "${fieldPath}". `
+      + `computedProps recomputed more than ${COMPUTE_LOOP_MAX} times synchronously. `
+      + `Ensure value writes inside computedProps are idempotent (the same input always produces the same output).`,
+    );
+  }
+}
+// #endregion
+
 // #region Computed properties and state
 
 /**
@@ -65,11 +92,15 @@ const path = computed(() => {
   return overridePath(field.value.path, props.pathOverride);
 });
 
+// If the field has attributes, it automatically becomes a complexType
+const isComplexType = computed(() => field.value?.isComplexType || field.value?.attributes?.length);
+
 // The path that takes value types into consideration
 const itemPath = computed(() => {
   let _path = path.value;
-  if (field.value?.isComplexType && _path) {
-    _path = `${_path}['value']`; // we use this notation to still be able to count the segments by splitting on '.'
+  if (isComplexType.value && _path) {
+    const complexTypeValueProperty = settings?.value?.complexTypeValueProperty ?? 'value';
+    _path = `${_path}['${complexTypeValueProperty}']`; // we use this notation to still be able to count the segments by splitting on '.'
   }
   return _path;
 });
@@ -83,27 +114,22 @@ const normalizedPath = computed(() => normalizePath(itemPath.value));
 
 // We use a separate ref for the value that is passed to the computedProps.
 // We need this, because the transformedField is needed before we call useField, but the actual value comes after, so we're stuck in a dependency loop.
-const trackedValue = ref<unknown>();
-// We also keep an untrackedValue in sync, this way we can still provide the value to the computedPropFunction, but don't re-compute when it is changed.
-let untrackedValue: unknown;
+const syncedValue = ref<unknown>();
 const computedField = computed(() => {
   _analytics_fieldComputeCount++;
+  assertNoComputeLoop(path.value);
 
-  // We allow to transform the field metadata reactively based on the current value.
-  // To do this we set the value using a readOnlyValue ref. Every time the ref is updated, this transformField is re-executed.
-  // If we don't set the value with the ref, the link is never made and this computed is not re-executed on value changes.
-  let _value: Ref<unknown>;
-  if (field.value?.computeOnValueChange === true) {
-    _value = trackedValue;
+  if (field.value?.computeOnChildValueChange === true) {
+    // In case the component has children and when those children update their value, the object in the current component (parent)
+    // doesn't retrigger this computed. If this is required, the computeOnChildValueChange can be set to true. We then include the
+    // readOnlyValue in here, so the computed is hooked up to changes of children.
+    void readOnlyValue.value;
   }
-  else {
-    // Provide the value, but don't re-compute when its changed
-    _value = ref(untrackedValue);
-  }
-
   const _computedField = (field.value?.computedProps ?? []).reduce(
     (field, compute) => {
-      compute(field, _value);
+      // We allow to transform the field metadata reactively based on the current value (syncedValue). In case the value is not
+      // called upon in any of the computedProps, it will not be part of the reactivity that triggers a re-compute
+      compute(field, syncedValue);
       return field;
     },
     // Spread the original object, so we can make changes & add the actual path
@@ -111,7 +137,7 @@ const computedField = computed(() => {
   );
 
   // Path is always reverted back to our calculated value. This way it can be used, but no set.
-  const _internalMetadata = _computedField as InternalMetadata; // convert back to normal (stop pretending to not have any children and other excluded propertie)
+  const _internalMetadata = _computedField as InternalMetadata; // convert back to normal (stop pretending to not have any children and other excluded properties)
   _internalMetadata.path = path.value;
 
   return _internalMetadata;
@@ -251,12 +277,7 @@ const showAttributes = computed(
 
 // #region Watchers and lifecycle events
 // keep in sync, to allow value updates in the computedField
-syncRef(value, trackedValue, { master: 'b' });
-
-// keep in sync, to allow passing a value to the computedField function, without creating a dependency and forcing a re-compute
-watch(trackedValue, (val) => {
-  untrackedValue = val;
-}, { immediate: true });
+syncRef(value, syncedValue, { master: 'b' });
 
 // Hook into the fieldContext.value to make sure that if it is an empty string we change the value to undefined.
 // This way the element is removed from the parent object.
@@ -315,9 +336,19 @@ onBeforeUnmount(() => {
 // #endregion
 
 // #region Methods
-function updateReadOnlyValue(value: any) {
+function updateReadOnlyValue(value: unknown) {
   readOnlyValue.value = value;
   emits('update:modelValue', value);
+};
+
+// In case of attributes, we only need to notify when the value has been set to undefined.
+// This could be the last value in the object tree and some parents need to react on this.
+// The attributes are only shown when the main field has a value, therefore we know the attribute
+// will never be the first value int he object tree and therefore we can ignore it.
+function notifyEmptyAttributeUpdate(value: unknown) {
+  if (value !== undefined)
+    return;
+  emits('update:modelValue', readOnlyValue.value);
 };
 // #endregion
 </script>
@@ -384,6 +415,19 @@ function updateReadOnlyValue(value: any) {
           :can-remove-items="_canRemoveItems"
           :add-item
           :remove-item
+        />
+      </template>
+      <template v-if="showAttributes" #attributes="templateAttrs">
+        <DynamicFormItem
+          v-for="attribute in computedField.attributes"
+          :key="attribute.path"
+          :field-metadata="(attribute as InternalMetadata)"
+          :path-override="path"
+          :template
+          :template-attrs
+          :min-occurs-override="_minOccursOverride"
+          :max-occurs-override="_maxOccursOverride"
+          @update:model-value="notifyEmptyAttributeUpdate"
         />
       </template>
     </component>

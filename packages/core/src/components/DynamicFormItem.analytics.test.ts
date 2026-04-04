@@ -2,37 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { ref } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
-
-/** Reads the render count for a field from the analytics DOM span. */
-function renderCount(wrapper: ReturnType<typeof mount>, path: string): number {
-  return Number(wrapper.find(`[data-testid="${path}-analytics-render-count"]`).text());
-}
-
-/**
- * Accesses the internal `<script setup>` state of the DynamicFormItem for a given field path.
- * Uses `vm.$.setupState` — an internal Vue API that exposes all setup variables, including
- * private `let` declarations that are not exposed via `defineExpose`.
- */
-function setupState(wrapper: ReturnType<typeof mount>, path: string): Record<string, any> | undefined {
-  const item = wrapper.findAllComponents({ name: 'DynamicFormItem' })
-    .find(c => c.vm.$.setupState.path === path);
-  return item?.vm.$.setupState;
-}
-
-/** Reads the number of times `combinedValidation` was recomputed for a given field. Returns -1 if the field is not found. */
-function constructValidationCount(wrapper: ReturnType<typeof mount>, path: string): number {
-  return setupState(wrapper, path)?._analytics_constructValidationCount ?? -1;
-}
-
-/** Reads the number of times `computedField` was recomputed for a given field. Returns -1 if the field is not found. */
-function fieldComputeCount(wrapper: ReturnType<typeof mount>, path: string): number {
-  return setupState(wrapper, path)?._analytics_fieldComputeCount ?? -1;
-}
-
-/** Reads the number of times the `field` computed (bound to `props.fieldMetadata`) was recomputed. Returns -1 if the field is not found. */
-function fieldChangedCount(wrapper: ReturnType<typeof mount>, path: string): number {
-  return setupState(wrapper, path)?._analytics_fieldChangedCount ?? -1;
-}
+import { constructValidationCount, fieldChangedCount, fieldComputeCount, renderCount } from './DynamicFormItem.test-helpers';
 
 describe('component DynamicFormItem - analytics', () => {
   describe('render count', () => {
@@ -361,11 +331,13 @@ describe('component DynamicFormItem - analytics', () => {
       expect(fieldComputeCount(wrapper, 'text')).toBe(2);
     });
 
-    it('re-compute when the field value changes and computeOnValueChange is true', async () => {
-      let updatedValue = ''; // will be overridden the first time the computedProp runs
+    it('re-computes when the field value changes and computedProp reads value.value', async () => {
+      // The value is always passed to computedProps. Reading value.value creates a reactive dependency,
+      // so the computed automatically re-runs when the field value changes — no flag required.
+      let updatedValue: string | undefined;
       const wrapper = mount(TestForm, {
         attachTo: document.body,
-        props: { metadata: [{ name: 'text', type: 'text', computeOnValueChange: true, computedProps: [
+        props: { metadata: [{ name: 'text', type: 'text', computedProps: [
           (_, value) => {
             updatedValue = value?.value as string;
           },
@@ -383,7 +355,8 @@ describe('component DynamicFormItem - analytics', () => {
       expect(fieldComputeCount(wrapper, 'text')).toBe(2);
     });
 
-    it('does not re-compute the when a child value changes and computeOnValueChange is true', async () => {
+    it('re-computes when a child value changes and computeOnChildValueChange is true', async () => {
+      // computeOnChildValueChange hooks the computed into readOnlyValue, which is updated by children.
       const wrapper = mount(TestForm, {
         attachTo: document.body,
         props: {
@@ -391,7 +364,29 @@ describe('component DynamicFormItem - analytics', () => {
             name: 'person',
             type: 'text',
             fieldOptions: { label: 'Person' },
-            computeOnValueChange: true,
+            computeOnChildValueChange: true,
+            computedProps: [],
+            children: [{ name: 'firstName', type: 'text' }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(fieldComputeCount(wrapper, 'person')).toBe(1);
+      await wrapper.find('#person\\.firstName').setValue('John');
+      await flushPromises();
+
+      expect(fieldComputeCount(wrapper, 'person')).toBe(2);
+    });
+
+    it('does not re-compute when a child value changes and computeOnChildValueChange is not set', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'text',
+            fieldOptions: { label: 'Person' },
             computedProps: [],
             children: [{ name: 'firstName', type: 'text' }],
           }],
@@ -406,8 +401,9 @@ describe('component DynamicFormItem - analytics', () => {
       expect(fieldComputeCount(wrapper, 'person')).toBe(1);
     });
 
-    it('re-computes when an external ref read by a computedProp changes, without changing the field', async () => {
-      let updatedValue = ''; // will be overridden the first time the computedProp runs with undefined
+    it('re-computes when an external ref changes, providing access to the current field value', async () => {
+      // Both value.value and externalRef are deps — the compute runs on either change.
+      let updatedValue: string | undefined;
       const externalRef = ref(false);
 
       const wrapper = mount(TestForm, {
@@ -428,26 +424,25 @@ describe('component DynamicFormItem - analytics', () => {
       await flushPromises();
 
       expect(wrapper.find('#text').attributes('disabled')).toBeUndefined();
-
       expect(renderCount(wrapper, 'text')).toBe(1);
       expect(fieldChangedCount(wrapper, 'text')).toBe(1);
 
-      // update the value, but because computeOnValueChange is false, will not trigger the computedProps
+      // Setting the value re-computes because computedProp reads value.value
       await wrapper.find('#text').setValue('hello');
       await flushPromises();
 
-      expect(updatedValue).toBe(undefined);
+      expect(updatedValue).toBe('hello');
+      expect(fieldComputeCount(wrapper, 'text')).toBe(2);
+      expect(wrapper.find('#text').attributes('disabled')).toBeUndefined(); // externalRef still false
 
-      // update the externalRef, which should trigger the computedProps
+      // Updating the external ref also re-computes, and the current value is available
       externalRef.value = true;
       await flushPromises();
 
       expect(updatedValue).toBe('hello');
-
       expect(wrapper.find('#text').attributes('disabled')).toBeDefined();
-
-      expect(fieldComputeCount(wrapper, 'text')).toBe(2);
-      expect(renderCount(wrapper, 'text')).toBe(2); // when the computedField updates, the component re-renders
+      expect(fieldComputeCount(wrapper, 'text')).toBe(3);
+      expect(renderCount(wrapper, 'text')).toBe(3);
       expect(fieldChangedCount(wrapper, 'text')).toBe(1);
     });
 
@@ -483,13 +478,13 @@ describe('component DynamicFormItem - analytics', () => {
     });
 
     it('computedProp can sanitize the value by removing disallowed characters', async () => {
+      // No flag needed — reading value.value in computedProp creates the reactive dependency automatically.
       const wrapper = mount(TestForm, {
         attachTo: document.body,
         props: {
           metadata: [{
             name: 'text',
             type: 'text',
-            computeOnValueChange: true,
             computedProps: [(_, value) => {
               if (typeof value.value === 'string')
                 value.value = value.value.replace(/#/g, '');
@@ -508,14 +503,42 @@ describe('component DynamicFormItem - analytics', () => {
       /**
        * After the value is updated in the computedProps, the computedProps are run again as a stabilize run, unavoidable with vue's architecture.
        *
-       *  1. User types 'hel#lo' → trackedValue = 'hel#lo' → run 2: sanitizes → writes trackedValue =
-       * 'hello' (different value) → invalidates computedField
-       * 2. Run 3: trackedValue is now 'hello' → sanitizes → writes 'hello' (same) → Object.is = true → no
-       *  trigger → stable
+       *  1. User types 'hel#lo' → syncedValue = 'hel#lo' → run 2: sanitizes → writes syncedValue =
+       *     'hello' (different value) → invalidates computedField
+       *  2. Run 3: syncedValue is now 'hello' → sanitizes → writes 'hello' (same) → Object.is = true → no
+       *     trigger → stable
        *
        * Run 3 is Vue's mandatory stabilization pass after the value changed.
        */
       expect(fieldComputeCount(wrapper, 'text')).toBe(3);
+    });
+
+    it('throws when computedProps causes a synchronous infinite loop by writing a non-idempotent value', async () => {
+      // The loop is triggered on the initial render, so mount() itself throws.
+      let caughtError: unknown;
+
+      try {
+        mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'text',
+              type: 'text',
+              computedProps: [(_, value) => {
+                // Non-idempotent: always appends, so the value never stabilizes
+                value.value = `${value.value ?? ''}!`;
+              }],
+            }],
+          },
+        });
+        await flushPromises();
+      }
+      catch (err) {
+        caughtError = err;
+      }
+
+      expect(caughtError).toBeInstanceOf(Error);
+      expect((caughtError as Error).message).toContain('[DynamicFormItem] Possible infinite loop');
     });
   });
 });

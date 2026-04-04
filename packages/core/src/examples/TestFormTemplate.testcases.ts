@@ -95,25 +95,29 @@ export const choiceTestCase = createTestCase([
 ]);
 
 export const individualTestCase = createTestCase([{
-  name: 'items',
-  fieldOptions: { label: 'Items' },
-  minOccurs: 1,
-  // minOccurs: 2,
-  // maxOccurs: 4,
-  restriction: {
-    minLength: 4,
-  },
-  computeOnValueChange: true,
-  computedProps: [
-    (field, value) => {
-      // Remove all whitespaces
-      if (value?.value)
-        value.value = (value.value as string).replaceAll(' ', '');
+  type: 'heading',
+  path: '',
+  fieldOptions: { label: 'Test' },
+  children: [
+    {
+      name: 'items',
+      fieldOptions: { label: 'Items' },
+      // minOccurs: 2,
+      // maxOccurs: 4,
+      restriction: {
+        minLength: 4,
+      },
+      attributes: [
+        { name: 'attribute', fieldOptions: { label: 'Attribute' }, minOccurs: 0 },
+      ],
+      computedProps: [
+        (f, v) => {
+          f.disabled = false;
+        },
+      ],
     },
   ],
-}], {
-  messages: { minOccurs: 'At least {min} items required', minLength: 'At least {length} characters required' },
-});
+}]);
 
 export function createTestCase(
   metadata: Metadata[],

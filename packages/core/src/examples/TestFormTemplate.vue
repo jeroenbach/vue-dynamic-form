@@ -25,7 +25,7 @@ defineProps<Props>();
 const metadata = defineMetadata<
   {
     text: string
-    textBoundByVModel: string // not recommended, as it doesn't trigger validation on blur
+    textBoundByVModel: string
     select: string
     checkbox: boolean
     heading: never
@@ -133,6 +133,7 @@ const metadata = defineMetadata<
           :data-testid="`${fieldMetadata.path}-error-message`"
         >{{ errorMessage.value }}</span>
       </div>
+      <slot name="attributes" />
     </template>
 
     <template #select-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange }, disabled }">

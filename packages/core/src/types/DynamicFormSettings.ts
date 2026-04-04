@@ -9,6 +9,12 @@ export interface DynamicFormSettings {
   analytics?: boolean
 
   /**
+   * In case of a complex type the value is stored in a value property, i.e. { value: 'the actual value' }
+   * Use complexTypeValueProperty to change the property name, for example 'myValue' will result in { myValue: 'the actual value' }
+   */
+  complexTypeValueProperty?: string
+
+  /**
    * Use this setting to override the default text of the validation messages.
    *
    * Each message accepts either a `string` template or a `(ctx) => string` function.

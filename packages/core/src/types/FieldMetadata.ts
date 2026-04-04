@@ -140,6 +140,8 @@ export type FieldMetadata<
    * the value property.
    *
    * When attributes are present, isComplexType is automatically set to true.
+   *
+   * In case you need to change the default value property 'value', do this in the DynamicFormSettings.
    */
   isComplexType?: boolean
 
@@ -157,8 +159,11 @@ export type FieldMetadata<
    *
    * Allowing you to change the properties in the fieldMetadata, based on other values in the form, without re-rendering the entire component tree.
    *
+   * It is also possible to read & write
+   *
    * @param thisField the reactive & cloned current MetadataField that can be changed.
-   * @param fieldValue the value of the field, this is only available when computeOnValueChange is set to true
+   * @param fieldValue the value of the field, you can read and modify it. If you do, the reactivity is activated and the computed
+   * is re-computed every time the value changes. If you don't use it, a change in value will not re-trigger the reactivity of the computed.
    * @returns A transformed FieldMetadata
    */
   computedProps?: ((
@@ -166,10 +171,10 @@ export type FieldMetadata<
     fieldValue: Ref<unknown>,
   ) => void)[]
   /**
-   * To opt-in to having the reactive transformer re-evaluated on value changes, set this to true.
-   * This is useful when the transformation logic depends on the current value of the field.
+   * Normally the computedProps are not re-calculate if a child value changes. If you need this functionality, you can enable this by
+   * setting this property to true.
    */
-  computeOnValueChange?: boolean
+  computeOnChildValueChange?: boolean
 } & ExtendedProperties;
 
 export type ComputedPropsType<T> = Omit<
