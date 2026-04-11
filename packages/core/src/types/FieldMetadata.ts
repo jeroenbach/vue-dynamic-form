@@ -190,6 +190,9 @@ export type ComputedPropsType<T> = Omit<
       | 'fieldOptions'
       // Not allowed to update any of the following values, as they're used initially and are not listened to reactively
       | 'computedProps'
+      // Changing the maxOccurs changes the item in an array item, this is not allowed. MinOccurs is ok, as it only affects wheter
+      // the item is required.
+      | 'maxOccurs'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string

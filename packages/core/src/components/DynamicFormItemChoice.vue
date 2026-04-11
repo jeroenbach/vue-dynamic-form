@@ -18,7 +18,7 @@ import { createValidation } from '@/utils/createValidation';
 
 // #region Interfaces
 export interface Emit {
-  (e: 'update:modelValue', value: unknown, index?: number): void
+  (e: 'update:modelValue', value: unknown): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;
 // #endregion
@@ -210,7 +210,7 @@ const combinedValidation = computed(() => {
 
   return [createValidation('xsd_choiceMinOccurs', minOccurs.value, _messages?.choiceMinOccurs)];
 });
-const { errors, errorMessage } = useField('', combinedValidation, field.value?.fieldOptions); // Use the root of the value tree for any errors
+const { errors, errorMessage } = useField(props.pathOverride ?? '', combinedValidation, field.value?.fieldOptions); // Use the closed path for any errors errors
 const fieldContext: LimitedFieldContext = { label: field.value?.fieldOptions?.label, errors, errorMessage };
 // #endregion
 
@@ -265,6 +265,7 @@ function updateChildValue(
 <template>
   <component
     :is="template"
+    v-slot="templateAttrs"
     type="choice"
     :field-metadata
     :field-context
@@ -276,32 +277,30 @@ function updateChildValue(
     :add-item
     :remove-item
   >
-    <template #children="templateAttrs">
+    <DynamicFormItem
+      v-if="singleChild"
+      :template
+      :field-metadata="singleChild"
+      :path-override
+      :min-occurs-override="_minOccursOverride"
+      :max-occurs-override="_maxOccursOverride"
+      :template-attrs
+      @update:model-value="updateChildValue($event, 0, singleChild!.maxOccurs, true)"
+    />
+    <template v-else>
       <DynamicFormItem
-        v-if="singleChild"
-        :template
-        :field-metadata="singleChild"
+        v-for="(child, index) in fieldMetadata.choice"
+        :key="child.name"
+        :field-metadata="(child as InternalMetadata)"
         :path-override
-        :min-occurs-override="_minOccursOverride"
-        :max-occurs-override="_maxOccursOverride"
-        :template-attrs
-        @update:model-value="updateChildValue($event, 0, singleChild!.maxOccurs, true)"
-      />
-      <template v-else>
-        <DynamicFormItem
-          v-for="(child, index) in fieldMetadata.choice"
-          :key="child.name"
-          :field-metadata="(child as InternalMetadata)"
-          :path-override
-          :template
-          :min-occurs-override="occurrences[index]?.overrideChildMinOccurrences"
-          :max-occurs-override="occurrences[index]?.overrideChildMaxOccurrences"
-          :is-array-override="childrenAreArrays"
-          :part-of-choice-field
+        :template
+        :min-occurs-override="occurrences[index]?.overrideChildMinOccurrences"
+        :max-occurs-override="occurrences[index]?.overrideChildMaxOccurrences"
+        :is-array-override="childrenAreArrays"
+        :part-of-choice-field
 
-          @update:model-value="updateChildValue($event, index, child.maxOccurs)"
-        />
-      </template>
+        @update:model-value="updateChildValue($event, index, child.maxOccurs)"
+      />
     </template>
   </component>
 </template>

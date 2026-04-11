@@ -8,6 +8,8 @@ describe('component DynamicFormItemChoice', () => {
     configure({ generateMessage: undefined as any });
   });
 
+  // TODO: add a check with multiple validations failing at the same time, the error messages should be displayed on the correct item.
+
   // ─────────────────────────────────────────────────────────────────────────
   // 1. Simple choice — two text inputs (minOccurs=1 default, maxOccurs=1 default)
   // ─────────────────────────────────────────────────────────────────────────

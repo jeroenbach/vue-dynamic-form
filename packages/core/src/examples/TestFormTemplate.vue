@@ -55,7 +55,7 @@ const metadata = defineMetadata<
           :data-testid="`${fieldMetadata.path}-error-message`"
         >{{ errorMessage.value }}</span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <slot name="children" :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot :level="(templateAttrs?.level ?? 0) + 1" />
         </div>
       </div>
     </template>
@@ -66,7 +66,7 @@ const metadata = defineMetadata<
           {{ label }}
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
-          <slot name="children" :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot :level="(templateAttrs?.level ?? 0) + 1" />
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
@@ -84,7 +84,7 @@ const metadata = defineMetadata<
           <span v-if="required" class="-ml-0.5 text-red-500">*</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" @click="addItem" />
         </label>
-        <slot name="input" :hide-label="true" />
+        <slot :hide-label="true" />
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
           v-if="errorMessage.value"
@@ -92,11 +92,11 @@ const metadata = defineMetadata<
           :data-testid="`${fieldMetadata.path}-error-message`"
         >{{ errorMessage.value }}</span>
       </div>
-      <slot v-else name="input" />
+      <slot v-else />
     </template>
 
     <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem }">
-      <!-- In case we have multiple children, this is a grouped field and we load the slot with children -->
+      <!-- In case we have multiple children, this is a grouped field and we adjust how it is displayed -->
       <div v-if="fieldMetadata.children?.length" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span v-if="!templateAttrs?.hideLabel" class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
@@ -105,7 +105,7 @@ const metadata = defineMetadata<
           <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" color="red" @click="removeItem" />
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
-          <slot name="children" :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot :level="(templateAttrs?.level ?? 0) + 1" />
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
@@ -122,7 +122,7 @@ const metadata = defineMetadata<
         </label>
         <div class="flex gap-2 items-center">
           <div class="flex flex-col grow">
-            <slot name="input" />
+            <slot />
           </div>
           <IconButton :class="{ invisible: !canRemoveItems }" icon="minus" tabindex="-1" color="red" @click="removeItem" />
         </div>

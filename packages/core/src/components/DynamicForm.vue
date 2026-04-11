@@ -5,10 +5,9 @@ import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 
-import { computed, provide, ref } from 'vue';
+import { computed, provide } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
-import { setInPath } from '@/utils/setInPath';
 
 // #region Interfaces
 export interface DynamicFormProps<Metadata extends FieldMetadata> {
@@ -16,20 +15,14 @@ export interface DynamicFormProps<Metadata extends FieldMetadata> {
   template: DefineComponent<object, object, any>
   settings?: DynamicFormSettings
 }
-export interface Emit {
-  (e: 'update:modelValue', value: any): void
-}
 // #endregion
 
 // #region Props and State
 defineOptions({ name: 'DynamicForm', inheritAttrs: false });
 
 const { settings, metadata, template } = defineProps<DynamicFormProps<Metadata>>();
-const emits = defineEmits<Emit>();
 
 provide(dynamicFormSettingsKey, computed(() => settings));
-
-const readOnlyValue = ref();
 
 const metadataAsArray = computed(() =>
   Array.isArray(metadata) ? metadata : [metadata],
@@ -45,8 +38,7 @@ const typedTemplate = computed(
       object,
       object,
       {
-        input?: ((props: object) => any) | undefined
-        children?: ((props: object) => any) | undefined
+        default?: ((props: object) => any) | undefined
         attributes?: ((props: object) => any) | undefined
         choice?: ((props: object) => any) | undefined
         array?: ((props: object) => any) | undefined
@@ -97,20 +89,6 @@ function correctMetadataAndSetDefaults(
   return copy;
 }
 
-function updateReadOnlyValue(value: any, path?: string) {
-  if (path) {
-    // Ensure readOnlyValue is an object if we're setting a path
-    if (!readOnlyValue.value || typeof readOnlyValue.value !== 'object') {
-      readOnlyValue.value = {};
-    }
-    setInPath(readOnlyValue.value, path, value);
-  }
-  else {
-    readOnlyValue.value = value;
-  }
-  emits('update:modelValue', readOnlyValue.value);
-};
-
 // #endregion
 </script>
 
@@ -120,6 +98,5 @@ function updateReadOnlyValue(value: any, path?: string) {
     :key="fieldMetadata.name"
     :template="typedTemplate"
     :field-metadata="(fieldMetadata as InternalFieldMetadata<FieldMetadata>)"
-    @update:model-value="value => updateReadOnlyValue(value, fieldMetadata.path)"
   />
 </template>

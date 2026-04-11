@@ -354,7 +354,7 @@ const metadata = defineMetadata<
         <h3 class="text-lg font-semibold mb-2">
           {{ field.label }}
         </h3>
-        <slot name="children" />
+        <slot />
       </div>
     </template>
 

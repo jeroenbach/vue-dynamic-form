@@ -5,12 +5,13 @@
 >
 import type { GenericValidateFunction } from 'vee-validate';
 import type { ComputedRef } from 'vue';
+import type { FieldContext } from '@/components/DynamicFormTemplate.vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { ComputedPropsType, FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 import { useField } from 'vee-validate';
-import { computed, inject, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, ref, watch, watchEffect } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
@@ -19,7 +20,6 @@ import { createValidation } from '@/utils/createValidation';
 import { normalizePath } from '@/utils/normalizePath';
 import { overridePath } from '@/utils/overridePath';
 import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
-import { syncRef } from '@/utils/syncRef';
 
 // #region Interfaces
 export interface Emit {
@@ -41,6 +41,8 @@ let _analytics_renderCount = 0;
 let _analytics_constructValidationCount = 0;
 let _analytics_fieldChangedCount = 0;
 let _analytics_fieldComputeCount = 0;
+let _analytics_valueChangedCount = 0;
+let _analytics_notifyValueUpdateCount = 0;
 // #endregion
 
 // #region Safety guard
@@ -74,9 +76,9 @@ function assertNoComputeLoop(fieldPath: string) {
 
 /**
  * In case of an object, the useFieldValue() in vee-validate doesn't react on an update of a value of its children.
- * Therefore we keep track of an reactive value, that is updated by the children.
+ * Therefore we keep track of an reactive value, that is updated by the children. That re-triggers reactivity
  */
-const readOnlyValue = ref();
+const childValueReactivity = ref(0);
 
 // Keep track of changes to the field for analytics
 const field = computed(() => {
@@ -105,16 +107,32 @@ const itemPath = computed(() => {
   return _path;
 });
 
-const isParent = computed(() => !!field.value?.children?.length);
-
-const isChoice = computed(() => !!field.value?.choice?.length);
-
 // Link the vee-validate field to this metadata field
 const normalizedPath = computed(() => normalizePath(itemPath.value));
 
-// We use a separate ref for the value that is passed to the computedProps.
-// We need this, because the transformedField is needed before we call useField, but the actual value comes after, so we're stuck in a dependency loop.
-const syncedValue = ref<unknown>();
+const isArray = computed(() => {
+  if (props.isArrayOverride)
+    return true;
+
+  // Check if we can occur multiple times, if yes, we're an array.
+  // This can not be reactive.
+  return (props.maxOccursOverride ?? field.value.maxOccurs ?? 1) > 1;
+});
+
+const combinedValidation = ref<GenericValidateFunction[]>([]);
+
+// Create the Vee-validate extended field context
+const fieldContext = !isArray.value
+  ? useField(normalizedPath, combinedValidation, field.value?.fieldOptions) as FieldContext
+  : { value: ref(undefined) } as FieldContext;
+const value = fieldContext.value;
+fieldContext.hasValue = computed(
+  // Computed that will only be called, when the hasValue.value is actually used
+  () => checkTreeHasValue(value.value),
+);
+
+const initialUpdate = ref(true);
+
 const computedField = computed(() => {
   _analytics_fieldComputeCount++;
   assertNoComputeLoop(path.value);
@@ -122,14 +140,14 @@ const computedField = computed(() => {
   if (field.value?.computeOnChildValueChange === true) {
     // In case the component has children and when those children update their value, the object in the current component (parent)
     // doesn't retrigger this computed. If this is required, the computeOnChildValueChange can be set to true. We then include the
-    // readOnlyValue in here, so the computed is hooked up to changes of children.
-    void readOnlyValue.value;
+    // childValueReactivity in here, so the computed is hooked up to changes of children.
+    void childValueReactivity.value;
   }
   const _computedField = (field.value?.computedProps ?? []).reduce(
     (field, compute) => {
-      // We allow to transform the field metadata reactively based on the current value (syncedValue). In case the value is not
+      // We allow to transform the field metadata reactively based on the current value. In case the value is not
       // called upon in any of the computedProps, it will not be part of the reactivity that triggers a re-compute
-      compute(field, syncedValue);
+      compute(field, value);
       return field;
     },
     // Spread the original object, so we can make changes & add the actual path
@@ -162,20 +180,65 @@ const maxOccurs = computed(() =>
     : (computedField.value?.maxOccurs ?? 1),
 );
 
-const isArray = computed(() => {
-  if (props.isArrayOverride)
-    return true;
+const isParent = computed(() => !!field.value?.children?.length);
 
-  // Check if we can occur multiple times, if yes, we're an array.
-  // This can not be reactive.
-  return maxOccurs.value > 1;
-});
+const isChoice = computed(() => !!field.value?.choice?.length);
+
+// If we're none of the other types that can hold other components, we're an input
+const isInput = computed(() => !isArray.value && !isChoice.value && !isParent.value);
 
 const disabled = computed(() => maxOccurs.value === 0);
 
 const required = computed(() => minOccurs.value >= 1 && !disabled.value);
 
-const combinedValidation = computed<GenericValidateFunction[]>(() => {
+// In case this field is optional, we also want to temporarily set the minOccurs to 0 (not required) of the children of this field.
+// if this field is optional and none of the children have values yet. Then all required validation
+// is removed and the user is not forced to fill in any values.
+const _minOccursOverride = computed(() => {
+  // If one of it's parents has set the override, pass it down
+  // But only if it's set to 0
+  if (props.minOccursOverride === 0)
+    return props.minOccursOverride;
+
+  // If the field is required, don't bother continuing (as we don't need to override anything)
+  if (minOccurs.value > 0)
+    return undefined;
+
+  // So the field is optional, now check whether there is a value in it
+  if (checkTreeHasValue(value.value))
+    return undefined;
+
+  // No value and the field is optional, set the children to minOccurs = 0 (optional)
+  return 0;
+});
+
+// When the maxOccurs = 0, we use that to disable fields. We need to pass this down to its children
+const _maxOccursOverride = computed(() =>
+  maxOccurs.value === 0 ? 0 : undefined,
+);
+
+const _canRemoveItems = computed(() => {
+  // If we're part of an array field and we have a value, we can always remove it.
+  // This way the user can just easily press the x button to clear any values.
+  if (props.partOfArrayField && checkTreeHasValue((value.value)))
+    return true;
+
+  // In all other cases, listen to the props
+  return props.canRemoveItems;
+});
+
+const showAttributes = computed(
+  () => field.value?.attributes?.length && checkTreeHasValue(value.value),
+);
+// #endregion
+
+// #region Watchers and lifecycle events
+/**
+ * We've used a watchEffect to solve a circular reference. The useField starts with an empty validation, but this will be updated quickly.
+ * Because we have a circular reference with the computedField, that needs the value from useField,
+ * and useField needs the combinedValidation, which needs the computedField again.
+ */
+watchEffect(() => {
   _analytics_constructValidationCount++;
 
   const _validations: GenericValidateFunction[] = [];
@@ -225,59 +288,8 @@ const combinedValidation = computed<GenericValidateFunction[]>(() => {
   if (field.value?.validation)
     _validations.push(...splitToValidationFunctions(field.value?.validation));
 
-  return _validations;
+  combinedValidation.value = _validations;
 });
-
-// Create the Vee-validate field context
-const fieldContext = useField(normalizedPath, combinedValidation, field.value?.fieldOptions);
-const value = fieldContext.value;
-
-const initialUpdate = ref(true);
-
-// In case this field is optional, we also want to temporarily set the minOccurs to 0 (not required) of the children of this field.
-// if this field is optional and none of the children have values yet. Then all required validation
-// is removed and the user is not forced to fill in any values.
-const _minOccursOverride = computed(() => {
-  // If one of it's parents has set the override, pass it down
-  // But only if it's set to 0
-  if (props.minOccursOverride === 0)
-    return props.minOccursOverride;
-
-  // If the field is required, don't bother continuing (as we don't need to override anything)
-  if (minOccurs.value > 0)
-    return undefined;
-
-  // So the field is optional, now check whether there is a value in it
-  if (checkTreeHasValue(value.value))
-    return undefined;
-
-  // No value and the field is optional, set the children to minOccurs = 0 (optional)
-  return 0;
-});
-
-// When the maxOccurs = 0, we use that to disable fields. We need to pass this down to its children
-const _maxOccursOverride = computed(() =>
-  maxOccurs.value === 0 ? 0 : undefined,
-);
-
-const _canRemoveItems = computed(() => {
-  // If we're part of an array field and we have a value, we can always remove it.
-  // This way the user can just easily press the x button to clear any values.
-  if (props.partOfArrayField && checkTreeHasValue((value.value)))
-    return true;
-
-  // In all other cases, listen to the props
-  return props.canRemoveItems;
-});
-
-const showAttributes = computed(
-  () => field.value?.attributes?.length && checkTreeHasValue(value.value),
-);
-// #endregion
-
-// #region Watchers and lifecycle events
-// keep in sync, to allow value updates in the computedField
-syncRef(value, syncedValue, { master: 'b' });
 
 // Hook into the fieldContext.value to make sure that if it is an empty string we change the value to undefined.
 // This way the element is removed from the parent object.
@@ -302,13 +314,20 @@ watch(value, (newValue) => {
 
 // We watch the value because it can also be updated by other vee-validate methods.
 // Every time its updated we let the parent know that the value has changed. This functionality is not present it
-// vee-validate, therefore we implemented manually.
+// vee-validate, therefore we implemented manually using a readOnlyValue.
 watch(
   value,
   (v) => {
+    _analytics_valueChangedCount++;
+
+    // Only update the readOnlyValue when this is an actual input field, in all other cases
+    // it will be updated by the children directly
+    if (!isInput.value)
+      return;
+
     // Don't update the parent if the initial value is empty
     if (!initialUpdate.value || v) {
-      emits('update:modelValue', v);
+      notifyValueUpdate();
     }
 
     initialUpdate.value = false;
@@ -330,25 +349,17 @@ onBeforeUnmount(() => {
   if (value.value !== undefined) {
     value.value = undefined;
     // The watch is not executed anymore at this point, therefore manually update the parents
-    emits('update:modelValue', value.value);
+    notifyValueUpdate();
   }
 });
 // #endregion
 
 // #region Methods
-function updateReadOnlyValue(value: unknown) {
-  readOnlyValue.value = value;
-  emits('update:modelValue', value);
-};
 
-// In case of attributes, we only need to notify when the value has been set to undefined.
-// This could be the last value in the object tree and some parents need to react on this.
-// The attributes are only shown when the main field has a value, therefore we know the attribute
-// will never be the first value int he object tree and therefore we can ignore it.
-function notifyEmptyAttributeUpdate(value: unknown) {
-  if (value !== undefined)
-    return;
-  emits('update:modelValue', readOnlyValue.value);
+function notifyValueUpdate() {
+  _analytics_notifyValueUpdateCount++;
+  childValueReactivity.value++;
+  emits('update:modelValue', value.value);
 };
 // #endregion
 </script>
@@ -363,16 +374,13 @@ function notifyEmptyAttributeUpdate(value: unknown) {
     <DynamicFormItemChoice
       v-bind="props"
       :field-metadata="computedField"
-      :path-override="path"
-      @update:model-value="updateReadOnlyValue"
+      @update:model-value="notifyValueUpdate"
     />
   </template>
   <template v-else-if="isArray">
     <DynamicFormItemArray
       v-bind="props"
       :field-metadata="computedField"
-      :path-override="path"
-      @update:model-value="updateReadOnlyValue"
     />
   </template>
   <template v-else>
@@ -389,33 +397,35 @@ function notifyEmptyAttributeUpdate(value: unknown) {
       :add-item
       :remove-item
     >
-      <template v-if="isParent" #children="templateAttrs">
-        <DynamicFormItem
-          v-for="child in computedField.children"
-          :key="child.path"
-          :field-metadata="(child as InternalMetadata)"
-          :path-override="path"
-          :template
-          :template-attrs
-          :min-occurs-override="_minOccursOverride"
-          :max-occurs-override="_maxOccursOverride"
-          @update:model-value="updateReadOnlyValue"
-        />
-      </template>
-      <template v-if="!isParent" #input="templateAttrs">
-        <component
-          :is="template"
-          :type="`${computedField.type}-input`"
-          :field-metadata="computedField"
-          :field-context
-          :template-attrs
-          :required
-          :disabled
-          :can-add-items
-          :can-remove-items="_canRemoveItems"
-          :add-item
-          :remove-item
-        />
+      <template #default="templateAttrs">
+        <template v-if="isParent">
+          <DynamicFormItem
+            v-for="child in computedField.children"
+            :key="child.path"
+            :field-metadata="(child as InternalMetadata)"
+            :path-override="itemPath"
+            :template
+            :template-attrs
+            :min-occurs-override="_minOccursOverride"
+            :max-occurs-override="_maxOccursOverride"
+            @update:model-value="notifyValueUpdate"
+          />
+        </template>
+        <template v-if="!isParent">
+          <component
+            :is="template"
+            :type="`${computedField.type}-input`"
+            :field-metadata="computedField"
+            :field-context
+            :template-attrs
+            :required
+            :disabled
+            :can-add-items
+            :can-remove-items="_canRemoveItems"
+            :add-item
+            :remove-item
+          />
+        </template>
       </template>
       <template v-if="showAttributes" #attributes="templateAttrs">
         <DynamicFormItem
@@ -427,7 +437,7 @@ function notifyEmptyAttributeUpdate(value: unknown) {
           :template-attrs
           :min-occurs-override="_minOccursOverride"
           :max-occurs-override="_maxOccursOverride"
-          @update:model-value="notifyEmptyAttributeUpdate"
+          @update:model-value="notifyValueUpdate"
         />
       </template>
     </component>

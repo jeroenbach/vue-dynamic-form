@@ -252,4 +252,113 @@ describe('component DynamicFormItem', () => {
       expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
     });
   });
+
+  describe('attribute validation', () => {
+    it('does not validate a required attribute when the main field has no value', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            minOccurs: 0,
+            attributes: [{ name: 'lang', type: 'text', minOccurs: 1 }],
+          }] as any,
+          settings: { messages: { required: '{field} is required' } },
+        },
+      });
+      await flushPromises();
+
+      // Submit with nothing filled in — attribute is not rendered so its validation never runs
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text.lang-error-message"]').exists()).toBe(false);
+    });
+
+    it('validates a required attribute once the main field has a value', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            minOccurs: 0,
+            attributes: [{ name: 'lang', type: 'text', minOccurs: 1, fieldOptions: { label: 'Language' } }],
+          }] as any,
+          settings: { messages: { required: '{field} is required' } },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('#text').setValue('hello');
+      await flushPromises();
+
+      // Attribute is now visible — submitting without a value should trigger the required rule
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text.lang-error-message"]').text()).toContain('Language is required');
+    });
+
+    it('validates attribute restriction rules when the attribute is visible', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            minOccurs: 0,
+            attributes: [{
+              name: 'lang',
+              type: 'text',
+              minOccurs: 0,
+              fieldOptions: { label: 'Language' },
+              restriction: { minLength: 2 },
+            }],
+          }] as any,
+          settings: { messages: { minLength: '{field} must be at least {0} characters' } },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('#text').setValue('hello');
+      await flushPromises();
+
+      await wrapper.find('#text\\.lang').setValue('x');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text.lang-error-message"]').text()).toContain('Language must be at least 2 characters');
+    });
+
+    it('clears the attribute error after the main field value is removed', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            minOccurs: 0,
+            attributes: [{ name: 'lang', type: 'text', minOccurs: 1, fieldOptions: { label: 'Language' } }],
+          }] as any,
+          settings: { messages: { required: '{field} is required' } },
+        },
+      });
+      await flushPromises();
+
+      // Trigger the attribute validation error
+      await wrapper.find('#text').setValue('hello');
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="text.lang-error-message"]').exists()).toBe(true);
+
+      // Clearing the main field unmounts the attribute — its error disappears with it
+      await wrapper.find('#text').setValue('');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text.lang-error-message"]').exists()).toBe(false);
+    });
+  });
 });

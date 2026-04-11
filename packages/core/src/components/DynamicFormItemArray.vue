@@ -10,7 +10,7 @@ import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { useField, useForm, useSubmitCount, useValidateField } from 'vee-validate';
+import { useField, useFieldError, useForm, useSetFieldError, useSubmitCount, useValidateField } from 'vee-validate';
 import { computed, inject, ref, watch, watchEffect } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
@@ -23,7 +23,7 @@ import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
 
 // #region Interfaces
 export interface Emit {
-  (e: 'update:modelValue', value: unknown, index?: number): void
+  (e: 'update:modelValue', value: unknown): void
 }
 
 type Props = DynamicFormItemProps<InternalMetadata>;
@@ -144,23 +144,22 @@ const combinedValidation = computed<GenericValidateFunction[]>(() => {
 
 const { label, errors, errorMessage } = useField(normalizedPath, combinedValidation, field.value?.fieldOptions);
 const fieldContext: LimitedFieldContext = { label, errors, errorMessage };
-const { resetField } = useForm();
 // #endregion
 
 // #region Watchers and lifecycle events
-// watch(
-//   values,
-//   (v) => {
-//     // In case there are validation errors, keep validating this field
-//     // on each change. This way the error message disappears and appears every time
-//     // an error is solved or introduced
-//     if (errors.value?.length > 0) {
-//       validate();
-//     }
-//     emits('update:modelValue', v);
-//   },
-//   { immediate: true },
-// );
+watch(
+  values,
+  (v) => {
+    // In case there are validation errors, keep validating this field
+    // on each change. This way the error message disappears and appears every time
+    // an error is solved or introduced
+    if (errors.value?.length > 0) {
+      validate();
+    }
+    emits('update:modelValue', v);
+  },
+  { immediate: true },
+);
 
 watchEffect(() => {
   // Don't add items when part of a choice field
@@ -207,6 +206,8 @@ function updateItem(value: any, index: number) {
   if (value === undefined && index >= 0) {
     update(index, undefined);
   }
+
+  // Emit the value coming from vee-validate
   emits('update:modelValue', values.value);
 };
 
@@ -214,7 +215,8 @@ function getValuePath(_path: string, _index: number) {
   _path = `${_path}[${_index}]`;
   // Add the { value: ... } part for complex types
   if (props.fieldMetadata?.isComplexType && _path) {
-    _path = `${_path}['value']`; // we use this notation to still have the same length when splitting the path by '.'
+    const complexTypeValueProperty = settings?.value?.complexTypeValueProperty ?? 'value';
+    _path = `${_path}['${complexTypeValueProperty}']`; // we use this notation to still have the same length when splitting the path by '.'
   }
   return _path;
 };
@@ -241,7 +243,7 @@ function getValuePath(_path: string, _index: number) {
     :add-item="_addItem"
     :remove-item="_removeItem"
   >
-    <template #input="templateAttrs">
+    <template #default="templateAttrs">
       <DynamicFormItem
         v-for="({ key }, index) in fields ?? []"
         :key="key"

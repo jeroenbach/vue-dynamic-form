@@ -3,14 +3,22 @@
   setup
   generic="TMetadataConfiguration extends MetadataConfiguration"
 >
-import type { FieldContext } from 'vee-validate';
-import type { MaybeRefOrGetter, Ref } from 'vue';
+import type { FieldContext as _FieldContext } from 'vee-validate';
+import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { MetadataConfiguration } from '@/types/MetadataConfiguration';
 import { computed, useAttrs } from 'vue';
 import { camelize } from '@/utils/camelize';
 
 // #region Interface
+export interface FieldContext<TValue = unknown> extends _FieldContext<TValue> {
+  /**
+   * Whether this field (or any of its descendants) has a value.
+   * Lazily evaluated — only computed when accessed, so safe to use on deep field trees.
+   */
+  hasValue: ComputedRef<boolean>
+}
+
 export interface DynamicFormConfigurationProps<
   TMetadataConfiguration extends MetadataConfiguration,
 > {
@@ -82,7 +90,9 @@ export interface ItemAttributes<
   FieldType extends string = string,
 > extends Attributes<TMetadataConfiguration> {
   /**
-   * The Vee-Validate context, coming from the useField.
+   * The extended Vee-Validate context, coming from the useField.
+   * A computed hasValue is added, indicating whether the current field or any of its children
+   * has a value.
    */
   fieldContext: FieldContext<FieldType extends keyof TMetadataConfiguration['valueTypes']
     ? TMetadataConfiguration['valueTypes'][FieldType]
@@ -138,7 +148,7 @@ const attrs = computed(() => {
   return result as unknown as SlotProps;
 });
 
-type RegularSlotName = Exclude<keyof SlotsFromMetadata, 'array' | 'choice'>
+type RegularSlotName = Exclude<keyof SlotsFromMetadata, 'array' | 'choice'>;
 
 const typeWithFallback = computed((): RegularSlotName => {
   const type = attrs.value.type;

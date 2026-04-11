@@ -94,30 +94,35 @@ export const choiceTestCase = createTestCase([
   },
 ]);
 
-export const individualTestCase = createTestCase([{
-  type: 'heading',
-  path: '',
-  fieldOptions: { label: 'Test' },
-  children: [
-    {
-      name: 'items',
-      fieldOptions: { label: 'Items' },
-      // minOccurs: 2,
-      // maxOccurs: 4,
-      restriction: {
-        minLength: 4,
-      },
-      attributes: [
-        { name: 'attribute', fieldOptions: { label: 'Attribute' }, minOccurs: 0 },
-      ],
-      computedProps: [
-        (f, v) => {
-          f.disabled = false;
+export const individualTestCase = createTestCase(
+  [{
+    type: 'heading',
+    path: '',
+    fieldOptions: { label: 'Test' },
+    children: [
+      {
+        name: 'items',
+        fieldOptions: { label: 'Items' },
+        minOccurs: 2,
+        maxOccurs: 4,
+        restriction: {
+          minLength: 4,
         },
-      ],
-    },
-  ],
-}]);
+        // attributes: [
+        //   { name: 'attribute', fieldOptions: { label: 'Attribute' } },
+        // ],
+        // children: [
+        //   { name: 'child1', fieldOptions: { label: 'Child 1' } },
+        // ],
+        computedProps: [
+          (f, v) => {
+            f.disabled = false;
+          },
+        ],
+      },
+    ],
+  }],
+);
 
 export function createTestCase(
   metadata: Metadata[],

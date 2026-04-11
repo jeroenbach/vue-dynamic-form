@@ -31,6 +31,16 @@ export function fieldChangedCount(wrapper: ReturnType<typeof mount>, path: strin
   return setupState(wrapper, path)?._analytics_fieldChangedCount ?? -1;
 }
 
+/** Reads the number of times the value watcher fired for a given field. Returns -1 if the field is not found. */
+export function valueChangedCount(wrapper: ReturnType<typeof mount>, path: string): number {
+  return setupState(wrapper, path)?._analytics_valueChangedCount ?? -1;
+}
+
+/** Reads the number of times the notify value change fired for a given field. Returns -1 if the field is not found. */
+export function notifyValueUpdateCount(wrapper: ReturnType<typeof mount>, path: string): number {
+  return setupState(wrapper, path)?._analytics_notifyValueUpdateCount ?? -1;
+}
+
 /** Returns the current vee-validate form values from the TestForm wrapper. */
 export function formValues(wrapper: ReturnType<typeof mount>): Record<string, any> {
   return (wrapper.vm as any).$.setupState.values;

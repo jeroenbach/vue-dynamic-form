@@ -98,12 +98,8 @@ Touched: {{ meta.touched }}
 Valid: {{ meta.valid }}
 Submitted: {{ isSubmitted }}
 
-// vee-validate updated values:
+// form values:
 {{ JSON.stringify(values, null, 2) }}
-            </pre>
-    <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
-// component emit updated values (no vee-validate):
-{{ JSON.stringify(manualValues, null, 2) }}
-          </pre>
+    </pre>
   </form>
 </template>

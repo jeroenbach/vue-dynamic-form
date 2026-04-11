@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { ref } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
-import { constructValidationCount, fieldChangedCount, fieldComputeCount, renderCount } from './DynamicFormItem.test-helpers';
+import { constructValidationCount, fieldChangedCount, fieldComputeCount, notifyValueUpdateCount, renderCount, valueChangedCount } from './DynamicFormItem.test-helpers';
 
 describe('component DynamicFormItem - analytics', () => {
   describe('render count', () => {
@@ -356,7 +356,6 @@ describe('component DynamicFormItem - analytics', () => {
     });
 
     it('re-computes when a child value changes and computeOnChildValueChange is true', async () => {
-      // computeOnChildValueChange hooks the computed into readOnlyValue, which is updated by children.
       const wrapper = mount(TestForm, {
         attachTo: document.body,
         props: {
@@ -377,6 +376,21 @@ describe('component DynamicFormItem - analytics', () => {
       await flushPromises();
 
       expect(fieldComputeCount(wrapper, 'person')).toBe(2);
+
+      await wrapper.find('#person\\.firstName').setValue('John update');
+      await flushPromises();
+
+      expect(fieldComputeCount(wrapper, 'person')).toBe(3);
+
+      await wrapper.find('#person\\.firstName').setValue('John');
+      await flushPromises();
+
+      expect(fieldComputeCount(wrapper, 'person')).toBe(4);
+
+      await wrapper.find('#person\\.firstName').setValue('John');
+      await flushPromises();
+
+      expect(fieldComputeCount(wrapper, 'person')).toBe(4);
     });
 
     it('does not re-compute when a child value changes and computeOnChildValueChange is not set', async () => {
@@ -539,6 +553,138 @@ describe('component DynamicFormItem - analytics', () => {
 
       expect(caughtError).toBeInstanceOf(Error);
       expect((caughtError as Error).message).toContain('[DynamicFormItem] Possible infinite loop');
+    });
+  });
+
+  describe('value changed count', () => {
+    it('fires once on mount for a simple field (immediate watcher)', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{ name: 'text', type: 'text' }],
+        },
+      });
+      await flushPromises();
+
+      expect(valueChangedCount(wrapper, 'text')).toBe(1);
+      expect(notifyValueUpdateCount(wrapper, 'text')).toBe(0); // initial empty update is skipped
+    });
+
+    it('increments only the changed field when its value changes', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{ name: 'text', type: 'text' }],
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('#text').setValue('hello');
+      await flushPromises();
+
+      expect(valueChangedCount(wrapper, 'text')).toBe(2);
+      expect(notifyValueUpdateCount(wrapper, 'text')).toBe(1);
+    });
+
+    it('does not increment a sibling field when another field changes', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [
+            { name: 'firstName', type: 'text' },
+            { name: 'lastName', type: 'text' },
+          ],
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('#firstName').setValue('John');
+      await flushPromises();
+
+      expect(valueChangedCount(wrapper, 'firstName')).toBe(2);
+      expect(valueChangedCount(wrapper, 'lastName')).toBe(1); // unchanged
+    });
+
+    it('increments only the child when a child value changes, not the parent', async () => {
+      // vee-validate stores all form values in a single reactive object. When person.firstName
+      // is set, Vue's deep reactivity also invalidates the watcher on person — so both fire.
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'text',
+            children: [{ name: 'firstName', type: 'text' }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      /**
+       * When person.firstName mounts and calls useField('person.firstName'), vee-validate initializes
+       * that field's path in the shared form values object (form.values.person.firstName = undefined).
+       * Because form.values is deeply reactive, that write to a nested property invalidates the person
+       * watcher — so it fires a second time before you've even touched anything.
+       */
+      expect(valueChangedCount(wrapper, 'person')).toBe(2);
+      expect(notifyValueUpdateCount(wrapper, 'person')).toBe(0);
+      expect(valueChangedCount(wrapper, 'person.firstName')).toBe(1);
+      expect(notifyValueUpdateCount(wrapper, 'person.firstName')).toBe(0);
+
+      await wrapper.find('#person\\.firstName').setValue('John');
+      await flushPromises();
+
+      expect(valueChangedCount(wrapper, 'person.firstName')).toBe(2);
+      expect(notifyValueUpdateCount(wrapper, 'person.firstName')).toBe(1);
+      expect(valueChangedCount(wrapper, 'person')).toBe(2); // parent does not update anymore after the first time the child is added
+      expect(notifyValueUpdateCount(wrapper, 'person')).toBe(1); // we do receive a notify from the children
+
+      await wrapper.find('#person\\.firstName').setValue('John update');
+      await flushPromises();
+
+      expect(valueChangedCount(wrapper, 'person.firstName')).toBe(3);
+      expect(notifyValueUpdateCount(wrapper, 'person.firstName')).toBe(2);
+      expect(valueChangedCount(wrapper, 'person')).toBe(2);
+      expect(notifyValueUpdateCount(wrapper, 'person')).toBe(2);
+    });
+
+    it('increments only the attribute when an attribute value changes, not the parent or child', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'text',
+            children: [{
+              name: 'firstName',
+              type: 'text',
+              attributes: [{ name: 'lang', type: 'text', minOccurs: 0 }],
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      // Set child value first so attributes become visible
+      await wrapper.find('#person\\.firstName').setValue('John');
+      await flushPromises();
+
+      expect(valueChangedCount(wrapper, 'person')).toBe(2);
+      expect(notifyValueUpdateCount(wrapper, 'person')).toBe(1);
+      expect(valueChangedCount(wrapper, 'person.firstName')).toBe(2);
+      expect(notifyValueUpdateCount(wrapper, 'person.firstName')).toBe(1);
+      expect(valueChangedCount(wrapper, 'person.firstName.lang')).toBe(1);
+      expect(notifyValueUpdateCount(wrapper, 'person.firstName.lang')).toBe(0);
+
+      await wrapper.find('#person\\.firstName\\.lang').setValue('en');
+      await flushPromises();
+
+      expect(valueChangedCount(wrapper, 'person.firstName.lang')).toBe(2);
+      expect(notifyValueUpdateCount(wrapper, 'person')).toBe(2);
+      expect(valueChangedCount(wrapper, 'person.firstName')).toBe(2); // child unchanged
+      expect(notifyValueUpdateCount(wrapper, 'person.firstName')).toBe(2);
+      expect(valueChangedCount(wrapper, 'person')).toBe(2); // parent unchanged
+      expect(notifyValueUpdateCount(wrapper, 'person.firstName.lang')).toBe(1);
     });
   });
 });
