@@ -461,7 +461,7 @@ function updateArrayValue(_value: unknown) {
       :type="computedField.type"
       :field-metadata="computedField"
       :field-context
-      :template-attrs
+      :slot-props
       :required
       :disabled
       :can-add-items
@@ -469,7 +469,7 @@ function updateArrayValue(_value: unknown) {
       :add-item
       :remove-item
     >
-      <template #default="templateAttrs">
+      <template #default="slotProps">
         <template v-if="isParent">
           <DynamicFormItem
             v-for="child in computedField.children"
@@ -477,7 +477,7 @@ function updateArrayValue(_value: unknown) {
             :field-metadata="(child as InternalMetadata)"
             :path-override="itemPath"
             :template
-            :template-attrs
+            :slot-props
             :min-occurs-override="_minOccursOverride"
             :max-occurs-override="_maxOccursOverride"
 
@@ -490,7 +490,7 @@ function updateArrayValue(_value: unknown) {
             :type="`${computedField.type}-input`"
             :field-metadata="computedField"
             :field-context
-            :template-attrs
+            :slot-props
             :required
             :disabled
             :can-add-items
@@ -500,14 +500,14 @@ function updateArrayValue(_value: unknown) {
           />
         </template>
       </template>
-      <template v-if="showAttributes" #attributes="templateAttrs">
+      <template v-if="showAttributes" #attributes="slotProps">
         <DynamicFormItem
           v-for="attribute in computedField.attributes"
           :key="attribute.path"
           :field-metadata="(attribute as InternalMetadata)"
           :path-override="path"
           :template
-          :template-attrs
+          :slot-props
           :min-occurs-override="_minOccursOverride"
           :max-occurs-override="_maxOccursOverride"
 

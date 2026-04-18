@@ -286,13 +286,13 @@ function updateChildValue(
 <template>
   <component
     :is="template"
-    v-slot="templateAttrs"
+    v-slot="slotProps"
     type="choice"
     :field-metadata
     :field-context
     :required
     :disabled
-    :template-attrs
+    :slot-props
     :can-add-items
     :can-remove-items
     :add-item
@@ -303,7 +303,7 @@ function updateChildValue(
       :field-metadata="singleChild"
       :path-override
       :template
-      :template-attrs
+      :slot-props
       :min-occurs-override="_minOccursOverride"
       :max-occurs-override="_maxOccursOverride"
       part-of-choice-field
@@ -317,7 +317,7 @@ function updateChildValue(
         :field-metadata="(child as InternalMetadata)"
         :path-override
         :template
-        :template-attrs
+        :slot-props
         :min-occurs-override="occurrences[index]?.overrideChildMinOccurrences"
         :max-occurs-override="occurrences[index]?.overrideChildMaxOccurrences"
         :is-array-override="childrenAreArrays"

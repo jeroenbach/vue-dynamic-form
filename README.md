@@ -1,12 +1,29 @@
-# Vue Dynamic Form - Under development (Not ready to use)
+# Vue Dynamic Form
 
-A simple yet highly extendable dynamic form system, inspired by the flexibility of XSD and powered by Vee-Validate.
+A schema-driven Vue form library built on top of `vee-validate`.
 
-## Create a new release
+The repository contains:
 
-To create a new release for you PR, follow these steps:
+- `packages/core`: the core library
+- `docs/`: the VitePress manual with interactive demos
+- `playgrounds/storybook`: component-focused exploration
 
-1. Create a new changeset by running `pnpm changeset`.
-2. Create your PR into the main branch.
-3. The release workflow will automatically be triggered.
+## Start Here
 
+- Manual: [docs/index.md](docs/index.md)
+- Core package guide: [packages/core/README.md](packages/core/README.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+
+## Local Development
+
+```bash
+pnpm install
+pnpm test
+pnpm docs:dev
+```
+
+## Release Flow
+
+1. Run `pnpm changeset`.
+2. Open your PR against `main`.
+3. Let the release workflow handle versioning and publishing.

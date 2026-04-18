@@ -31,6 +31,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "vite build && vue-tsc --emitDeclarationOnly && tsc-alias",
     "build:watch": "vite build --watch",

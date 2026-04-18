@@ -73,5 +73,5 @@ export interface DynamicFormItemProps<
    * You can provide additional attributes to the slots in your template. They will be passed to the
    * component below.
    */
-  templateAttrs?: object
+  slotProps?: object
 }

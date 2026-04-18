@@ -238,13 +238,13 @@ function guardAndNotifyItemUpdate(value: any, index: number) {
     :required
     :disabled
     :index
-    :template-attrs
+    :slot-props
     :can-add-items="_canAddItems"
     :can-remove-items="_canRemoveItems"
     :add-item="_addItem"
     :remove-item="_removeItem"
   >
-    <template #default="templateAttrs">
+    <template #default="slotProps">
       <DynamicFormItem
         v-for="({ key }, index) in fields ?? []"
         :key="key"
@@ -252,7 +252,7 @@ function guardAndNotifyItemUpdate(value: any, index: number) {
         :path-override="`${path}[${index}]`"
         :index
         :template="template"
-        :template-attrs
+        :slot-props
         :max-occurs-override="_maxOccursOverride"
         :can-add-items="_canAddItems"
         :can-remove-items="_canRemoveItems"

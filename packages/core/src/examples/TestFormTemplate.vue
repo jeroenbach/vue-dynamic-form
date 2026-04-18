@@ -9,9 +9,9 @@ export type Metadata = GetMetadataType<typeof metadata>;
 export interface Props {
   /**
    * Free to decide what attributes you want to pass internally between your templates.
-   * You can add any attribute to a <slot /> and then it will be accessible in props.templateAttrs.
+   * You can add any attribute to a <slot /> and then it will be accessible in props.slotProps.
    */
-  templateAttrs?: {
+  slotProps?: {
     hideLabel?: boolean
     /** Example on how to keep track of the levels */
     level?: number
@@ -57,7 +57,7 @@ const metadata = defineMetadata<
           :data-testid="`${fieldMetadata.path}-error-message`"
         >{{ errorMessage.value }}</span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <slot :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot :level="(slotProps?.level ?? 0) + 1" />
         </div>
       </div>
     </template>
@@ -68,7 +68,7 @@ const metadata = defineMetadata<
           {{ label }}
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
-          <slot :level="(templateAttrs?.level ?? 0) + 1" :below-choice-field="true" />
+          <slot :level="(slotProps?.level ?? 0) + 1" :below-choice-field="true" />
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
@@ -81,14 +81,14 @@ const metadata = defineMetadata<
 
     <template #array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem }">
       <!-- In case we're below a choice field, the first array item is not automatically added, so show a label with buttons -->
-      <div v-if="templateAttrs?.belowChoiceField" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
+      <div v-if="slotProps?.belowChoiceField" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
           <span v-if="required" class="-ml-0.5 text-red-500">*</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
-          <slot :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot :level="(slotProps?.level ?? 0) + 1" />
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
@@ -119,14 +119,14 @@ const metadata = defineMetadata<
     <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem }">
       <!-- In case we have multiple children, this is a grouped field and we adjust how it is displayed -->
       <div v-if="fieldMetadata.children?.length" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
-        <span v-if="!templateAttrs?.hideLabel" class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
+        <span v-if="!slotProps?.hideLabel" class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
           <span v-if="required" class="-ml-0.5 text-red-500">*</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
           <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" :data-testid="`${fieldMetadata.path}-remove-button`" color="red" @click="removeItem" />
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
-          <slot :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot :level="(slotProps?.level ?? 0) + 1" />
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
@@ -137,7 +137,7 @@ const metadata = defineMetadata<
       </div>
       <!-- Otherwise load only the slot with the input -->
       <div v-else class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
-        <label v-if="!templateAttrs?.hideLabel" :for="fieldMetadata.path" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
+        <label v-if="!slotProps?.hideLabel" :for="fieldMetadata.path" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
           <span v-if="required" class="-ml-0.5 text-red-500">*</span>
         </label>

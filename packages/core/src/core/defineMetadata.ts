@@ -27,7 +27,7 @@
  */
 export function defineMetadata<
   const FieldValueTypes extends Record<string, any>,
-  ExtendedFieldProperties extends object,
+  ExtendedFieldProperties extends object = object,
 >() {
   // Reserved field identifiers that cannot be defined by the user
   type ExcludedFields = 'input' | 'children' | 'choice' | 'array';

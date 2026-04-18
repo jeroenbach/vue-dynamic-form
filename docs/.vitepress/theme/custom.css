@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+@source "./components";
+
+/* VitePress unlayered styles override Tailwind's @layer utilities.
+   revert-layer falls through to Tailwind's utility values since our selector
+   wins over .vp-doc input at equal specificity by loading after VitePress. */
+.form-demo input,
+.form-demo select,
+.form-demo textarea,
+.form-demo button {
+  all: revert-layer;
+}
+
+:root {
+  --vp-c-brand-1: #0f766e;
+  --vp-c-brand-2: #115e59;
+  --vp-c-brand-3: #134e4a;
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #0f766e 20%, #1d4ed8 100%);
+  --vp-home-hero-image-background-image:
+    radial-gradient(circle at 30% 30%, rgba(15, 118, 110, 0.2), transparent 40%),
+    radial-gradient(circle at 70% 40%, rgba(29, 78, 216, 0.18), transparent 35%);
+  --vp-home-hero-image-filter: blur(44px);
+}

@@ -1,0 +1,23 @@
+{
+  "name": "docs",
+  "type": "module",
+  "private": true,
+  "description": "VitePress manual for vue-dynamic-form, including interactive demo forms that reuse the repository examples.",
+  "scripts": {
+    "dev": "vitepress dev .",
+    "build": "vitepress build .",
+    "preview": "vitepress preview ."
+  },
+  "dependencies": {
+    "@bach.software/vue-dynamic-form": "link:../packages/core",
+    "@vee-validate/rules": "4.15.1",
+    "vee-validate": "4.15.1",
+    "vue": "3.5.18"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.1.12",
+    "@types/node": "24.2.1",
+    "tailwindcss": "4.1.12",
+    "vitepress": "1.6.4"
+  }
+}

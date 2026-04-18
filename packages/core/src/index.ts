@@ -13,7 +13,9 @@ export * from '@/core/validation';
 
 // Types
 export * from '@/types/DynamicFormItemProps';
+export * from '@/types/DynamicFormSettings';
 export * from '@/types/FieldMetadata';
 export * from '@/types/GetMetadataType';
 export * from '@/types/MetadataConfiguration';
 export * from '@/types/RequireOnly';
+export * from '@/types/ValidationMessage';
