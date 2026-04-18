@@ -1,63 +1,43 @@
 <script lang="ts" setup generic="Metadata extends FieldMetadata">
 import type { DefineComponent } from 'vue';
 
+import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { computed } from 'vue';
 
+import { computed, provide } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
+import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 
+// #region Interfaces
 export interface DynamicFormProps<Metadata extends FieldMetadata> {
   metadata: Metadata | Metadata[]
   template: DefineComponent<object, object, any>
+  settings?: DynamicFormSettings
 }
-type Props = DynamicFormProps<Metadata>;
+// #endregion
 
+// #region Props and State
 defineOptions({ name: 'DynamicForm', inheritAttrs: false });
-const { metadata, template } = defineProps<Props>();
+
+const { settings: _settings, metadata, template } = defineProps<DynamicFormProps<Metadata>>();
+
+const settings = computed(() => ({
+  // Set some default values
+  validateOnValueUpdate: true,
+  validateWhenInError: true,
+  ...(_settings ?? {}),
+}));
+
+provide(dynamicFormSettingsKey, settings);
+
 const metadataAsArray = computed(() =>
   Array.isArray(metadata) ? metadata : [metadata],
 );
 
 const metadataWithDefaults = computed(() =>
-  metadataAsArray.value?.map((x, index) => correctMetadata(x, index)),
+  metadataAsArray.value?.map((x, index) => correctMetadataAndSetDefaults(x, index)) ?? [],
 );
-
-function correctMetadata(
-  field: Metadata,
-  index?: number,
-  parent?: InternalFieldMetadata<Metadata>,
-) {
-  if (!field)
-    return field;
-
-  const backupName = `field-${index}`;
-  const copy: InternalFieldMetadata<Metadata> = {
-    // Set defaults
-    name: backupName,
-    type: 'text', // Default type
-    path: field.name ?? backupName,
-    minOccurs: 1, // by default required
-    maxOccurs: 1, // by default not repeatable
-    ...field,
-    // Override some of the field properties
-    transformReactively: [...(field.transformReactively ?? [])],
-    parent,
-  };
-
-  // Recursively go through the tree
-  copy.children = (field.children ?? []).map((x, index) =>
-    correctMetadata(x as Metadata, index, copy),
-  );
-  copy.choice = (field.choice ?? []).map((x, index) =>
-    correctMetadata(x as Metadata, index, copy),
-  );
-  copy.attributes = (field.attributes ?? []).map((x, index) =>
-    correctMetadata(x as Metadata, index, copy),
-  );
-
-  return copy;
-}
 
 const typedTemplate = computed(
   () =>
@@ -65,21 +45,65 @@ const typedTemplate = computed(
       object,
       object,
       {
-        input?: ((props: object) => any) | undefined
-        children?: ((props: object) => any) | undefined
+        default?: ((props: object) => any) | undefined
         attributes?: ((props: object) => any) | undefined
         choice?: ((props: object) => any) | undefined
         array?: ((props: object) => any) | undefined
       }
     >,
 );
+
+// #endregion
+
+// #region Methods
+
+function correctMetadataAndSetDefaults(
+  fieldMetadata: Metadata,
+  index?: number,
+  parent?: InternalFieldMetadata<Metadata>,
+) {
+  if (!fieldMetadata)
+    return fieldMetadata;
+
+  const fieldName = fieldMetadata.name ?? `field-${index}`;
+  // Construct the path with the parent path, unless we specify an override
+  const fieldPath = fieldMetadata.path ?? [parent?.path, fieldName].filter(Boolean).join('.');
+  const copy: InternalFieldMetadata<Metadata> = {
+    // Set defaults
+    name: fieldName,
+    path: fieldPath,
+    type: 'text', // Default type
+    minOccurs: 1, // by default required
+    maxOccurs: 1, // by default not repeatable
+
+    ...fieldMetadata,
+    // Override some of the field properties
+    computedProps: [...(fieldMetadata.computedProps ?? [])],
+    parent,
+  };
+
+  // Recursively go through the tree
+  copy.children = (fieldMetadata.children ?? []).map((x, index) =>
+    correctMetadataAndSetDefaults(x as Metadata, index, copy),
+  );
+  copy.choice = (fieldMetadata.choice ?? []).map((x, index) =>
+    correctMetadataAndSetDefaults(x as Metadata, index, copy),
+  );
+  copy.attributes = (fieldMetadata.attributes ?? []).map((x, index) =>
+    correctMetadataAndSetDefaults(x as Metadata, index, copy),
+  );
+
+  return copy;
+}
+
+// #endregion
 </script>
 
 <template>
   <DynamicFormItem
-    v-for="field in metadataWithDefaults"
-    :key="field.name"
+    v-for="fieldMetadata in metadataWithDefaults"
+    :key="fieldMetadata.name"
     :template="typedTemplate"
-    :field="field as InternalFieldMetadata<FieldMetadata>"
+    :field-metadata="(fieldMetadata as InternalFieldMetadata<FieldMetadata>)"
   />
 </template>

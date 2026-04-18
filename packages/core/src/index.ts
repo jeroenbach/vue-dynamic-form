@@ -7,9 +7,13 @@ export { default as DynamicFormTemplate } from '@/components/DynamicFormTemplate
 
 // Core
 export * from '@/core/defineMetadata';
+export * from '@/core/useDynamicForm';
+export * from '@/core/useFieldArrayExtended';
+export * from '@/core/validation';
 
 // Types
 export * from '@/types/DynamicFormItemProps';
 export * from '@/types/FieldMetadata';
 export * from '@/types/GetMetadataType';
+export * from '@/types/MetadataConfiguration';
 export * from '@/types/RequireOnly';

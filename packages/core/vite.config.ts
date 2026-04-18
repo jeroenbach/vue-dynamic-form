@@ -15,20 +15,30 @@ export default defineConfig({
     },
   },
 
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+  },
+
   build: {
     cssCodeSplit: true,
     target: 'esnext',
+    sourcemap: true,
     lib: {
-      entry: path.resolve(__dirname, 'src/index.ts'),
+      entry: {
+        'vue-dynamic-form': path.resolve(__dirname, 'src/index.ts'),
+        'examples': path.resolve(__dirname, 'src/examples/index.ts'),
+      },
       name: 'VueDynamicForm',
-      fileName: format => `vue-dynamic-form.${format}.js`,
+      fileName: (format, entryName) => `${entryName}.${format}.js`,
     },
 
     rollupOptions: {
-      external: ['vue'],
+      external: ['vue', 'vee-validate'],
       output: {
         globals: {
-          vue: 'Vue',
+          'vue': 'Vue',
+          'vee-validate': 'VeeValidate',
         },
       },
     },

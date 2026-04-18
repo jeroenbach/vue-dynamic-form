@@ -23,10 +23,15 @@
     ".": {
       "types": "./dist/src/index.d.ts",
       "import": "./dist/vue-dynamic-form.es.js",
-      "require": "./dist/vue-dynamic-form.umd.js"
+      "require": "./dist/vue-dynamic-form.cjs.js"
+    },
+    "./examples": {
+      "types": "./dist/src/examples/index.d.ts",
+      "import": "./dist/examples.es.js",
+      "require": "./dist/examples.cjs.js"
     }
   },
-  "main": "./dist/vue-dynamic-form.umd.js",
+  "main": "./dist/vue-dynamic-form.cjs.js",
   "module": "./dist/vue-dynamic-form.es.js",
   "types": "./dist/src/index.d.ts",
   "files": [
@@ -34,9 +39,8 @@
   ],
   "scripts": {
     "check-updates": "pnpm dlx npm-check-updates -i --format group",
-    "dev": "pnpm build:watch & cd ./playgrounds/storybook && pnpm dev",
     "build": "vite build && vue-tsc --emitDeclarationOnly && tsc-alias",
-    "build:watch": "vite build --watch & vue-tsc --emitDeclarationOnly --watch & tsc-alias --watch",
+    "build:watch": "NODE_ENV=development vite build --watch",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
@@ -49,16 +53,20 @@
     "changeset": "changeset"
   },
   "peerDependencies": {
-    "vee-validate": ">=4.15",
-    "vue": ">=3.5"
+    "@vee-validate/rules": "catalog:framework",
+    "type-fest": "catalog:framework",
+    "vee-validate": "catalog:framework",
+    "vue": "catalog:framework"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",
     "@changesets/cli": "catalog:tooling",
     "@types/node": "catalog:types",
     "@vitejs/plugin-vue": "catalog:build",
+    "@vue/test-utils": "catalog:test",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
+    "jsdom": "catalog:test",
     "tsc-alias": "catalog:build",
     "typescript": "catalog:types",
     "vee-validate": "catalog:framework",

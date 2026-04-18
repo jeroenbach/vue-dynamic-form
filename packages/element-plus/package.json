@@ -4,13 +4,13 @@
   "version": "0.1.0",
   "description": "Element Plus components for Vue Dynamic Form",
   "author": "Jeroen Bach <jeroen@bach.software> (https://bach.software)",
-  "homepage": "https://github.com/jeroenbach/dynamic-form",
+  "homepage": "https://github.com/jeroenbach/vue-dynamic-form",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jeroenbach/dynamic-form.git"
+    "url": "git+https://github.com/jeroenbach/vue-dynamic-form.git"
   },
   "bugs": {
-    "url": "https://github.com/jeroenbach/dynamic-form/issues"
+    "url": "https://github.com/jeroenbach/vue-dynamic-form/issues"
   },
   "keywords": [
     "dynamic-form",
@@ -33,7 +33,7 @@
   ],
   "scripts": {
     "build": "vite build && vue-tsc --emitDeclarationOnly && tsc-alias",
-    "build:watch": "vite build --watch & vue-tsc --emitDeclarationOnly --watch & tsc-alias --watch",
+    "build:watch": "vite build --watch",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
@@ -44,10 +44,10 @@
     "ci:typecheck": "vue-tsc --noEmit"
   },
   "peerDependencies": {
-    "@bach.software/vue-dynamic-form": ">=0.1.0",
-    "element-plus": ">=2.0.0",
-    "vee-validate": ">=4.15",
-    "vue": ">=3.5"
+    "@bach.software/vue-dynamic-form": "catalog:framework",
+    "element-plus": "catalog:framework",
+    "vee-validate": "catalog:framework",
+    "vue": "catalog:framework"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",

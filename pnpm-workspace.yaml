@@ -10,17 +10,22 @@ catalogs:
     vue-tsc: 3.0.5
 
   dev:
-    '@antfu/eslint-config': ^5.2.1
+    '@antfu/eslint-config': 5.2.1
     eslint: 9.33.0
-    eslint-plugin-format: ^1.0.1
+    eslint-plugin-format: 1.0.1
 
   framework:
-    element-plus: ^2.8.10
-    vee-validate: 4.15.1
+    '@bach.software/vue-dynamic-form': '>=0.1.0'
+    '@vee-validate/rules': '>=4.15'
+    element-plus: '>=2.0.0'
+    type-fest: '>=4.8.3'
+    vee-validate: '>=4.15'
     vue: '>=3.5'
 
   test:
-    vitest: ^3.2.4
+    '@vue/test-utils': 2.4.6
+    jsdom: 26.0.0
+    vitest: 3.2.4
 
   tooling:
     '@changesets/cli': 2.29.5

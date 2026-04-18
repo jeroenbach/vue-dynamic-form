@@ -1,22 +1,29 @@
 {
   "private": true,
+  "description": "A playground for testing the vue-dynamic-form library with Storybook. This lives outside the workspace.",
   "scripts": {
     "check-updates": "pnpm dlx npm-check-updates -i --format group",
     "dev": "pnpm storybook",
     "storybook": "storybook dev -p 6006 --no-open",
     "build": "storybook build -c ./.output/",
     "serve": "pnpm dlx http-server ./.output/ -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "test": "vitest run",
+    "ci:test": "TZ=Europe/Amsterdam vitest run"
   },
   "dependencies": {
     "@bach.software/vue-dynamic-form": "link:../../packages/core",
     "@bach.software/vue-dynamic-form-element-plus": "link:../../packages/element-plus",
-    "element-plus": "^2.8.10",
+    "@vee-validate/i18n": "^4.15.1",
+    "@vee-validate/rules": "^4.15.1",
+    "element-plus": "2.12.0",
+    "vee-validate": "4.15.1",
     "vue": "3.5.18"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "4.1.0",
     "@storybook/addon-a11y": "9.1.2",
+    "@storybook/vue3": "9.1.2",
     "@storybook/vue3-vite": "9.1.2",
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-vue": "6.0.1",

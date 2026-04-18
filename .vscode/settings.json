@@ -30,6 +30,7 @@
     "typescript",
     "typescriptreact",
     "vue",
+    "vue-html",
     "html",
     "markdown",
     "json",
