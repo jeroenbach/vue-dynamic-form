@@ -1,5 +1,2 @@
 name = "vue-dynamic-form-docs"
 pages_build_output_dir = "docs/.vitepress/dist"
-
-[build]
-command = "pnpm install && pnpm --filter docs build"
