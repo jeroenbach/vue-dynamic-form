@@ -107,7 +107,7 @@ const metadata: Metadata[] = [
       {
         name: 'company',
         fieldOptions: { label: 'Company details' },
-        description: 'A grouped section for the core account information.',
+        description: 'A grouped field for the core account information.',
         fullWidth: true,
         children: [
           {
@@ -178,7 +178,7 @@ const metadata: Metadata[] = [
       {
         name: 'projectContacts',
         fieldOptions: { label: 'Project contacts' },
-        description: 'Repeat this grouped section for each person who should be involved in the rollout.',
+        description: 'Repeat this grouped field for each person who should be involved in the rollout.',
         minOccurs: 1,
         maxOccurs: 3,
         fullWidth: true,
@@ -298,7 +298,7 @@ const metadata: Metadata[] = [
       </h2>
       <p class="mt-1 text-sm leading-6 text-slate-600">
         A concrete demo for a SaaS team collecting everything needed to onboard a new client.
-        It highlights reusable templates, grouped sections, repeatable contacts, mutually exclusive launch paths, and computed fields that become required only when they matter.
+        It highlights reusable templates, grouped fields, repeatable contacts, mutually exclusive launch paths, and computed fields that become required only when they matter.
       </p>
     </div>
     <AdvancedForm :metadata />
