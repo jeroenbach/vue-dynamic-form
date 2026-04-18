@@ -15,6 +15,7 @@ defineEmits<Emits>();
 
 <template>
   <button
+    type="button"
     class="cursor-pointer inline-flex items-center justify-center rounded-full size-5 text-white-800"
     :class="{
       'bg-blue-200 hover:bg-blue-300': color === 'blue',

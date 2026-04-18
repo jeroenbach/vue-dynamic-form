@@ -15,6 +15,36 @@ export interface DynamicFormSettings {
   complexTypeValueProperty?: string
 
   /**
+   * When true, validates fields on every value change.
+   * When false, only validates on submit.
+   *
+   * Defaults to true.
+   */
+  validateOnValueUpdate?: boolean
+
+  /**
+   * When true, validates fields on every value change after the first submit.
+   * When false, listen to the validateOnValueUpdate.
+   *
+   * Defaults to false.
+   */
+  validateOnValueUpdateAfterSubmit?: boolean
+
+  /**
+   * When true, validates fields on blur.
+   *
+   * Defaults to false.
+   */
+  validateOnBlur?: boolean
+
+  /**
+   * When true, validates fields on every value change when the field has an error.
+   *
+   * Defaults to false.
+   */
+  validateWhenInError?: boolean
+
+  /**
    * Use this setting to override the default text of the validation messages.
    *
    * Each message accepts either a `string` template or a `(ctx) => string` function.

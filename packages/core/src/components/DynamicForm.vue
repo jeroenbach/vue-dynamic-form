@@ -20,9 +20,16 @@ export interface DynamicFormProps<Metadata extends FieldMetadata> {
 // #region Props and State
 defineOptions({ name: 'DynamicForm', inheritAttrs: false });
 
-const { settings, metadata, template } = defineProps<DynamicFormProps<Metadata>>();
+const { settings: _settings, metadata, template } = defineProps<DynamicFormProps<Metadata>>();
 
-provide(dynamicFormSettingsKey, computed(() => settings));
+const settings = computed(() => ({
+  // Set some default values
+  validateOnValueUpdate: true,
+  validateWhenInError: true,
+  ...(_settings ?? {}),
+}));
+
+provide(dynamicFormSettingsKey, settings);
 
 const metadataAsArray = computed(() =>
   Array.isArray(metadata) ? metadata : [metadata],

@@ -13,10 +13,10 @@ export interface Props {
    */
   templateAttrs?: {
     hideLabel?: boolean
-    /**
-     * Example on how to keep track of the levels
-     */
+    /** Example on how to keep track of the levels */
     level?: number
+    /** Helps identifying that we're below a choice field, so if we're rendering an array we can adjust our layout */
+    belowChoiceField?: boolean
   }
 }
 
@@ -27,7 +27,9 @@ const metadata = defineMetadata<
     text: string
     textBoundByVModel: string
     select: string
+    selectBoundByVModel: string
     checkbox: boolean
+    checkboxBoundByVModel: boolean
     heading: never
   },
   {
@@ -45,8 +47,8 @@ const metadata = defineMetadata<
       <div class="mt-4" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <h3 v-if="label" class="flex text-xl font-bold gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
-          <IconButton v-if="canAddItems" icon="plus" tabindex="-1" @click="addItem" />
-          <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" color="red" @click="removeItem" />
+          <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
+          <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" color="red" :data-testid="`${fieldMetadata.path}-remove-button`" @click="removeItem" />
         </h3>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
@@ -66,7 +68,7 @@ const metadata = defineMetadata<
           {{ label }}
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
-          <slot :level="(templateAttrs?.level ?? 0) + 1" />
+          <slot :level="(templateAttrs?.level ?? 0) + 1" :below-choice-field="true" />
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
@@ -78,11 +80,31 @@ const metadata = defineMetadata<
     </template>
 
     <template #array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem }">
-      <div v-if="!fieldMetadata.children?.length" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
+      <!-- In case we're below a choice field, the first array item is not automatically added, so show a label with buttons -->
+      <div v-if="templateAttrs?.belowChoiceField" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
+        <span class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
+          {{ label }}
+          <span v-if="required" class="-ml-0.5 text-red-500">*</span>
+          <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
+        </span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
+          <slot :level="(templateAttrs?.level ?? 0) + 1" />
+        </div>
+        <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
+        <span
+          v-if="errorMessage.value"
+          class="text-red-600 text-sm"
+          :data-testid="`${fieldMetadata.path}-error-message`"
+        >{{ errorMessage.value }}</span>
+      </div>
+      <!-- In case the array has multiple fields, just show those fields, no extra label -->
+      <slot v-else-if="fieldMetadata.children?.length" />
+      <!-- In case we show an input directly, show a label and buttons -->
+      <div v-else class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <label :for="`${fieldMetadata.path}[0]`" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }" class="flex gap-2 items-center">
           {{ label }}
           <span v-if="required" class="-ml-0.5 text-red-500">*</span>
-          <IconButton v-if="canAddItems" icon="plus" tabindex="-1" @click="addItem" />
+          <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
         </label>
         <slot :hide-label="true" />
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
@@ -92,7 +114,6 @@ const metadata = defineMetadata<
           :data-testid="`${fieldMetadata.path}-error-message`"
         >{{ errorMessage.value }}</span>
       </div>
-      <slot v-else />
     </template>
 
     <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem }">
@@ -101,8 +122,8 @@ const metadata = defineMetadata<
         <span v-if="!templateAttrs?.hideLabel" class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
           <span v-if="required" class="-ml-0.5 text-red-500">*</span>
-          <IconButton v-if="canAddItems" icon="plus" tabindex="-1" @click="addItem" />
-          <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" color="red" @click="removeItem" />
+          <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
+          <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" :data-testid="`${fieldMetadata.path}-remove-button`" color="red" @click="removeItem" />
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
           <slot :level="(templateAttrs?.level ?? 0) + 1" />
@@ -124,7 +145,7 @@ const metadata = defineMetadata<
           <div class="flex flex-col grow">
             <slot />
           </div>
-          <IconButton :class="{ invisible: !canRemoveItems }" icon="minus" tabindex="-1" color="red" @click="removeItem" />
+          <IconButton :class="{ invisible: !canRemoveItems }" icon="minus" tabindex="-1" color="red" :data-testid="`${fieldMetadata.path}-remove-button`" @click="removeItem" />
         </div>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
@@ -143,7 +164,21 @@ const metadata = defineMetadata<
         :disabled="fieldMetadata.disabled || disabled"
         class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
         @change="handleChange"
-        @blur="handleBlur($event, true)"
+        @blur="handleBlur"
+      >
+        <option v-for="{ key: optionKey, value: optionValue } in fieldMetadata.options" :key="optionKey" :value="optionKey">
+          {{ optionValue }}
+        </option>
+      </select>
+    </template>
+
+    <template #selectBoundByVModel-input="{ fieldMetadata, fieldContext: { value, handleBlur }, disabled }">
+      <select
+        :id="fieldMetadata.path"
+        v-model="value.value"
+        :disabled="fieldMetadata.disabled || disabled"
+        class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
+        @blur="handleBlur"
       >
         <option v-for="{ key: optionKey, value: optionValue } in fieldMetadata.options" :key="optionKey" :value="optionKey">
           {{ optionValue }}
@@ -154,12 +189,23 @@ const metadata = defineMetadata<
     <template #checkbox-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange }, disabled }">
       <input
         :id="fieldMetadata.path"
-        :value="value.value"
+        :checked="value.value"
         :disabled="fieldMetadata.disabled || disabled"
         type="checkbox"
         class="h-6 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
-        @change="handleChange"
-        @blur="handleBlur($event, true)"
+        @change="handleChange(($event.target as HTMLInputElement).checked)"
+        @blur="handleBlur"
+      >
+    </template>
+
+    <template #checkboxBoundByVModel-input="{ fieldMetadata, fieldContext: { value, handleBlur }, disabled }">
+      <input
+        :id="fieldMetadata.path"
+        v-model="value.value"
+        :disabled="fieldMetadata.disabled || disabled"
+        type="checkbox"
+        class="h-6 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
+        @blur="handleBlur"
       >
     </template>
 
@@ -170,7 +216,7 @@ const metadata = defineMetadata<
         :disabled="fieldMetadata.disabled || disabled"
         type="text"
         class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
-        @blur="handleBlur($event, true)"
+        @blur="handleBlur"
       >
     </template>
 
@@ -182,7 +228,7 @@ const metadata = defineMetadata<
         type="text"
         class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
         @input="handleChange"
-        @blur="handleBlur($event, true)"
+        @blur="handleBlur"
       >
     </template>
   </DynamicFormTemplate>

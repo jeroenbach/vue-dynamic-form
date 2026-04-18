@@ -96,32 +96,18 @@ export const choiceTestCase = createTestCase([
 
 export const individualTestCase = createTestCase(
   [{
-    type: 'heading',
-    path: '',
-    fieldOptions: { label: 'Test' },
-    children: [
-      {
-        name: 'items',
-        fieldOptions: { label: 'Items' },
-        minOccurs: 2,
-        maxOccurs: 4,
-        restriction: {
-          minLength: 4,
-        },
-        // attributes: [
-        //   { name: 'attribute', fieldOptions: { label: 'Attribute' } },
-        // ],
-        // children: [
-        //   { name: 'child1', fieldOptions: { label: 'Child 1' } },
-        // ],
-        computedProps: [
-          (f, v) => {
-            f.disabled = false;
-          },
-        ],
-      },
-    ],
+    name: 'items',
+    type: 'text',
+    fieldOptions: { label: 'Items' },
+    maxOccurs: 3,
+    attributes: [{ name: 'lang', type: 'text', minOccurs: 0 }],
   }],
+  {
+    // validateOnValueUpdate: false,
+    // validateOnValueUpdateAfterSubmit: false,
+    // validateWhenInError: true,
+    // validateOnBlur: true,
+  },
 );
 
 export function createTestCase(
@@ -129,6 +115,6 @@ export function createTestCase(
   settings?: DynamicFormSettings,
 ) {
   return markRaw(defineComponent({
-    render: () => h(TestForm, { metadata, settings }),
+    render: () => h(TestForm, { metadata, settings, showDebugState: true }),
   }));
 }

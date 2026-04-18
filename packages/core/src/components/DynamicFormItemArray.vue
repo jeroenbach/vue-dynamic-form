@@ -10,12 +10,11 @@ import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { useField, useFieldError, useForm, useSetFieldError, useSubmitCount, useValidateField } from 'vee-validate';
+import { useField, useSubmitCount, useValidateField } from 'vee-validate';
 import { computed, inject, ref, watch, watchEffect } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
-import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
 import { normalizePath } from '@/utils/normalizePath';
 import { overridePath } from '@/utils/overridePath';
@@ -39,18 +38,9 @@ const settings = inject<ComputedRef<DynamicFormSettings>>(dynamicFormSettingsKey
 // They're not reactive to avoid infinite loops.
 // eslint-disable-next-line prefer-const
 let _analytics_renderCount = 0;
-let _analytics_occurrencesCalculatedCount = 0;
-
 let _analytics_constructValidationCount = 0;
 let _analytics_fieldChangedCount = 0;
-
-// The path of this field, while taking the override into consideration
-const path = computed(() => {
-  if (!props.fieldMetadata?.path)
-    return '';
-
-  return overridePath(props.fieldMetadata.path, props.pathOverride);
-});
+// #endregion
 
 // Keep track of changes to the field for analytics
 const field = computed(() => {
@@ -58,36 +48,19 @@ const field = computed(() => {
   return props.fieldMetadata;
 });
 
+// The path of this field, while taking the override into consideration
+const path = computed(() => {
+  if (!field.value?.path)
+    return '';
+
+  return overridePath(field.value.path, props.pathOverride);
+});
+
 // Link the vee-validate field to this metadata field
 const normalizedPath = computed(() => normalizePath(path.value));
 const validate = useValidateField(normalizedPath);
-const submitCount = useSubmitCount();
 const { remove, push, fields, update, values, replace }
   = useFieldArrayExtended(normalizedPath);
-
-// Occurrences information for each item in the array
-const occurrences = computed(() => {
-  _analytics_occurrencesCalculatedCount++;
-  const _occurrences: {
-    [index: string]: {
-      hasValue: boolean
-    }
-  } = {};
-
-  // Calculate for each value whether it has a value or not
-  values.value.forEach((value, index) => {
-    const hasValue = checkTreeHasValue(value);
-    _occurrences[index] = {
-      hasValue,
-    };
-  });
-
-  return _occurrences;
-});
-
-const valuesCount = computed(
-  () => Object.values(occurrences.value).filter(v => v.hasValue).length,
-);
 
 // minOccurs determines how many times this field should appear at minimum
 const minOccurs = computed(() =>
@@ -142,18 +115,49 @@ const combinedValidation = computed<GenericValidateFunction[]>(() => {
   return _validations;
 });
 
-const { label, errors, errorMessage } = useField(normalizedPath, combinedValidation, field.value?.fieldOptions);
+const { label, errors, errorMessage, handleBlur } = useField(normalizedPath, combinedValidation, {
+  ...(field.value?.fieldOptions ?? {}),
+  validateOnValueUpdate: false, // We own the validation moment
+});
 const fieldContext: LimitedFieldContext = { label, errors, errorMessage };
+
+// Because we add empty placeholders, we only want to trigger validation once a child actually updated the value
+const submitCount = useSubmitCount();
+const firstValueSet = ref(false);
+const shouldValidateOnValueUpdate = computed(() => {
+  // Without a first value set, no point validating
+  if (!firstValueSet.value)
+    return;
+
+  // Only when validateOnValueUpdateAfterSubmit is true, we want to take the check into account.
+  // The check can be true or false, both should be final. In case validateOnValueUpdateAfterSubmit is not true (undefined or false)
+  // we want to listen to the next check (therefore we use undefined).
+  const validateOnValueUpdateAfterSubmit = settings?.value?.validateOnValueUpdateAfterSubmit === true
+    ? (submitCount.value > 0 && settings?.value?.validateOnValueUpdateAfterSubmit)
+    : undefined;
+
+  // Either validate or let another value determine whether we should validate
+  const validateWhenInError = settings?.value?.validateWhenInError && fieldContext?.errors.value?.length > 0
+    ? true
+    : undefined;
+
+  // field has priority
+  return field.value?.fieldOptions?.validateOnValueUpdate
+  // then whether we are in error
+    ?? validateWhenInError
+  // then whether we only want to validate after submit
+    ?? validateOnValueUpdateAfterSubmit
+  // and finally the always validate
+    ?? settings?.value?.validateOnValueUpdate;
+});
 // #endregion
 
 // #region Watchers and lifecycle events
 watch(
   values,
   (v) => {
-    // In case there are validation errors, keep validating this field
-    // on each change. This way the error message disappears and appears every time
-    // an error is solved or introduced
-    if (errors.value?.length > 0) {
+    // Automatically validate when we configured it to do so
+    if (shouldValidateOnValueUpdate.value) {
       validate();
     }
     emits('update:modelValue', v);
@@ -166,12 +170,9 @@ watchEffect(() => {
   if (props.partOfChoiceField)
     return;
 
-  // Auto-add items to meet minOccurs — sync initial value so vee-validate
-  // doesn't count these empty placeholders as user changes (dirty form)
+  // Auto-add items to meet minOccurs
   if (fields.value?.length < 1 || fields.value?.length < minOccurs.value) {
     _addItem();
-    // push(null);
-    // resetField(normalizedPath.value, { value: [...values.value] });
   }
 });
 // #endregion
@@ -196,7 +197,16 @@ function _removeItem(index?: number) {
   emits('update:modelValue', values.value);
 }
 
-function updateItem(value: any, index: number) {
+function guardAndNotifyItemUpdate(value: any, index: number) {
+  if (!firstValueSet.value) {
+    // We postponed validation until the first value is set, now that the first value is set
+    // make sure that we also validate if we have to
+    firstValueSet.value = true;
+    if (shouldValidateOnValueUpdate.value) {
+      validate();
+    }
+  }
+
   // Workaround for required validation on array items with attributes:
   // When an array item has attributes, the complexType structure may still contain the attribute values
   // even when the main value has just been emptied. This causes checkTreeHasValue() to return true,
@@ -211,15 +221,6 @@ function updateItem(value: any, index: number) {
   emits('update:modelValue', values.value);
 };
 
-function getValuePath(_path: string, _index: number) {
-  _path = `${_path}[${_index}]`;
-  // Add the { value: ... } part for complex types
-  if (props.fieldMetadata?.isComplexType && _path) {
-    const complexTypeValueProperty = settings?.value?.complexTypeValueProperty ?? 'value';
-    _path = `${_path}['${complexTypeValueProperty}']`; // we use this notation to still have the same length when splitting the path by '.'
-  }
-  return _path;
-};
 // #endregion
 </script>
 
@@ -247,19 +248,21 @@ function getValuePath(_path: string, _index: number) {
       <DynamicFormItem
         v-for="({ key }, index) in fields ?? []"
         :key="key"
-        :template="template"
         :field-metadata
         :path-override="`${path}[${index}]`"
-        :max-occurs-override="_maxOccursOverride"
         :index
+        :template="template"
         :template-attrs
+        :max-occurs-override="_maxOccursOverride"
         :can-add-items="_canAddItems"
         :can-remove-items="_canRemoveItems"
         :add-item="_addItem"
         :remove-item="() => _removeItem(index)"
         part-of-array-field
+        is-array-override="single"
 
-        @update:model-value="updateItem($event, index)"
+        @update:model-value="guardAndNotifyItemUpdate($event, index)"
+        @blur="handleBlur"
       />
     </template>
   </component>

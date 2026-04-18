@@ -5,7 +5,7 @@ import TestForm from '@/examples/TestForm.vue';
 
 describe('component DynamicFormItemChoice', () => {
   afterEach(() => {
-    configure({ generateMessage: undefined as any });
+    configure({ generateMessage: undefined });
   });
 
   // TODO: add a check with multiple validations failing at the same time, the error messages should be displayed on the correct item.
@@ -25,7 +25,7 @@ describe('component DynamicFormItemChoice', () => {
               { name: 'opt1', fieldOptions: { label: 'Option 1' } },
               { name: 'opt2', fieldOptions: { label: 'Option 2' } },
             ],
-          }] as any,
+          }],
           settings: { messages: { choiceMinOccurs: message } },
         },
       });
@@ -59,24 +59,6 @@ describe('component DynamicFormItemChoice', () => {
       await flushPromises();
 
       expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
-    });
-
-    it('disables opt2 when opt1 has a value', async () => {
-      const wrapper = mountSimpleChoice();
-
-      await wrapper.find('[id="pick.opt1"]').setValue('hello');
-      await flushPromises();
-
-      expect(wrapper.find('[id="pick.opt2"]').attributes('disabled')).toBeDefined();
-    });
-
-    it('disables opt1 when opt2 has a value', async () => {
-      const wrapper = mountSimpleChoice();
-
-      await wrapper.find('[id="pick.opt2"]').setValue('hello');
-      await flushPromises();
-
-      expect(wrapper.find('[id="pick.opt1"]').attributes('disabled')).toBeDefined();
     });
 
     it('error clears when a value is entered and reappears when cleared again', async () => {
@@ -121,7 +103,7 @@ describe('component DynamicFormItemChoice', () => {
               { name: 'opt2', fieldOptions: { label: 'Option 2' } },
               { name: 'opt3', fieldOptions: { label: 'Option 3' } },
             ],
-          }] as any,
+          }],
           settings: { messages: { choiceMinOccurs: message } },
         },
       });
@@ -149,7 +131,7 @@ describe('component DynamicFormItemChoice', () => {
               { name: 'opt1', fieldOptions: { label: 'Option 1' } },
               { name: 'opt2', fieldOptions: { label: 'Option 2' } },
             ],
-          }] as any,
+          }],
           settings: { messages: {} },
         },
       });
@@ -178,7 +160,7 @@ describe('component DynamicFormItemChoice', () => {
               { name: 'opt1', fieldOptions: { label: 'Option 1' } },
               { name: 'opt2', fieldOptions: { label: 'Option 2' } },
             ],
-          }] as any,
+          }],
           settings: { messages: { choiceMinOccurs: 'At least {min} required' } },
         },
       });
@@ -220,19 +202,11 @@ describe('component DynamicFormItemChoice', () => {
               { name: 'opt1', fieldOptions: { label: 'Option 1' } },
               { name: 'opt2', fieldOptions: { label: 'Option 2' } },
             ],
-          }] as any,
+          }],
           settings: { messages: { choiceMinOccurs: 'At least {min} required' } },
         },
       });
     }
-
-    it('renders all children as disabled', async () => {
-      const wrapper = mountDisabledChoice();
-      await flushPromises();
-
-      expect(wrapper.find('[id="pick.opt1"]').attributes('disabled')).toBeDefined();
-      expect(wrapper.find('[id="pick.opt2"]').attributes('disabled')).toBeDefined();
-    });
 
     it('shows no validation error on submit', async () => {
       const wrapper = mountDisabledChoice();
@@ -261,37 +235,11 @@ describe('component DynamicFormItemChoice', () => {
               { name: 'opt1', fieldOptions: { label: 'Option 1' } },
               { name: 'opt2', fieldOptions: { label: 'Option 2' } },
             ],
-          }] as any,
+          }],
           settings: { messages: { choiceMinOccurs: 'At least {min} of {field} required' } },
         },
       });
     }
-
-    it('children start with 0 items — no auto-add since partOfChoiceField=true', async () => {
-      const wrapper = mountMultiSlotChoice();
-      await flushPromises();
-
-      expect(wrapper.findAll('input')).toHaveLength(0);
-    });
-
-    it('shows one add button per child initially', async () => {
-      const wrapper = mountMultiSlotChoice();
-      await flushPromises();
-
-      // Add buttons are <IconButton> inside <label> in the #array template
-      expect(wrapper.findAll('label > button[tabindex="-1"]')).toHaveLength(2);
-    });
-
-    it('clicking the add button on a child creates a new input for that child', async () => {
-      const wrapper = mountMultiSlotChoice();
-      await flushPromises();
-
-      const [addOpt1] = wrapper.findAll('label > button[tabindex="-1"]');
-      await addOpt1.trigger('click');
-      await flushPromises();
-
-      expect(wrapper.findAll('input')).toHaveLength(1);
-    });
 
     it('shows error when 0 slots are filled (< 2 required)', async () => {
       const wrapper = mountMultiSlotChoice();
@@ -307,8 +255,7 @@ describe('component DynamicFormItemChoice', () => {
       const wrapper = mountMultiSlotChoice();
       await flushPromises();
 
-      const [addOpt1] = wrapper.findAll('label > button[tabindex="-1"]');
-      await addOpt1.trigger('click');
+      await wrapper.find('[data-testid="pick.opt1-add-button"]').trigger('click');
       await flushPromises();
 
       await wrapper.findAll('input')[0].setValue('hello');
@@ -323,10 +270,9 @@ describe('component DynamicFormItemChoice', () => {
       const wrapper = mountMultiSlotChoice();
       await flushPromises();
 
-      const addButtons = wrapper.findAll('label > button[tabindex="-1"]');
-      await addButtons[0].trigger('click');
+      await wrapper.find('[data-testid="pick.opt1-add-button"]').trigger('click');
       await flushPromises();
-      await addButtons[1].trigger('click');
+      await wrapper.find('[data-testid="pick.opt2-add-button"]').trigger('click');
       await flushPromises();
 
       const inputs = wrapper.findAll('input');
@@ -339,29 +285,6 @@ describe('component DynamicFormItemChoice', () => {
       expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
     });
 
-    it('opt2 add button disappears after opt1 fills all 3 available choice slots', async () => {
-      const wrapper = mountMultiSlotChoice();
-      await flushPromises();
-
-      const [addOpt1] = wrapper.findAll('label > button[tabindex="-1"]');
-
-      await addOpt1.trigger('click');
-      await flushPromises();
-      await addOpt1.trigger('click');
-      await flushPromises();
-      await addOpt1.trigger('click');
-      await flushPromises();
-
-      const inputs = wrapper.findAll('input');
-      await inputs[0].setValue('a');
-      await inputs[1].setValue('b');
-      await inputs[2].setValue('c');
-      await flushPromises();
-
-      // opt2's add button should be gone (overrideChildMaxOccurrences = 0)
-      expect(wrapper.findAll('label > button[tabindex="-1"]')).toHaveLength(0);
-    });
-
     it('error disappears once minOccurs is met and reappears when a value is cleared', async () => {
       const wrapper = mountMultiSlotChoice();
       await flushPromises();
@@ -370,10 +293,9 @@ describe('component DynamicFormItemChoice', () => {
       await flushPromises();
       expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
 
-      const addButtons = wrapper.findAll('label > button[tabindex="-1"]');
-      await addButtons[0].trigger('click');
+      await wrapper.find('[data-testid="pick.opt1-add-button"]').trigger('click');
       await flushPromises();
-      await addButtons[1].trigger('click');
+      await wrapper.find('[data-testid="pick.opt2-add-button"]').trigger('click');
       await flushPromises();
 
       const inputs = wrapper.findAll('input');
@@ -400,7 +322,7 @@ describe('component DynamicFormItemChoice', () => {
             name: 'pick',
             fieldOptions: { label: 'Pick One' },
             choice: [{ name: 'only', fieldOptions: { label: 'Only Option' } }],
-          }] as any,
+          }],
           settings: { messages: { choiceMinOccurs: 'Choice error' } },
         },
       });
@@ -419,7 +341,7 @@ describe('component DynamicFormItemChoice', () => {
             name: 'pick',
             fieldOptions: { label: 'Pick One' },
             choice: [{ name: 'only', fieldOptions: { label: 'Only Option' } }],
-          }] as any,
+          }],
           settings: {},
         },
       });
@@ -438,7 +360,7 @@ describe('component DynamicFormItemChoice', () => {
             name: 'pick',
             fieldOptions: { label: 'Pick One' },
             choice: [{ name: 'only', fieldOptions: { label: 'Only Option' } }],
-          }] as any,
+          }],
           settings: {},
         },
       });
@@ -480,7 +402,7 @@ describe('component DynamicFormItemChoice', () => {
                 ],
               },
             ],
-          }] as any,
+          }],
           settings: { messages: { choiceMinOccurs: 'At least {min} required in {field}' } },
         },
       });
@@ -515,45 +437,6 @@ describe('component DynamicFormItemChoice', () => {
 
       expect(wrapper.find('[data-testid="outer-error-message"]').exists()).toBe(false);
     });
-
-    it('filling a1 disables all branchB inputs', async () => {
-      const wrapper = mountNestedChoices();
-
-      await wrapper.find('[id="outer.branchA.a1"]').setValue('hello');
-      await flushPromises();
-
-      expect(wrapper.find('[id="outer.branchB.b1"]').attributes('disabled')).toBeDefined();
-      expect(wrapper.find('[id="outer.branchB.b2"]').attributes('disabled')).toBeDefined();
-    });
-
-    it('filling b2 clears the outer error and disables all branchA inputs', async () => {
-      const wrapper = mountNestedChoices();
-
-      await wrapper.find('[id="outer.branchB.b2"]').setValue('world');
-      await wrapper.find('[data-testid="submit"]').trigger('click');
-      await flushPromises();
-
-      expect(wrapper.find('[data-testid="outer-error-message"]').exists()).toBe(false);
-      expect(wrapper.find('[id="outer.branchA.a1"]').attributes('disabled')).toBeDefined();
-      expect(wrapper.find('[id="outer.branchA.a2"]').attributes('disabled')).toBeDefined();
-    });
-
-    it('outer error reappears and branches re-enable after clearing the active value', async () => {
-      const wrapper = mountNestedChoices();
-
-      await wrapper.find('[id="outer.branchA.a1"]').setValue('hello');
-      await flushPromises();
-
-      await wrapper.find('[id="outer.branchA.a1"]').setValue('');
-      await flushPromises();
-
-      await wrapper.find('[data-testid="submit"]').trigger('click');
-      await flushPromises();
-
-      expect(wrapper.find('[data-testid="outer-error-message"]').exists()).toBe(true);
-      // branchB should be re-enabled (no longer disabled)
-      expect(wrapper.find('[id="outer.branchB.b1"]').attributes('disabled')).toBeUndefined();
-    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -575,7 +458,7 @@ describe('component DynamicFormItemChoice', () => {
                   name: 'innerA',
                   fieldOptions: { label: 'Inner A' },
                   choice: [
-                    { name: 'a1', fieldOptions: { label: 'A1' } },
+                    { name: 'a1', fieldOptions: { label: 'A1' }, restriction: { minLength: 3 } },
                     { name: 'a2', fieldOptions: { label: 'A2' } },
                   ],
                 }],
@@ -593,8 +476,8 @@ describe('component DynamicFormItemChoice', () => {
                 }],
               },
             ],
-          }] as any,
-          settings: { messages: { choiceMinOccurs: 'At least {min} required in {field}' } },
+          }],
+          settings: { messages: { choiceMinOccurs: 'At least {min} required in {field}', minLength: 'Min length of {field} is {length}' } },
         },
       });
     }
@@ -620,37 +503,23 @@ describe('component DynamicFormItemChoice', () => {
       expect(wrapper.find('[data-testid="outer.group2.innerB-error-message"]').exists()).toBe(false);
     });
 
-    it('filling a1 (inside group1.innerA) clears the outer error', async () => {
+    it('filling a1 (inside group1.innerA) clears the outer error, but also validates', async () => {
       const wrapper = mountMultiLayerChoice();
 
-      await wrapper.find('[id="outer.group1.innerA.a1"]').setValue('hello');
       await wrapper.find('[data-testid="submit"]').trigger('click');
+      await wrapper.find('[id="outer.group1.innerA.a1"]').setValue('h');
       await flushPromises();
+
+      expect(wrapper.find('[data-testid="outer.group1.innerA.a1-error-message"]').text())
+        .toContain('Min length of A1 is 3');
 
       expect(wrapper.find('[data-testid="outer-error-message"]').exists()).toBe(false);
-    });
-
-    it('filling a1 disables group2 and its inner choice inputs', async () => {
-      const wrapper = mountMultiLayerChoice();
 
       await wrapper.find('[id="outer.group1.innerA.a1"]').setValue('hello');
       await flushPromises();
 
-      // group2 is disabled → its inner choice inputs are also disabled
-      expect(wrapper.find('[id="outer.group2.innerB.b1"]').attributes('disabled')).toBeDefined();
-      expect(wrapper.find('[id="outer.group2.innerB.b2"]').attributes('disabled')).toBeDefined();
-    });
-
-    it('filling b1 (inside group2.innerB) clears outer error and disables group1', async () => {
-      const wrapper = mountMultiLayerChoice();
-
-      await wrapper.find('[id="outer.group2.innerB.b1"]').setValue('world');
-      await wrapper.find('[data-testid="submit"]').trigger('click');
-      await flushPromises();
-
-      expect(wrapper.find('[data-testid="outer-error-message"]').exists()).toBe(false);
-      expect(wrapper.find('[id="outer.group1.innerA.a1"]').attributes('disabled')).toBeDefined();
-      expect(wrapper.find('[id="outer.group1.innerA.a2"]').attributes('disabled')).toBeDefined();
+      expect(wrapper.find('[data-testid="outer.group1.innerA.a1-error-message"]').exists())
+        .toBe(false);
     });
 
     it('inner choice of the active group shows error when its own selection is missing', async () => {

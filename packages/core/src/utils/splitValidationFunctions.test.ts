@@ -6,7 +6,8 @@ vi.mock('vee-validate', () => ({
   validate: vi.fn(async (_value: unknown, rules: unknown) => {
     // Simulate a failing rule when the rule key/string is 'fail'
     const ruleKey = typeof rules === 'string' ? rules : Object.keys(rules as object)[0];
-    if (ruleKey === 'fail') return { valid: false, errors: [`${ruleKey} failed`] };
+    if (ruleKey === 'fail')
+      return { valid: false, errors: [`${ruleKey} failed`] };
     return { valid: true, errors: [] };
   }),
 }));
@@ -38,7 +39,6 @@ describe('splitToValidationFunctions', () => {
       expect(result[0]).toBe(fn1);
       expect(result[1]).toBe(fn2);
     });
-
   });
 
   describe('string input', () => {
@@ -69,9 +69,10 @@ describe('splitToValidationFunctions', () => {
     });
 
     it('passes rule parameters intact to validate', async () => {
+      mockValidate.mockClear();
       const [fn] = splitToValidationFunctions('min:3');
       await fn('value', {} as never);
-      expect(mockValidate).toHaveBeenCalledWith('value', 'min:3', expect.any(Object));
+      expect(mockValidate).toHaveBeenCalledWith('value', 'min:3', undefined);
     });
 
     it('passes each rule with its parameters as a separate call', async () => {
@@ -79,8 +80,8 @@ describe('splitToValidationFunctions', () => {
       const [min, max] = splitToValidationFunctions('min:3|max:10');
       await min('value', {} as never);
       await max('value', {} as never);
-      expect(mockValidate).toHaveBeenCalledWith('value', 'min:3', expect.any(Object));
-      expect(mockValidate).toHaveBeenCalledWith('value', 'max:10', expect.any(Object));
+      expect(mockValidate).toHaveBeenCalledWith('value', 'min:3', undefined);
+      expect(mockValidate).toHaveBeenCalledWith('value', 'max:10', undefined);
     });
   });
 

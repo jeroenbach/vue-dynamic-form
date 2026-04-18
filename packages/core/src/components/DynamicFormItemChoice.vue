@@ -10,11 +10,13 @@ import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 import { useField } from 'vee-validate';
-import { computed, inject, ref } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
+import { normalizePath } from '@/utils/normalizePath';
+import { overridePath } from '@/utils/overridePath';
 
 // #region Interfaces
 export interface Emit {
@@ -31,13 +33,17 @@ const settings = inject<ComputedRef<DynamicFormSettings>>(dynamicFormSettingsKey
 
 // #region Analytics: to test reactivity and prevent unnecessary rerenders.
 // They're not reactive to avoid infinite loops.
-
 let _analytics_updateCallCount = 0;
 let _analytics_occurrencesCalculatedCount = 0;
+// #endregion
 
 // #region Computed properties and state
-
 const field = computed(() => props.fieldMetadata);
+
+// Choice fields often don't have a path, as they don't take any space in the xml hierarchy
+// therefore we get the closest path of the choice
+const closestPath = computed(() =>
+  overridePath(field.value.path ?? '', props.pathOverride));
 
 const minOccurs = computed(() =>
   props.minOccursOverride !== undefined
@@ -62,7 +68,7 @@ const _maxOccursOverride = computed(() =>
 );
 
 // Depending on the original maxOccurs of this choice field, we make the all children fieldArray's (if necessary)
-const childrenAreArrays = computed(() => field.value?.maxOccurs > 1);
+const childrenAreArrays = computed(() => field.value?.maxOccurs > 1 ? 'array' : undefined);
 
 const disabled = computed(() => maxOccurs.value === 0);
 
@@ -210,12 +216,27 @@ const combinedValidation = computed(() => {
 
   return [createValidation('xsd_choiceMinOccurs', minOccurs.value, _messages?.choiceMinOccurs)];
 });
-const { errors, errorMessage } = useField(props.pathOverride ?? '', combinedValidation, field.value?.fieldOptions); // Use the closed path for any errors errors
+
+// Link the vee-validate field to the nearest parent of the choice. Before we had it linked to the root, but when multiple choice
+// elements were validating, this was giving a problem
+const normalizedPath = computed(() => normalizePath(closestPath.value));
+const { errors, errorMessage } = useField(normalizedPath, combinedValidation, field.value?.fieldOptions); // Use the closed path for any errors errors
 const fieldContext: LimitedFieldContext = { label: field.value?.fieldOptions?.label, errors, errorMessage };
 // #endregion
 
-// #region Methods
+// #region Watchers and lifecycle events
+watch(field, (_field) => {
+  if (!_field)
+    return;
 
+  // Once we know the field and the choice fields below, we can initialize the occurrences
+  _field.choice?.forEach((child, index) => {
+    updateChildValue(undefined, index, child.maxOccurs);
+  });
+}, { immediate: true });
+// #endregion
+
+// #region Methods
 function updateChildValue(
   value: any,
   childIndex: number | undefined,
@@ -279,25 +300,28 @@ function updateChildValue(
   >
     <DynamicFormItem
       v-if="singleChild"
-      :template
       :field-metadata="singleChild"
       :path-override
+      :template
+      :template-attrs
       :min-occurs-override="_minOccursOverride"
       :max-occurs-override="_maxOccursOverride"
-      :template-attrs
+      part-of-choice-field
+
       @update:model-value="updateChildValue($event, 0, singleChild!.maxOccurs, true)"
     />
     <template v-else>
       <DynamicFormItem
-        v-for="(child, index) in fieldMetadata.choice"
+        v-for="(child, index) in field.choice"
         :key="child.name"
         :field-metadata="(child as InternalMetadata)"
         :path-override
         :template
+        :template-attrs
         :min-occurs-override="occurrences[index]?.overrideChildMinOccurrences"
         :max-occurs-override="occurrences[index]?.overrideChildMaxOccurrences"
         :is-array-override="childrenAreArrays"
-        :part-of-choice-field
+        part-of-choice-field
 
         @update:model-value="updateChildValue($event, index, child.maxOccurs)"
       />

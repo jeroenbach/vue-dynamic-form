@@ -1,7 +1,7 @@
 import type { FieldValidationMetaInfo } from '@/types/ValidationMessage';
 import { describe, expect, it } from 'vitest';
-import '@/core/validation'; // registers all xsd_* rules
 import { createValidation } from '@/utils/createValidation';
+import '@/core/validation'; // registers all xsd_* rules
 
 function ctx(overrides: Partial<FieldValidationMetaInfo> = {}): FieldValidationMetaInfo {
   return {
@@ -33,7 +33,7 @@ describe('createValidation', () => {
     });
 
     it('returns a custom function message when the rule fails', async () => {
-      const validate = createValidation('xsd_required', undefined, (c) => `${c.field} is required`);
+      const validate = createValidation('xsd_required', undefined, c => `${c.field} is required`);
       expect(await validate('', ctx())).toBe('My Field is required');
     });
 

@@ -10,7 +10,7 @@ import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { ComputedPropsType, FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { useField } from 'vee-validate';
+import { useField, useSubmitCount } from 'vee-validate';
 import { computed, inject, onBeforeUnmount, ref, watch, watchEffect } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
@@ -24,6 +24,7 @@ import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
 // #region Interfaces
 export interface Emit {
   (e: 'update:modelValue', value: unknown): void
+  (e: 'blur', event?: Event | undefined, shouldValidate?: boolean | undefined): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;
 // #endregion
@@ -50,17 +51,18 @@ let _analytics_notifyValueUpdateCount = 0;
 // The counter resets after each microtask, so it only catches computes that happen synchronously.
 const COMPUTE_LOOP_MAX = 10;
 let _computeLoopCount = 0;
-let _computeLoopResetScheduled = false;
+let _computeLoopResetTimer: ReturnType<typeof setTimeout> | undefined;
 
 function assertNoComputeLoop(fieldPath: string) {
   _computeLoopCount++;
-  if (!_computeLoopResetScheduled) {
-    _computeLoopResetScheduled = true;
-    Promise.resolve().then(() => {
-      // Reset after all synchronous computes in this tick have settled
+
+  if (_computeLoopResetTimer == null) {
+    _computeLoopResetTimer = setTimeout(() => {
+      // Reset after the current macrotask so repeated Vue flushes in one runaway update
+      // cascade still accumulate and trip the guard.
       _computeLoopCount = 0;
-      _computeLoopResetScheduled = false;
-    });
+      _computeLoopResetTimer = undefined;
+    }, 0);
   }
   if (_computeLoopCount > COMPUTE_LOOP_MAX) {
     throw new Error(
@@ -73,12 +75,6 @@ function assertNoComputeLoop(fieldPath: string) {
 // #endregion
 
 // #region Computed properties and state
-
-/**
- * In case of an object, the useFieldValue() in vee-validate doesn't react on an update of a value of its children.
- * Therefore we keep track of an reactive value, that is updated by the children. That re-triggers reactivity
- */
-const childValueReactivity = ref(0);
 
 // Keep track of changes to the field for analytics
 const field = computed(() => {
@@ -111,27 +107,36 @@ const itemPath = computed(() => {
 const normalizedPath = computed(() => normalizePath(itemPath.value));
 
 const isArray = computed(() => {
-  if (props.isArrayOverride)
+  if (props.isArrayOverride === 'array')
     return true;
+
+  if (props.isArrayOverride === 'single')
+    return false;
 
   // Check if we can occur multiple times, if yes, we're an array.
   // This can not be reactive.
-  return (props.maxOccursOverride ?? field.value.maxOccurs ?? 1) > 1;
+  return (field.value?.maxOccurs ?? 1) > 1;
 });
 
 const combinedValidation = ref<GenericValidateFunction[]>([]);
 
 // Create the Vee-validate extended field context
 const fieldContext = !isArray.value
-  ? useField(normalizedPath, combinedValidation, field.value?.fieldOptions) as FieldContext
+  ? useField(normalizedPath, combinedValidation, {
+    ...(field.value?.fieldOptions ?? {}),
+    validateOnValueUpdate: false, // We own the validation moment
+  }) as FieldContext
   : { value: ref(undefined) } as FieldContext;
+
 const value = fieldContext.value;
-fieldContext.hasValue = computed(
-  // Computed that will only be called, when the hasValue.value is actually used
-  () => checkTreeHasValue(value.value),
-);
 
 const initialUpdate = ref(true);
+
+/**
+ * In case of an object, the useFieldValue() in vee-validate doesn't react on an update of a value of its children.
+ * Therefore we keep track of an reactive value, that is updated by the children. That re-triggers reactivity
+ */
+const childValueReactivity = ref(0);
 
 const computedField = computed(() => {
   _analytics_fieldComputeCount++;
@@ -230,6 +235,53 @@ const _canRemoveItems = computed(() => {
 const showAttributes = computed(
   () => field.value?.attributes?.length && checkTreeHasValue(value.value),
 );
+const submitCount = useSubmitCount();
+const shouldValidateOnValueUpdate = computed(() => {
+  // Only when validateOnValueUpdateAfterSubmit is true, we want to take the check into account.
+  // The check can be true or false, both should be final. In case validateOnValueUpdateAfterSubmit is not true (undefined or false)
+  // we want to listen to the next check (therefore we use undefined).
+  const validateOnValueUpdateAfterSubmit = settings?.value?.validateOnValueUpdateAfterSubmit === true
+    ? (submitCount.value > 0 && settings?.value?.validateOnValueUpdateAfterSubmit)
+    : undefined;
+
+  // Either validate or let another value determine whether we should validate
+  const validateWhenInError = settings?.value?.validateWhenInError && fieldContext?.errors.value?.length > 0
+    ? true
+    : undefined;
+
+  // field has priority
+  return field.value?.fieldOptions?.validateOnValueUpdate
+  // then whether we are in error
+    ?? validateWhenInError
+  // then whether we only want to validate after submit
+    ?? validateOnValueUpdateAfterSubmit
+  // and finally the always validate
+    ?? settings?.value?.validateOnValueUpdate;
+});
+
+// #endregion
+
+// #region Improve FieldContext
+fieldContext.hasValue = computed(
+  // Computed that will only be called, when the hasValue.value is actually used
+  () => checkTreeHasValue(value.value),
+);
+
+// When shouldValidate is not provided, I would have expected to use the general settings and not a default false.
+// Therefore we override the handleBlur and handleChange and listen to the settings, before setting a default.
+const originalHandleBlur = fieldContext.handleBlur;
+fieldContext.handleBlur = function (e?: Event | undefined, shouldValidate?: boolean | undefined) {
+  shouldValidate = shouldValidate ?? settings?.value?.validateOnBlur;
+  originalHandleBlur(e, shouldValidate);
+  emits('blur', e, shouldValidate); // add a helper for array fields to know when a blur occurred
+};
+
+const originalHandleChange = fieldContext.handleChange;
+fieldContext.handleChange = function (e: unknown, shouldValidate?: boolean | undefined) {
+  // We're handling the validate in the value watcher. Only execute it here if it is explicitly set to true by the user
+  originalHandleChange(e, shouldValidate === true);
+};
+
 // #endregion
 
 // #region Watchers and lifecycle events
@@ -320,22 +372,30 @@ watch(
   (v) => {
     _analytics_valueChangedCount++;
 
-    // Only update the readOnlyValue when this is an actual input field, in all other cases
-    // it will be updated by the children directly
+    // Only notify and validate when this is an actual input field, in all other cases
+    // it will be done by the children directly
     if (!isInput.value)
       return;
 
-    // Don't update the parent if the initial value is empty
+    // Don't update the parent if the initial value is empty, neither validate
     if (!initialUpdate.value || v) {
       notifyValueUpdate();
+
+      if (shouldValidateOnValueUpdate.value)
+        fieldContext?.validate();
     }
 
     initialUpdate.value = false;
   },
-  { immediate: true },
+  {
+    immediate: true,
+  },
 );
 
 onBeforeUnmount(() => {
+  if (_computeLoopResetTimer != null)
+    clearTimeout(_computeLoopResetTimer);
+
   // Array items are cleaned up by useFieldArray's remove() — setting the value to undefined here
   // would write back to form.values at the (now-removed) index, causing useFieldArray's sync
   // watcher to detect a mismatch and re-add the entry via initFields().
@@ -361,6 +421,14 @@ function notifyValueUpdate() {
   childValueReactivity.value++;
   emits('update:modelValue', value.value);
 };
+
+/**
+ * In case of an ArrayField, we bypass the useField, therefore we need to manually update the value.
+ */
+function updateArrayValue(_value: unknown) {
+  value.value = _value;
+  emits('update:modelValue', value.value);
+};
 // #endregion
 </script>
 
@@ -374,13 +442,17 @@ function notifyValueUpdate() {
     <DynamicFormItemChoice
       v-bind="props"
       :field-metadata="computedField"
+
       @update:model-value="notifyValueUpdate"
     />
   </template>
   <template v-else-if="isArray">
     <DynamicFormItemArray
       v-bind="props"
+      :part-of-choice-field
       :field-metadata="computedField"
+
+      @update:model-value="updateArrayValue"
     />
   </template>
   <template v-else>
@@ -408,6 +480,7 @@ function notifyValueUpdate() {
             :template-attrs
             :min-occurs-override="_minOccursOverride"
             :max-occurs-override="_maxOccursOverride"
+
             @update:model-value="notifyValueUpdate"
           />
         </template>
@@ -437,6 +510,7 @@ function notifyValueUpdate() {
           :template-attrs
           :min-occurs-override="_minOccursOverride"
           :max-occurs-override="_maxOccursOverride"
+
           @update:model-value="notifyValueUpdate"
         />
       </template>

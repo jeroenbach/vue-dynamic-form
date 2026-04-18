@@ -528,28 +528,30 @@ describe('component DynamicFormItem - analytics', () => {
     });
 
     it('throws when computedProps causes a synchronous infinite loop by writing a non-idempotent value', async () => {
-      // The loop is triggered on the initial render, so mount() itself throws.
       let caughtError: unknown;
 
-      try {
-        mount(TestForm, {
-          attachTo: document.body,
-          props: {
-            metadata: [{
-              name: 'text',
-              type: 'text',
-              computedProps: [(_, value) => {
-                // Non-idempotent: always appends, so the value never stabilizes
-                value.value = `${value.value ?? ''}!`;
-              }],
+      mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            computedProps: [(_, value) => {
+              // Non-idempotent: always appends, so the value never stabilizes
+              value.value = `${value.value ?? ''}!`;
             }],
+          }],
+        },
+        global: {
+          config: {
+            errorHandler: (err) => {
+              caughtError = err;
+            },
+            warnHandler: () => {},
           },
-        });
-        await flushPromises();
-      }
-      catch (err) {
-        caughtError = err;
-      }
+        },
+      });
+      await flushPromises();
 
       expect(caughtError).toBeInstanceOf(Error);
       expect((caughtError as Error).message).toContain('[DynamicFormItem] Possible infinite loop');

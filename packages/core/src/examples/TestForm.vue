@@ -10,9 +10,10 @@ import TestFormTemplate from './TestFormTemplate.vue';
 export interface Props {
   metadata: Metadata[]
   settings?: DynamicFormSettings
+  showDebugState?: boolean
 }
 
-const { metadata, settings: _settings } = defineProps<Props>();
+const { metadata, settings: _settings, showDebugState = false } = defineProps<Props>();
 
 const { values, handleSubmit, errors, meta } = useDynamicForm();
 const manualValues = ref();
@@ -30,15 +31,26 @@ const metadataWithEdit = computed(() => metadata?.map(x => mapEachMetadataItem(x
   return item;
 })));
 
-const settings = computed(() => _settings ?? ({
+const settings = computed(() => ({
   analytics: true,
   messages: {
     required: '{field} is required',
-    choiceMinOccurs: 'The following fields need to occur at least {min} time(s): {field}',
-    minLength: 'The minimum length of {field} is {0}',
-    maxLength: 'The maximum length of {field} is {0}',
     minOccurs: 'At least {min} items required',
+    choiceMinOccurs: 'The following fields need to occur at least {min} time(s): {field}',
+    minLength: 'The minimum length of {field} is {length}',
+    maxLength: 'The maximum length of {field} is {length}',
+    length: '{field} must be exactly {length} characters',
+    pattern: '{field} does not match the required pattern',
+    minInclusive: '{field} must be at least {min}',
+    maxInclusive: '{field} must be at most {max}',
+    minExclusive: '{field} must be greater than {min}',
+    maxExclusive: '{field} must be less than {max}',
+    enumeration: '{field} must be one of the allowed values',
+    whiteSpace: '{field} contains invalid whitespace (mode: {mode})',
+    fractionDigits: '{field} may have at most {digits} decimal place(s)',
+    totalDigits: '{field} may have at most {digits} significant digit(s)',
   },
+  ...(_settings ?? {}),
 }));
 
 function submit(e?: Event) {
@@ -91,7 +103,7 @@ function mapEachMetadataItem(metadata: Metadata, callbackFunc: (item: Metadata) 
       @update:model-value="manualValues = $event"
     />
     <span v-if="isSubmitted" data-testid="isSubmitted" />
-    <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
+    <pre v-if="showDebugState" class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
 IsDirty: {{ meta.dirty }}
 Pending: {{ meta.pending }}
 Touched: {{ meta.touched }}

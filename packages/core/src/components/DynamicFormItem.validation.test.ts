@@ -83,7 +83,7 @@ describe('component DynamicFormItem', () => {
             restriction: fieldRestriction,
           }] as any,
           // No settings.messages — falls back to configure.generateMessage
-          settings: {},
+          settings: { messages: {} },
         },
       });
 
@@ -137,7 +137,7 @@ describe('component DynamicFormItem', () => {
     // Use settings.messages for named placeholder support with restriction params (see test above).
     it.each`
     restriction         | minOccurs | fieldRestriction                    | inputValue             | messageTemplate                                  | expected
-    ${'required'}       | ${1}      | ${{}}                               | ${''}                  | ${'The {field} field is required'}               | ${'The Text Input field is required'}
+    ${'required'}       | ${1}      | ${{}}                               | ${''}                  | ${'The {field} field is required'}               | ${'Text Input is required'}
   `('shows configure.generateMessage with named placeholders for $restriction restriction', async ({ minOccurs, fieldRestriction, inputValue, messageTemplate, expected }: any) => {
       configure({
         generateMessage: (ctx) => {
@@ -250,6 +250,646 @@ describe('component DynamicFormItem', () => {
       await flushPromises();
 
       expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+    });
+  });
+
+  describe('validation trigger settings', () => {
+    describe('text', () => {
+      describe('validateOnBlur', () => {
+        it('validates on blur when validateOnBlur is true', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'text',
+                type: 'text',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 1,
+              }] as any,
+              settings: {
+                validateOnBlur: true,
+                validateOnValueUpdate: false,
+                messages: { required: '{field} is required' },
+              },
+            },
+          });
+
+          await wrapper.find('input').trigger('blur');
+          await flushPromises();
+
+          expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain('Text Input is required');
+        });
+
+        it('does not validate on blur when validateOnBlur is not set', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'text',
+                type: 'text',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 1,
+              }] as any,
+              settings: {
+                validateOnValueUpdate: false,
+                messages: { required: '{field} is required' },
+              },
+            },
+          });
+
+          await wrapper.find('input').trigger('blur');
+          await flushPromises();
+
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+        });
+      });
+
+      describe('validateOnValueUpdate', () => {
+        it('validates immediately on value change without submit (default: true)', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'text',
+                type: 'text',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          // Typing an invalid value should show an error immediately — no submit needed
+          await wrapper.find('input').setValue('a');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(true);
+
+          // Fixing the value should immediately clear the error
+          await wrapper.find('input').setValue('abc');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+        });
+
+        it('does not validate on value change when validateOnValueUpdate is false', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'text',
+                type: 'text',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateOnValueUpdate: false,
+                validateWhenInError: false,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          // Typing an invalid value should not show an error immediately
+          await wrapper.find('input').setValue('a');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+
+          // Submit with an invalid value to show the error
+          await wrapper.find('input').setValue('a');
+          await wrapper.find('[data-testid="submit"]').trigger('click');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(true);
+
+          // Fixing the value should NOT clear the error — re-validation on change is disabled
+          await wrapper.find('input').setValue('abc');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(true);
+
+          // Only a new submit should reflect the corrected value
+          await wrapper.find('[data-testid="submit"]').trigger('click');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+        });
+      });
+
+      describe('validateWhenInError', () => {
+        it('does not validate on value change when there is no error yet', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'text',
+                type: 'text',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateOnValueUpdate: false,
+                validateWhenInError: true,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          // Typing invalid value does NOT show an error — no prior error exists yet
+          await wrapper.find('input').setValue('a');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+        });
+
+        it('re-validates on value change once an error exists, and clears when fixed', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'text',
+                type: 'text',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateWhenInError: true,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          // Trigger the first error via submit
+          await wrapper.find('input').setValue('a');
+          await wrapper.find('[data-testid="submit"]').trigger('click');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(true);
+
+          // Now that an error exists, fixing the value should re-validate and clear the error
+          await wrapper.find('input').setValue('abc');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+        });
+      });
+
+      describe('validateOnValueUpdateAfterSubmit', () => {
+        it('does not validate on value change before the first submit', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'text',
+                type: 'text',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateOnValueUpdateAfterSubmit: true,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          // Typing an invalid value should NOT show an error — no submit yet
+          await wrapper.find('input').setValue('a');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+        });
+
+        it('validates on value change after the first submit', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'text',
+                type: 'text',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateOnValueUpdateAfterSubmit: true,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          // Submit with an invalid value to trigger the first submit
+          await wrapper.find('input').setValue('a');
+          await wrapper.find('[data-testid="submit"]').trigger('click');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(true);
+
+          // After the first submit, fixing the value should re-validate and clear the error
+          await wrapper.find('input').setValue('abc');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+        });
+      });
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // textBoundByVModel uses v-model to bind value directly instead of handleChange/handleInput.
+    // Validation trigger behaviour should be identical to 'text'.
+    // ─────────────────────────────────────────────────────────────────────────
+    describe('textBoundByVModel', () => {
+      describe('validateOnBlur', () => {
+        it('validates on blur when validateOnBlur is true', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'textBoundByVModel',
+                type: 'textBoundByVModel',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 1,
+              }] as any,
+              settings: {
+                validateOnBlur: true,
+                validateOnValueUpdate: false,
+                messages: { required: '{field} is required' },
+              },
+            },
+          });
+
+          await wrapper.find('input').trigger('blur');
+          await flushPromises();
+
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').text()).toContain('Text Input is required');
+        });
+
+        it('does not validate on blur when validateOnBlur is not set', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'textBoundByVModel',
+                type: 'textBoundByVModel',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 1,
+              }] as any,
+              settings: {
+                validateOnValueUpdate: false,
+                messages: { required: '{field} is required' },
+              },
+            },
+          });
+
+          await wrapper.find('input').trigger('blur');
+          await flushPromises();
+
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(false);
+        });
+      });
+
+      describe('validateOnValueUpdate', () => {
+        it('validates immediately on value change without submit (default: true)', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'textBoundByVModel',
+                type: 'textBoundByVModel',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          await wrapper.find('input').setValue('a');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(true);
+
+          await wrapper.find('input').setValue('abc');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(false);
+        });
+
+        it('does not validate on value change when validateOnValueUpdate is false', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'textBoundByVModel',
+                type: 'textBoundByVModel',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateOnValueUpdate: false,
+                validateWhenInError: false,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          await wrapper.find('input').setValue('a');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(false);
+
+          await wrapper.find('[data-testid="submit"]').trigger('click');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(true);
+
+          await wrapper.find('input').setValue('abc');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(true);
+
+          await wrapper.find('[data-testid="submit"]').trigger('click');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(false);
+        });
+      });
+
+      describe('validateWhenInError', () => {
+        it('does not validate on value change when there is no error yet', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'textBoundByVModel',
+                type: 'textBoundByVModel',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateOnValueUpdate: false,
+                validateWhenInError: true,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          await wrapper.find('input').setValue('a');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(false);
+        });
+
+        it('re-validates on value change once an error exists, and clears when fixed', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'textBoundByVModel',
+                type: 'textBoundByVModel',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateWhenInError: true,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          await wrapper.find('input').setValue('a');
+          await wrapper.find('[data-testid="submit"]').trigger('click');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(true);
+
+          await wrapper.find('input').setValue('abc');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(false);
+        });
+      });
+
+      describe('validateOnValueUpdateAfterSubmit', () => {
+        it('does not validate on value change before the first submit', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'textBoundByVModel',
+                type: 'textBoundByVModel',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateOnValueUpdateAfterSubmit: true,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          await wrapper.find('input').setValue('a');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(false);
+        });
+
+        it('validates on value change after the first submit', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'textBoundByVModel',
+                type: 'textBoundByVModel',
+                fieldOptions: { label: 'Text Input' },
+                minOccurs: 0,
+                restriction: { minLength: 3 },
+              }] as any,
+              settings: {
+                validateOnValueUpdateAfterSubmit: true,
+                messages: { minLength: '{field} must be at least {0} characters' },
+              },
+            },
+          });
+
+          await wrapper.find('input').setValue('a');
+          await wrapper.find('[data-testid="submit"]').trigger('click');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(true);
+
+          await wrapper.find('input').setValue('abc');
+          await flushPromises();
+          expect(wrapper.find('[data-testid="textBoundByVModel-error-message"]').exists()).toBe(false);
+        });
+      });
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // select uses @change="handleChange" — validation is driven by the value
+    // watcher in DynamicFormItem, not by handleChange itself.
+    // ─────────────────────────────────────────────────────────────────────────
+    describe('select', () => {
+      function mountSelect(settings = {}) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'select',
+              type: 'select',
+              fieldOptions: { label: 'Select Input' },
+              minOccurs: 1,
+              options: [
+                { key: 'a', value: 'Option A' },
+                { key: 'b', value: 'Option B' },
+              ],
+            }] as any,
+            settings: { messages: { required: '{field} is required' }, ...settings },
+          },
+        });
+      }
+
+      it('shows required error on submit when no option is selected', async () => {
+        const wrapper = mountSelect();
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="select-error-message"]').text()).toContain('Select Input is required');
+      });
+
+      it('clears required error when an option is selected', async () => {
+        const wrapper = mountSelect();
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="select-error-message"]').exists()).toBe(true);
+
+        await wrapper.find('select').setValue('a');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="select-error-message"]').exists()).toBe(false);
+      });
+
+      it('validates on blur when validateOnBlur is true', async () => {
+        const wrapper = mountSelect({ validateOnBlur: true, validateOnValueUpdate: false });
+
+        await wrapper.find('select').trigger('blur');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="select-error-message"]').text()).toContain('Select Input is required');
+      });
+
+      it('does not validate on blur when validateOnBlur is not set', async () => {
+        const wrapper = mountSelect({ validateOnValueUpdate: false });
+
+        await wrapper.find('select').trigger('blur');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="select-error-message"]').exists()).toBe(false);
+      });
+
+      it('validates immediately on value change (default: validateOnValueUpdate=true)', async () => {
+        const wrapper = mountSelect();
+
+        // No error before any interaction
+        expect(wrapper.find('[data-testid="select-error-message"]').exists()).toBe(false);
+
+        // After submit the error appears
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="select-error-message"]').exists()).toBe(true);
+
+        // Selecting a valid option immediately clears the error
+        await wrapper.find('select').setValue('a');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="select-error-message"]').exists()).toBe(false);
+      });
+
+      it('does not validate on value change when validateOnValueUpdate is false', async () => {
+        const wrapper = mountSelect({ validateOnValueUpdate: false, validateWhenInError: false });
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="select-error-message"]').exists()).toBe(true);
+
+        // Selecting a valid option does NOT clear the error — re-validation on change is disabled
+        await wrapper.find('select').setValue('a');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="select-error-message"]').exists()).toBe(true);
+
+        // Only a new submit clears it
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="select-error-message"]').exists()).toBe(false);
+      });
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // checkbox uses @change="handleChange" — same validation trigger mechanics
+    // as select. Note: vee-validate's `required` passes for `false`, so the
+    // initial `undefined` (not yet interacted with) is what triggers the error.
+    // ─────────────────────────────────────────────────────────────────────────
+    describe('checkbox', () => {
+      function mountCheckbox(settings = {}) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'checkbox',
+              type: 'checkbox',
+              fieldOptions: { label: 'Checkbox Input' },
+              minOccurs: 1,
+            }] as any,
+            settings: { messages: { required: '{field} is required' }, ...settings },
+          },
+        });
+      }
+
+      it('shows required error on submit when not interacted with', async () => {
+        const wrapper = mountCheckbox();
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="checkbox-error-message"]').text()).toContain('Checkbox Input is required');
+      });
+
+      it('clears required error when the checkbox is checked', async () => {
+        const wrapper = mountCheckbox();
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="checkbox-error-message"]').exists()).toBe(true);
+
+        await wrapper.find('input[type="checkbox"]').setValue(true);
+        await flushPromises();
+        expect(wrapper.find('[data-testid="checkbox-error-message"]').exists()).toBe(false);
+      });
+
+      it('validates on blur when validateOnBlur is true', async () => {
+        const wrapper = mountCheckbox({ validateOnBlur: true, validateOnValueUpdate: false });
+
+        await wrapper.find('input[type="checkbox"]').trigger('blur');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="checkbox-error-message"]').text()).toContain('Checkbox Input is required');
+      });
+
+      it('does not validate on blur when validateOnBlur is not set', async () => {
+        const wrapper = mountCheckbox({ validateOnValueUpdate: false });
+
+        await wrapper.find('input[type="checkbox"]').trigger('blur');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="checkbox-error-message"]').exists()).toBe(false);
+      });
+
+      it('does not validate on value change when validateOnValueUpdate is false', async () => {
+        const wrapper = mountCheckbox({ validateOnValueUpdate: false, validateWhenInError: false });
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="checkbox-error-message"]').exists()).toBe(true);
+
+        // Checking the box does NOT clear the error — re-validation on change is disabled
+        await wrapper.find('input[type="checkbox"]').setValue(true);
+        await flushPromises();
+        expect(wrapper.find('[data-testid="checkbox-error-message"]').exists()).toBe(true);
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="checkbox-error-message"]').exists()).toBe(false);
+      });
     });
   });
 

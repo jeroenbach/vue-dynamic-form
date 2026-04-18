@@ -58,7 +58,7 @@ export interface DynamicFormItemProps<
    * We check the maxOccurs to see if the field is an Array. If we want to override this, we can do so with this property.
    * In case the field is a child of a choice field, it needs to be made repeatable and we can set this to true.
    */
-  isArrayOverride?: boolean
+  isArrayOverride?: 'auto' | 'array' | 'single'
 
   /**
    * In case this item is part of a field array, we need some extra info
