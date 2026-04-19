@@ -1,18 +1,41 @@
 # Getting Started
 
+The easiest way to learn Vue Dynamic Form is to build it in this order:
+
+1. define your field types with `defineMetadata()`
+2. create a `DynamicFormTemplate` that renders those field types
+3. mount `<DynamicForm>` inside a form created with `useDynamicForm()`
+4. start adding metadata objects until the form grows into the shape you need
+
+That order matters. The template is your UI contract, and the metadata is the content that flows through it.
+
 ## Install
 
 ```bash
 pnpm add @bach.software/vue-dynamic-form vee-validate @vee-validate/rules vue
 ```
 
-## The Minimum Setup
+## The Three Pieces
 
-You need three things:
+Every form built with `packages/core` has the same three moving parts:
 
-1. metadata
-2. a `DynamicFormTemplate`
-3. a `useDynamicForm()` instance to handle submission and form state
+- `defineMetadata()` declares which field types your app supports and which extra properties each field may carry.
+- `DynamicFormTemplate` maps those field types to actual HTML or components.
+- `<DynamicForm>` reads a metadata tree and renders it through your template.
+
+`useDynamicForm()` is the bridge to `vee-validate`. It gives you `handleSubmit`, `values`, `errors`, `meta`, and typed `useFieldValue()`.
+
+## Mental Model
+
+Think of the library as a rendering engine with a strict separation of concerns:
+
+- metadata decides which fields exist, how they nest, and which rules apply
+- the template decides what those fields look like
+- the form instance decides submission, values, and validation lifecycle
+
+Once those pieces are in place, most new forms are just new metadata.
+
+## Minimal Setup
 
 ```vue
 <script setup lang="ts">
@@ -24,11 +47,9 @@ const { handleSubmit } = useDynamicForm();
 const metadata = [
   {
     name: 'person',
-    type: 'heading',
-    fieldOptions: { label: 'Person' },
     children: [
-      { name: 'firstName', type: 'text', fieldOptions: { label: 'First name' } },
-      { name: 'lastName', type: 'text', fieldOptions: { label: 'Last name' } },
+      { name: 'firstName', fieldOptions: { label: 'First name' } },
+      { name: 'lastName', fieldOptions: { label: 'Last name' } },
     ],
   },
 ];
@@ -41,33 +62,31 @@ const metadata = [
 </template>
 ```
 
-## Strongly Typed Metadata
+The library fills in defaults such as:
 
-Use `defineMetadata()` when you want a typed contract for field values and template-specific field extensions.
+- `type: 'text'`
+- `minOccurs: 1`
+- `maxOccurs: 1`
+- generated `name` and `path` values when needed
 
-```ts
-import { defineMetadata } from '@bach.software/vue-dynamic-form';
+## Recommended Learning Path
 
-const metadataConfiguration = defineMetadata<
-  {
-    text: string
-    checkbox: boolean
-    heading: never
-  },
-  {
-    label?: string
-    description?: string
-    options?: { key: string, value: string }[]
-  }
->();
-```
+If you are writing docs or teaching teammates, this is the order that builds understanding cleanly:
 
-## A Real Example
+1. [Define Metadata](/guide/define-metadata): decide which field types and extra field properties your template supports.
+2. [Templates](/guide/templates): render fields with `default`, `default-input`, custom field slots, and structural slots like `array` and `choice`.
+3. [DynamicForm](/guide/dynamic-form): mount a real form and configure messages and runtime behavior through `settings`.
+4. [How It Works](/guide/how-it-works): learn groups, arrays, choices, and `computedProps`.
+5. [Metadata Reference](/guide/metadata-reference): use as the full lookup page for every field property.
 
-<BasicFormExample name="default" title="Quick Start Demo" description="The same example component used in the repository tests and examples." />
+This keeps the tutorial flow practical first, then moves into detail once the reader already has a working form in mind.
+
+## Quick Start Demo
+
+<BasicFormExample name="default" title="Quick Start Demo" description="A minimal typed template plus a small metadata array rendered through DynamicForm." />
 
 ## Continue
 
-- Read [How It Works](/guide/how-it-works)
-- Learn the template contract in [Templates](/guide/templates)
-- Browse interactive [Examples](/examples/)
+- Start with [Define Metadata](/guide/define-metadata)
+- Then read [Templates](/guide/templates)
+- Browse runnable [Examples](/examples/)

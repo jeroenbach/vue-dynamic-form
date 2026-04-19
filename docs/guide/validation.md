@@ -68,3 +68,8 @@ const settings = {
 ## Interactive Example
 
 <BasicFormExample name="individual" title="Focused Validation Example" description="A compact scenario for trying built-in validation, attributes, and form state." />
+
+## Related Pages
+
+- [DynamicForm](/guide/dynamic-form) for the `settings.messages` API
+- [Metadata Reference](/guide/metadata-reference) for `restriction`, `validation`, and `fieldOptions`

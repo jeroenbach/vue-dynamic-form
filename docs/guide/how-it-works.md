@@ -1,28 +1,22 @@
 # How It Works
 
-The library takes a metadata tree and turns it into a live `vee-validate` form.
+Once you have a template and a mounted `<DynamicForm>`, the interesting part is that you mainly keep writing metadata. This page explains how the runtime interprets that metadata.
 
-## Metadata Shapes
+## The Basic Field Model
 
-Each node in the metadata tree can behave as one of the following:
+A metadata node can represent one of these shapes:
 
-- input field
-- parent/group with `children`
-- repeatable field with `maxOccurs > 1`
-- choice field with `choice`
-- field with `attributes`
+- a normal input field
+- a grouped field with `children`
+- a repeatable field with `maxOccurs > 1`
+- a mutually exclusive structure with `choice`
+- a field with `attributes`
 
-`DynamicForm` normalizes this tree and computes defaults such as:
+The same node can combine multiple behaviors. For example, a grouped field can also be repeatable.
 
-- `name`
-- `path`
-- `type`
-- `minOccurs`
-- `maxOccurs`
+## Paths
 
-## Path Resolution
-
-Paths drive both rendering and validation registration.
+Every field ends up with a `path`, and that path is what connects rendering, value storage, and validation.
 
 Examples:
 
@@ -30,49 +24,132 @@ Examples:
 - `person.contacts[0].email`
 - `invoice.lines[2].price`
 
-If you do not explicitly set a `path`, it is derived from the parent path plus the current field name.
+If you do not set a path yourself, the library derives it from the parent path and the field name.
 
-## Groups
+## The Properties Most Developers Start With
 
-A node with `children` becomes a parent/group. Groups can be:
+These are the first properties worth learning because they already produce a useful form:
 
-- required
-- optional
-- repeatable
+- `name`: logical name of the field
+- `type`: your template field type such as `text`, `select`, or `checkbox`
+- `fieldOptions.label`: label exposed by `vee-validate` and typically used in the template
+- `children`: creates a grouped structure
+- `minOccurs`: controls whether a field is optional or required
 
-Optional groups temporarily relax child requirements until the user starts filling values in that group.
+The practical default behavior is:
 
-## Arrays
+- `type` defaults to `text`
+- `minOccurs` defaults to `1`, so fields are required unless made optional
+- `maxOccurs` defaults to `1`, so fields are not arrays unless you opt in
 
-When `maxOccurs > 1`, a node becomes repeatable. The array implementation is responsible for:
+## Groups With `children`
 
-- add/remove controls
-- occurrence tracking
-- minimum and maximum occurrence enforcement
-- nested content inside each array occurrence
+A node with `children` becomes a grouped field.
 
-## Choices
+Groups are useful for:
 
-When a node contains `choice`, only one branch should be active at a time. The choice engine:
+- visual sections
+- nested data objects
+- reusable grouped blocks that can also become arrays
 
-- tracks which branch has values
-- disables sibling branches once one branch becomes active
-- supports nested choices
-- supports choice branches that are groups
-- supports choice branches that are arrays
+Optional groups have an important behavior: if the group itself has `minOccurs: 0`, the runtime relaxes child requirements until the user starts filling something in that group.
 
-This is the part of the library that behaves most like XSD choice semantics.
+That makes optional sections behave naturally without forcing users to complete hidden or untouched child fields.
 
-## Interactive Example
+## Arrays With `maxOccurs`
 
-<BasicFormExample name="choices" title="Choice Behaviors" description="Simple choices, grouped choices, and array-based choices rendered from metadata." />
+When `maxOccurs > 1`, the field becomes repeatable.
 
-## Validation Integration
+The runtime manages:
 
-The engine does not replace `vee-validate`; it layers metadata-driven rules on top of it.
+- how many items currently exist
+- when an item can be added
+- when an item can be removed
+- when the field still counts as required
 
-- XSD-inspired rules are registered with `defineRule`
-- custom validations can still be provided through metadata
-- messages can come from settings or `configure({ generateMessage })`
+This works for:
 
-Continue with [Validation](/guide/validation) for the rule model.
+- single input arrays
+- grouped arrays
+- arrays inside choices
+
+## Choices With `choice`
+
+Choice fields model mutually exclusive branches.
+
+This is where the library differs most from a plain schema renderer. A choice field tracks which branch has values and adjusts sibling branches accordingly.
+
+That allows one metadata structure to express cases like:
+
+- email or phone
+- self-serve launch or guided rollout
+- one of several grouped sections
+- one of several repeatable branches
+
+## Dynamic Behavior With `computedProps`
+
+`computedProps` is the main tool for live metadata changes.
+
+It runs at the field component level, which means you can reactively update properties on `fieldMetadata` without re-rendering the whole form tree.
+
+Typical uses:
+
+- disable a field until another field has a value
+- make a field required only in a certain scenario
+- change a description or label dynamically
+- load or swap select `options`
+
+Example:
+
+```ts
+{
+  name: 'trainingFormat',
+  type: 'select',
+  minOccurs: 0,
+  computedProps: [(field) => {
+    field.options = optionStore.trainingFormat;
+    field.disabled = !needsTraining.value;
+    field.minOccurs = needsTraining.value ? 1 : 0;
+  }],
+}
+```
+
+Use `computeOnChildValueChange: true` when a parent field needs to recompute based on changes inside its descendants.
+
+## The Most Important Advanced Shapes
+
+### Grouped fields
+
+Use `children` when one node should contain a nested object.
+
+Template concern:
+Your `#default` slot should detect `fieldMetadata.children?.length` and render a group wrapper instead of a normal single-field wrapper.
+
+### Array fields
+
+Use `maxOccurs > 1` when one node can occur multiple times.
+
+Template concern:
+Decide whether add/remove buttons belong in `#array`, in `#default`, or both depending on whether the array items are simple inputs or grouped sections.
+
+### Choice fields
+
+Use `choice` when only one branch should be active at a time.
+
+Template concern:
+Choice fields usually need a clearer visual boundary than normal groups so the user understands the mutually exclusive relationship.
+
+## Advanced Example
+
+<ClientOnboardingPlannerExampleContext />
+
+The client onboarding example is a good reference because it combines:
+
+- grouped company details
+- repeatable project contacts
+- a choice-based launch approach
+- computed select options and required states
+
+## Next
+
+Continue with [Validation](/guide/validation) for the rule model, then use [Metadata Reference](/guide/metadata-reference) as the full lookup page.

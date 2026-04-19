@@ -9,9 +9,11 @@ The interactive demos below reuse the example components that already live in th
 - [Basic Form](/examples/basic)
 - [Arrays And Groups](/examples/arrays-and-groups)
 - [Choices](/examples/choices)
+- [Client Onboarding](/examples/client-onboarding)
 
 ## Quick Overview
 
 <BasicFormExample name="default" />
 <BasicFormExample name="arrays" />
 <BasicFormExample name="choices" />
+<ClientOnboardingPlannerExampleContext />
