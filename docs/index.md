@@ -10,11 +10,11 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
+      text: Reference
+      link: /reference/
+    - theme: alt
       text: Browse Examples
       link: /examples/
-    - theme: alt
-      text: Core README
-      link: /core-readme
 
 features:
   - title: You own the UI
@@ -50,5 +50,6 @@ The metadata model is inspired by XSD — one of the most battle-tested formats 
 ## Next Steps
 
 - Start with [Getting Started](/guide/getting-started)
-- Learn the model in [How It Works](/guide/how-it-works)
+- Read the step-by-step [Guide](/guide/define-metadata)
+- Browse the full [Reference](/reference/)
 - Explore [Examples](/examples/)
