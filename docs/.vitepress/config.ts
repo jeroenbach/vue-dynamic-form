@@ -25,6 +25,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Reference', link: '/reference/' },
       { text: 'Examples', link: '/examples/' },
       { text: 'Core README', link: '/core-readme' },
       { text: 'GitHub', link: 'https://github.com/jeroenbach/dynamic-form' },
@@ -35,9 +36,24 @@ export default defineConfig({
           text: 'Guide',
           items: [
             { text: 'Getting Started', link: '/guide/getting-started' },
-            { text: 'How It Works', link: '/guide/how-it-works' },
-            { text: 'Templates', link: '/guide/templates' },
+            { text: '1. Define Your Field Types', link: '/guide/define-metadata' },
+            { text: '2. Build a Template', link: '/guide/building-templates' },
+            { text: '3. Wire Up a Form', link: '/guide/your-first-form' },
+            { text: '4. Dynamic Fields', link: '/guide/dynamic-fields' },
+            { text: '5. Advanced Fields', link: '/guide/advanced-fields' },
             { text: 'Validation', link: '/guide/validation' },
+          ],
+        },
+      ],
+      '/reference/': [
+        {
+          text: 'Reference',
+          items: [
+            { text: 'Overview', link: '/reference/' },
+            { text: 'defineMetadata()', link: '/reference/define-metadata' },
+            { text: 'DynamicFormTemplate', link: '/reference/dynamic-form-template' },
+            { text: 'DynamicForm', link: '/reference/dynamic-form' },
+            { text: 'FieldMetadata', link: '/reference/field-metadata' },
           ],
         },
       ],

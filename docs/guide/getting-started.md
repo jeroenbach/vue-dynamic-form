@@ -68,6 +68,10 @@ const metadataConfiguration = defineMetadata<
 
 ## Continue
 
-- Read [How It Works](/guide/how-it-works)
-- Learn the template contract in [Templates](/guide/templates)
+- Step 1: [Define Your Field Types](/guide/define-metadata)
+- Step 2: [Build a Template](/guide/building-templates)
+- Step 3: [Wire Up a Form](/guide/your-first-form)
+- Step 4: [Dynamic Fields](/guide/dynamic-fields)
+- Step 5: [Advanced Fields](/guide/advanced-fields)
 - Browse interactive [Examples](/examples/)
+- Read the [Reference](/reference/)

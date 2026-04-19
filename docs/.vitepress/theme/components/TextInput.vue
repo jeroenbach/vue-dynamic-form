@@ -15,6 +15,6 @@ defineProps<Props>();
   <input
     type="text"
     v-bind="$attrs"
-    class="h-9 bg-gray-100 border-gray-200 border rounded px-3 text-sm"
+    class="h-9 w-full bg-gray-100 border-gray-200 border rounded px-3 text-sm"
   >
 </template>
