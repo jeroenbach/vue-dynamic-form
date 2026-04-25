@@ -1,8 +1,8 @@
-import type { Metadata } from './TestFormTemplate.vue';
+import type { Metadata } from '@/examples/TestFormTemplate.vue';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 
 import { defineComponent, h, markRaw } from 'vue';
-import TestForm from './TestForm.vue';
+import TestForm from '@/examples/TestForm.vue';
 
 export const defaultTestCase = createTestCase([{
   name: 'text',

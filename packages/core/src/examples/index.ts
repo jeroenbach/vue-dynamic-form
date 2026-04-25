@@ -1,5 +1,5 @@
 // Test cases
-export * from './TestFormTemplate.testcases';
+export * from './__tests__/TestFormTemplate.testcases';
 
 // Example implementation
 export { default as TestFormTemplate } from './TestFormTemplate.vue';
