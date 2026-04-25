@@ -21,6 +21,7 @@ import { overridePath } from '@/utils/overridePath';
 // #region Interfaces
 export interface Emit {
   (e: 'update:modelValue', value: unknown): void
+  (e: 'update:computedField', field: InternalFieldMetadata<FieldMetadata>): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;
 
@@ -235,8 +236,12 @@ watch(field, (_field) => {
   if (!_field)
     return;
 
+  // Initialize tracking entries for choice children that haven't been set up yet.
+  // We skip indices that are already present so that a metadata-reference change
+  // (e.g. from a recomputed metadataWithEdit) does not reset values that users have already entered.
   _field.choice?.forEach((child, index) => {
-    updateChildValue(undefined, index, child.maxOccurs);
+    if (!(index in childValues.value))
+      updateChildValue(undefined, index, child.maxOccurs);
   });
 }, { immediate: true });
 
@@ -317,6 +322,7 @@ function updateChildValue(
       part-of-choice-field
 
       @update:model-value="updateChildValue($event, 0, singleChild!.maxOccurs, true)"
+      @update:computed-field="emits('update:computedField', $event)"
     />
     <template v-else>
       <DynamicFormItem
@@ -333,6 +339,7 @@ function updateChildValue(
         part-of-choice-field
 
         @update:model-value="updateChildValue($event, index, child.maxOccurs)"
+        @update:computed-field="emits('update:computedField', $event)"
       />
     </template>
   </component>

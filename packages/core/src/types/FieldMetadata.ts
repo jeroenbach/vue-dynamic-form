@@ -167,8 +167,9 @@ export type FieldMetadata<
    * @returns A transformed FieldMetadata
    */
   computedProps?: ((
-    thisField: ComputedPropsType<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>,
+    thisField: ComputedPropsType<ExtendedFieldTypes, ExtendedProperties>,
     fieldValue: Ref<unknown>,
+    childFields: Ref<Readonly<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>[]>,
   ) => void)[]
   /**
    * Normally the computedProps are not re-calculate if a child value changes. If you need this functionality, you can enable this by
@@ -177,10 +178,15 @@ export type FieldMetadata<
   computeOnChildValueChange?: boolean
 } & ExtendedProperties;
 
-export type ComputedPropsType<T> = Omit<
-      T,
-      | 'name' // At this point name will always be present, so remove it as being optional
-      | 'path' // At this point name will always be present, so remove it as being optional
+export type ComputedPropsType<
+  ExtendedFieldTypes extends string = string,
+  ExtendedProperties extends object = object,
+> = Omit<
+      FieldMetadata<ExtendedFieldTypes, ExtendedProperties>,
+      // Remove name, path and parent and add them as reference only and not to be updated
+      | 'name'
+      | 'path'
+      | 'parent'
       // Not allowed to change the children, choice or attributes of this field, create a transform for those fields specifically
       | 'children'
       | 'choice'
@@ -190,13 +196,17 @@ export type ComputedPropsType<T> = Omit<
       | 'fieldOptions'
       // Not allowed to update any of the following values, as they're used initially and are not listened to reactively
       | 'computedProps'
-      // Changing the maxOccurs changes the item in an array item, this is not allowed. MinOccurs is ok, as it only affects wheter
+      // Changing the maxOccurs changes the item in an array item, this is not allowed. MinOccurs is ok, as it only affects whether
       // the item is required.
       | 'maxOccurs'
+      // Not allowed to update the following values as they aren't read from the computedField, but the prop field
+      | 'isComplexType'
+      | 'computeOnChildValueChange'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string
       path: string
+      parent: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>
     }>;
 
 export type TemplatePropsType<T> = Omit<

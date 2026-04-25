@@ -232,7 +232,7 @@ The sub-property name can be changed via `DynamicFormSettings.complexTypeValuePr
 
 ### `computedProps`
 
-Type: `((field: ComputedPropsType<FieldMetadata>, value: Ref<unknown>) => void)[]`
+Type: `((field: ComputedPropsType<FieldMetadata>, value: Ref<unknown>, childFields: Ref<FieldMetadata[]>) => void)[]`
 
 An array of functions that run inside a Vue `computed()` in the field's component. Use them to change field properties in response to other reactive values.
 
@@ -241,7 +241,10 @@ An array of functions that run inside a Vue `computed()` in the field's componen
   name: 'city',
   type: 'select',
   computedProps: [
-    (field) => {
+    (field, value, childFields) => {
+      // field       — writable clone of this field's metadata
+      // value       — Ref to this field's current form value
+      // childFields — Ref<FieldMetadata[]> of direct children's latest computed fields
       const country = useFieldValue('country');
       field.options = country.value === 'nl'
         ? [{ key: 'ams', value: 'Amsterdam' }]
@@ -251,9 +254,11 @@ An array of functions that run inside a Vue `computed()` in the field's componen
 }
 ```
 
-The `field` argument is a writable clone of the metadata. The `value` argument is a `Ref` to this field's current form value — read it to subscribe to changes.
+- **`field`** — writable clone of this field's metadata. Write here to change properties reactively.
+- **`value`** — `Ref` to this field's current form value. Read it to subscribe to this field's own value changes.
+- **`childFields`** — `Ref<FieldMetadata[]>` containing the latest computed field of each direct child. Read it to subscribe to changes in children's computed state (e.g. a child becoming `hidden` or `disabled`). For array fields the entries are the computed fields of each rendered occurrence.
 
-**Read-only in `computedProps`:** `name`, `path`, `children`, `choice`, `attributes`, `fieldOptions`, `maxOccurs`, `computedProps`.
+**Read-only in `computedProps`:** `name`, `path`, `parent`, `children`, `choice`, `attributes`, `fieldOptions`, `maxOccurs`, `computedProps`.
 
 See the [Dynamic Fields guide](/guide/dynamic-fields) for full examples.
 
@@ -261,7 +266,9 @@ See the [Dynamic Fields guide](/guide/dynamic-fields) for full examples.
 
 Type: `boolean` | Default: `false`
 
-When `true`, `computedProps` re-runs whenever any child field's value changes. By default, only direct reactive reads inside `computedProps` trigger re-evaluation.
+When `true`, `computedProps` re-runs whenever any child field's **form value** changes. By default, only direct reactive reads inside `computedProps` trigger re-evaluation.
+
+To react to changes in a child's **computed metadata** (e.g. becoming `hidden` or `disabled`) use the `childFields` parameter of `computedProps` instead — no flag needed.
 
 ```ts
 {
@@ -270,7 +277,7 @@ When `true`, `computedProps` re-runs whenever any child field's value changes. B
   children: [...],
   computedProps: [
     (field) => {
-      // re-runs when any child in 'address' changes
+      // re-runs when any child in 'address' changes its form value
     }
   ]
 }

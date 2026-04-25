@@ -1,20 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { arrayTestCase, choiceTestCase, defaultTestCase, groupTestCase, individualTestCase } from '@bach.software/vue-dynamic-form/examples';
-
-import { configure } from 'vee-validate';
-
-/**
- * This should live in the app entry, not here (normally)
- */
-// configure({
-//   generateMessage: (context) => {
-//     if (context.rule?.name === 'xsd_required')
-//       return `The field ${context.field} is required`;
-
-//     return `The field ${context.field} is invalid - Jeroen`;
-//   },
-// });
+import { arrayTestCase, childFieldsTestCase, choiceTestCase, defaultTestCase, groupTestCase, individualTestCase } from '@bach.software/vue-dynamic-form/examples';
 
 const meta = {
   title: 'Forms/TestCases',
@@ -51,6 +37,13 @@ export const GroupFields: Story = {
 export const ChoiceFields: Story = {
   render: () => ({
     components: { TestCase: choiceTestCase },
+    template: `<TestCase />`,
+  }),
+};
+
+export const ChildFieldsTestCase: Story = {
+  render: () => ({
+    components: { TestCase: childFieldsTestCase },
     template: `<TestCase />`,
   }),
 };
