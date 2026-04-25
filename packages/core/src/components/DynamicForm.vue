@@ -23,7 +23,6 @@ defineOptions({ name: 'DynamicForm', inheritAttrs: false });
 const { settings: _settings, metadata, template } = defineProps<DynamicFormProps<Metadata>>();
 
 const settings = computed(() => ({
-  // Set some default values
   validateOnValueUpdate: true,
   validateWhenInError: true,
   ...(_settings ?? {}),
@@ -39,6 +38,8 @@ const metadataWithDefaults = computed(() =>
   metadataAsArray.value?.map((x, index) => correctMetadataAndSetDefaults(x, index)) ?? [],
 );
 
+// DefineComponent doesn't carry slot shape information, so we widen the type here
+// to make the available slots known to child components at the type level.
 const typedTemplate = computed(
   () =>
     template as DefineComponent<
@@ -52,11 +53,14 @@ const typedTemplate = computed(
       }
     >,
 );
-
 // #endregion
 
 // #region Methods
 
+/**
+ * Recursively walks the metadata tree and fills in missing defaults (name, path, type, minOccurs,
+ * maxOccurs) and links each node to its parent so child components can compute fully-qualified paths.
+ */
 function correctMetadataAndSetDefaults(
   fieldMetadata: Metadata,
   index?: number,
@@ -66,23 +70,19 @@ function correctMetadataAndSetDefaults(
     return fieldMetadata;
 
   const fieldName = fieldMetadata.name ?? `field-${index}`;
-  // Construct the path with the parent path, unless we specify an override
   const fieldPath = fieldMetadata.path ?? [parent?.path, fieldName].filter(Boolean).join('.');
   const copy: InternalFieldMetadata<Metadata> = {
-    // Set defaults
     name: fieldName,
     path: fieldPath,
-    type: 'text', // Default type
-    minOccurs: 1, // by default required
-    maxOccurs: 1, // by default not repeatable
+    type: 'text',
+    minOccurs: 1,
+    maxOccurs: 1,
 
     ...fieldMetadata,
-    // Override some of the field properties
     computedProps: [...(fieldMetadata.computedProps ?? [])],
     parent,
   };
 
-  // Recursively go through the tree
   copy.children = (fieldMetadata.children ?? []).map((x, index) =>
     correctMetadataAndSetDefaults(x as Metadata, index, copy),
   );
