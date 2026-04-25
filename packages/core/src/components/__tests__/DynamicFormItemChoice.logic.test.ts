@@ -10,6 +10,22 @@ function removeButton(wrapper: ReturnType<typeof mount>, path: string) {
   return wrapper.find(`[data-testid="${path}-remove-button"]:not(.invisible)`);
 }
 
+function findDynamicFormItemByPath(wrapper: ReturnType<typeof mount>, path: string) {
+  const item = wrapper.findAllComponents({ name: 'DynamicFormItem' })
+    .find(component => (component.vm as any).$.setupState.path === path);
+
+  expect(item).toBeDefined();
+  return item!;
+}
+
+function findDynamicFormItemArrayByPath(wrapper: ReturnType<typeof mount>, path: string) {
+  const item = wrapper.findAllComponents({ name: 'DynamicFormItemArray' })
+    .find(component => (component.vm as any).$.setupState.path === path);
+
+  expect(item).toBeDefined();
+  return item!;
+}
+
 describe('component DynamicFormItemChoice - logic', () => {
   // ─────────────────────────────────────────────────────────────────────────
   // 1. Simple choice — two text inputs (minOccurs=1 default, maxOccurs=1 default)
@@ -215,6 +231,58 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(wrapper.findAll('input')).toHaveLength(2);
       expect(addButton(wrapper, 'pick.opt1').exists()).toBe(true);
       expect(addButton(wrapper, 'pick.opt1').exists()).toBe(true);
+    });
+  });
+
+  describe('index', () => {
+    it('sets the index for each choice child based on its position in the choice collection', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(findDynamicFormItemByPath(wrapper, 'pick.opt1').props('index')).toBe(0);
+      expect(findDynamicFormItemByPath(wrapper, 'pick.opt2').props('index')).toBe(1);
+    });
+
+    it('forwards the choice child index to array children', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick' },
+            choice: [
+              {
+                name: 'items',
+                type: 'text',
+                fieldOptions: { label: 'Items' },
+                maxOccurs: 2,
+              },
+              {
+                name: 'codes',
+                type: 'text',
+                fieldOptions: { label: 'Codes' },
+                maxOccurs: 2,
+              },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(findDynamicFormItemArrayByPath(wrapper, 'pick.items').props('index')).toBe(0);
+      expect(findDynamicFormItemArrayByPath(wrapper, 'pick.codes').props('index')).toBe(1);
     });
   });
 
@@ -507,6 +575,32 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(wrapper.find('[id="outer.group1.innerA.a1"]').attributes('disabled')).toBeDefined();
       expect(wrapper.find('[id="outer.group1.innerA.a2"]').attributes('disabled')).toBeDefined();
       expect(wrapper.find('[id="outer.group2[0].innerB.b2"]').attributes('disabled')).toBeDefined();
+    });
+  });
+
+  describe('slotProps', () => {
+    it('forwards slot attributes added by the choice template to nested array children', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick' },
+            choice: [{
+              name: 'items',
+              type: 'text',
+              fieldOptions: { label: 'Items' },
+              maxOccurs: 2,
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(findDynamicFormItemArrayByPath(wrapper, 'pick.items').props('slotProps')).toEqual({
+        belowChoiceField: true,
+        level: 1,
+      });
     });
   });
 });

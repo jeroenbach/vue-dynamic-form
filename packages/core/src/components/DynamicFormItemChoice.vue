@@ -298,6 +298,7 @@ function updateChildValue(
     :field-metadata
     :field-context
     :required
+    :index
     :disabled
     :slot-props
     :can-add-items
@@ -323,6 +324,7 @@ function updateChildValue(
         :key="child.name"
         :field-metadata="(child as InternalMetadata)"
         :path-override
+        :index
         :template
         :slot-props
         :min-occurs-override="occurrences[index]?.overrideChildMinOccurrences"

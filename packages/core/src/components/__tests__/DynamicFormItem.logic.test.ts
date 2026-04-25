@@ -9,6 +9,14 @@ function getAtPath(obj: Record<string, any>, path: string): unknown {
   return path.split('.').reduce((acc, key) => acc?.[key], obj as any);
 }
 
+function findDynamicFormItemByPath(wrapper: ReturnType<typeof mount>, path: string) {
+  const item = wrapper.findAllComponents({ name: 'DynamicFormItem' })
+    .find(component => (component.vm as any).$.setupState.path === path);
+
+  expect(item).toBeDefined();
+  return item!;
+}
+
 describe('component DynamicFormItem - logic', () => {
   describe('isComplexType', () => {
     it('stores a normal field value directly at the field path', async () => {
@@ -184,6 +192,51 @@ describe('component DynamicFormItem - logic', () => {
 
       expect(getAtPath(formValues(wrapper), 'this.is.a.deep.path.value')).toBe('hello');
       expect(setupState(wrapper, 'this.is.a.deep.path')?.normalizedPath).toBe('this.is.a.deep.path.value');
+    });
+  });
+
+  describe('index', () => {
+    it('sets the index for child fields based on their position in the parent children collection', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            children: [
+              { name: 'firstName', type: 'text' },
+              { name: 'lastName', type: 'text' },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(findDynamicFormItemByPath(wrapper, 'person.firstName').props('index')).toBe(0);
+      expect(findDynamicFormItemByPath(wrapper, 'person.lastName').props('index')).toBe(1);
+    });
+
+    it('sets the index for attribute fields based on their position in the parent attributes collection', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            attributes: [
+              { name: 'lang', type: 'text', minOccurs: 0 },
+              { name: 'source', type: 'text', minOccurs: 0 },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('#text').setValue('hello');
+      await flushPromises();
+
+      expect(findDynamicFormItemByPath(wrapper, 'text.lang').props('index')).toBe(0);
+      expect(findDynamicFormItemByPath(wrapper, 'text.source').props('index')).toBe(1);
     });
   });
 
@@ -382,6 +435,31 @@ describe('component DynamicFormItem - logic', () => {
       await flushPromises();
 
       expect(wrapper.find('#text\\.lang').exists()).toBe(true);
+    });
+  });
+
+  describe('slotProps', () => {
+    it('forwards slot attributes added by parent templates to nested child items', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            fieldOptions: { label: 'Person' },
+            children: [{
+              name: 'address',
+              type: 'heading',
+              fieldOptions: { label: 'Address' },
+              children: [{ name: 'street', type: 'text' }],
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(findDynamicFormItemByPath(wrapper, 'person.address').props('slotProps')).toEqual({ level: 1 });
+      expect(findDynamicFormItemByPath(wrapper, 'person.address.street').props('slotProps')).toEqual({ level: 2 });
     });
   });
 });

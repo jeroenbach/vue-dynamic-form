@@ -238,22 +238,22 @@ function guardAndNotifyItemUpdate(value: any, index: number) {
   >
     <template #default="slotProps">
       <DynamicFormItem
-        v-for="({ key }, index) in fields ?? []"
+        v-for="({ key }, arrayIndex) in fields ?? []"
         :key="key"
         :field-metadata
-        :path-override="`${path}[${index}]`"
-        :index
+        :path-override="`${path}[${arrayIndex}]`"
+        :index="arrayIndex"
         :template="template"
         :slot-props
         :max-occurs-override="_maxOccursOverride"
         :can-add-items="_canAddItems"
         :can-remove-items="_canRemoveItems"
         :add-item="_addItem"
-        :remove-item="() => _removeItem(index)"
+        :remove-item="() => _removeItem(arrayIndex)"
         part-of-array-field
         is-array-override="single"
 
-        @update:model-value="guardAndNotifyItemUpdate($event, index)"
+        @update:model-value="guardAndNotifyItemUpdate($event, arrayIndex)"
         @blur="handleBlur"
       />
     </template>

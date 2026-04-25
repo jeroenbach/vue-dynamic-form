@@ -5,7 +5,7 @@
 >
 import type { FieldContext as _FieldContext } from 'vee-validate';
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue';
-import type { FieldMetadata } from '@/types/FieldMetadata';
+import type { FieldMetadata, TemplatePropsType } from '@/types/FieldMetadata';
 import type { MetadataConfiguration } from '@/types/MetadataConfiguration';
 import { computed, useAttrs } from 'vue';
 import { camelize } from '@/utils/camelize';
@@ -46,15 +46,15 @@ export interface Attributes<
 > {
   type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'array' | 'choice'
   /** The metadata you configured for this field. */
-  fieldMetadata: FieldMetadata<
+  fieldMetadata: TemplatePropsType<FieldMetadata<
     TMetadataConfiguration['fieldTypes'][number],
     TMetadataConfiguration['extendedProperties']
-  >
+  >>
   /** Whether the field is required. */
   required: boolean
   /** Whether the field is disabled (maxOccurs = 0). */
   disabled: boolean
-  /** The position of this item within its parent array field. */
+  /** The position of this item within its parent, that can be its position in the children or choice collection or its index in an array field. */
   index: number
   /**
    * Whether a new array item can be added.
@@ -70,6 +70,11 @@ export interface Attributes<
   addItem: () => void
   /** Removes this item from the parent array field. */
   removeItem: () => void
+  /**
+   * The user defined properties that are passed between templates by adding attributes on the <slot /> elements.
+   * With these properties you can set values that can be read by components "living" further down the tree.
+   */
+  slotProps: TMetadataConfiguration['slotProperties']
 }
 
 export interface ItemAttributes<
