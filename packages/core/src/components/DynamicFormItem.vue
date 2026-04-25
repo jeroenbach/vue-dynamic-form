@@ -11,12 +11,13 @@ import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { ComputedPropsType, FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 import { useField, useSubmitCount } from 'vee-validate';
-import { computed, inject, onBeforeUnmount, ref, watch, watchEffect } from 'vue';
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
+import { hashField } from '@/utils/hashField';
 import { normalizePath } from '@/utils/normalizePath';
 import { overridePath } from '@/utils/overridePath';
 import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
@@ -25,6 +26,7 @@ import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
 export interface Emit {
   (e: 'update:modelValue', value: unknown): void
   (e: 'blur', event?: Event | undefined, shouldValidate?: boolean | undefined): void
+  (e: 'update:computedField', field: InternalFieldMetadata<FieldMetadata>): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;
 // #endregion
@@ -156,12 +158,22 @@ const isChoice = computed(() => !!field.value?.choice?.length);
 const isInput = computed(() => !isArray.value && !isChoice.value && !isParent.value);
 
 // --- Reactive field and dynamic state ---
-
-// When a child updates its value, vee-validate's useFieldValue() does not re-trigger on the parent
-// computed. Incrementing this ref from notifyValueUpdate() forces computedField to re-evaluate
-// when computeOnChildValueChange is enabled.
-const childValueReactivity = ref(0);
 const initialUpdate = ref(true);
+
+/**
+ * In case of an object, the useFieldValue() in vee-validate doesn't react on an update of a value of its children.
+ * Therefore we keep track of an reactive value, that is updated by the children. That re-triggers reactivity
+ */
+const childValueReactivity = ref(0);
+
+/**
+ * Stores the latest computedField of each direct child, keyed by path.
+ * Updated when a child emits update:computedField and the hash differs from the stored one.
+ * When accessed inside a computedProps function, changes to child computed fields will
+ * reactively re-trigger the parent's computedField computation.
+ */
+const childFields = ref<Record<string, InternalFieldMetadata<FieldMetadata>>>({});
+const childFieldsArray = computed<InternalFieldMetadata<FieldMetadata>[]>(() => Object.values(childFields.value));
 
 const computedField = computed(() => {
   _analytics_fieldComputeCount++;
@@ -173,17 +185,19 @@ const computedField = computed(() => {
 
   const _computedField = (field.value?.computedProps ?? []).reduce(
     (field, compute) => {
-      // computedProps may read `value` to drive reactive transformations;
-      // if value is not accessed, it won't contribute to this computed's dependencies.
-      compute(field, value);
+      // We allow to transform the field metadata reactively based on the current value. In case the value is not
+      // called upon in any of the computedProps, it will not be part of the reactivity that triggers a re-compute.
+      // The childFieldsArray ref is passed so computedProps can subscribe to children's computed field changes.
+      compute(field, value, childFieldsArray);
       return field;
     },
-    { ...field.value, path: path.value } as ComputedPropsType<FieldMetadata>,
+    { ...field.value, path: path.value } as ComputedPropsType,
   );
 
   // Always restore our calculated path — computedProps may read it but must not override it.
   const _internalMetadata = _computedField as InternalMetadata;
   _internalMetadata.path = path.value;
+  _internalMetadata._hash = hashField(_internalMetadata);
 
   return _internalMetadata;
 });
@@ -370,6 +384,19 @@ watch(
   },
 );
 
+// Emit the initial computedField after mounting (children mount before parents, so the parent
+// template listener is already in place). Then watch for hash changes to keep the parent in sync.
+// Deferring to onMounted avoids accessing computedField during setup, which would make it a
+// synchronous dep and break the infinite-loop guard test.
+onMounted(() => {
+  emits('update:computedField', computedField.value);
+  watch(() => computedField.value._hash, (newHash, oldHash) => {
+    if (newHash === oldHash)
+      return;
+    emits('update:computedField', computedField.value);
+  });
+});
+
 onBeforeUnmount(() => {
   if (_computeLoopResetTimer != null)
     clearTimeout(_computeLoopResetTimer);
@@ -391,6 +418,22 @@ onBeforeUnmount(() => {
 // #endregion
 
 // #region Methods
+
+/**
+ * Called when a direct child (or a DynamicFormItemArray/Choice that wraps a child) emits update:computedField.
+ * Only updates childFields when the child's hash has changed, so the parent's computedProps
+ * that access childFields are only re-evaluated when something meaningful changed.
+ * When childFields is updated, the parent's own computedField may re-run (if it accesses childFields),
+ * and the watch above will emit update:computedField upward, notifying the entire ancestor chain.
+ */
+function onChildComputedFieldUpdate(field: InternalFieldMetadata<FieldMetadata>) {
+  if (!field.path)
+    return;
+  const existing = childFields.value[field.path];
+  if (existing?._hash === field._hash)
+    return;
+  childFields.value[field.path] = field;
+}
 
 function notifyValueUpdate() {
   _analytics_notifyValueUpdateCount++;
@@ -420,6 +463,7 @@ function updateArrayValue(_value: unknown) {
       :field-metadata="computedField"
 
       @update:model-value="notifyValueUpdate"
+      @update:computed-field="onChildComputedFieldUpdate"
     />
   </template>
   <template v-else-if="isArray">
@@ -429,6 +473,7 @@ function updateArrayValue(_value: unknown) {
       :field-metadata="computedField"
 
       @update:model-value="updateArrayValue"
+      @update:computed-field="onChildComputedFieldUpdate"
     />
   </template>
   <template v-else>
@@ -460,6 +505,7 @@ function updateArrayValue(_value: unknown) {
             :max-occurs-override="_maxOccursOverride"
 
             @update:model-value="notifyValueUpdate"
+            @update:computed-field="onChildComputedFieldUpdate"
           />
         </template>
         <template v-if="!isParent">
@@ -492,6 +538,7 @@ function updateArrayValue(_value: unknown) {
           :max-occurs-override="_maxOccursOverride"
 
           @update:model-value="notifyValueUpdate"
+          @update:computed-field="onChildComputedFieldUpdate"
         />
       </template>
     </component>

@@ -241,6 +241,191 @@ describe('component DynamicFormItem - logic', () => {
   });
 
   describe('computedProps', () => {
+    describe('childFields', () => {
+      it('provides direct children computed fields as the third argument', async () => {
+        let capturedPaths: string[] = [];
+        mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'parent',
+              type: 'text',
+              computedProps: [(_f, _v, childFields) => {
+                capturedPaths = childFields.value.map(c => c.path as string).filter(Boolean);
+              }],
+              children: [
+                { name: 'firstName', type: 'text' },
+                { name: 'lastName', type: 'text' },
+              ],
+            }],
+          },
+        });
+        await flushPromises();
+
+        expect(capturedPaths).toContain('parent.firstName');
+        expect(capturedPaths).toContain('parent.lastName');
+      });
+
+      it('re-computes when a child computed field hash changes', async () => {
+        let updateCount = 0;
+        let disabledChildCount = 0;
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'parent',
+              type: 'text',
+              computedProps: [(_f, _v, childFields) => {
+                updateCount++;
+                disabledChildCount = childFields.value.filter(c => c.disabled).length;
+              }],
+              children: [{
+                name: 'child',
+                type: 'text',
+                computedProps: [(f, v) => {
+                  if (v.value)
+                    f.disabled = true;
+                }],
+              }],
+            }],
+          },
+        });
+        await flushPromises();
+
+        expect(disabledChildCount).toBe(0);
+        const countBeforeChange = updateCount;
+
+        await wrapper.find('#parent\\.child').setValue('hello');
+        await flushPromises();
+
+        expect(updateCount).toBeGreaterThan(countBeforeChange);
+        expect(disabledChildCount).toBe(1);
+      });
+
+      it('does not re-compute when the child computed field hash is unchanged', async () => {
+        let updateCount = 0;
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'parent',
+              type: 'text',
+              computedProps: [(_f, _v, childFields) => {
+                updateCount++;
+                childFields.value.forEach(() => {}); // subscribe to childFields reactivity
+              }],
+              children: [{
+                name: 'child',
+                type: 'text',
+                computedProps: [(f, v) => {
+                  if (v.value)
+                    f.disabled = true;
+                }],
+              }],
+            }],
+          },
+        });
+        await flushPromises();
+
+        // Set 'hello' — child becomes disabled, hash changes, parent re-computes
+        await wrapper.find('#parent\\.child').setValue('hello');
+        await flushPromises();
+        const countAfterFirstChange = updateCount;
+
+        // Set 'world' — child stays disabled (same hash), parent should NOT re-compute
+        await wrapper.find('#parent\\.child').setValue('world');
+        await flushPromises();
+
+        expect(updateCount).toBe(countAfterFirstChange);
+      });
+
+      it('hides the parent when all children report as hidden via childFields', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'parent',
+              type: 'text',
+              computedProps: [(thisField, _v, childFields) => {
+                if (childFields.value.length > 0 && childFields.value.every(c => c.hidden))
+                  thisField.hidden = true;
+              }],
+              children: [
+                {
+                  name: 'child1',
+                  type: 'text',
+                  minOccurs: 0,
+                  computedProps: [(f) => { f.hidden = true; }],
+                },
+                {
+                  name: 'child2',
+                  type: 'text',
+                  minOccurs: 0,
+                  computedProps: [(f) => { f.hidden = true; }],
+                },
+              ],
+            }],
+          },
+        });
+        await flushPromises();
+
+        expect(setupState(wrapper, 'parent')?.computedField.hidden).toBe(true);
+      });
+      it('hides a parent group in view mode when all direct child fields have no value', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            initialEdit: false,
+            hideFieldsWithoutValue: true,
+            metadata: [{
+              name: 'person',
+              type: 'heading',
+              fieldOptions: { label: 'Personal Info' },
+              children: [
+                { name: 'firstName', type: 'text', minOccurs: 0, fieldOptions: { label: 'First Name' } },
+                { name: 'lastName', type: 'text', minOccurs: 0, fieldOptions: { label: 'Last Name' } },
+              ],
+            }],
+          },
+        });
+        await flushPromises();
+
+        expect(wrapper.text()).not.toContain('Personal Info');
+        expect(wrapper.text()).not.toContain('First Name');
+        expect(wrapper.text()).not.toContain('Last Name');
+      });
+
+      it('keeps a parent group visible in view mode when a direct child field has a value', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            initialEdit: false,
+            hideFieldsWithoutValue: true,
+            initialValues: {
+              person: {
+                firstName: 'Jack',
+              },
+            },
+            metadata: [{
+              name: 'person',
+              type: 'heading',
+              fieldOptions: { label: 'Personal Info' },
+              children: [
+                { name: 'firstName', type: 'text', minOccurs: 0, fieldOptions: { label: 'First Name' } },
+                { name: 'lastName', type: 'text', minOccurs: 0, fieldOptions: { label: 'Last Name' } },
+              ],
+            }],
+          },
+        });
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Personal Info');
+        expect(wrapper.text()).toContain('First Name');
+        expect(wrapper.text()).not.toContain('Last Name');
+        expect((wrapper.find('input[id="person.firstName"]').element as HTMLInputElement).value).toBe('Jack');
+      });
+    });
+
     it('re-computes when a child value changes and computeOnChildValueChange is true', async () => {
       let updatedValue: unknown = {};
       let updateCount = 0;
@@ -252,7 +437,7 @@ describe('component DynamicFormItem - logic', () => {
             type: 'text',
             fieldOptions: { label: 'Person' },
             computeOnChildValueChange: true,
-            computedProps: [(f, v) => {
+            computedProps: [(_f, v) => {
               updateCount++;
               updatedValue = v.value;
             }],
@@ -306,7 +491,7 @@ describe('component DynamicFormItem - logic', () => {
             name: 'person',
             type: 'text',
             fieldOptions: { label: 'Person' },
-            computedProps: [(f, v) => {
+            computedProps: [(_f, v) => {
               updateCount++;
               // for testing we clone, to make sure we don't have a reference to the object that gets updated
               updatedValue = structuredClone(toRaw(v.value));

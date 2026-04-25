@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import type { Metadata } from './TestFormTemplate.vue';
+import type { GenericObject } from 'vee-validate';
 
+import type { Metadata } from './TestFormTemplate.vue';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import { computed, ref } from 'vue';
+import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
+import { mapEachMetadataItem } from '@/utils/mapEachMetadataItem';
 import DynamicForm from '../components/DynamicForm.vue';
 import { useDynamicForm } from '../core/useDynamicForm';
 import TestFormTemplate from './TestFormTemplate.vue';
@@ -11,23 +14,44 @@ export interface Props {
   metadata: Metadata[]
   settings?: DynamicFormSettings
   showDebugState?: boolean
+  initialEdit?: boolean
+  hideFieldsWithoutValue?: boolean
+  initialValues?: GenericObject
 }
 
-const { metadata, settings: _settings, showDebugState = false } = defineProps<Props>();
+const { metadata, settings: _settings, initialEdit = true, hideFieldsWithoutValue = false, showDebugState = false, initialValues } = defineProps<Props>();
 
-const { values, handleSubmit, errors, meta } = useDynamicForm();
+const { values, handleSubmit, errors, meta } = useDynamicForm({
+  initialValues,
+});
 const manualValues = ref();
-const editMode = ref(true);
+const editMode = ref(initialEdit);
 const isSubmitted = ref(false);
 
 // Add edit mode functionality to the form. In case we're not in edit mode, disable all items.
 const metadataWithEdit = computed(() => metadata?.map(x => mapEachMetadataItem(x, (item) => {
   item.computedProps = item.computedProps ?? [];
-  item.computedProps?.push((thisField) => {
-    // Re-compute the disabled property of each field, when editMode changes
+
+  // Disable all fields when not in edit mode
+  item.computedProps.push((thisField) => {
     if (!editMode.value)
       thisField.disabled = true;
   });
+
+  if (hideFieldsWithoutValue) {
+  // In view mode, hide fields that have no value
+    item.computedProps.push((thisField, fieldValue) => {
+      if (!editMode.value && !checkTreeHasValue(fieldValue.value))
+        thisField.hidden = true;
+    });
+
+    // In view mode, hide a parent field when all of its children are hidden
+    item.computedProps.push((thisField, _fieldValue, childFields) => {
+      if (!editMode.value && childFields.value.length > 0 && childFields.value.every(c => c.hidden))
+        thisField.hidden = true;
+    });
+  }
+
   return item;
 })));
 
@@ -57,26 +81,17 @@ function submit(e?: Event) {
   handleSubmit(
     (_values) => {
       isSubmitted.value = true;
+      editMode.value = false;
     },
     ({ errors: _errors }) => {
       isSubmitted.value = false;
     },
   )(e);
 };
-
-function mapEachMetadataItem(metadata: Metadata, callbackFunc: (item: Metadata) => Metadata) {
-  if (!metadata || !callbackFunc)
-    return metadata;
-
-  metadata = callbackFunc?.({ ...metadata });
-  metadata.children = metadata?.children?.map(x => mapEachMetadataItem(x, callbackFunc));
-  metadata.choice = metadata?.choice?.map(x => mapEachMetadataItem(x, callbackFunc));
-  return metadata;
-}
 </script>
 
 <template>
-  <form @submit="submit">
+  <form @submit.prevent="submit">
     <div class="flex justify-end gap-2">
       <button v-if="!editMode" type="button" class="cursor-pointer mt-4 bg-blue-500 text-white px-4 py-2 rounded" data-testid="submit" @click="editMode = true">
         Edit

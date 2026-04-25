@@ -1,6 +1,7 @@
+import type { GenericObject } from 'vee-validate';
 import type { Metadata } from '@/examples/TestFormTemplate.vue';
-import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 
+import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import { defineComponent, h, markRaw } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 
@@ -94,6 +95,41 @@ export const choiceTestCase = createTestCase([
   },
 ]);
 
+export const childFieldsTestCase = createTestCase([
+  {
+    fieldOptions: { label: 'Personal Info' },
+    type: 'heading',
+    name: 'person',
+    description: 'Only showing the fields that have a value. Click edit to change.',
+    fullWidth: true,
+    children: [
+      { name: 'firstName', fieldOptions: { label: 'First Name' } },
+      { name: 'lastName', fieldOptions: { label: 'Last Name' } },
+      { name: 'email', fieldOptions: { label: 'Email' } },
+    ],
+  },
+  {
+    fieldOptions: { label: 'Address' },
+    type: 'heading',
+    name: 'address',
+    fullWidth: true,
+    children: [
+      { name: 'street', fieldOptions: { label: 'Street' }, minOccurs: 0 },
+      { name: 'city', fieldOptions: { label: 'City' }, minOccurs: 0 },
+      { name: 'country', fieldOptions: { label: 'Country' }, minOccurs: 0 },
+    ],
+  },
+], undefined, {
+  initialEdit: false,
+  hideFieldsWithoutValue: true,
+  initialValues: {
+    person: {
+      firstName: 'Jack',
+      lastName: 'Smit',
+    },
+  },
+});
+
 export const individualTestCase = createTestCase(
   [{
     name: 'items',
@@ -113,8 +149,13 @@ export const individualTestCase = createTestCase(
 export function createTestCase(
   metadata: Metadata[],
   settings?: DynamicFormSettings,
+  testCaseConfig: {
+    initialEdit?: boolean
+    hideFieldsWithoutValue?: boolean
+    initialValues?: GenericObject
+  } = {},
 ) {
   return markRaw(defineComponent({
-    render: () => h(TestForm, { metadata, settings, showDebugState: true }),
+    render: () => h(TestForm, { ...testCaseConfig, metadata, settings, showDebugState: true }),
   }));
 }

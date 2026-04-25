@@ -10,15 +10,16 @@
   type: 'text',
   fieldOptions: { label: 'Discount code' },
   computedProps: [
-    (field, value) => {
-      // field  — mutable copy of this field's metadata
-      // value  — Ref<T> pointing to this field's current value
+    (field, value, childFields) => {
+      // field       — mutable copy of this field's metadata
+      // value       — Ref<T> pointing to this field's current value
+      // childFields — Ref<FieldMetadata[]> of direct children's latest computed fields
     }
   ]
 }
 ```
 
-Write to `field` to change properties. Read from `value` to subscribe to the field's own value. Both trigger the computed to re-run whenever their reactive dependencies change.
+Write to `field` to change properties. Read from `value` to subscribe to the field's own value. Read from `childFields` to subscribe to changes in children's computed state. All three trigger the computed to re-run whenever their reactive dependencies change.
 
 ## Showing and Hiding a Field
 
@@ -109,6 +110,78 @@ By default, `computedProps` does not re-run when a child field changes. Enable t
 }
 ```
 
+## Reacting to Children's Computed Field State
+
+The `childFields` parameter gives a parent field a reactive window into its direct children's latest computed metadata — their `hidden`, `disabled`, `type`, extended properties, and so on. Reading `childFields.value` inside a function subscribes the parent to any meaningful change in a child's computed state.
+
+This is distinct from `computeOnChildValueChange`, which reacts to a child's **form value** changing. `childFields` reacts to changes in a child's **computed metadata**, such as a sibling becoming hidden or disabled through its own `computedProps`.
+
+A common use case is hiding a group when every one of its children is already hidden:
+
+```ts
+{
+  name: 'addressGroup',
+  type: 'heading',
+  computedProps: [
+    (field, _value, childFields) => {
+      if (childFields.value.length > 0 && childFields.value.every(c => c.hidden))
+        field.hidden = true;
+    }
+  ],
+  children: [
+    {
+      name: 'street',
+      type: 'text',
+      minOccurs: 0,
+      computedProps: [(f, v) => { if (!v.value) f.hidden = true; }],
+    },
+    {
+      name: 'city',
+      type: 'text',
+      minOccurs: 0,
+      computedProps: [(f, v) => { if (!v.value) f.hidden = true; }],
+    },
+  ],
+}
+```
+
+The parent re-computes only when a child's mutable properties actually change, keeping reactivity efficient.
+
+### childFields in Array Fields
+
+For array fields, `childFields.value` contains the computed fields of the rendered **occurrences** (`people[0]`, `people[1]`, …), not the child fields inside them. For changes to propagate from a grandchild all the way to the outer array field, each intermediate level must also read `childFields.value` so it re-emits when its own computed state changes.
+
+Use `field.path` to distinguish the outer array field from its occurrences — they share the same `computedProps` definition:
+
+```ts
+{
+  name: 'people',
+  type: 'heading',
+  maxOccurs: 3,
+  computedProps: [
+    // Runs for each occurrence: disable it when any of its children are disabled
+    (f, _v, childFields) => {
+      if (f.path !== 'people' && childFields.value.some(c => c.disabled))
+        f.disabled = true;
+    },
+    // Runs for the outer array field: react to each occurrence's computed state
+    (f, _v, childFields) => {
+      if (f.path === 'people') {
+        const disabledCount = childFields.value.filter(c => c.disabled).length;
+        if (disabledCount)
+          f.description = disabledCount > 0
+            ? `${disabledCount} occurrence(s) are currently disabled`
+            : undefined;
+      }
+    },
+  ],
+  children: [
+    { name: 'firstName', type: 'text' },
+    { name: 'lastName',  type: 'text' },
+  ],
+}
+```
+
 ## Multiple Functions in computedProps
 
 You can split concerns across multiple functions. They run in order, each receiving the already-mutated `field` from the previous step:
@@ -140,11 +213,12 @@ computedProps: [
 
 | Property | Reason |
 |----------|---------|
-| `name`, `path` | Always present and consistent — use for reference only |
+| `name`, `path`, `parent` | Always present and consistent — use for reference only |
 | `children`, `choice`, `attributes` | Structural; changing them mid-render is not supported |
 | `fieldOptions` | vee-validate doesn't react to these changes |
 | `maxOccurs` | Changing array length mid-render is not supported |
 | `computedProps` | Cannot be changed recursively |
+| `isComplexType`, `computeOnChildValueChange` | Not read reactively after setup; changing them has no effect |
 
 ## Dynamic Labels
 

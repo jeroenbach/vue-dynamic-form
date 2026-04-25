@@ -296,6 +296,139 @@ describe('component DynamicFormItemArray - logic', () => {
     });
   });
 
+  describe('computedProps / childFields', () => {
+    it('array occurrences are accessible in the array field childFields', async () => {
+      let capturedOccurrencePaths: string[] = [];
+      mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+            computedProps: [(f, _v, childFields) => {
+              // Only aggregate for the parent-level array field, not for occurrences
+              if (f.path === 'items')
+                capturedOccurrencePaths = childFields.value.map(c => c.path as string).filter(Boolean);
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(capturedOccurrencePaths).toContain('items[0]');
+    });
+
+    it('propagates a child-field change through an occurrence up to the outer array field', async () => {
+      // Structure: people (array, maxOccurs=3, children: firstName, lastName)
+      // people[0].firstName becomes disabled → people[0] detects this via childFields and
+      // disables itself → DynamicFormItemArray forwards the event → people detects the change
+      // via its own childFields and increments disabledOccurrenceCount.
+      let disabledOccurrenceCount = 0;
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'people',
+            type: 'heading',
+            maxOccurs: 3,
+            computedProps: [
+              // Occurrence level: disable the occurrence when any of its children are disabled
+              (f, _v, childFields) => {
+                if (f.path !== 'people' && childFields.value.some(c => c.disabled))
+                  f.disabled = true;
+              },
+              // Array level: track how many occurrences are disabled
+              (f, _v, childFields) => {
+                if (f.path === 'people') {
+                  disabledOccurrenceCount = childFields.value.filter(c => c.disabled).length;
+                  childFields.value.forEach(() => {}); // subscribe to childFields reactivity
+                }
+              },
+            ],
+            children: [
+              {
+                name: 'firstName',
+                type: 'text',
+                computedProps: [(f, v) => {
+                  if (v.value === 'disable')
+                    f.disabled = true;
+                }],
+              },
+              { name: 'lastName', type: 'text' },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(disabledOccurrenceCount).toBe(0);
+
+      await wrapper.find('input[id="people[0].firstName"]').setValue('disable');
+      await flushPromises();
+
+      expect(disabledOccurrenceCount).toBe(1);
+    });
+
+    it('hides a parent group in view mode when its direct array child has no value', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          initialEdit: false,
+          hideFieldsWithoutValue: true,
+          metadata: [{
+            name: 'contact',
+            type: 'heading',
+            fieldOptions: { label: 'Contact' },
+            children: [{
+              name: 'emails',
+              type: 'text',
+              maxOccurs: 3,
+              minOccurs: 0,
+              fieldOptions: { label: 'Emails' },
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.text()).not.toContain('Contact');
+      expect(wrapper.text()).not.toContain('Emails');
+    });
+
+    it('keeps a parent group visible in view mode when its direct array child has a value', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          initialEdit: false,
+          hideFieldsWithoutValue: true,
+          initialValues: {
+            contact: {
+              emails: ['john@example.com'],
+            },
+          },
+          metadata: [{
+            name: 'contact',
+            type: 'heading',
+            fieldOptions: { label: 'Contact' },
+            children: [{
+              name: 'emails',
+              type: 'text',
+              maxOccurs: 3,
+              minOccurs: 0,
+              fieldOptions: { label: 'Emails' },
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.text()).toContain('Contact');
+      expect(wrapper.text()).toContain('Emails');
+      expect((wrapper.find('input[id="contact.emails[0]"]').element as HTMLInputElement).value).toBe('john@example.com');
+    });
+  });
+
   describe('nested metadata', () => {
     it('supports array occurrences that mix child arrays with normal fields', async () => {
       const wrapper = mount(TestForm, {

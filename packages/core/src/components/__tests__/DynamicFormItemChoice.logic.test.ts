@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
+import { formValues } from './DynamicFormItem.test-helpers';
 
 function addButton(wrapper: ReturnType<typeof mount>, path: string) {
   return wrapper.find(`[data-testid="${path}-add-button"]`);
@@ -84,6 +85,37 @@ describe('component DynamicFormItemChoice - logic', () => {
       await flushPromises();
 
       expect(wrapper.find('[id="pick.opt2"]').attributes('disabled')).toBeUndefined();
+    });
+
+    it('preserves the active child state when the metadata reference changes', async () => {
+      const metadata = [{
+        name: 'pick',
+        fieldOptions: { label: 'Pick One' },
+        choice: [
+          { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+          { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+        ],
+      }];
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata },
+      });
+      await flushPromises();
+
+      await wrapper.find('[id="pick.opt1"]').setValue('hello');
+      await flushPromises();
+
+      expect(wrapper.find('[id="pick.opt2"]').attributes('disabled')).toBeDefined();
+      expect(formValues(wrapper).pick?.opt1).toBe('hello');
+
+      await wrapper.setProps({
+        metadata: structuredClone(metadata),
+      });
+      await flushPromises();
+
+      expect((wrapper.find('[id="pick.opt1"]').element as HTMLInputElement).value).toBe('hello');
+      expect(wrapper.find('[id="pick.opt2"]').attributes('disabled')).toBeDefined();
+      expect(formValues(wrapper).pick?.opt1).toBe('hello');
     });
   });
 
@@ -462,7 +494,139 @@ describe('component DynamicFormItemChoice - logic', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 7. Multi-layer — outer choice with group children that contain inner choices
+  // 7. computedProps / childFields — choice options accessible to parent
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('computedProps / childFields', () => {
+    it('choice options are accessible in the parent field childFields', async () => {
+      let capturedPaths: string[] = [];
+      mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            computedProps: [(_f, _v, childFields) => {
+              capturedPaths = childFields.value.map(c => c.path as string).filter(Boolean);
+            }],
+            choice: [
+              { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(capturedPaths).toContain('pick.opt1');
+      expect(capturedPaths).toContain('pick.opt2');
+    });
+
+    it('re-computes when a choice option computed field changes', async () => {
+      let updateCount = 0;
+      let hiddenChildCount = 0;
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            computedProps: [(_f, _v, childFields) => {
+              updateCount++;
+              hiddenChildCount = childFields.value.filter(c => c.hidden).length;
+            }],
+            choice: [
+              {
+                name: 'opt1',
+                fieldOptions: { label: 'Option 1' },
+                computedProps: [(f, v) => {
+                  if (v.value === 'hide-me')
+                    f.hidden = true;
+                }],
+              },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(hiddenChildCount).toBe(0);
+      const countBeforeChange = updateCount;
+
+      await wrapper.find('[id="pick.opt1"]').setValue('hide-me');
+      await flushPromises();
+
+      expect(updateCount).toBeGreaterThan(countBeforeChange);
+      expect(hiddenChildCount).toBe(1);
+    });
+
+    it('hides a parent group in view mode when its direct choice child has no value', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          initialEdit: false,
+          hideFieldsWithoutValue: true,
+          metadata: [{
+            name: 'contact',
+            type: 'heading',
+            fieldOptions: { label: 'Contact' },
+            children: [{
+              name: 'preferred',
+              minOccurs: 0,
+              fieldOptions: { label: 'Preferred Contact' },
+              choice: [
+                { name: 'email', fieldOptions: { label: 'Email' }, minOccurs: 0 },
+                { name: 'phone', fieldOptions: { label: 'Phone' }, minOccurs: 0 },
+              ],
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.text()).not.toContain('Contact');
+      expect(wrapper.text()).not.toContain('Preferred Contact');
+    });
+
+    it('keeps a parent group visible in view mode when its direct choice child has a value', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          initialEdit: false,
+          hideFieldsWithoutValue: true,
+          initialValues: {
+            contact: {
+              preferred: {
+                email: 'john@example.com',
+              },
+            },
+          },
+          metadata: [{
+            name: 'contact',
+            type: 'heading',
+            fieldOptions: { label: 'Contact' },
+            children: [{
+              name: 'preferred',
+              minOccurs: 0,
+              fieldOptions: { label: 'Preferred Contact' },
+              choice: [
+                { name: 'email', fieldOptions: { label: 'Email' }, minOccurs: 0 },
+                { name: 'phone', fieldOptions: { label: 'Phone' }, minOccurs: 0 },
+              ],
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.text()).toContain('Contact');
+      expect(wrapper.text()).toContain('Preferred Contact');
+      expect((wrapper.find('[id="contact.preferred.email"]').element as HTMLInputElement).value).toBe('john@example.com');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 8. Multi-layer — outer choice with group children that contain inner choices
   // ─────────────────────────────────────────────────────────────────────────
   describe('multi-layer — group children each containing an inner choice field and arrays', () => {
     function mountMultiLayerChoice() {

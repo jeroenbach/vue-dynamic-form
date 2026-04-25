@@ -23,6 +23,7 @@ import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
 // #region Interfaces
 export interface Emit {
   (e: 'update:modelValue', value: unknown): void
+  (e: 'update:computedField', field: InternalFieldMetadata<FieldMetadata>): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;
 // #endregion
@@ -254,6 +255,7 @@ function guardAndNotifyItemUpdate(value: any, index: number) {
         is-array-override="single"
 
         @update:model-value="guardAndNotifyItemUpdate($event, arrayIndex)"
+        @update:computed-field="emits('update:computedField', $event)"
         @blur="handleBlur"
       />
     </template>
