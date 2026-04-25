@@ -53,7 +53,7 @@ All three are run together in CI via `pnpm ci`.
 
 The project uses [Changesets](https://github.com/changesets/changesets) for versioning. The process is two steps.
 
-### Step 1 — describe the change (done while working on a feature/fix)
+### Step 1 — describe the change (done while working on a feature/fix, **before merging your PR to main**)
 
 Run the interactive prompt and follow the instructions:
 
@@ -61,27 +61,18 @@ Run the interactive prompt and follow the instructions:
 pnpm changeset
 ```
 
-Choose the bump type (`major` / `minor` / `patch`) and write a changelog entry. This creates a Markdown file under `.changeset/`. Commit that file as part of your feature branch or as a separate commit.
+Choose the bump type (`major` / `minor` / `patch`) and write a changelog entry. This creates a Markdown file under `.changeset/`. Commit that file as part of your feature branch before opening (or merging) your PR — the changeset file must land on `main` so that Step 2 can pick it up.
 
 ### Step 2 — cut the release (done when ready to publish)
 
-Create a dedicated release branch, run `changeset version`, and open a PR:
+Run `changeset version` locally — it will create the release branch, apply all pending changesets, and commit the result:
 
 ```bash
-git checkout -b changeset-release/main
 pnpm changeset version
-git add .
-git commit -m "chore: release"
-# open a PR titled "chore: release" → merge into main
 ```
 
-`changeset version` will:
+This will:
 - delete the `.md` file(s) from `.changeset/`
 - bump the version in `packages/core/package.json`
 - append the changelog entry to `CHANGELOG.md`
-
-After the PR is merged, publish to npm from `main`:
-
-```bash
-pnpm changeset publish
-```
+- and finally publish the package to npm

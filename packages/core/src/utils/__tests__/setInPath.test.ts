@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { setInPath } from './setInPath';
+import { setInPath } from '@/utils/setInPath';
 
 describe('setInPath', () => {
   it('should set a simple non-nested property', () => {
