@@ -23,6 +23,14 @@ export interface Emit {
   (e: 'update:modelValue', value: unknown): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;
+
+// Tracks how much of the choice "budget" each child is consuming.
+interface ChildValue {
+  value: any
+  occurrences: number // how many instances of this child are currently shown
+  valuesCount: number // how many of those instances actually have a value
+  maxOccurrences: number // the child's own maxOccurs
+}
 // #endregion
 
 // #region Props, Emits and inject
@@ -31,19 +39,26 @@ const emits = defineEmits<Emit>();
 const settings = inject<ComputedRef<DynamicFormSettings>>(dynamicFormSettingsKey);
 // #endregion
 
-// #region Analytics: to test reactivity and prevent unnecessary rerenders.
-// They're not reactive to avoid infinite loops.
+// #region Internal tracking
+// Plain variables (not reactive) to avoid triggering renders when measuring analytics.
 let _analytics_updateCallCount = 0;
 let _analytics_occurrencesCalculatedCount = 0;
 // #endregion
 
-// #region Computed properties and state
+// #region Computed state
+
+// --- Path ---
+
 const field = computed(() => props.fieldMetadata);
 
-// Choice fields often don't have a path, as they don't take any space in the xml hierarchy
-// therefore we get the closest path of the choice
+// A choice field itself has no path in the XML/json hierarchy, so we use the nearest ancestor's path
+// for vee-validate registration and for passing down to children as pathOverride.
 const closestPath = computed(() =>
   overridePath(field.value.path ?? '', props.pathOverride));
+
+const normalizedPath = computed(() => normalizePath(closestPath.value));
+
+// --- Occurrence limits ---
 
 const minOccurs = computed(() =>
   props.minOccursOverride !== undefined
@@ -57,38 +72,46 @@ const maxOccurs = computed(() =>
     : (field.value?.maxOccurs ?? 1),
 );
 
-// When the minOccurs = 0, we use that to make a field optional. We need to pass this down to its children
+const disabled = computed(() => maxOccurs.value === 0);
+const required = computed(() => minOccurs.value >= 1 && !disabled.value);
+
+// Propagate optional/disabled state to children.
 const _minOccursOverride = computed(() =>
   minOccurs.value === 0 ? 0 : undefined,
 );
-
-// When the maxOccurs = 0, we use that to disable fields. We need to pass this down to its children
 const _maxOccursOverride = computed(() =>
   maxOccurs.value === 0 ? 0 : undefined,
 );
 
-// Depending on the original maxOccurs of this choice field, we make the all children fieldArray's (if necessary)
+// When the choice itself may occur more than once, its children become array fields too.
 const childrenAreArrays = computed(() => field.value?.maxOccurs > 1 ? 'array' : undefined);
 
-const disabled = computed(() => maxOccurs.value === 0);
+// --- Child value tracking ---
 
-const required = computed(() => minOccurs.value >= 1 && !disabled.value);
+// Each child reports its current value here so we can calculate the shared occurrence budget.
+const childValues = ref<{ [index: string]: ChildValue }>({});
 
-interface ChildValue {
-  value: any
-  occurrences: number // this is how often a child is visible
-  valuesCount: number // this is how many of them have a value
-  maxOccurrences: number
-};
-const childValues = ref<{
-  [index: string]: ChildValue
-}>({});
-
+// Raw child values are emitted upward as-is; occurrence-aware counting happens below.
 const values = computed(() => Object.values(childValues.value).map(x => x.value));
 
+// --- Single-child shortcut ---
+
+// When a choice field has exactly one option there is no meaningful branching — skip
+// all occurrence math and render that one child directly.
+const singleChild = computed(() =>
+  field.value?.choice?.length === 1 ? field.value?.choice[0] as InternalMetadata : undefined,
+);
+
+// --- Occurrence budget calculation ---
+
 /**
- * A calculation for each child on how much its value means in terms of choice occurrences.
- * And what dynamic max & min occurrences override we should configure.
+ * For each child, calculates:
+ *  - how many of the shared choice occurrences it is currently consuming
+ *  - the resulting min/max occurrence overrides to pass down
+ *
+ * Background: a choice with maxOccurs=4 and two children each with maxOccurs=2 means
+ * every 2 child items count as 1 choice occurrence. Children compete for the shared budget,
+ * so the more one child uses, the less the others may use.
  */
 const occurrences = computed(() => {
   _analytics_occurrencesCalculatedCount++;
@@ -104,7 +127,8 @@ const occurrences = computed(() => {
       overrideChildMinOccurrences: number | undefined
     }
   } = {};
-  // Setup a default for each child
+
+  // Initialise defaults for every child upfront so all indices exist even if no value arrived yet.
   field.value?.choice?.forEach((_, i) => {
     _occurrences[i] = {
       childValuesCount: 0,
@@ -113,14 +137,13 @@ const occurrences = computed(() => {
       choiceValuesCount: 0,
       choiceOccurrences: 0,
       overrideChildMaxOccurrences: undefined,
-      overrideChildMinOccurrences: 0, // make required fields by default optional
+      overrideChildMinOccurrences: 0, // children are optional by default inside a choice
     };
   });
 
   const _maxOccurs = maxOccurs.value ?? 1;
 
-  // In case the maxOccurs = 0, we need to disable this field and the fields below.
-  // Continuing with the calculations therefore doesn't make any sense, just return a 0 for both min & max occurrences.
+  // When the whole choice is disabled (maxOccurs=0), disable all children immediately.
   if (_maxOccurs === 0) {
     field.value?.choice?.forEach((_, i) => {
       _occurrences[i].overrideChildMaxOccurrences = 0;
@@ -129,21 +152,16 @@ const occurrences = computed(() => {
     return _occurrences;
   }
 
+  // Pass 1: convert each child's raw occurrence count into choice-occurrence units.
   for (const [key, child] of Object.entries(childValues.value ?? {})) {
-    // Calculate how much this child's occurrences will take up the choice occurrences
-    // For example: choice.maxOccurs = 4 & child.maxOccurs = 2
-    // then only every 2x the child has an occurrence, it will count as 1x choice occurrence
+    // How many choice occurrences does this child consume?
+    // e.g. choice.maxOccurs=4, child.maxOccurs=2: every 2 child items = 1 choice occurrence.
     let choiceOccurrences = Math.ceil(child.occurrences / child.maxOccurrences);
+    const choiceValuesCount = Math.ceil(child.valuesCount / child.maxOccurrences);
 
-    // Do the same for the values
-    const choiceValuesCount = Math.ceil(
-      child.valuesCount / child.maxOccurrences,
-    );
-
-    // In case the totalChildOccurrences = 1, we know that the child is not a fieldArray but a normal item.
-    // And for normal items we always show all fields, making it always take up 1 occurrence. This is unwanted.
-    // Therefore for these cases we don't look at the occurrences but at the valuesCount.
-    const totalChildOccurrences = _maxOccurs * child.maxOccurrences; // Calculate how many occurrences we can have
+    // For a non-array child (totalChildOccurrences=1) the field is always shown, so its
+    // "occupancy" should be based on whether it actually has a value, not on it being shown.
+    const totalChildOccurrences = _maxOccurs * child.maxOccurrences;
     if (totalChildOccurrences === 1) {
       choiceOccurrences = choiceValuesCount;
     }
@@ -154,10 +172,8 @@ const occurrences = computed(() => {
       childMaxOccurrences: child.maxOccurrences,
       choiceOccurrences,
       choiceValuesCount,
-      // Only override the minOccurrences (making a required field optional) when there is no value in that child
-      overrideChildMinOccurrences: child.valuesCount === 0 ? 0 : undefined,
-      // will be calculated below, once all child values are present
-      overrideChildMaxOccurrences: undefined,
+      overrideChildMinOccurrences: child.valuesCount === 0 ? 0 : undefined, // optional when empty
+      overrideChildMaxOccurrences: undefined, // calculated in pass 2
     };
   }
 
@@ -166,25 +182,20 @@ const occurrences = computed(() => {
     0,
   );
 
-  // Now, loop through each child and calculate its override of maxOccurrences
+  // Pass 2: for each child, derive how many more items it may add given what the others are using.
+  // Because Math.ceil() was used above we work backwards from the combined total to stay accurate.
   Object.values(_occurrences).forEach((value) => {
-    // As the choiceOccurrences are rounded upwards (Match.ceil()), we don't know whether it was a full count or not
-    // for example: choice.maxOccurs = 2 & child.maxOccurs = 2
-    // if we have 3 children, this counts already as 2 choice occurrences, but we can still add 1 child to get to 4.
-    // Therefore we need to calculate the occurrences based on the combined occurrences.
-    const othersChoiceOccurrences
-      = totalChoiceOccurrences - value.choiceOccurrences; // Remove the child's choiceCount from the total
-    const othersAsChildOccurrences
-      = othersChoiceOccurrences * value.childMaxOccurrences; // Convert the other choiceCounts to the combined child count
-    const totalChildOccurrences = _maxOccurs * value.childMaxOccurrences; // Calculate how many occurrences we can have
+    const othersChoiceOccurrences = totalChoiceOccurrences - value.choiceOccurrences;
+    const othersAsChildOccurrences = othersChoiceOccurrences * value.childMaxOccurrences;
+    const totalChildOccurrences = _maxOccurs * value.childMaxOccurrences;
 
-    value.overrideChildMaxOccurrences
-      = totalChildOccurrences - othersAsChildOccurrences; // convert to a new childMaxOccurrence
+    value.overrideChildMaxOccurrences = totalChildOccurrences - othersAsChildOccurrences;
   });
 
   return _occurrences;
 });
 
+// Total number of filled choices (in choice-occurrence units, not raw item counts).
 const valuesCount = computed(() =>
   Object.values(occurrences.value).reduce(
     (acc, c) => acc + c.choiceValuesCount,
@@ -192,58 +203,54 @@ const valuesCount = computed(() =>
   ),
 );
 
-// In case there is only one child in a choice field, don't add any logic and just display the child
-const singleChild = computed(() =>
-  field.value?.choice?.length === 1 ? field.value?.choice[0] as InternalMetadata : undefined,
-);
+// --- Vee-Validate field context ---
 
-// A choice field doesn't have a place in the Vee-Validate values tree, therefore
-// we use a trick to get it validated anyways.
+// Only validate when the total filled choices fall below the minimum required.
 const combinedValidation = computed(() => {
-  // Don't validate a single child, this one should just be ignored
   if (singleChild.value)
-    return;
+    return; // single-child choices are validated by the child itself
 
-  // If disabled, do nothing
   if (disabled.value)
     return;
 
-  // All valid, do nothing
   if (valuesCount.value >= minOccurs.value)
     return;
 
   const _messages = settings?.value?.messages;
-
   return [createValidation('xsd_choiceMinOccurs', minOccurs.value, _messages?.choiceMinOccurs)];
 });
 
-// Link the vee-validate field to the nearest parent of the choice. Before we had it linked to the root, but when multiple choice
-// elements were validating, this was giving a problem
-const normalizedPath = computed(() => normalizePath(closestPath.value));
-const { errors, errorMessage } = useField(normalizedPath, combinedValidation, field.value?.fieldOptions); // Use the closed path for any errors errors
+// A choice field has no entry in the vee-validate values tree, so we anchor validation
+// to the nearest parent path instead of a dedicated path. This gives errors a home.
+const { errors, errorMessage } = useField(normalizedPath, combinedValidation, field.value?.fieldOptions);
 const fieldContext: LimitedFieldContext = { label: field.value?.fieldOptions?.label, errors, errorMessage };
+
 // #endregion
 
 // #region Watchers and lifecycle events
+
+// Seed childValues so every child index exists from the start; prevents occurrences
+// from returning undefined for children that haven't emitted an update yet.
 watch(field, (_field) => {
   if (!_field)
     return;
 
-  // Once we know the field and the choice fields below, we can initialize the occurrences
   _field.choice?.forEach((child, index) => {
     updateChildValue(undefined, index, child.maxOccurs);
   });
 }, { immediate: true });
+
 // #endregion
 
 // #region Methods
+
 function updateChildValue(
   value: any,
   childIndex: number | undefined,
   maxOccurrences: number = 1,
   skipCalculations: boolean = false,
 ) {
-  // In some cases we just need to forward the fact that the value was updated
+  // Used by singleChild to forward value updates without recalculating the occurrence budget.
   if (skipCalculations) {
     emits('update:modelValue', values.value);
     return;
@@ -256,11 +263,10 @@ function updateChildValue(
 
   let calculateValues = Array.isArray(value) ? value : [value];
 
-  // A normal field updates the parent by emitting an undefined when it is cleared, this means it doesn't have a value
-  // and we want to filter those out. In case of an arrayField, we don't want to filter those values out.
-  // Therefore we check whether the maxOccurs = 1 (== normal field)
+  // For non-array children (totalChildOccurrences=1) an undefined means "no value".
+  // Filter those out so they don't inflate the occurrence count.
   const _maxOccurs = maxOccurs.value ?? 1;
-  const totalChildOccurrences = _maxOccurs * maxOccurrences; // Calculate how many occurrences we can have
+  const totalChildOccurrences = _maxOccurs * maxOccurrences;
   if (totalChildOccurrences === 1) {
     calculateValues = calculateValues.filter(x => x !== undefined);
   }
@@ -280,6 +286,7 @@ function updateChildValue(
 
   emits('update:modelValue', values.value);
 };
+
 // #endregion
 </script>
 

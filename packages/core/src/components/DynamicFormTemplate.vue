@@ -10,7 +10,8 @@ import type { MetadataConfiguration } from '@/types/MetadataConfiguration';
 import { computed, useAttrs } from 'vue';
 import { camelize } from '@/utils/camelize';
 
-// #region Interface
+// #region Interfaces
+
 export interface FieldContext<TValue = unknown> extends _FieldContext<TValue> {
   /**
    * Whether this field (or any of its descendants) has a value.
@@ -36,52 +37,38 @@ export interface LimitedFieldContext {
 }
 
 /**
- * We define the attributes here instead of the props. This way the user don't see them
- * when using the DynamicFormConfiguration component.
- * The attributes will be passed internally by the other components of the library.
+ * Props passed to the template component by the library internals.
+ * Defined as an interface (rather than actual props) so they don't appear in the
+ * public prop signature of the user-facing DynamicFormTemplate component.
  */
 export interface Attributes<
   TMetadataConfiguration extends MetadataConfiguration,
 > {
   type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'array' | 'choice'
-  /**
-   * The metadata that you configured for this field
-   */
+  /** The metadata you configured for this field. */
   fieldMetadata: FieldMetadata<
     TMetadataConfiguration['fieldTypes'][number],
     TMetadataConfiguration['extendedProperties']
   >
-  /**
-   * Indicates if a field is required.
-   */
+  /** Whether the field is required. */
   required: boolean
-  /**
-   * Indicates whether a field is disabled
-   */
+  /** Whether the field is disabled (maxOccurs = 0). */
   disabled: boolean
-  /**
-   * If the field is part of an arrayField, this is its index in the array
-   */
+  /** The position of this item within its parent array field. */
   index: number
   /**
-   * If the field is part of an arrayField, this boolean lets you know whether
-   * new items can be added. For example: when the maxOccurs is 2 and there are already
-   * 2 items, this will be false.
+   * Whether a new array item can be added.
+   * False when the current count has already reached maxOccurs.
    */
   canAddItems: boolean
   /**
-   * If the field is part of an arrayField, this boolean lets you konw whether
-   * an item can be removed. For example: when the minOccurs is 2 and there are already
-   * 2 items, this will be false.
+   * Whether an array item can be removed.
+   * False when the current count has already reached minOccurs.
    */
   canRemoveItems: boolean
-  /**
-   * if the field is part of an arrayField, this method will add another item.
-   */
+  /** Adds a new item to the parent array field. */
   addItem: () => void
-  /**
-   * if the field is part of an arrayField, this method will remove an item.
-   */
+  /** Removes this item from the parent array field. */
   removeItem: () => void
 }
 
@@ -90,9 +77,8 @@ export interface ItemAttributes<
   FieldType extends string = string,
 > extends Attributes<TMetadataConfiguration> {
   /**
-   * The extended Vee-Validate context, coming from the useField.
-   * A computed hasValue is added, indicating whether the current field or any of its children
-   * has a value.
+   * The extended vee-validate field context from useField.
+   * Includes a `hasValue` computed that is true when this field or any descendant has a value.
    */
   fieldContext: FieldContext<FieldType extends keyof TMetadataConfiguration['valueTypes']
     ? TMetadataConfiguration['valueTypes'][FieldType]
@@ -106,27 +92,27 @@ export interface ArrayChoiceAttributes<
 }
 
 type Props = DynamicFormConfigurationProps<TMetadataConfiguration>;
-type SlotProps<FieldType extends string = string> = ItemAttributes<TMetadataConfiguration, FieldType>; // we pass the attributes as slot props
-type ArrayChoiceSlotProps = ArrayChoiceAttributes<TMetadataConfiguration>; // we pass the attributes as slot props
+type SlotProps<FieldType extends string = string> = ItemAttributes<TMetadataConfiguration, FieldType>;
+type ArrayChoiceSlotProps = ArrayChoiceAttributes<TMetadataConfiguration>;
 
 type SlotsFromMetadata = {
-  // With the default slot you can define how unknown fields are rendered
+  // Fallback slot for field types that don't have a dedicated slot.
   default: (props: SlotProps) => any
 } & {
-  // With the default-input slot you can define how unknown input components are rendered
+  // Fallback slot for input components that don't have a dedicated slot.
   'default-input': (props: SlotProps) => any
 } & {
-  // With the array slot you can define how array fields are rendered
+  // Slot for rendering array fields.
   array: (props: ArrayChoiceSlotProps) => any
 } & {
-  // With the choice slot you can define how choice fields are rendered
+  // Slot for rendering choice fields.
   choice: (props: ArrayChoiceSlotProps) => any
 }
 & {
-  // Each field type will have its own slot that you can use to define how that field type is rendered
+  // One slot per field type defined in the metadata configuration.
   [K in TMetadataConfiguration['fieldTypes'][number]]: (props: SlotProps<K>) => any;
 } & {
-  // Each field type will have its own input slot that you can use to define how that input is rendered
+  // One input slot per field type (e.g. "text-input") for rendering just the inner control.
   [K in `${TMetadataConfiguration['fieldTypes'][number]}-input`]: (props: SlotProps<K extends `${infer FieldType}-input` ? FieldType : never>) => any;
 };
 
@@ -137,9 +123,9 @@ defineOptions({ name: 'DynamicFormTemplate', inheritAttrs: false });
 defineProps<Props>();
 const slots = defineSlots<SlotsFromMetadata>();
 
+// Attributes are passed in as kebab-case HTML attributes by Vue; convert them to camelCase
+// so slot consumers receive consistent camelCase props regardless of how they were bound.
 const rawAttrs = useAttrs();
-
-// Convert kebab-case attributes to camelCase
 const attrs = computed(() => {
   const result: Record<string, any> = {};
   for (const [key, value] of Object.entries(rawAttrs)) {
@@ -150,6 +136,8 @@ const attrs = computed(() => {
 
 type RegularSlotName = Exclude<keyof SlotsFromMetadata, 'array' | 'choice'>;
 
+// Resolve which slot to render: prefer a dedicated per-type slot, fall back to
+// 'default-input' for input variants, and finally to 'default' for everything else.
 const typeWithFallback = computed((): RegularSlotName => {
   const type = attrs.value.type;
   if (type && type !== 'array' && type !== 'choice' && slots[type as RegularSlotName]) {
