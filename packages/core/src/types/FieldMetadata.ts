@@ -198,3 +198,15 @@ export type ComputedPropsType<T> = Omit<
       name: string
       path: string
     }>;
+
+export type TemplatePropsType<T> = Omit<
+      T,
+      | 'name' // At this point name will always be present, so remove it as being optional
+      | 'path'
+      | 'children'
+> & Readonly<{
+  // Add the name & path back as not optional and Readonly
+  name: string
+  path: string
+  children: TemplatePropsType<T>[]
+}>;

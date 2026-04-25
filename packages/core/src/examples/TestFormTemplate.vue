@@ -6,22 +6,6 @@ import IconButton from './components/IconButton.vue';
 
 export type Metadata = GetMetadataType<typeof metadata>;
 
-export interface Props {
-  /**
-   * Free to decide what attributes you want to pass internally between your templates.
-   * You can add any attribute to a <slot /> and then it will be accessible in props.slotProps.
-   */
-  slotProps?: {
-    hideLabel?: boolean
-    /** Example on how to keep track of the levels */
-    level?: number
-    /** Helps identifying that we're below a choice field, so if we're rendering an array we can adjust our layout */
-    belowChoiceField?: boolean
-  }
-}
-
-defineProps<Props>();
-
 const metadata = defineMetadata<
   {
     text: string
@@ -37,13 +21,24 @@ const metadata = defineMetadata<
     options?: { key: string, value: string }[]
     fullWidth?: boolean
     disabled?: boolean
+  },
+  /**
+   * Free to decide what attributes you want to pass internally between your templates.
+   * You can add any attribute to a <slot /> and then it will be accessible in props.slotProps.
+   */
+  {
+    hideLabel?: boolean
+    /** Example on how to keep track of the levels */
+    level?: number
+    /** Helps identifying that we're below a choice field, so if we're rendering an array we can adjust our layout */
+    belowChoiceField?: boolean
   }
 >();
 </script>
 
 <template>
   <DynamicFormTemplate :metadata-configuration="metadata">
-    <template #heading="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, canAddItems, addItem, canRemoveItems, removeItem }">
+    <template #heading="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, canAddItems, addItem, canRemoveItems, removeItem, slotProps }">
       <div class="mt-4" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <h3 v-if="label" class="flex text-xl font-bold gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
@@ -62,7 +57,7 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required }">
+    <template #choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps }">
       <div class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled, 'after:content-[\'*\'] after:-ml-0.5 after:text-red-500': required }">
           {{ label }}
@@ -79,7 +74,7 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem }">
+    <template #array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem, slotProps }">
       <!-- In case we're below a choice field, the first array item is not automatically added, so show a label with buttons -->
       <div v-if="slotProps?.belowChoiceField" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
@@ -116,7 +111,7 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem }">
+    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem, slotProps }">
       <!-- In case we have multiple children, this is a grouped field and we adjust how it is displayed -->
       <div v-if="fieldMetadata.children?.length" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span v-if="!slotProps?.hideLabel" class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">

@@ -4,6 +4,18 @@ import { toRaw } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 import { formValues, setupState } from './DynamicFormItem.test-helpers';
 
+function addButton(wrapper: ReturnType<typeof mount>, path: string) {
+  return wrapper.find(`[data-testid="${path}-add-button"]`);
+}
+
+function findDynamicFormItemByPath(wrapper: ReturnType<typeof mount>, path: string) {
+  const item = wrapper.findAllComponents({ name: 'DynamicFormItem' })
+    .find(component => (component.vm as any).$.setupState.path === path);
+
+  expect(item).toBeDefined();
+  return item!;
+}
+
 describe('component DynamicFormItemArray - logic', () => {
   describe('isComplexType', () => {
     it('stores each array occurrence under the complexType value property when the field has attributes', async () => {
@@ -87,6 +99,29 @@ describe('component DynamicFormItemArray - logic', () => {
       await flushPromises();
 
       expect(setupState(wrapper, 'contacts[0]')?.normalizedPath).toBe('contacts[0].content');
+    });
+  });
+
+  describe('index', () => {
+    it('sets the index for each rendered array occurrence', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            fieldOptions: { label: 'Items' },
+            maxOccurs: 3,
+          }],
+        },
+      });
+      await flushPromises();
+
+      await addButton(wrapper, 'items').trigger('click');
+      await flushPromises();
+
+      expect(findDynamicFormItemByPath(wrapper, 'items[0]').props('index')).toBe(0);
+      expect(findDynamicFormItemByPath(wrapper, 'items[1]').props('index')).toBe(1);
     });
   });
 
@@ -296,6 +331,25 @@ describe('component DynamicFormItemArray - logic', () => {
       expect(person?.lastName).toBe('Doe');
       expect(person?.phones).toEqual(['+31 123 456 789']);
       expect(person?.address).toBe('Main Street 1');
+    });
+  });
+
+  describe('slotProps', () => {
+    it('forwards slot attributes added by the array template to each rendered occurrence', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            fieldOptions: { label: 'Items' },
+            maxOccurs: 3,
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(findDynamicFormItemByPath(wrapper, 'items[0]').props('slotProps')).toEqual({ hideLabel: true });
     });
   });
 });

@@ -440,6 +440,7 @@ function updateArrayValue(_value: unknown) {
       :slot-props
       :required
       :disabled
+      :index
       :can-add-items
       :can-remove-items="_canRemoveItems"
       :add-item
@@ -448,10 +449,11 @@ function updateArrayValue(_value: unknown) {
       <template #default="slotProps">
         <template v-if="isParent">
           <DynamicFormItem
-            v-for="child in computedField.children"
+            v-for="(child, index) in computedField.children"
             :key="child.path"
             :field-metadata="(child as InternalMetadata)"
             :path-override="itemPath"
+            :index
             :template
             :slot-props
             :min-occurs-override="_minOccursOverride"
@@ -469,6 +471,7 @@ function updateArrayValue(_value: unknown) {
             :slot-props
             :required
             :disabled
+            :index
             :can-add-items
             :can-remove-items="_canRemoveItems"
             :add-item
@@ -478,10 +481,11 @@ function updateArrayValue(_value: unknown) {
       </template>
       <template v-if="showAttributes" #attributes="slotProps">
         <DynamicFormItem
-          v-for="attribute in computedField.attributes"
+          v-for="(attribute, index) in computedField.attributes"
           :key="attribute.path"
           :field-metadata="(attribute as InternalMetadata)"
           :path-override="path"
+          :index
           :template
           :slot-props
           :min-occurs-override="_minOccursOverride"
