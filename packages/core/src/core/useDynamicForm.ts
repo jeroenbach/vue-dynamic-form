@@ -11,6 +11,7 @@ import {
   useFieldValue as _useFieldValue,
   useForm,
 } from 'vee-validate';
+import { useValidatePartialForm } from '@/core/useValidatePartialForm';
 
 export interface FormOptions<TValues extends GenericObject> {
   initialValues?: PartialDeep<TValues> | undefined | null
@@ -23,16 +24,18 @@ export interface FormOptions<TValues extends GenericObject> {
 
 export function useDynamicForm<TValues extends GenericObject = GenericObject>(opts?: FormOptions<TValues>): FormContext<TValues> & {
   useFieldValue: <TPath extends Path<TValues>>(path?: MaybeRefOrGetter<TPath>) => Ref<PathValue<TValues, TPath>>
+  validateSection: ReturnType<typeof useValidatePartialForm>['validateSection']
 } {
-  // Type the useFieldValue
   const useFieldValue = <TPath extends Path<TValues>>(path?: MaybeRefOrGetter<TPath>) => {
     return _useFieldValue<PathValue<TValues, TPath>>(path);
   };
 
   const form = useForm<TValues>(opts);
+  const { validateSection } = useValidatePartialForm();
 
   return {
     ...form,
     useFieldValue,
+    validateSection,
   };
 }

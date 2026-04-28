@@ -232,7 +232,7 @@ The sub-property name can be changed via `DynamicFormSettings.complexTypeValuePr
 
 ### `computedProps`
 
-Type: `((field: ComputedPropsType<FieldMetadata>, value: Ref<unknown>, childFields: Ref<FieldMetadata[]>) => void)[]`
+Type: `((field: ComputedPropsFieldType<FieldMetadata>, value: Ref<unknown>, childFields: Ref<FieldMetadata[]>) => void)[]`
 
 An array of functions that run inside a Vue `computed()` in the field's component. Use them to change field properties in response to other reactive values.
 

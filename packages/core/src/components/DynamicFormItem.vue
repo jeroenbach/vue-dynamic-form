@@ -8,7 +8,7 @@ import type { ComputedRef } from 'vue';
 import type { FieldContext } from '@/components/DynamicFormTemplate.vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
-import type { ComputedPropsType, FieldMetadata } from '@/types/FieldMetadata';
+import type { ComputedPropsFieldOf, FieldMetadata, ReadOnlyFieldOf } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 import { useField, useSubmitCount } from 'vee-validate';
 import { computed, inject, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue';
@@ -172,8 +172,8 @@ const childValueReactivity = ref(0);
  * When accessed inside a computedProps function, changes to child computed fields will
  * reactively re-trigger the parent's computedField computation.
  */
-const childFields = ref<Record<string, InternalFieldMetadata<FieldMetadata>>>({});
-const childFieldsArray = computed<InternalFieldMetadata<FieldMetadata>[]>(() => Object.values(childFields.value));
+const childFields = ref<Record<string, ReadOnlyFieldOf<FieldMetadata>>>({});
+const childFieldsArray = computed(() => Object.values(childFields.value));
 
 const computedField = computed(() => {
   _analytics_fieldComputeCount++;
@@ -191,7 +191,7 @@ const computedField = computed(() => {
       compute(field, value, childFieldsArray);
       return field;
     },
-    { ...field.value, path: path.value } as ComputedPropsType,
+    { ...field.value, path: path.value } as ComputedPropsFieldOf<FieldMetadata>,
   );
 
   // Always restore our calculated path — computedProps may read it but must not override it.
@@ -429,10 +429,10 @@ onBeforeUnmount(() => {
 function onChildComputedFieldUpdate(field: InternalFieldMetadata<FieldMetadata>) {
   if (!field.path)
     return;
-  const existing = childFields.value[field.path];
+  const existing = childFields.value[field.path] as InternalFieldMetadata<FieldMetadata>;
   if (existing?._hash === field._hash)
     return;
-  childFields.value[field.path] = field;
+  childFields.value[field.path] = field as ReadOnlyFieldOf<FieldMetadata>;
 }
 
 function notifyValueUpdate() {

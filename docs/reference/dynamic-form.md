@@ -38,7 +38,8 @@ const {
   setValues,
   resetForm,
   setErrors,
-  useFieldValue,   // typed path-aware field value accessor
+  useFieldValue,    // typed path-aware field value accessor
+  validateSection,  // validates only the fields under a given path
 } = useDynamicForm<MyFormValues>();
 ```
 
@@ -47,6 +48,8 @@ const {
 ```ts
 const country = useDynamicForm().useFieldValue('address.country');
 ```
+
+`validateSection(path)` validates only the vee-validate fields registered under the given path prefix, returning the same `FormValidationResult` shape as `validate()`. See [useValidatePartialForm](/reference/use-validate-partial-form) for the full API and a wizard example.
 
 ## Settings Reference
 
