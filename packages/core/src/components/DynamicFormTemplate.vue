@@ -5,7 +5,7 @@
 >
 import type { FieldContext as _FieldContext } from 'vee-validate';
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue';
-import type { FieldMetadata, TemplatePropsType } from '@/types/FieldMetadata';
+import type { ReadOnlyFieldType } from '@/types/FieldMetadata';
 import type { MetadataConfiguration } from '@/types/MetadataConfiguration';
 import { computed, useAttrs } from 'vue';
 import { camelize } from '@/utils/camelize';
@@ -46,10 +46,10 @@ export interface Attributes<
 > {
   type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'array' | 'choice'
   /** The metadata you configured for this field. */
-  fieldMetadata: TemplatePropsType<FieldMetadata<
+  fieldMetadata: ReadOnlyFieldType<
     TMetadataConfiguration['fieldTypes'][number],
     TMetadataConfiguration['extendedProperties']
-  >>
+  >
   /** Whether the field is required. */
   required: boolean
   /** Whether the field is disabled (maxOccurs = 0). */
