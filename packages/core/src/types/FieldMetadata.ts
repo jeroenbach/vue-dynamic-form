@@ -167,9 +167,9 @@ export type FieldMetadata<
    * @returns A transformed FieldMetadata
    */
   computedProps?: ((
-    thisField: ComputedPropsType<ExtendedFieldTypes, ExtendedProperties>,
+    thisField: ComputedPropsFieldType<ExtendedFieldTypes, ExtendedProperties>,
     fieldValue: Ref<unknown>,
-    childFields: Ref<Readonly<FieldMetadata<ExtendedFieldTypes, ExtendedProperties>>[]>,
+    childFields: Ref<ReadOnlyFieldType<ExtendedFieldTypes, ExtendedProperties>[]>,
   ) => void)[]
   /**
    * Normally the computedProps are not re-calculate if a child value changes. If you need this functionality, you can enable this by
@@ -178,7 +178,7 @@ export type FieldMetadata<
   computeOnChildValueChange?: boolean
 } & ExtendedProperties;
 
-export type ComputedPropsType<
+export type ComputedPropsFieldType<
   ExtendedFieldTypes extends string = string,
   ExtendedProperties extends object = object,
 > = Omit<
@@ -209,14 +209,25 @@ export type ComputedPropsType<
       parent: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>
     }>;
 
-export type TemplatePropsType<T> = Omit<
-      T,
-      | 'name' // At this point name will always be present, so remove it as being optional
-      | 'path'
-      | 'children'
-> & Readonly<{
+export type ReadOnlyFieldType<
+  ExtendedFieldTypes extends string = string,
+  ExtendedProperties extends object = object,
+> = Readonly<Omit<
+FieldMetadata<ExtendedFieldTypes, ExtendedProperties>,
+| 'name' // At this point name will always be present, so remove it as being optional
+| 'path'
+| 'children'
+| 'choice'
+> & {
   // Add the name & path back as not optional and Readonly
   name: string
   path: string
-  children: TemplatePropsType<T>[]
+  children: ReadOnlyFieldType<ExtendedFieldTypes, ExtendedProperties>[]
+  choice: ReadOnlyFieldType<ExtendedFieldTypes, ExtendedProperties>[]
 }>;
+
+export type ComputedPropsFieldOf<T extends FieldMetadata<any, any>>
+  = T extends FieldMetadata<infer FT, infer EP> ? ComputedPropsFieldType<FT, EP> : never;
+
+export type ReadOnlyFieldOf<T extends FieldMetadata<any, any>>
+  = T extends FieldMetadata<infer FT, infer EP> ? ReadOnlyFieldType<FT, EP> : never;
