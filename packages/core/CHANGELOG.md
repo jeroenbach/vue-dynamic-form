@@ -31,7 +31,6 @@
 - a0c2763: Complete rewrite of @bach.software/vue-dynamic-form since v0.1.3.
 
   ## New features
-
   - **vee-validate integration** — full form state, submission handling, and field registration via `useField`
     / `useForm`; exposed through `useDynamicForm()`
   - **XSD-inspired validation** — built-in rules: `xsd_required`, `xsd_minLength`, `xsd_maxLength`,
@@ -66,7 +65,6 @@
 ### Patch Changes
 
 - 8612186: Setup the basic solution with Storybook
-
   - Setup correct typing
   - Add Storybook stories for all components
   - Added Tailwind CSS support to the playground
