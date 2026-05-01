@@ -7,6 +7,7 @@
 - cb5b411: Improved defineMetadata() typing, reactive parent–child computedProps, partial form validation, auto-add first array item, and per-type array/choice slots.
 
   ## New features
+
   - **`slotProperties` in `defineMetadata()`** — `slotProps` is no longer a separate Vue prop on the
     template component; pass your slot properties as the third generic of `defineMetadata()` instead,
     where they are exposed through the `Attributes` slot as `slotProperties`. ⚠️ **Breaking for existing
