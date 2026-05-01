@@ -742,6 +742,66 @@ describe('component DynamicFormItemChoice - logic', () => {
     });
   });
 
+  describe('fieldContext.value', () => {
+    it('reflects all choice option values', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      const choiceComp = wrapper.findAllComponents({ name: 'DynamicFormItemChoice' })
+        .find(c => (c.vm as any).$.setupState.normalizedPath === 'pick');
+      const { fieldContext } = (choiceComp?.vm as any).$.setupState;
+
+      expect(fieldContext.value.value).toEqual([undefined, undefined]);
+
+      await wrapper.find('[id="pick.opt1"]').setValue('hello');
+      await flushPromises();
+
+      expect(fieldContext.value.value[0]).toBe('hello');
+    });
+
+    it('updates reactively when the active option changes', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      const choiceComp = wrapper.findAllComponents({ name: 'DynamicFormItemChoice' })
+        .find(c => (c.vm as any).$.setupState.normalizedPath === 'pick');
+      const { fieldContext } = (choiceComp?.vm as any).$.setupState;
+
+      await wrapper.find('[id="pick.opt1"]').setValue('hello');
+      await flushPromises();
+      expect(fieldContext.value.value[0]).toBe('hello');
+
+      await wrapper.find('[id="pick.opt1"]').setValue('');
+      await flushPromises();
+
+      expect(fieldContext.value.value[0]).toBeUndefined();
+    });
+  });
+
   describe('slotProps', () => {
     it('forwards slot attributes added by the choice template to nested array children', async () => {
       const wrapper = mount(TestForm, {

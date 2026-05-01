@@ -8,6 +8,10 @@ function addButton(wrapper: ReturnType<typeof mount>, path: string) {
   return wrapper.find(`[data-testid="${path}-add-button"]`);
 }
 
+function removeButton(wrapper: ReturnType<typeof mount>, path: string) {
+  return wrapper.find(`[data-testid="${path}-remove-button"]:not(.invisible)`);
+}
+
 function findDynamicFormItemByPath(wrapper: ReturnType<typeof mount>, path: string) {
   const item = wrapper.findAllComponents({ name: 'DynamicFormItem' })
     .find(component => (component.vm as any).$.setupState.path === path);
@@ -486,6 +490,62 @@ describe('component DynamicFormItemArray - logic', () => {
     });
   });
 
+  describe('fieldContext.value', () => {
+    it('reflects the current array values', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            fieldOptions: { label: 'Items' },
+            maxOccurs: 3,
+          }],
+        },
+      });
+      await flushPromises();
+
+      const arrayComp = wrapper.findAllComponents({ name: 'DynamicFormItemArray' })
+        .find(c => (c.vm as any).$.setupState.path === 'items');
+      const { fieldContext } = (arrayComp?.vm as any).$.setupState;
+
+      expect(fieldContext.value.value).toEqual([null]);
+
+      await wrapper.find('input[id="items[0]"]').setValue('hello');
+      await flushPromises();
+
+      expect(fieldContext.value.value).toEqual(['hello']);
+    });
+
+    it('updates reactively when a new item is added', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            fieldOptions: { label: 'Items' },
+            maxOccurs: 3,
+          }],
+        },
+      });
+      await flushPromises();
+
+      const arrayComp = wrapper.findAllComponents({ name: 'DynamicFormItemArray' })
+        .find(c => (c.vm as any).$.setupState.path === 'items');
+      const { fieldContext } = (arrayComp?.vm as any).$.setupState;
+
+      await wrapper.find('input[id="items[0]"]').setValue('first');
+      await flushPromises();
+      await addButton(wrapper, 'items').trigger('click');
+      await flushPromises();
+      await wrapper.find('input[id="items[1]"]').setValue('second');
+      await flushPromises();
+
+      expect(fieldContext.value.value).toEqual(['first', 'second']);
+    });
+  });
+
   describe('autoAddMinOccurs', () => {
     it('auto-adds an initial item by default (autoAddMinOccurs omitted)', async () => {
       const wrapper = mount(TestForm, {
@@ -576,6 +636,127 @@ describe('component DynamicFormItemArray - logic', () => {
       await flushPromises();
 
       expect(wrapper.find('input[id="items[0]"]').exists()).toBe(true);
+    });
+
+    it('does not show remove button on the auto-added item when autoAddMinOccurs is true', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+            autoAddMinOccurs: true,
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(removeButton(wrapper, 'items[0]').exists()).toBe(false);
+    });
+
+    it('does not show remove button on the auto-added item when autoAddMinOccurs is omitted', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(removeButton(wrapper, 'items[0]').exists()).toBe(false);
+    });
+
+    it('shows the remove button once there are more items than minOccurs when autoAddMinOccurs is true', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+            autoAddMinOccurs: true,
+          }],
+        },
+      });
+      await flushPromises();
+
+      await addButton(wrapper, 'items').trigger('click');
+      await flushPromises();
+
+      expect(removeButton(wrapper, 'items[0]').exists()).toBe(true);
+      expect(removeButton(wrapper, 'items[1]').exists()).toBe(true);
+    });
+
+    it('shows the remove button once there are more items than minOccurs when autoAddMinOccurs is omitted', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+          }],
+        },
+      });
+      await flushPromises();
+
+      await addButton(wrapper, 'items').trigger('click');
+      await flushPromises();
+
+      expect(removeButton(wrapper, 'items[0]').exists()).toBe(true);
+      expect(removeButton(wrapper, 'items[1]').exists()).toBe(true);
+    });
+
+    it('shows the remove button on the last item when autoAddMinOccurs is false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+            minOccurs: 1,
+            autoAddMinOccurs: false,
+          }],
+        },
+      });
+      await flushPromises();
+
+      await addButton(wrapper, 'items').trigger('click');
+      await flushPromises();
+
+      expect(removeButton(wrapper, 'items[0]').exists()).toBe(true);
+    });
+
+    it('allows removing all items down to 0 when autoAddMinOccurs is false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+            minOccurs: 1,
+            autoAddMinOccurs: false,
+          }],
+        },
+      });
+      await flushPromises();
+
+      await addButton(wrapper, 'items').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('input[id="items[0]"]').exists()).toBe(true);
+
+      await removeButton(wrapper, 'items[0]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('input[id="items[0]"]').exists()).toBe(false);
     });
   });
 });

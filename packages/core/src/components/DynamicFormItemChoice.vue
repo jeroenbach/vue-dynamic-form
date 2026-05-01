@@ -224,7 +224,7 @@ const combinedValidation = computed(() => {
 // A choice field has no entry in the vee-validate values tree, so we anchor validation
 // to the nearest parent path instead of a dedicated path. This gives errors a home.
 const { errors, errorMessage } = useField(normalizedPath, combinedValidation, field.value?.fieldOptions);
-const fieldContext: LimitedFieldContext = { label: field.value?.fieldOptions?.label, errors, errorMessage };
+const fieldContext: LimitedFieldContext = { label: field.value?.fieldOptions?.label, errors, errorMessage, value: values };
 
 // #endregion
 
@@ -299,7 +299,7 @@ function updateChildValue(
   <component
     :is="template"
     v-slot="slotProps"
-    type="choice"
+    :type="`${fieldMetadata.type}-choice`"
     :field-metadata
     :field-context
     :required
