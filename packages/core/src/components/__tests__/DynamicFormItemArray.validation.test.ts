@@ -334,4 +334,92 @@ describe('component DynamicFormItemArray', () => {
       });
     });
   });
+
+  describe('autoAddMinOccurs', () => {
+    it('shows a minOccurs error on submit when autoAddMinOccurs is false and no items are added', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 1,
+            maxOccurs: 3,
+            autoAddMinOccurs: false,
+          }] as any,
+          settings: {
+            messages: { minOccurs: 'At least {0} items required' },
+          },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('At least 1 items required');
+    });
+
+    it('clears the minOccurs error once the user manually adds and fills an item', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 1,
+            maxOccurs: 3,
+            autoAddMinOccurs: false,
+          }] as any,
+          settings: {
+            messages: { minOccurs: 'At least {0} items required' },
+          },
+        },
+      });
+      await flushPromises();
+
+      // Trigger a validation error first
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(true);
+
+      // Manually add an item and fill it
+      await wrapper.find('[data-testid="items-add-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('input[id="items[0]"]').setValue('hello');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+    });
+
+    it('still enforces minOccurs=2 when autoAddMinOccurs is false and only 1 item is filled', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 2,
+            maxOccurs: 4,
+            autoAddMinOccurs: false,
+          }] as any,
+          settings: {
+            messages: { minOccurs: 'At least {0} items required' },
+          },
+        },
+      });
+      await flushPromises();
+
+      // Add one item and fill it
+      await wrapper.find('[data-testid="items-add-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('input[id="items[0]"]').setValue('first');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('At least 2 items required');
+    });
+  });
 });

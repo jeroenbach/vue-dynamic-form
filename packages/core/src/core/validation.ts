@@ -26,7 +26,7 @@ defineRule('xsd_required' as ValidationRule, required);
 // XSD: minOccurs — minimum number of array items that have a value
 defineRule('xsd_minOccurs' as ValidationRule, (value: unknown, [min]: [number]) => {
   if (!Array.isArray(value))
-    return true;
+    return Number(min) <= 0;
   return value.filter(checkTreeHasValue).length >= Number(min);
 });
 

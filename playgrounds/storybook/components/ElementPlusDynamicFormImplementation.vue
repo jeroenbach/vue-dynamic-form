@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { ElementPlusDynamicForm } from '@bach.software/vue-dynamic-form-element-plus';
-
 </script>
 
 <template>

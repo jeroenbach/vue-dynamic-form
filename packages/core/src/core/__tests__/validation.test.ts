@@ -39,8 +39,8 @@ describe('validation rules', () => {
     it('does not count empty object items', async () => {
       expect(await passes([{ value: null }, 'a'], 'xsd_minOccurs', [2])).toBe(false);
     });
-    it('passes for a non-array value', async () => {
-      expect(await passes('not-an-array', 'xsd_minOccurs', [1])).toBe(true);
+    it('doesnt pass for a non-array value', async () => {
+      expect(await passes('not-an-array', 'xsd_minOccurs', [1])).toBe(false);
     });
   });
 
