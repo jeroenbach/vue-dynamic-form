@@ -485,4 +485,97 @@ describe('component DynamicFormItemArray - logic', () => {
       expect(findDynamicFormItemByPath(wrapper, 'items[0]').props('slotProps')).toEqual({ hideLabel: true });
     });
   });
+
+  describe('autoAddMinOccurs', () => {
+    it('auto-adds an initial item by default (autoAddMinOccurs omitted)', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.find('input[id="items[0]"]').exists()).toBe(true);
+    });
+
+    it('auto-adds an initial item when autoAddMinOccurs is true', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+            autoAddMinOccurs: true,
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.find('input[id="items[0]"]').exists()).toBe(true);
+    });
+
+    it('does not auto-add an initial item when autoAddMinOccurs is false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+            autoAddMinOccurs: false,
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.find('input[id="items[0]"]').exists()).toBe(false);
+    });
+
+    it('does not auto-add items to satisfy minOccurs when autoAddMinOccurs is false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+            minOccurs: 2,
+            autoAddMinOccurs: false,
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.find('input[id="items[0]"]').exists()).toBe(false);
+      expect(wrapper.find('input[id="items[1]"]').exists()).toBe(false);
+    });
+
+    it('still allows manually adding items when autoAddMinOccurs is false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            maxOccurs: 3,
+            autoAddMinOccurs: false,
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.find('input[id="items[0]"]').exists()).toBe(false);
+
+      await addButton(wrapper, 'items').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('input[id="items[0]"]').exists()).toBe(true);
+    });
+  });
 });

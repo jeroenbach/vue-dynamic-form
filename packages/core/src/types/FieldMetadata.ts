@@ -20,6 +20,19 @@ export type FieldMetadata<
    */
   maxOccurs?: number
   /**
+   * Controls whether the array automatically pre-fills empty placeholder items up to `minOccurs`
+   * when the form is first rendered and the array is still empty.
+   *
+   * Defaults to `true` — omitting this property has the same effect as setting it to `true`.
+   * Set it explicitly to `false` to suppress auto-filling, which is useful when you want the
+   * user to explicitly add the first item themselves even though `minOccurs` is 1 or higher.
+   *
+   * @example
+   * // Will NOT auto-add an initial item, even though minOccurs is 1:
+   * { name: 'emails', type: 'text', maxOccurs: 5, minOccurs: 1, autoAddMinOccurs: false }
+   */
+  autoAddMinOccurs?: boolean
+  /**
    * Simple restrictions to the data, these are available in XSD and can be applied easily.
    * For more advance validation use the validation property.
    */

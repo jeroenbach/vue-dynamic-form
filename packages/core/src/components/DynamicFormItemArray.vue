@@ -164,8 +164,12 @@ watch(
 
 // Auto-add empty placeholder items to satisfy minOccurs.
 // Skipped for choice-field children — the choice manages their count.
+// Skipped when autoAddMinOccurs is explicitly set to false.
 watchEffect(() => {
   if (props.partOfChoiceField)
+    return;
+
+  if (field.value?.autoAddMinOccurs === false)
     return;
 
   if (fields.value?.length < 1 || fields.value?.length < minOccurs.value) {
