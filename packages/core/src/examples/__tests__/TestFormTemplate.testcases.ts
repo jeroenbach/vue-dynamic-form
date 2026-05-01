@@ -36,11 +36,11 @@ export const groupTestCase = createTestCase([{
   fieldOptions: { label: 'Grouped Fields' },
   type: 'heading',
   children: [
-    { fieldOptions: { label: 'Required group' }, children: [
+    { fieldOptions: { label: 'Required group' }, type: 'group', children: [
       { fieldOptions: { label: 'Required Nested field 1' }, fullWidth: true },
       { fieldOptions: { label: 'Required Nested field 2' }, fullWidth: true },
     ] },
-    { fieldOptions: { label: 'Optional group' }, minOccurs: 0, description: `The group is optional, therefore the children will only be required once 1 value is filled in.
+    { fieldOptions: { label: 'Optional group' }, type: 'group', minOccurs: 0, description: `The group is optional, therefore the children will only be required once 1 value is filled in.
       
 You can test it by filling in one of the fields.`, children: [
       { fieldOptions: { label: 'Required Nested field 1' }, fullWidth: true },
@@ -51,11 +51,11 @@ You can test it by filling in one of the fields.`, children: [
   fieldOptions: { label: 'Grouped Array Fields' },
   type: 'heading',
   children: [
-    { fieldOptions: { label: 'Required group' }, maxOccurs: 5, fullWidth: true, children: [
+    { fieldOptions: { label: 'Required group' }, type: 'group', maxOccurs: 5, fullWidth: true, children: [
       { fieldOptions: { label: 'Required Nested field 1' } },
       { fieldOptions: { label: 'Required Nested field 2' } },
     ] },
-    { fieldOptions: { label: 'Optional group' }, minOccurs: 0, maxOccurs: 5, fullWidth: true, children: [
+    { fieldOptions: { label: 'Optional group' }, type: 'group', minOccurs: 0, maxOccurs: 5, fullWidth: true, children: [
       { fieldOptions: { label: 'Required Nested field 1' } },
       { fieldOptions: { label: 'Required Nested field 2' } },
     ] },
@@ -77,9 +77,15 @@ export const choiceTestCase = createTestCase([
     fieldOptions: { label: 'Choice Grouped Fields (minOccurs 1, maxOccurs 3)' },
     type: 'heading',
     children: [
-      { fieldOptions: { label: 'Array Choice Field' }, maxOccurs: 3, fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
-        { fieldOptions: { label: 'Nested Field 1' }, children: [{ fieldOptions: { label: 'Nested Child Field 1' }, fullWidth: true }, { fieldOptions: { label: 'Nested Child Field 2' }, fullWidth: true }] },
-        { fieldOptions: { label: 'Nested Field 2' }, children: [{ fieldOptions: { label: 'Nested Child Field 1' }, fullWidth: true }, { fieldOptions: { label: 'Nested Child Field 2' }, fullWidth: true }] },
+      { fieldOptions: { label: 'Array Choice Field' }, type: 'group', maxOccurs: 3, fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
+        { fieldOptions: { label: 'Nested Field 1' }, type: 'group', children: [
+          { fieldOptions: { label: 'Nested Child Field 1' }, fullWidth: true },
+          { fieldOptions: { label: 'Nested Child Field 2' }, fullWidth: true },
+        ] },
+        { fieldOptions: { label: 'Nested Field 2' }, type: 'group', children: [
+          { fieldOptions: { label: 'Nested Child Field 1' }, fullWidth: true },
+          { fieldOptions: { label: 'Nested Child Field 2' }, fullWidth: true },
+        ] },
       ] },
     ],
   },
@@ -87,7 +93,7 @@ export const choiceTestCase = createTestCase([
     fieldOptions: { label: 'Choice Array Fields (minOccurs 1, maxOccurs 3)' },
     type: 'heading',
     children: [
-      { fieldOptions: { label: 'Array Choice Field' }, maxOccurs: 3, fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
+      { fieldOptions: { label: 'Array Choice Field' }, type: 'group', maxOccurs: 3, fullWidth: true, description: `In a choice field, only 1 of the fields can be filled in.`, choice: [
         { fieldOptions: { label: 'Nested Field 1' }, maxOccurs: 3 },
         { fieldOptions: { label: 'Nested Field 2' }, maxOccurs: 3 },
       ] },

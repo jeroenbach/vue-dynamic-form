@@ -30,7 +30,8 @@ export interface DynamicFormConfigurationProps<
   metadataConfiguration: TMetadataConfiguration
 }
 
-export interface LimitedFieldContext {
+export interface LimitedFieldContext<TValue = unknown> {
+  value: ComputedRef<TValue>
   errors: Ref<string[]>
   errorMessage: Ref<string | undefined>
   label?: MaybeRefOrGetter<string | undefined>
@@ -44,7 +45,7 @@ export interface LimitedFieldContext {
 export interface Attributes<
   TMetadataConfiguration extends MetadataConfiguration,
 > {
-  type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'array' | 'choice'
+  type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'default-array' | 'default-array-item' | 'default-choice'
   /** The metadata you configured for this field. */
   fieldMetadata: ReadOnlyFieldType<
     TMetadataConfiguration['fieldTypes'][number],
@@ -93,7 +94,7 @@ export interface ItemAttributes<
 export interface ArrayChoiceAttributes<
   TMetadataConfiguration extends MetadataConfiguration,
 > extends Attributes<TMetadataConfiguration> {
-  fieldContext: LimitedFieldContext
+  fieldContext: LimitedFieldContext<unknown[]>
 }
 
 type Props = DynamicFormConfigurationProps<TMetadataConfiguration>;
@@ -107,18 +108,29 @@ type SlotsFromMetadata = {
   // Fallback slot for input components that don't have a dedicated slot.
   'default-input': (props: SlotProps) => any
 } & {
-  // Slot for rendering array fields.
-  array: (props: ArrayChoiceSlotProps) => any
+  // Fallback slot for components that are array's but don't have a dedicated slot.
+  'default-array': (props: ArrayChoiceSlotProps) => any
 } & {
-  // Slot for rendering choice fields.
-  choice: (props: ArrayChoiceSlotProps) => any
-}
-& {
+  // Fallback slot for components that are array items but don't have a dedicated slot.
+  'default-array-item': (props: SlotProps) => any
+} & {
+  // Fallback slot for components that are choice fields but don't have a dedicated slot.
+  'default-choice': (props: ArrayChoiceSlotProps) => any
+} & {
   // One slot per field type defined in the metadata configuration.
   [K in TMetadataConfiguration['fieldTypes'][number]]: (props: SlotProps<K>) => any;
 } & {
   // One input slot per field type (e.g. "text-input") for rendering just the inner control.
   [K in `${TMetadataConfiguration['fieldTypes'][number]}-input`]: (props: SlotProps<K extends `${infer FieldType}-input` ? FieldType : never>) => any;
+} & {
+  // One array slot per field type (e.g. "text-array") for defining how to render the type when it is an array.
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-array`]: (props: ArrayChoiceSlotProps) => any;
+} & {
+  // One array item slot per field type (e.g. "text-array-item") for defining how to render the type when it is an array item.
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-array-item`]: (props: SlotProps<K extends `${infer FieldType}-input` ? FieldType : never>) => any;
+} & {
+  // One choice slot per field type (e.g. "text-choice") for defining how to render the type when it is a choice.
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice`]: (props: ArrayChoiceSlotProps) => any;
 };
 
 // #endregion
@@ -139,17 +151,27 @@ const attrs = computed(() => {
   return result as unknown as SlotProps;
 });
 
-type RegularSlotName = Exclude<keyof SlotsFromMetadata, 'array' | 'choice'>;
+type RegularSlotName = keyof SlotsFromMetadata;
 
 // Resolve which slot to render: prefer a dedicated per-type slot, fall back to
 // 'default-input' for input variants, and finally to 'default' for everything else.
 const typeWithFallback = computed((): RegularSlotName => {
   const type = attrs.value.type;
-  if (type && type !== 'array' && type !== 'choice' && slots[type as RegularSlotName]) {
+  if (type && slots[type as RegularSlotName]) {
     return type as RegularSlotName;
   }
-  if (type?.includes('-input')) {
-    return 'default-input';
+
+  if (type?.endsWith('-input')) {
+    return slots['default-input'] ? 'default-input' : 'default';
+  }
+  if (type?.endsWith('-array')) {
+    return slots['default-array'] ? 'default-array' : 'default';
+  }
+  if (type?.endsWith('-array-item')) {
+    return slots['default-array-item'] ? 'default-array-item' : 'default';
+  }
+  if (type?.endsWith('-choice')) {
+    return slots['default-choice'] ? 'default-choice' : 'default';
   }
   return 'default';
 });
@@ -159,8 +181,8 @@ const typeWithFallback = computed((): RegularSlotName => {
 
 <template>
   <template v-if="attrs.fieldMetadata">
-    <slot v-if="attrs.type === 'array'" name="array" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
-    <slot v-else-if="attrs.type === 'choice'" name="choice" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
+    <slot v-if="attrs.type?.endsWith('-array')" :name="typeWithFallback" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
+    <slot v-else-if="attrs.type?.endsWith('-choice')" :name="typeWithFallback" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
     <slot v-else :name="typeWithFallback" v-bind="attrs" />
   </template>
 </template>

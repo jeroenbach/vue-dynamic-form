@@ -479,7 +479,7 @@ function updateArrayValue(_value: unknown) {
   <template v-else>
     <component
       :is="template"
-      :type="computedField.type"
+      :type="partOfArrayField ? `${computedField.type}-array-item` : computedField.type"
       :field-metadata="computedField"
       :field-context
       :slot-props

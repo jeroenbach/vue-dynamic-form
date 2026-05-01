@@ -87,9 +87,6 @@ const metadata = defineMetadata<
 
 <template>
   <DynamicFormTemplate :metadata-configuration="metadata">
-    <template #array />
-    <template #choice />
-
     <!-- Default wrapper with form item -->
     <template #default="slotProps">
       <slot name="default" v-bind="slotProps">

@@ -95,6 +95,10 @@ const _canRemoveItems = computed(() => {
   if (props.partOfChoiceField)
     return fields.value?.length > 0;
 
+  // Or when we choose to not automatically add items
+  if (field.value?.autoAddMinOccurs === false)
+    return fields.value?.length > 0;
+
   // Otherwise, keep at least minOccurs items and never go below 1.
   return fields.value?.length > minOccurs.value && fields.value?.length > 1;
 });
@@ -122,7 +126,7 @@ const { label, errors, errorMessage, handleBlur } = useField(normalizedPath, com
   ...(field.value?.fieldOptions ?? {}),
   validateOnValueUpdate: false, // validation timing is owned by this component
 });
-const fieldContext: LimitedFieldContext = { label, errors, errorMessage };
+const fieldContext: LimitedFieldContext = { label, errors, errorMessage, value: values };
 
 // Delay validation until after the first real value is set — empty placeholder items
 // (added to satisfy minOccurs) should not trigger errors before the user has interacted.
@@ -229,7 +233,7 @@ function guardAndNotifyItemUpdate(value: any, index: number) {
   </div>
   <component
     :is="template"
-    type="array"
+    :type="`${fieldMetadata.type}-array`"
     :field-metadata
     :field-context
     :required
