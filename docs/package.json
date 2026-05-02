@@ -18,6 +18,7 @@
     "@tailwindcss/vite": "4.1.12",
     "@types/node": "24.2.1",
     "tailwindcss": "4.1.12",
+    "vite-plugin-vue-devtools": "^7.7.9",
     "vitepress": "1.6.4"
   }
 }

@@ -8,4 +8,9 @@ export default antfu({
   rules: {
     'style/semi': ['error', 'always'],
   },
+}, {
+  files: ['docs/**/*.vue'],
+  rules: {
+    'vue/attribute-hyphenation': 'off',
+  },
 });

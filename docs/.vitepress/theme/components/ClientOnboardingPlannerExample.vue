@@ -1,9 +1,14 @@
 <!-- #region client-onboarding-planner-example -->
 <script setup lang="ts">
+import type { ComputedPropsFieldOf } from '@bach.software/vue-dynamic-form';
+import type { LoadingResolve } from '../utils/loadingResolve';
 import type { Metadata } from './AdvancedFormTemplate.vue';
+import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
+import type { TimelineItem } from './SubmissionSuccess.vue';
 import { useDynamicForm } from '@bach.software/vue-dynamic-form';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import AdvancedForm from './AdvancedForm.vue';
+import SubmissionSuccess from './SubmissionSuccess.vue';
 
 // #region shared-types
 export interface SelectOption {
@@ -20,40 +25,40 @@ export interface OptionStore {
 
 export type OptionName = keyof OptionStore;
 
+export type LaunchApproach = 'selfServe' | 'guidedRollout';
+
 export interface LoadOptionsParams {
   industry?: string
 }
 
 export interface ClientOnboardingPlannerValues {
-  clientOnboarding?: {
-    company?: {
-      companyName?: string
-      industry?: string
-      teamSize?: string
-      requiresMigration?: boolean
-      migrationDeadline?: string
-    }
-    projectContacts?: {
-      fullName?: string
-      email?: string
-      role?: string
-    }[]
-    launchApproach?: {
-      selfServe?: {
-        goLiveDate?: string
-        internalOwner?: string
-      }
-      guidedRollout?: {
-        kickoffDate?: string
-        needsTraining?: boolean
-        trainingFormat?: string
-      }
-    }
-    systems?: {
-      systemName?: string
-      purpose?: string
-    }[]
+  company?: {
+    companyName?: string
+    industry?: string
+    teamSize?: string
+    requiresMigration?: boolean
+    migrationDeadline?: string
   }
+  projectContacts?: {
+    fullName?: string
+    email?: string
+    role?: string
+  }[]
+  launchApproach?: {
+    selfServe?: {
+      goLiveDate?: string
+      internalOwner?: string
+    }
+    guidedRollout?: {
+      kickoffDate?: string
+      needsTraining?: boolean
+      trainingFormat?: string
+    }
+  }
+  systems?: {
+    systemName?: string
+    purpose?: string
+  }[]
 }
 // #endregion shared-types
 
@@ -68,10 +73,11 @@ const emit = defineEmits<{
 // #endregion Props & Emits
 
 // #region local-state
-const { values, meta, useFieldValue } = useDynamicForm<ClientOnboardingPlannerValues>();
+const { values, meta, useFieldValue, handleSubmit, validateSection, resetForm } = useDynamicForm<ClientOnboardingPlannerValues>({ keepValuesOnUnmount: true });
 
-const formName = 'Client Onboarding Planner';
-const industryValue = useFieldValue('clientOnboarding.company.industry');
+const formName = 'Client Onboarding';
+const industryValue = useFieldValue('company.industry');
+const submitted = ref<ClientOnboardingPlannerValues | undefined>(undefined);
 
 /**
  * Emits an option-loading request.
@@ -87,28 +93,126 @@ onMounted(() => {
 });
 
 const requiresMigration = computed(() =>
-  Boolean(values.clientOnboarding?.company?.requiresMigration),
+  Boolean(values?.company?.requiresMigration),
 );
 
 const needsTraining = computed(() =>
-  Boolean(values.clientOnboarding?.launchApproach?.guidedRollout?.needsTraining),
+  Boolean(values?.launchApproach?.guidedRollout?.needsTraining),
+);
+
+const selectedLaunchApproach = ref<LaunchApproach>('selfServe');
+
+const industryLabel = computed(() =>
+  props.optionStore.industry.find(o => o.key === industryValue.value)?.value,
 );
 // #endregion local-state
+
+// #region validation
+const wizardPagePaths: Record<number, string> = {};
+
+function registerWizardPagePath(field: ComputedPropsFieldOf<Metadata>) {
+  if (!field.parent?.children?.length || field.path.includes('['))
+    return;
+  const index = field.parent.children.findIndex(x => x.name === field.name);
+  if (index !== -1)
+    wizardPagePaths[index] = field.path;
+}
+
+async function validatePage(pageIndex: number, resolve: LoadingResolve) {
+  const result = await validateSection(wizardPagePaths[pageIndex] ?? '');
+  resolve(result.valid);
+}
+
+function dateValidation(value: unknown) {
+  if (!value)
+    return true;
+  return /^(?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/\d{4}$/.test(String(value)) || 'Please enter a valid date (dd/mm/yyyy)';
+}
+// #endregion validation
+
+// #region summary information
+const wizardSummary = computed<ReviewGroupProps[]>(() => {
+  const launchRows = (): ReviewGroupProps['rows'] => {
+    if (selectedLaunchApproach.value === 'selfServe') {
+      return [
+        ['Approach', 'Self-serve launch'],
+        ['Go-live date', values?.launchApproach?.selfServe?.goLiveDate || '—'],
+        ['Client-side owner', values?.launchApproach?.selfServe?.internalOwner || '—'],
+      ];
+    }
+    if (selectedLaunchApproach.value === 'guidedRollout') {
+      return [
+        ['Approach', 'Guided rollout'],
+        ['Kickoff', values?.launchApproach?.guidedRollout?.kickoffDate || '—'],
+        ['Training', values?.launchApproach?.guidedRollout?.needsTraining ? (values?.launchApproach?.guidedRollout?.trainingFormat || 'Yes') : 'Not included'],
+      ];
+    }
+    return [['Approach', 'Not chosen']];
+  };
+
+  return [
+    {
+      title: 'Company',
+      rows: [
+        ['Company name', values?.company?.companyName || '—'],
+        ['Industry', industryLabel.value || '—'],
+        ['Team size', values?.company?.teamSize || '—'],
+        ['Data migration', values?.company?.requiresMigration ? `Yes${values?.company?.migrationDeadline ? ` (by ${values.company.migrationDeadline})` : ''}` : 'No'],
+      ],
+    },
+    {
+      title: 'Contacts',
+      rows: (values?.projectContacts?.length ?? 0) === 0
+        ? [['Contacts', '—']]
+        : values!.projectContacts!.map((c, i): [string, string] => [
+            `Contact ${i + 1}`,
+            [c.fullName || '—', c.role, c.email].filter(Boolean).join(' · '),
+          ]),
+    },
+    {
+      title: 'Launch approach',
+      rows: launchRows(),
+    },
+    {
+      title: 'Systems',
+      rows: (values?.systems?.length ?? 0) === 0
+        ? [['Systems', 'None']]
+        : values!.systems!.map((s, i): [string, string] => [
+            `System ${i + 1}`,
+            `${s.systemName || '—'}${s.purpose ? ` — ${s.purpose}` : ''}`,
+          ]),
+    },
+  ];
+});
+// #endregion summary information
 
 // #region metadata
 const metadata: Metadata[] = [
   {
-    name: 'clientOnboarding',
-    type: 'heading',
+    name: 'wizard',
+    path: '',
+    type: 'wizard',
     fieldOptions: { label: formName },
-    description: 'A realistic intake form that shows reusable templates, grouped fields, repeating sections, choices, and computed props reacting to live form values.',
-    fullWidth: true,
+    description: 'New client setup',
+    submitButtonText: 'Submit onboarding',
+    validatePage,
+    submitForm: async (resolve: LoadingResolve) => {
+      handleSubmit(
+        (values) => {
+          submitted.value = values;
+          resolve(true);
+        },
+        () => resolve(false),
+      )();
+    },
     children: [
       {
         name: 'company',
+        type: 'wizardPage',
         fieldOptions: { label: 'Company details' },
-        description: 'A grouped field for the core account information.',
-        fullWidth: true,
+        description: 'Core account information for the rollout.',
+        helpText: 'Who are we onboarding?',
+        computedProps: [registerWizardPagePath],
         children: [
           {
             name: 'companyName',
@@ -132,7 +236,6 @@ const metadata: Metadata[] = [
             name: 'teamSize',
             type: 'select',
             fieldOptions: { label: 'Team size' },
-            description: 'This select reacts to the industry chosen above.',
             minOccurs: 0,
             computedProps: [(field) => {
               const industry = industryValue.value;
@@ -140,11 +243,10 @@ const metadata: Metadata[] = [
 
               if (industry)
                 field.minOccurs = 1; // Make the field mandatory
-              if (!industry)
-                field.disabled = true;
-              field.description = industry
-                ? `Available options for the ${industry} industry are loaded by an external source using an extra parameter.`
-                : 'Choose an industry first to load the available team size options.';
+              if (!industry) {
+                field.dependentOnMessage = 'Choose an industry to see team size options';
+              }
+              field.description = `Available options for the ${industry} industry are loaded by an external source using an extra parameter.`;
             }],
           },
           {
@@ -160,25 +262,30 @@ const metadata: Metadata[] = [
             fieldOptions: {
               label: 'Migration deadline',
             },
-            description: 'Computed props keep this disabled until data migration is enabled.',
+            description: 'When must all historical records be live in the new system?',
             minOccurs: 0,
             fullWidth: true,
+            validation: dateValidation,
+            placeholder: 'dd/mm/yyyy',
             computedProps: [(field) => {
               if (requiresMigration.value)
                 field.minOccurs = 1; // make the field mandatory
               if (!requiresMigration.value)
-                field.disabled = true;
-              field.description = requiresMigration.value
-                ? 'Required because this onboarding includes a migration.'
-                : 'Enable data migration to make this field active.';
+                field.hide = true;
             }],
           },
         ],
       },
       {
         name: 'projectContacts',
+        type: 'wizardPage',
         fieldOptions: { label: 'Project contacts' },
-        description: 'Repeat this grouped field for each person who should be involved in the rollout.',
+        description: 'Anyone who should be looped in on the rollout.',
+        helpText: 'Who should we work with?',
+        arrayItemName: 'contact',
+        arrayItemNamePlural: 'contacts',
+        arrayItemFieldForTitle: 'fullName',
+        computedProps: [registerWizardPagePath],
         minOccurs: 1,
         maxOccurs: 3,
         fullWidth: true,
@@ -195,6 +302,7 @@ const metadata: Metadata[] = [
           {
             name: 'role',
             type: 'select',
+            fullWidth: true,
             fieldOptions: { label: 'Role' },
             computedProps: [(field) => {
               field.options = props.optionStore.role;
@@ -204,43 +312,85 @@ const metadata: Metadata[] = [
       },
       {
         name: 'launchApproach',
+        type: 'wizardPage',
         fieldOptions: { label: 'Launch approach' },
-        description: 'Choice fields keep mutually exclusive onboarding paths in the same metadata model.',
+        description: `Pick one. You can switch later if plans change — we'll keep the fields you've filled in.`,
+        helpText: 'How will we go live?',
         fullWidth: true,
+        computedProps: [registerWizardPagePath],
+        changeChoice: key => selectedLaunchApproach.value = key as LaunchApproach,
         choice: [
           {
             name: 'selfServe',
             fieldOptions: { label: 'Self-serve launch' },
+            description: 'The client drives the rollout themselves. Fastest path to go-live.',
+            iconName: 'bolt',
             fullWidth: true,
+            computedProps: [
+              (thisField) => {
+                if (selectedLaunchApproach.value !== 'selfServe')
+                  thisField.hide = true;
+              },
+            ],
             children: [
+              {
+                hide: true,
+                computedProps: [
+                  (_, thisValue) => {
+                    // The choice fields are "enabled" once 1 of the values is filled in, we simulate this here
+                    thisValue.value = selectedLaunchApproach.value === 'selfServe' ? true : undefined;
+                  },
+                ],
+              },
               {
                 name: 'goLiveDate',
                 fieldOptions: { label: 'Target go-live date' },
-                fullWidth: true,
+                validation: dateValidation,
+                placeholder: 'dd/mm/yyyy',
               },
               {
                 name: 'internalOwner',
                 fieldOptions: { label: 'Client-side owner' },
-                fullWidth: true,
               },
             ],
           },
           {
             name: 'guidedRollout',
             fieldOptions: { label: 'Guided rollout' },
+            description: 'We run kickoff, training, and launch alongside the client team.',
+            iconName: 'users',
             fullWidth: true,
+            computedProps: [
+              (thisField) => {
+                if (selectedLaunchApproach.value !== 'guidedRollout')
+                  thisField.hide = true;
+              },
+            ],
             children: [
+              {
+                hide: true,
+                computedProps: [
+                  (_, thisValue) => {
+                    // The choice fields are "enabled" once 1 of the values is filled in, we simulate this here
+                    thisValue.value = selectedLaunchApproach.value === 'guidedRollout' ? true : undefined;
+                  },
+                ],
+              },
               {
                 name: 'kickoffDate',
                 fieldOptions: { label: 'Kickoff call date' },
                 fullWidth: true,
+                validation: dateValidation,
+                placeholder: 'dd/mm/yyyy',
               },
               {
                 name: 'needsTraining',
                 type: 'checkbox',
                 minOccurs: 0,
                 fieldOptions: { label: 'Include team training' },
+                description: 'Turn on to schedule a training session during onboarding.',
                 fullWidth: true,
+                falseAsUndefined: true,
               },
               {
                 name: 'trainingFormat',
@@ -249,17 +399,14 @@ const metadata: Metadata[] = [
                 fieldOptions: {
                   label: 'Training format',
                 },
-                description: 'Another computed field that reacts to the current form state.',
+                description: 'Required because guided rollout includes team training.',
                 fullWidth: true,
                 computedProps: [(field) => {
                   field.options = props.optionStore.trainingFormat;
                   if (needsTraining.value)
                     field.minOccurs = 1; // Make the field mandatory
                   if (!needsTraining.value)
-                    field.disabled = true;
-                  field.description = needsTraining.value
-                    ? 'Required because guided rollout includes team training.'
-                    : 'Enable team training to choose a format.';
+                    field.hide = true;
                 }],
               },
             ],
@@ -268,41 +415,105 @@ const metadata: Metadata[] = [
       },
       {
         name: 'systems',
+        type: 'wizardPage',
         fieldOptions: { label: 'Systems to connect' },
-        description: 'Repeat integration details without manually wiring FieldArray logic.',
-        minOccurs: 1,
+        description: `Any external tools we'll integrate with during onboarding.`,
+        helpText: 'What needs to connect?',
+        arrayNoItemsMessage: `Skip this step if there's nothing to integrate.`,
+        arrayItemName: 'system',
+        arrayItemNamePlural: 'systems',
+        arrayItemFieldForTitle: 'systemName',
+        minOccurs: 0,
         maxOccurs: 4,
+        autoAddMinOccurs: false,
         fullWidth: true,
+        computedProps: [registerWizardPagePath],
         children: [
           {
             name: 'systemName',
             fieldOptions: { label: 'System name' },
+            placeholder: 'e.g. Salesforce, HubSpot',
           },
           {
             name: 'purpose',
             fieldOptions: { label: 'Purpose in the rollout' },
+            placeholder: 'e.g. source of CRM records',
           },
         ],
+      },
+      {
+        name: 'summaryPage',
+        type: 'wizardSummaryPage',
+        fieldOptions: { label: 'Review & submit' },
+        description: 'Quick recap before we kick this off. Anything needs tweaking? Jump back to the step.',
+        helpText: 'Check and submit',
+        minOccurs: 0,
+        computedProps: [registerWizardPagePath, (field) => { field.wizardSummary = wizardSummary.value; }],
       },
     ],
   },
 ];
 // #endregion metadata
+
+// #region timeline
+const timeline = ref<TimelineItem[]>([]);
+
+watch(submitted, async (isSubmitted) => {
+  if (!isSubmitted) {
+    timeline.value = [];
+    return;
+  }
+
+  const contactCount = values?.projectContacts?.length ?? 0;
+  const systemCount = values?.systems?.length ?? 0;
+
+  timeline.value = [
+    { id: 'workspace', label: 'Workspace created', status: 'pending' },
+    { id: 'invites', label: `Invites sent to ${contactCount} contact${contactCount !== 1 ? 's' : ''}`, status: 'pending' },
+    { id: 'kickoff', label: 'Kickoff being scheduled', status: 'pending' },
+    { id: 'integrations', label: `${systemCount} system integration${systemCount !== 1 ? 's' : ''} added to backlog`, status: 'pending' },
+  ];
+
+  for (let i = 0; i < timeline.value.length; i++) {
+    await new Promise(resolve => setTimeout(resolve, 800));
+    timeline.value[i].status = 'done';
+  }
+});
+// #endregion timeline
+
+// #region Helper methods
+function reset() {
+  resetForm();
+  submitted.value = undefined;
+}
+// #endregion Helper methods
 </script>
 
 <template>
-  <div class="form-demo flex flex-col gap-2">
-    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <h2 class="text-lg font-semibold text-slate-900">
+  <div class="form-demo flex flex-col gap-6">
+    <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4">
+      <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
         {{ formName }}
       </h2>
-      <p class="mt-1 text-sm leading-6 text-slate-600">
+      <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
         A concrete demo for a SaaS team collecting everything needed to onboard a new client.
         It highlights reusable templates, grouped fields, repeatable contacts, mutually exclusive launch paths, and computed fields that become required only when they matter.
       </p>
     </div>
-    <AdvancedForm :metadata />
-    <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
+    <AdvancedForm v-if="!submitted" :metadata />
+    <SubmissionSuccess
+      v-else
+      :title="`Onboarding kicked off for ${values.company?.companyName}`"
+      referenceCode="ONB-20260430-R7ME"
+      timelineTitle="What happens next"
+      :submittedJson="JSON.stringify(submitted, null, 2) "
+      :timeline
+      @reset="reset"
+    />
+    <pre
+      v-if="!submitted"
+      class="mt-4 overflow-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-900 p-4 text-xs leading-relaxed text-slate-100"
+    >
 IsDirty: {{ meta.dirty }}
 Touched: {{ meta.touched }}
 Valid: {{ meta.valid }}

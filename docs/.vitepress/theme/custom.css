@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @source "./components";
+@variant dark (&:where(.dark, .dark *));
 
 /* VitePress unlayered styles override Tailwind's @layer utilities.
    revert-layer falls through to Tailwind's utility values since our selector
@@ -11,12 +12,54 @@
   all: revert-layer;
 }
 
+.form-demo
+  :is(
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    p,
+    a,
+    strong,
+    em,
+    small,
+    mark,
+    del,
+    ins,
+    sub,
+    sup,
+    blockquote,
+    ul,
+    ol,
+    li,
+    dl,
+    dt,
+    dd,
+    hr,
+    table,
+    thead,
+    tbody,
+    tr,
+    th,
+    td,
+    figure,
+    figcaption,
+    pre,
+    code,
+    kbd,
+    samp
+  ) {
+  all: revert-layer;
+}
+
 :root {
-  --vp-c-brand-1: #0f766e;
-  --vp-c-brand-2: #115e59;
-  --vp-c-brand-3: #134e4a;
+  --vp-c-brand-3: #0284c7; /* sky-600 */
+  --vp-c-brand-2: #0369a1; /* sky-700 */
+  --vp-c-brand-1: #075985; /* sky-800 */
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(120deg, #0f766e 20%, #1d4ed8 100%);
+  --vp-home-hero-name-background: linear-gradient(120deg, #0f766e 20%, #0284c7 100%);
   --vp-home-hero-image-background-image:
     radial-gradient(circle at 30% 30%, rgba(15, 118, 110, 0.2), transparent 40%),
     radial-gradient(circle at 70% 40%, rgba(29, 78, 216, 0.18), transparent 35%);
