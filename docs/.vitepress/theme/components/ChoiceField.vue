@@ -15,13 +15,13 @@ defineProps<Props>();
 </script>
 
 <template>
-  <section class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 md:col-span-2">
+  <section class="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 p-4 md:col-span-2">
     <div class="space-y-1">
-      <span class="block text-sm font-semibold text-slate-900" :class="{ 'text-slate-400': disabled }">
+      <span class="block text-sm font-semibold text-slate-900 dark:text-slate-100" :class="{ 'text-slate-400 dark:text-slate-500': disabled }">
         {{ label }}
-        <span v-if="required" class="text-red-500">*</span>
+        <span v-if="required" class="text-red-500 dark:text-rose-400">*</span>
       </span>
-      <p v-if="description" class="text-sm text-slate-600">
+      <p v-if="description" class="text-sm text-slate-600 dark:text-slate-400">
         {{ description }}
       </p>
     </div>

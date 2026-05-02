@@ -18,7 +18,7 @@ const metadata: Metadata[] = [
 <template>
   <div class="form-demo flex flex-col gap-2">
     <BasicForm :metadata />
-    <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
+    <pre class="bg-gray-100 dark:bg-slate-800 p-4 rounded-lg text-sm overflow-auto">
 IsDirty: {{ meta.dirty }}
 Touched: {{ meta.touched }}
 Valid: {{ meta.valid }}

@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
+import vueDevTools from 'vite-plugin-vue-devtools';
 import { defineConfig } from 'vitepress';
 
 const rootDir = fileURLToPath(new URL('../../', import.meta.url));
@@ -10,7 +11,7 @@ export default defineConfig({
   description: 'Schema-driven Vue forms powered by vee-validate.',
   cleanUrls: true,
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), vueDevTools()],
     resolve: {
       alias: {
         '@': coreSrcDir,
@@ -54,6 +55,7 @@ export default defineConfig({
             { text: 'DynamicFormTemplate', link: '/reference/dynamic-form-template' },
             { text: 'DynamicForm', link: '/reference/dynamic-form' },
             { text: 'FieldMetadata', link: '/reference/field-metadata' },
+            { text: 'useValidatePartialForm', link: '/reference/use-validate-partial-form' },
           ],
         },
       ],
@@ -65,6 +67,7 @@ export default defineConfig({
             { text: 'Basic Form', link: '/examples/basic' },
             { text: 'Arrays And Groups', link: '/examples/arrays-and-groups' },
             { text: 'Choices', link: '/examples/choices' },
+            { text: 'Advanced example', link: '/examples/advanced' },
           ],
         },
       ],

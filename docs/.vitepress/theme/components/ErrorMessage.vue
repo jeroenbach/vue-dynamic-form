@@ -9,7 +9,7 @@ defineProps<Props>();
 <template>
   <span
     v-if="errorMessage"
-    class="text-red-600 text-sm"
+    class="text-red-600 dark:text-rose-400 text-sm"
     :data-testid="`${dataTestid}-error-message`"
   >{{ errorMessage }}</span>
 </template>
