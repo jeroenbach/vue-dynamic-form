@@ -25,7 +25,7 @@ defineProps<Props>();
         </p>
         <ErrorMessage :error-message="errorMessage" :data-testid="dataTestid" />
       </div>
-      <span v-if="tag" class="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+      <span v-if="tag" class="inline-flex items-center rounded-full text-nowrap bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
         {{ tag }}
       </span>
     </header>
