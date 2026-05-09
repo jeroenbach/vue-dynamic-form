@@ -490,7 +490,7 @@ function reset() {
 </script>
 
 <template>
-  <div class="form-demo flex flex-col gap-6">
+  <div class="form-demo flex flex-col gap-6 max-w-3xl mx-auto">
     <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4">
       <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
         {{ formName }}

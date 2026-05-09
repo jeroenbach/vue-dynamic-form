@@ -79,7 +79,7 @@ export default defineConfig({
       { icon: 'github', link: 'https://github.com/jeroenbach/dynamic-form' },
     ],
     footer: {
-      message: 'Built for schema-driven Vue forms.',
+      message: 'Released under the MIT License.',
       copyright: 'Copyright © Jeroen Bach',
     },
   },

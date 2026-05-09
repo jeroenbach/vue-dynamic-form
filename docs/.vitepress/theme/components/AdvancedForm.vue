@@ -34,7 +34,7 @@ const settings = computed<DynamicFormSettings>(() => ({
 </script>
 
 <template>
-  <form class="max-w-3xl space-y-6">
+  <form class="max-w-3xl mx-auto">
     <DynamicForm
       :template="AdvancedFormTemplate"
       :metadata="metadata"

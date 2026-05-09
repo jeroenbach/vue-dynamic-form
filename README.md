@@ -19,7 +19,7 @@ The repository contains:
 ```bash
 pnpm install
 pnpm test
-pnpm docs:dev
+pnpm dev
 ```
 
 ## Release Flow
