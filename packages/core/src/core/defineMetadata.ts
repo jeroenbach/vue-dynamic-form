@@ -1,14 +1,14 @@
 /**
- * Helps you to create a metadata configuration with strongly-typed field definitions.
- * Field value types are directly inferred from the provided type interface.
+ * Creates a typed metadata configuration for use with `DynamicFormTemplate`.
  *
- * Simply pass an interface where keys are field names and values are the expected value types.
- * Use `never` for fields that don't hold values (like headings).
- * Note: you can't use the following reserved field names: 'input', 'children', 'choice', 'array'.
+ * The returned object is a pure type carrier — its runtime values are empty stubs.
+ * TypeScript uses it to infer slot names, `fieldContext.value` types, extended field properties,
+ * and the shape of `slotProps`. A `default` field type is always injected automatically.
  *
- * Use the extended properties to add custom metadata to each field definition. *
- * @returns Typed configuration object for DynamicFormTemplate consumption
- *
+ * @typeParam FieldValueTypes - Map of field type names to their `fieldContext.value` types.
+ *   Use `never` for display-only types (headings, separators) that hold no value.
+ * @typeParam ExtendedFieldProperties - Extra properties merged into every `FieldMetadata` object.
+ * @typeParam SlotProperties - Shape of `slotProps` passed from parent slots to child slots.
  * @example
  * const config = defineMetadata<
  *   {
@@ -30,12 +30,10 @@ export function defineMetadata<
   ExtendedFieldProperties extends object = object,
   SlotProperties extends object = object,
 >() {
-  // Reserved field identifiers that cannot be defined by the user
-  type ExcludedFields = 'input' | 'children' | 'choice' | 'array';
   type IncludeFields = 'default';
 
   type FieldTypeMetadata
-    = | Exclude<keyof FieldValueTypes, ExcludedFields>
+    = | keyof FieldValueTypes
       | IncludeFields;
 
   // Value types are directly from the generic parameter, default is always included and always a string

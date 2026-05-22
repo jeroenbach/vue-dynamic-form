@@ -100,12 +100,12 @@ Simple fields (no children) can be arrays too:
 
 The rendering splits into two roles:
 
-1. **`#array`** — rendered once; the outer container. Its `<slot />` yields all current occurrences.
-2. **`#default`** (or a named slot) — rendered once per occurrence; the item wrapper.
+1. **`#default-array`** (or `#<type>-array`, e.g. `#text-array`) — rendered once; the outer container. Its `<slot />` yields all current occurrences.
+2. **`#default`** (or `#<type>`, e.g. `#text`) — rendered once per occurrence; the item wrapper.
 
 ```vue
 <!-- Outer container -->
-<template #array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
+<template #default-array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
   <section class="array-field">
     <h3>{{ label }}<span v-if="required"> *</span></h3>
     <slot />
@@ -198,12 +198,12 @@ Combining `maxOccurs > 1` with `choice` lets the user add multiple occurrences, 
 
 The rendering splits the same way as arrays:
 
-1. **`#choice`** — rendered once; the outer wrapper.
-2. **`#default`** (or named slot) — rendered once per branch; the `disabled` prop signals locked branches.
+1. **`#default-choice`** (or `#<type>-choice`, e.g. `#contact-choice`) — rendered once; the outer wrapper.
+2. **`#default`** (or `#<type>`, e.g. `#contact`) — rendered once per branch; the `disabled` prop signals locked branches.
 
 ```vue
 <!-- Outer wrapper -->
-<template #choice="{ fieldContext: { label, errorMessage }, required, disabled }">
+<template #default-choice="{ fieldContext: { label, errorMessage }, required, disabled }">
   <div class="choice-field">
     <h3>{{ label }}<span v-if="required"> *</span></h3>
     <slot />

@@ -40,7 +40,7 @@ export interface DynamicFormSettings {
   /**
    * When true, validates fields on every value change when the field has an error.
    *
-   * Defaults to false.
+   * Defaults to true (applied by DynamicForm).
    */
   validateWhenInError?: boolean
 

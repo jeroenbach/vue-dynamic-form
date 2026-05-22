@@ -21,12 +21,14 @@
 
 Write to `field` to change properties. Read from `value` to subscribe to the field's own value. Read from `childFields` to subscribe to changes in children's computed state. All three trigger the computed to re-run whenever their reactive dependencies change.
 
+Because each function runs inside a Vue `computed()`, vee-validate composables such as `useFieldValue` (from `vee-validate`) can be called directly inside `computedProps` functions — they subscribe to the form context via `inject` and integrate naturally into Vue's reactivity.
+
 ## Showing and Hiding a Field
 
 Setting `minOccurs` or `maxOccurs` to `0` disables the field. Combine that with a reactive read of another field:
 
 ```ts
-import { useFieldValue } from '@bach.software/vue-dynamic-form';
+import { useFieldValue } from 'vee-validate';
 
 {
   name: 'vatNumber',
@@ -48,6 +50,8 @@ Setting `maxOccurs: 0` disables the field and all of its children in one go.
 ## Changing Select Options Dynamically
 
 ```ts
+import { useFieldValue } from 'vee-validate';
+
 {
   name: 'city',
   type: 'select',
@@ -92,6 +96,8 @@ If you never read `value.value`, changes to this field will not re-trigger the f
 By default, `computedProps` does not re-run when a child field changes. Enable tracking of child changes with `computeOnChildValueChange`:
 
 ```ts
+import { useFieldValue } from 'vee-validate';
+
 {
   name: 'shippingAddress',
   computeOnChildValueChange: true,

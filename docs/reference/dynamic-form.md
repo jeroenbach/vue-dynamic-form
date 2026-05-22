@@ -7,7 +7,7 @@
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
 | `template` | `Component` | Yes | Your `DynamicFormTemplate` SFC |
-| `metadata` | `FieldMetadata[]` | Yes | Array of field definitions |
+| `metadata` | `FieldMetadata \| FieldMetadata[]` | Yes | One field definition or an array of field definitions |
 | `settings` | `DynamicFormSettings` | No | Validation behavior and message overrides |
 
 ## Basic Usage
@@ -27,7 +27,7 @@
 
 ## useDynamicForm()
 
-`useDynamicForm()` must be called in the same component (or a parent) as the `<form>` element. It is a typed wrapper around vee-validate's `useForm()`.
+`useDynamicForm()` is an optional typed wrapper around vee-validate's `useForm()`. You can use `useForm()` directly if you prefer — `useDynamicForm()` just adds two extra helpers on top:
 
 ```ts
 const {
@@ -46,10 +46,30 @@ const {
 `useFieldValue(path)` is a typed helper for reading a specific field value reactively. It is particularly useful inside `computedProps`:
 
 ```ts
-const country = useDynamicForm().useFieldValue('address.country');
+const country = useFieldValue('address.country');
 ```
 
 `validateSection(path)` validates only the vee-validate fields registered under the given path prefix, returning the same `FormValidationResult` shape as `validate()`. See [useValidatePartialForm](/reference/use-validate-partial-form) for the full API and a wizard example.
+
+### Options
+
+`useDynamicForm()` accepts an optional `FormOptions` object forwarded directly to vee-validate's `useForm()`:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `initialValues` | `PartialDeep<TValues> \| null` | `undefined` | Pre-populate form fields on mount |
+| `initialErrors` | `Record<path, string \| undefined>` | `undefined` | Set initial validation errors by field path |
+| `initialTouched` | `Record<path, boolean>` | `undefined` | Set initial touched state by field path |
+| `validateOnMount` | `boolean` | `false` | Run validation immediately when the form mounts |
+| `keepValuesOnUnmount` | `boolean \| Ref<boolean>` | `false` | Preserve form values when the component unmounts |
+| `name` | `string` | `undefined` | Named form — used to scope nested forms |
+
+```ts
+const form = useDynamicForm<MyFormValues>({
+  initialValues: { email: 'prefilled@example.com' },
+  validateOnMount: true,
+});
+```
 
 ## Settings Reference
 
@@ -73,6 +93,8 @@ Type: `boolean` | Default: `false`
 
 When `true`, live validation activates only after the user's first submit attempt. Before that first submit, validation is deferred. This is a common UX pattern — don't show errors until the user tries to submit.
 
+Defaults to `false` to stay consistent with vee-validate's out-of-the-box behavior.
+
 ```ts
 { validateOnValueUpdateAfterSubmit: true }
 ```
@@ -93,7 +115,7 @@ When `true`, validation runs when the user leaves a field (blur event). Works al
 
 #### `validateWhenInError`
 
-Type: `boolean` | Default: `false`
+Type: `boolean` | Default: `true`
 
 When `true`, a field that already has an error validates live on every value change, regardless of the other timing settings. Gives immediate feedback when fixing a known error.
 
@@ -105,7 +127,7 @@ When `true`, a field that already has an error validates live on every value cha
 
 #### `messages`
 
-Override the default text for any of the built-in validation rules. Each entry accepts a **string template** or a **function**.
+Override the default error text for the validation rules from [`FieldMetadata.restriction`](/reference/field-metadata#restriction) and occurrence constraints (`minOccurs`, `choice`). Each entry accepts a **string template** or a **function**.
 
 **String templates** support these placeholders:
 
@@ -134,7 +156,7 @@ messages: {
 |-----|----------------|-----------------|
 | `required` | Field has no value and `minOccurs >= 1` | `'{field} is required'` |
 | `minOccurs` | Array has fewer items than `minOccurs` | `'At least {min} items required'` |
-| `choiceMinOccurs` | Choice has fewer filled branches than `minOccurs` | `'Select at least {min} option in {field}'` |
+| `choiceMinOccurs` | Choice has fewer filled branches than `minOccurs` [^1] | `'Select at least {min} option in {field}'` |
 | `minLength` | Value shorter than `restriction.minLength` | `'{field} must be at least {length} characters'` |
 | `maxLength` | Value longer than `restriction.maxLength` | `'{field} may be at most {length} characters'` |
 | `length` | Value length does not equal `restriction.length` | `'{field} must be exactly {length} characters'` |
@@ -147,6 +169,8 @@ messages: {
 | `whiteSpace` | Value violates `restriction.whiteSpace` mode | `'{field} contains invalid whitespace'` |
 | `fractionDigits` | Value has more decimal places than `restriction.fractionDigits` | `'{field} may have at most {digits} decimal places'` |
 | `totalDigits` | Value has more significant digits than `restriction.totalDigits` | `'{field} may have at most {digits} digits'` |
+
+[^1]: Choice fields don't exist as entries in vee-validate's value tree, so the `xsd_choiceMinOccurs` rule itself always returns `false`. `DynamicFormTemplate` detects when no branch is filled and surfaces the message directly — the message setting still controls the text shown.
 
 ### `complexTypeValueProperty`
 

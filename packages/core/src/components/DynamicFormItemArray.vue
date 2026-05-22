@@ -22,7 +22,9 @@ import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
 
 // #region Interfaces
 export interface Emit {
+  /** Emitted whenever array values change (item added, removed, or updated); payload is the full array value. */
   (e: 'update:modelValue', value: unknown): void
+  /** Bubbled up from child `DynamicFormItem` instances; carries the updated computed field metadata. */
   (e: 'update:computedField', field: InternalFieldMetadata<FieldMetadata>): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;

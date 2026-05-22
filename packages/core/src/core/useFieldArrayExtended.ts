@@ -3,7 +3,8 @@ import { useFieldArray } from 'vee-validate';
 import { computed } from 'vue';
 
 /**
- * Extended useFieldArray, with the childrens values included.
+ * Wraps vee-validate's `useFieldArray`, adding a `values` computed shorthand for
+ * `fields.value.map(f => f.value)` so callers don't need to unwrap each keyed field object.
  */
 export function useFieldArrayExtended(arrayPath: MaybeRefOrGetter<string>) {
   const { fields, ...originalFieldArray } = useFieldArray(arrayPath);

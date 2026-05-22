@@ -24,8 +24,11 @@ import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
 
 // #region Interfaces
 export interface Emit {
+  /** Emitted by leaf input fields whenever their value changes; payload is the new field value. */
   (e: 'update:modelValue', value: unknown): void
+  /** Forwarded from vee-validate's `handleBlur`; lets parent array/choice fields trigger validation on blur. */
   (e: 'blur', event?: Event | undefined, shouldValidate?: boolean | undefined): void
+  /** Emitted on mount and whenever the field's computed hash changes, so the parent keeps `childFields` in sync. */
   (e: 'update:computedField', field: InternalFieldMetadata<FieldMetadata>): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;
@@ -525,21 +528,23 @@ function updateArrayValue(_value: unknown) {
           />
         </template>
       </template>
-      <template v-if="showAttributes" #attributes="slotProps">
-        <DynamicFormItem
-          v-for="(attribute, index) in computedField.attributes"
-          :key="attribute.path"
-          :field-metadata="(attribute as InternalMetadata)"
-          :path-override="path"
-          :index
-          :template
-          :slot-props
-          :min-occurs-override="_minOccursOverride"
-          :max-occurs-override="_maxOccursOverride"
+      <template #attributes="slotProps">
+        <template v-if="showAttributes">
+          <DynamicFormItem
+            v-for="(attribute, index) in computedField.attributes"
+            :key="attribute.path"
+            :field-metadata="(attribute as InternalMetadata)"
+            :path-override="path"
+            :index
+            :template
+            :slot-props
+            :min-occurs-override="_minOccursOverride"
+            :max-occurs-override="_maxOccursOverride"
 
-          @update:model-value="notifyValueUpdate"
-          @update:computed-field="onChildComputedFieldUpdate"
-        />
+            @update:model-value="notifyValueUpdate"
+            @update:computed-field="onChildComputedFieldUpdate"
+          />
+        </template>
       </template>
     </component>
   </template>

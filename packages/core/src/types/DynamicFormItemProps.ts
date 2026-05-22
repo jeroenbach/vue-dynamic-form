@@ -9,11 +9,8 @@ export interface DynamicFormItemProps<
     object,
     object,
     {
-      input?: ((props: object) => any) | undefined
-      children?: ((props: object) => any) | undefined
+      default?: ((props: object) => any) | undefined
       attributes?: ((props: object) => any) | undefined
-      choice?: ((props: object) => any) | undefined
-      array?: ((props: object) => any) | undefined
     }
   >
   fieldMetadata: InternalMetadata

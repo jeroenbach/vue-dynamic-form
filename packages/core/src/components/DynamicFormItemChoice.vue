@@ -20,7 +20,9 @@ import { overridePath } from '@/utils/overridePath';
 
 // #region Interfaces
 export interface Emit {
+  /** Emitted whenever any child option's value changes; payload is the array of all child values in choice-option order. */
   (e: 'update:modelValue', value: unknown): void
+  /** Bubbled up from child `DynamicFormItem` instances; carries the updated computed field metadata. */
   (e: 'update:computedField', field: InternalFieldMetadata<FieldMetadata>): void
 }
 type Props = DynamicFormItemProps<InternalMetadata>;

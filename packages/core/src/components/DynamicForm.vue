@@ -11,8 +11,11 @@ import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 
 // #region Interfaces
 export interface DynamicFormProps<Metadata extends FieldMetadata> {
+  /** One or more field descriptors. Pass an array for multiple top-level fields. */
   metadata: Metadata | Metadata[]
+  /** A `DynamicFormTemplate`-based component that exposes the named slots used for rendering. */
   template: DefineComponent<object, object, any>
+  /** Overrides for the library defaults; partial — missing keys fall back to built-in defaults. */
   settings?: DynamicFormSettings
 }
 // #endregion
