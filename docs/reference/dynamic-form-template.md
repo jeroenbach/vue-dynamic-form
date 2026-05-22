@@ -10,29 +10,31 @@
 
 ## Slots Overview
 
-### Named Per Field Type
-
-For every type name `T` you declared in `defineMetadata()`, two slots are available:
+For every type name `T` you declared in `defineMetadata()`, five slots are available — each with a specific rendering role:
 
 | Slot | Role |
 |------|------|
-| `#T` | Outer wrapper for the field (label, slot, error). If absent, `#default` is used. |
-| `#T-input` | The raw input control inside the wrapper. If absent, `#default-input` is used. |
+| `#T` | Outer wrapper (label, input, error) |
+| `#T-input` | The raw input control inside the wrapper |
+| `#T-array` | Outer container when this field is a repeatable array |
+| `#T-array-item` | Each individual item rendered inside an array |
+| `#T-choice` | Outer container when this field is a choice |
 
-Example: if you declared `text`, `select`, and `checkbox`, you get `#text`, `#text-input`, `#select`, `#select-input`, `#checkbox`, `#checkbox-input` — plus the built-ins below.
+All slots are optional. When a slot is missing, the library walks a two-level fallback chain until it finds one you've defined:
 
-### Built-in Slots
+```
+#text              ──► #default
+#text-input        ──► #default-input        ──► #default
+#text-array        ──► #default-array        ──► #default
+#text-array-item   ──► #default-array-item   ──► #default
+#text-choice       ──► #default-choice       ──► #default
+```
 
-| Slot | When rendered |
-|------|---------------|
-| `#default` | Any field whose `type` has no named slot |
-| `#default-input` | The input part of any field whose `type` has no `{type}-input` slot |
-| `#array` | Outer container for every array field (`maxOccurs > 1`) |
-| `#choice` | Outer container for every choice field (field has `choice` property) |
+This means you can define just `#default` and `#default-input` to handle every field type, then progressively opt into more specific slots as needed.
 
 ## Slot Props — Regular Slots
 
-`#default`, `#default-input`, and all named `#T` / `#T-input` slots receive:
+`#default`, `#default-input`, `#default-array-item`, and all named `#T`, `#T-input`, `#T-array-item` slots receive:
 
 ### `fieldMetadata`
 
@@ -54,15 +56,15 @@ Type: `FieldContext<T>` — the vee-validate field context extended with `hasVal
 | Property | Type | Description |
 |----------|------|-------------|
 | `value` | `Ref<T>` | Current value of the field. Read it to display; write it to set. |
-| `handleChange` | `(e: Event \| unknown) => void` | Call on `@input` or `@change` to update the value |
-| `handleBlur` | `(e?: Event) => void` | Call on `@blur` |
+| `handleChange` | `(e: Event \| unknown, shouldValidate?: boolean) => void` | Call on `@input` or `@change` to update the value |
+| `handleBlur` | `(e?: Event, shouldValidate?: boolean) => void` | Call on `@blur` |
 | `errors` | `Ref<string[]>` | All active validation errors |
 | `errorMessage` | `Ref<string \| undefined>` | First active error, or `undefined` |
-| `label` | `string \| undefined` | The resolved label string (from `fieldOptions.label`) |
+| `label` | `MaybeRefOrGetter<string \| undefined>` | The label (from `fieldOptions.label`). Unwrap with `toValue(label)` if needed. |
 | `hasValue` | `ComputedRef<boolean>` | `true` when this field or any of its descendants has a value |
-| `validate()` | `() => Promise<...>` | Programmatically trigger validation |
-| `resetField()` | `(opts?) => void` | Reset value and validation state |
-| `setErrors()` | `(errors: string[]) => void` | Set errors programmatically |
+| `validate()` | `(opts?) => Promise<ValidationResult>` | Programmatically trigger validation |
+| `resetField()` | `(state?) => void` | Reset value and validation state |
+| `setErrors()` | `(errors: string \| string[]) => void` | Set errors programmatically |
 
 ::: tip
 `hasValue` is lazily evaluated. It only computes when accessed, so safe to use on deep field trees.
@@ -88,7 +90,10 @@ Type: `boolean`
 
 Type: `number`
 
-The zero-based position of this occurrence when the field is part of an array. `0` for non-array fields.
+The zero-based position of this field within its parent collection:
+
+- **Array field** — the occurrence index within the repeatable array
+- **Non-array field** — the position of this field within its parent's `children`, `choice`, or `attributes`
 
 ### `canAddItems`
 
@@ -116,30 +121,35 @@ Removes the current occurrence from the array. Only meaningful when `canRemoveIt
 
 ### `slotProps`
 
-Type: `object | undefined`
+Type: `SlotProperties | undefined`
 
-Extra data passed down from the parent slot via `<slot :my-prop="value" />`. Access it as `slotProps?.myProp`. See [Passing Data to Child Slots](#passing-data-to-child-slots) below.
+Extra data passed down from the parent slot via `<slot :my-prop="value" />`. Access it as `slotProps?.myProp`. The type is `SlotProperties` when declared as the third generic of `defineMetadata()`, otherwise `object | undefined`. See [Passing Data to Child Slots](#passing-data-to-child-slots) below.
 
-## Slot Props — `#array` and `#choice` Slots
+## Slot Props — Array and Choice Container Slots
 
-These slots receive the same props as regular slots **except** that `fieldContext` is reduced to:
+`#default-array`, `#default-choice`, and all named `#T-array`, `#T-choice` slots receive the same props as regular slots **except** that `fieldContext` is reduced to:
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `value` | `ComputedRef<T[]>` | The current array/choice values (all occurrences) |
 | `errors` | `Ref<string[]>` | Active validation errors on the container |
 | `errorMessage` | `Ref<string \| undefined>` | First active error |
-| `label` | `string \| undefined` | Resolved label |
+| `label` | `MaybeRefOrGetter<string \| undefined>` | Resolved label (from `fieldOptions.label`) |
 
 All other props (`required`, `disabled`, `canAddItems`, `canRemoveItems`, `addItem`, `removeItem`, `slotProps`) are the same.
+
+::: tip
+`#T-array-item` and `#default-array-item` are **not** container slots — they render each individual occurrence inside an array, so they receive the full `fieldContext` including `value`, `handleChange`, `errors`, etc.
+:::
 
 ## The `<slot />` Inside Your Slot Templates
 
 Inside `#default` (or any named wrapper slot), rendering `<slot />` tells the library to insert the field's content:
 
 - For a **leaf field**: inserts the `#{type}-input` (or `#default-input`) slot.
-- For a **parent/group field**: inserts all child `DynamicFormItem` components.
-- For an **array outer slot** (`#array`): inserts all current array occurrences.
-- For a **choice outer slot** (`#choice`): inserts all choice branches.
+- For a **parent/group field**: inserts all child components.
+- For an **array outer slot** (`#T-array` / `#default-array`): inserts all current array occurrences, each rendered through `#T-array-item` (or `#default-array-item`).
+- For a **choice outer slot** (`#T-choice` / `#default-choice`): inserts all choice branches.
 
 ## Passing Data to Child Slots
 
@@ -191,8 +201,8 @@ const metadata = defineMetadata<
       <slot />
     </template>
 
-    <!-- Array outer container -->
-    <template #array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
+    <!-- Array outer container (fallback for all array types) -->
+    <template #default-array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
       <section>
         <h3>{{ label }}<span v-if="required"> *</span></h3>
         <slot />
@@ -201,8 +211,8 @@ const metadata = defineMetadata<
       </section>
     </template>
 
-    <!-- Choice outer container -->
-    <template #choice="{ fieldContext: { label, errorMessage }, required }">
+    <!-- Choice outer container (fallback for all choice types) -->
+    <template #default-choice="{ fieldContext: { label, errorMessage }, required }">
       <fieldset>
         <legend>{{ label }}<span v-if="required"> *</span></legend>
         <slot />

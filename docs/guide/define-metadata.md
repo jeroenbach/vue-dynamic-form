@@ -41,6 +41,35 @@ const metadata = defineMetadata<
 
 These properties become part of `FieldMetadata` and show up in your template's slot props as `fieldMetadata.description`, `fieldMetadata.options`, and so on.
 
+## Passing Data Between Template Slots (Slot Properties)
+
+The third generic parameter declares properties you can forward from an outer slot down to inner slots by adding attributes on the `<slot />` element. This is useful for communicating context between nested template levels — for example, a nesting depth counter or a flag that indicates the field is inside a choice branch.
+
+```ts
+const metadata = defineMetadata<
+  { text: string; heading: never },
+  { description?: string },
+  {
+    level?: number          // nesting depth, incremented at each heading
+    belowChoiceField?: boolean
+  }
+>();
+```
+
+In your template, bind the properties on `<slot />` and read them from `slotProps` in the child:
+
+```vue
+<template #heading="{ slotProps }">
+  <div>
+    <slot :level="(slotProps?.level ?? 0) + 1" />
+  </div>
+</template>
+
+<template #default="{ slotProps }">
+  <!-- slotProps.level is now available here -->
+</template>
+```
+
 ## How This Unlocks Intellisense
 
 Pass the result to `DynamicFormTemplate` via `:metadata-configuration` and TypeScript takes over:
@@ -91,14 +120,15 @@ const fields: Metadata[] = [
 
 ## Reserved Type Names
 
-These names cannot be used as keys in your field type map because they are used internally:
+Avoid using these names as field type keys because they clash with the built-in fallback slot names that `DynamicFormTemplate` resolves to:
 
 | Name | Internal use |
 |------|-------------|
-| `input` | Input slot identifier |
-| `children` | Group/parent fields |
-| `choice` | Choice/branch fields |
-| `array` | Repeatable fields |
+| `default` | Fallback slot for any field type |
+| `default-input` | Fallback slot for input variants |
+| `default-array` | Fallback slot for the outer array container |
+| `default-array-item` | Fallback slot for each array occurrence |
+| `default-choice` | Fallback slot for the outer choice container |
 
 ---
 

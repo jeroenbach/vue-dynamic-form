@@ -4,6 +4,7 @@ import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 
 export { resolveMessage } from '@/utils/resolveMessage';
 
+/** XSD-derived rule names registered globally via vee-validate's `defineRule`. */
 export type ValidationRule = 'xsd_required'
   | 'xsd_minOccurs'
   | 'xsd_choiceMinOccurs'

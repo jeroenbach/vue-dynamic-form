@@ -20,7 +20,7 @@ The key for this field in the form values object. Combined with parent names it 
 // → values.contact.email
 ```
 
-If `name` is omitted the field renders but produces no key in the form output.
+If `name` is omitted, the field gets an auto-generated key of `field-${index}` (based on its position in the parent collection) in the form output.
 
 ### `type`
 
@@ -36,10 +36,22 @@ Determines which slot in your `DynamicFormTemplate` handles this field. If no na
 
 Type: `string`
 
-Override the automatically derived path. Use when the form value structure doesn't match the template structure, for example when integrating with a fixed API shape.
+Override the automatically derived path. Useful when the form value structure doesn't match how the fields are visually grouped — for example, when fields are rendered inside a parent group but need their values stored at the root, or vice versa.
 
 ```ts
-{ name: 'phone', path: 'contact.primaryPhone' }
+// Fields are grouped visually under 'address' but the API shape is flat
+{
+  name: 'address',
+  children: [
+    { name: 'street', type: 'text', path: 'street' },  // → values.street
+    { name: 'city',   type: 'text', path: 'city' },    // → values.city
+    // without path: would be values.address.street, values.address.city
+  ],
+}
+
+// Field rendered at root level but value stored nested to match API shape
+{ name: 'id', type: 'text', path: 'user.id' }
+// → values.user.id  (not values.id)
 ```
 
 ## Occurrence and Requirement
@@ -62,7 +74,7 @@ Minimum number of times this field must be filled in.
 { name: 'contacts', minOccurs: 2, maxOccurs: 5 }  // at least 2 required
 ```
 
-For group fields, setting `minOccurs: 0` also suspends child validation until at least one child has a value.
+For group fields (fields with `children`), setting `minOccurs: 0` makes the entire group optional: as long as none of the children have a value, all children are treated as optional regardless of their own `minOccurs`. Once any child receives a value, each child reverts to its own `minOccurs`. This lets users leave an entire section blank, but enforces required fields the moment they start filling it in.
 
 ### `maxOccurs`
 
@@ -80,6 +92,21 @@ Maximum number of times this field can be filled in.
 { name: 'phoneNumbers', maxOccurs: 3 }   // up to 3 entries
 { name: 'readOnly',     maxOccurs: 0 }   // disabled
 ```
+
+### `autoAddMinOccurs`
+
+Type: `boolean` | Default: `true`
+
+When `true` (default), array fields automatically add empty placeholder items on first render until the count reaches `minOccurs`. Set to `false` to start with an empty array and let the user add items manually.
+
+```ts
+{ name: 'contacts', minOccurs: 2, maxOccurs: 5, autoAddMinOccurs: false }
+// Array starts empty — user must click "Add" to begin
+```
+
+::: tip
+Setting `autoAddMinOccurs: false` also enables the remove button down to 0 items, since the automatic floor no longer applies.
+:::
 
 ## Validation
 
@@ -232,33 +259,36 @@ The sub-property name can be changed via `DynamicFormSettings.complexTypeValuePr
 
 ### `computedProps`
 
-Type: `((field: ComputedPropsFieldType<FieldMetadata>, value: Ref<unknown>, childFields: Ref<FieldMetadata[]>) => void)[]`
+Type: `((field: ComputedPropsFieldType<FieldMetadata>, value: Ref<unknown>, childFields: Ref<Readonly<FieldMetadata>[]>) => void)[]`
 
 An array of functions that run inside a Vue `computed()` in the field's component. Use them to change field properties in response to other reactive values.
 
 ```ts
-{
-  name: 'city',
-  type: 'select',
-  computedProps: [
-    (field, value, childFields) => {
-      // field       — writable clone of this field's metadata
-      // value       — Ref to this field's current form value
-      // childFields — Ref<FieldMetadata[]> of direct children's latest computed fields
-      const country = useFieldValue('country');
-      field.options = country.value === 'nl'
-        ? [{ key: 'ams', value: 'Amsterdam' }]
-        : [{ key: 'ber', value: 'Berlin' }];
-    }
-  ]
-}
+const country = useFieldValue('country');
+
+const fields = [
+  {
+    name: 'city',
+    type: 'select',
+    computedProps: [
+      (field, value, childFields) => {
+        // field       — writable clone of this field's metadata
+        // value       — Ref to this field's current form value
+        // childFields — Ref<Readonly<FieldMetadata>[]> of direct children's latest computed fields
+        field.options = country.value === 'nl'
+          ? [{ key: 'ams', value: 'Amsterdam' }]
+          : [{ key: 'ber', value: 'Berlin' }];
+      }
+    ],
+  },
+]
 ```
 
 - **`field`** — writable clone of this field's metadata. Write here to change properties reactively.
 - **`value`** — `Ref` to this field's current form value. Read it to subscribe to this field's own value changes.
-- **`childFields`** — `Ref<FieldMetadata[]>` containing the latest computed field of each direct child. Read it to subscribe to changes in children's computed state (e.g. a child becoming `hidden` or `disabled`). For array fields the entries are the computed fields of each rendered occurrence.
+- **`childFields`** — `Ref<Readonly<FieldMetadata>[]>` containing the latest computed field of each direct child. The entries are read-only — they reflect the already-computed state after all `computedProps` have run, so mutations here have no effect. Read it to subscribe to changes in children's computed state (e.g. a child becoming `hidden` or `disabled`). For array fields the entries are the computed fields of each rendered occurrence.
 
-**Read-only in `computedProps`:** `name`, `path`, `parent`, `children`, `choice`, `attributes`, `fieldOptions`, `maxOccurs`, `computedProps`.
+**Read-only in `computedProps`:** `name`, `path`, `parent`, `children`, `choice`, `attributes`, `fieldOptions`, `maxOccurs`, `computedProps`, `isComplexType`, `computeOnChildValueChange`.
 
 See the [Dynamic Fields guide](/guide/dynamic-fields) for full examples.
 
@@ -336,6 +366,8 @@ Access in your template:
 ```ts
 import type { Metadata } from './MyFormTemplate.vue';
 
+const country = useFieldValue('personalDetails.country');
+
 const fields: Metadata[] = [
   {
     name: 'personalDetails',
@@ -369,7 +401,6 @@ const fields: Metadata[] = [
         fieldOptions: { label: 'City' },
         computedProps: [
           (field) => {
-            const country = useFieldValue('personalDetails.country');
             field.options = country.value === 'nl'
               ? [{ key: 'ams', value: 'Amsterdam' }, { key: 'rtd', value: 'Rotterdam' }]
               : [{ key: 'ber', value: 'Berlin' }];

@@ -70,6 +70,13 @@ const fields: Metadata[] = [
 
 You can use all standard vee-validate utilities (`setValues`, `resetForm`, `setErrors`, etc.) alongside `useDynamicForm()`.
 
+`useDynamicForm()` also returns two extras beyond the standard vee-validate API:
+
+| Extra | Description |
+|-------|-------------|
+| `useFieldValue(path)` | Typed wrapper around vee-validate's `useFieldValue` — returns a `Ref` for the given field path |
+| `validateSection(path)` | Validates only the fields whose path starts with the given prefix; useful for multi-step wizards |
+
 ## Basic Field Properties
 
 ### `name`
@@ -173,7 +180,7 @@ const settings: DynamicFormSettings = {
   // Validate when the user leaves a field (default: false)
   validateOnBlur: false,
 
-  // Keep validating live once a field has an error (default: false)
+  // Keep validating live once a field has an error (default: true)
   validateWhenInError: true,
 
   // Override the built-in error messages

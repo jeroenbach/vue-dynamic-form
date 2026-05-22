@@ -8,6 +8,7 @@ Creates a typed metadata configuration that connects field type names to TypeScr
 function defineMetadata<
   FieldValueTypes extends Record<string, any>,
   ExtendedFieldProperties extends object = object,
+  SlotProperties extends object = object,
 >(): MetadataConfiguration
 ```
 
@@ -15,18 +16,22 @@ function defineMetadata<
 
 ### `FieldValueTypes`
 
-A type map where each key is a field type name and each value is the type that field produces in the form values object.
+A type map where each key is a field type name and each value is the type of `fieldContext.value` inside that type's slot.
+
+Each key generates a pair of slots: `#text` (wrapper) and `#text-input` (raw input), with `fieldContext.value` typed as the corresponding value. Use `never` for display-only types (headings, separators, info panels) — they get no `-input` slot and `fieldContext.value` is typed as `never`.
 
 ```ts
 defineMetadata<{
-  text: string        // produces a string
-  number: number      // produces a number
-  checkbox: boolean   // produces a boolean
-  heading: never      // display-only, produces no value
+  text: string        // fieldContext.value is Ref<string> in #text and #text-input
+  number: number      // fieldContext.value is Ref<number> in #number and #number-input
+  checkbox: boolean   // fieldContext.value is Ref<boolean> in #checkbox and #checkbox-input
+  heading: never      // display-only — no -input slot, no value
 }>()
 ```
 
-Use `never` for field types that hold no form value (headings, separators, info panels).
+::: tip
+`FieldValueTypes` does not define the shape of the submitted form values. That type comes from the generic on `useDynamicForm<TValues>()`. `FieldValueTypes` only controls what TypeScript infers for `fieldContext.value` inside each template slot.
+:::
 
 ### `ExtendedFieldProperties`
 
@@ -45,6 +50,19 @@ defineMetadata<
 >()
 ```
 
+### `SlotProperties`
+
+Optional. Extra data that can be passed down from a parent slot to child slots via the `<slot />` element. When declared, `slotProps` in every slot is typed as `SlotProperties | undefined` instead of `object | undefined`.
+
+```ts
+defineMetadata<
+  { text: string },
+  {},
+  { hideLabel?: boolean; depth?: number }
+>()
+// slotProps is now typed as { hideLabel?: boolean; depth?: number } | undefined
+```
+
 ## Return Value
 
 The returned object is a `MetadataConfiguration`. It carries no runtime data — its sole purpose is to give TypeScript the type information needed for:
@@ -55,29 +73,21 @@ The returned object is a `MetadataConfiguration`. It carries no runtime data —
 
 Pass it to `DynamicFormTemplate` via `:metadata-configuration`.
 
-## Built-in Types
+## Built-in Type
 
-These slot names are always available regardless of what you declare in `FieldValueTypes`:
+`default` is always included as a field type — you never need to declare it in `FieldValueTypes`. Like every declared type, it generates five slots that act as the final fallback for any field whose `type` has no matching named slot:
 
-| Name | Slot role |
-|------|-----------|
-| `default` | Fallback wrapper for any field without a named slot |
-| `default-input` | Fallback input control for any field without a named `{type}-input` slot |
-| `array` | Outer container for repeatable fields (`maxOccurs > 1`) |
-| `choice` | Outer container for choice fields (field has `choice` property) |
+| Slot | Fallback for |
+|------|-------------|
+| `#default` | Any `#T` slot that is not defined |
+| `#default-input` | Any `#T-input` slot that is not defined |
+| `#default-array` | Any `#T-array` slot that is not defined |
+| `#default-array-item` | Any `#T-array-item` slot that is not defined |
+| `#default-choice` | Any `#T-choice` slot that is not defined |
 
-You do not need to declare `default`, `array`, or `choice` in `FieldValueTypes`.
-
-## Reserved Names
-
-These keys cannot appear in `FieldValueTypes`:
-
-| Reserved | Reason |
-|----------|--------|
-| `input` | Internal slot identifier |
-| `children` | Used for group/parent fields |
-| `choice` | Used for choice/branch fields |
-| `array` | Used for repeatable fields |
+::: tip Naming advice
+Avoid names ending in `-input`, `-array`, `-array-item`, or `-choice` — they are valid but will generate ambiguous slot names. For example, declaring `my-array` as a type produces `#my-array` (wrapper) and `#my-array-array` (array container), which is hard to distinguish from the generated slots.
+:::
 
 ## GetMetadataType
 
@@ -117,6 +127,9 @@ export const metadata = defineMetadata<
     options?: { key: string; value: string }[]
     disabled?: boolean
     fullWidth?: boolean
+  },
+  {
+    hideLabel?: boolean
   }
 >();
 

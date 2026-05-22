@@ -17,9 +17,26 @@ function getFormContext(): FormCtx | undefined {
   return inject(FormContextKey);
 }
 
+/**
+ * Provides `validateSection` for partial form validation (e.g. wizard steps).
+ *
+ * Must be called in the same component as `useDynamicForm()` or in a descendant.
+ * When called in the same component, it reads the form context from the current instance's
+ * own provides rather than via `inject`, because `inject` looks at the *parent's* provides
+ * and would miss a `useForm()` call made on the current instance.
+ */
 export function useValidatePartialForm() {
   const form = getFormContext()!;
 
+  /**
+   * Validates all vee-validate fields whose path equals or starts with `sectionPath`.
+   * Matches `sectionPath` itself, `sectionPath.child`, and `sectionPath[0]` — but not
+   * unrelated paths that happen to share a prefix string.
+   *
+   * @param sectionPath - Dot-notated path prefix (e.g. `'address'` or `'steps[0]'`)
+   * @returns A `FormValidationResult` shaped identically to vee-validate's `validate()` return value,
+   *   scoped to the matched fields only.
+   */
   async function validateSection(sectionPath: string): Promise<FormValidationResult<GenericObject>> {
     const fieldPaths = form.getAllPathStates()
       .map(state => state.path)
