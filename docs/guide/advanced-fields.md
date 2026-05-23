@@ -101,7 +101,7 @@ Simple fields (no children) can be arrays too:
 The rendering splits into two roles:
 
 1. **`#default-array`** (or `#<type>-array`, e.g. `#text-array`) — rendered once; the outer container. Its `<slot />` yields all current occurrences.
-2. **`#default`** (or `#<type>`, e.g. `#text`) — rendered once per occurrence; the item wrapper.
+2. **`#default-array-item`** (or `#<type>-array-item`, e.g. `#text-array-item`) — rendered once per occurrence; the item wrapper. Falls back to `#default` if neither is defined.
 
 ```vue
 <!-- Outer container -->
@@ -115,9 +115,9 @@ The rendering splits into two roles:
 </template>
 
 <!-- Each occurrence -->
-<template #default="{ fieldMetadata, fieldContext: { label, errorMessage }, required, canRemoveItems, removeItem }">
+<template #default-array-item="{ fieldMetadata, fieldContext: { label, errorMessage }, required, canRemoveItems, removeItem }">
   <div class="array-item">
-    <slot />
+    <slot /> <!-- renders #default-input (or type-specific input slot) -->
     <button type="button" v-if="canRemoveItems" @click="removeItem">✕ Remove</button>
   </div>
 </template>

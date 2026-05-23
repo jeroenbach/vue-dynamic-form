@@ -16,7 +16,9 @@ const metadata = defineMetadata<
 >();
 ```
 
-The first generic parameter maps field type names to their value types. Use `never` for fields that render something but hold no form value (headings, separators, info panels).
+The first generic parameter maps field type names to their value types — specifically what `fieldContext.value` holds inside that field's template slot. Use `never` for fields that render something but hold no form value (headings, separators, info panels).
+
+The overall form values type is a separate concern: it comes from the `T` you pass to `useDynamicForm<T>()` (or vee-validate's `useForm<T>()`), not from here.
 
 ## Adding Extended Properties
 
@@ -80,10 +82,10 @@ Pass the result to `DynamicFormTemplate` via `:metadata-configuration` and TypeS
 
 ## Sharing the Type
 
-Export the configuration and a derived `Metadata` type from your template component:
+Export the configuration and a derived `Metadata` type from the dedicated `.ts` file:
 
 ```ts
-// MyFormTemplate.vue
+// MyFormTemplate.ts
 import { defineMetadata } from '@bach.software/vue-dynamic-form';
 import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
 
@@ -99,7 +101,7 @@ Then import `Metadata` wherever you write form fields:
 
 ```ts
 // MyPage.vue
-import type { Metadata } from './MyFormTemplate.vue';
+import type { Metadata } from './MyFormTemplate';
 
 const fields: Metadata[] = [
   {
@@ -116,7 +118,7 @@ const fields: Metadata[] = [
 
 ## The `default` Type
 
-`default` is always available and doesn't need to be declared. It is the fallback for any field whose `type` has no dedicated slot. You can still declare `default` in your type map if you want a specific value type for it; the library adds it automatically with a `string` value type if you don't.
+Any field type that has no dedicated slot in your template falls back to the `#default` slot automatically. This means you don't need a slot for every type — unknown types are caught by `#default` and rendered there. Because `default` is used internally as this fallback, it is reserved and should not be declared in your type map.
 
 ## Reserved Type Names
 

@@ -2,27 +2,58 @@
 
 The library extends `vee-validate` with metadata-driven rules and message resolution.
 
+## Using `restriction`
+
+The `restriction` property on a field definition is the primary way to add validation. The library translates each key into a registered vee-validate rule automatically:
+
+```ts
+{
+  name: 'username',
+  type: 'text',
+  fieldOptions: { label: 'Username' },
+  restriction: {
+    minLength: 3,
+    maxLength: 20,
+    pattern: '^[a-zA-Z0-9_]+$',
+  },
+}
+```
+
+| Restriction | What it validates |
+|-------------|-------------------|
+| `minLength` / `maxLength` | String length |
+| `length` | Exact string length |
+| `pattern` | Regex pattern |
+| `minInclusive` / `maxInclusive` | Numeric range (inclusive) |
+| `minExclusive` / `maxExclusive` | Numeric range (exclusive) |
+| `enumeration` | Value must be one of the listed options |
+| `fractionDigits` | Maximum number of decimal places |
+| `totalDigits` | Maximum total significant digits |
+| `whiteSpace` | `'preserve'`, `'replace'` (no tabs/newlines), or `'collapse'` (no leading/trailing/multiple spaces) |
+
 ## Built-in Rules
 
-The core package registers XSD-inspired rules such as:
+Each `restriction` key maps to an XSD-inspired vee-validate rule registered by the library:
 
-- `xsd_required`
-- `xsd_minOccurs`
-- `xsd_choiceMinOccurs`
-- `xsd_minLength`
-- `xsd_maxLength`
-- `xsd_length`
-- `xsd_pattern`
-- `xsd_minInclusive`
-- `xsd_maxInclusive`
-- `xsd_minExclusive`
-- `xsd_maxExclusive`
-- `xsd_enumeration`
-- `xsd_whiteSpace`
-- `xsd_fractionDigits`
-- `xsd_totalDigits`
+| Restriction | Rule |
+|-------------|------|
+| *(required field)* | `xsd_required` |
+| *(array minOccurs)* | `xsd_minOccurs` |
+| *(choice minOccurs)* | `xsd_choiceMinOccurs` |
+| `minLength` | `xsd_minLength` |
+| `maxLength` | `xsd_maxLength` |
+| `length` | `xsd_length` |
+| `pattern` | `xsd_pattern` |
+| `minInclusive` | `xsd_minInclusive` |
+| `maxInclusive` | `xsd_maxInclusive` |
+| `minExclusive` | `xsd_minExclusive` |
+| `maxExclusive` | `xsd_maxExclusive` |
+| `enumeration` | `xsd_enumeration` |
+| `whiteSpace` | `xsd_whiteSpace` |
+| `fractionDigits` | `xsd_fractionDigits` |
+| `totalDigits` | `xsd_totalDigits` |
 
-These rules are attached automatically based on metadata.
+These rules are attached automatically — you never reference them by name unless writing custom `validation` expressions.
 
 ## Message Sources
 

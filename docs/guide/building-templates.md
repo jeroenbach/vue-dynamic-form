@@ -50,17 +50,17 @@ The `<slot />` inside `#default` is where the library injects the input (for lea
 
 ## How Slot Resolution Works
 
-When the library renders a field with `type: 'select'`, it looks for slots in this order:
+The library appends a suffix to the field type to determine which slot to call, then walks a fallback chain until it finds one you've defined:
 
-**For the outer wrapper:**
-1. Slot named `select` — if found, uses it
-2. Falls back to `default`
+| Situation | Slot tried first | Fallback |
+|-----------|-----------------|----------|
+| Outer wrapper | `{type}` (e.g. `select`) | `default` |
+| Input control | `{type}-input` (e.g. `select-input`) | `default-input` → `default` |
+| Array container | `{type}-array` (e.g. `text-array`) | `default-array` → `default` |
+| Array item | `{type}-array-item` (e.g. `text-array-item`) | `default-array-item` → `default` |
+| Choice container | `{type}-choice` (e.g. `select-choice`) | `default-choice` → `default` |
 
-**For the input inside the wrapper:**
-1. Slot named `select-input` — if found, uses it
-2. Falls back to `default-input`
-
-You only define slots for field types that need special handling. Everything else falls through automatically.
+You only need to define slots for the cases that need special handling. Everything else falls through automatically.
 
 ## Adding a Specific Input Control
 
@@ -103,40 +103,40 @@ A `heading` field might render a section title rather than a label + input. Give
 
 The `<slot />` at the bottom renders the children of this heading group.
 
-## The `#array` and `#choice` Slots
+## Array and Choice Container Slots
 
-These two slots handle structural containers. They receive a limited `fieldContext` (only `errors`, `errorMessage`, and `label`).
+Array and choice containers have their own fallback slots. Both receive a limited `fieldContext` (only `errors`, `errorMessage`, and `label`).
 
-**Array outer container** — renders once, contains all occurrences:
+**`#default-array`** — fallback outer container for any repeating field, renders once and wraps all occurrences:
 
 ```vue
-<template #array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
-  <div class="array-field">
-    <h3>{{ label }}<span v-if="required"> *</span></h3>
-    <slot />
-    <button type="button" v-if="canAddItems" @click="addItem">+ Add</button>
-    <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
-  </div>
+<template #default-array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
+  <h3>{{ label }}<span v-if="required"> *</span></h3>
+  <slot />
+  <button type="button" v-if="canAddItems" @click="addItem">+ Add</button>
+  <span v-if="errorMessage.value">{{ errorMessage.value }}</span>
 </template>
 ```
 
-**Choice outer container** — renders once, contains all branches:
+Use a type-specific slot (e.g. `#text-array`) to override just that type's container without affecting others.
+
+**`#default-choice`** — fallback outer container for any choice field, renders once and wraps all branches:
 
 ```vue
-<template #choice="{ fieldContext: { label, errorMessage }, required, disabled }">
-  <div class="choice-field" :class="{ 'is-disabled': disabled }">
-    <h3>{{ label }}<span v-if="required"> *</span></h3>
-    <slot />
-    <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
-  </div>
+<template #default-choice="{ fieldContext: { label, errorMessage }, required }">
+  <h3>{{ label }}<span v-if="required"> *</span></h3>
+  <slot />
+  <span v-if="errorMessage.value">{{ errorMessage.value }}</span>
 </template>
 ```
 
-Each branch inside a choice goes through `#default` (or its own named slot) with the `disabled` prop reflecting whether that branch is locked by a sibling choice.
+Each branch inside a choice goes through the normal slot resolution (`{type}` → `default`) with the `disabled` prop reflecting whether that branch is locked by a sibling choice.
+
+**`#default-array-item`** — fallback for each individual occurrence inside an array. Receives the full slot props including `index`, `canRemoveItems`, and `removeItem`.
 
 ## Full Slot Props Reference
 
-All named slots (except `#array` and `#choice`) receive:
+All named slots receive:
 
 | Prop | Type | Description |
 |------|------|-------------|
@@ -144,13 +144,13 @@ All named slots (except `#array` and `#choice`) receive:
 | `fieldContext` | `FieldContext` | vee-validate context: `value`, `handleChange`, `handleBlur`, `errors`, `errorMessage`, `hasValue` |
 | `required` | `boolean` | `true` when `minOccurs >= 1` and field is not disabled |
 | `disabled` | `boolean` | `true` when `maxOccurs === 0` |
-| `index` | `number` | Position in an array (0-based) |
+| `index` | `number` | Position within the parent (array, children, choice, or attributes), 0-based |
 | `canAddItems` | `boolean` | `true` when the array can accept more occurrences |
 | `canRemoveItems` | `boolean` | `true` when the current occurrence can be removed |
 | `addItem()` | `() => void` | Appends a new array occurrence |
 | `removeItem()` | `() => void` | Removes the current array occurrence |
 
-The `#array` and `#choice` slots receive all the same props except that `fieldContext` only exposes `errors`, `errorMessage`, and `label`.
+The array and choice container slots (`#default-array`, `#default-choice`, and their type-specific variants) receive all the same props except that `fieldContext` only exposes `errors`, `errorMessage`, and `label`.
 
 ## Passing Data to Child Slots
 

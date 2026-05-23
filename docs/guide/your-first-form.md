@@ -1,55 +1,15 @@
 # Step 3: Wire Up a Form
 
-With a metadata definition and a template, you can now assemble a working form. This step shows the standard pattern: a reusable form wrapper component plus the page that drives it.
-
-## A Reusable Form Component
-
-Create a component that owns the `<form>` element, error styling, and passes everything to `DynamicForm`:
-
-```vue
-<!-- MyForm.vue -->
-<script setup lang="ts">
-import type { DynamicFormSettings, FieldMetadata } from '@bach.software/vue-dynamic-form';
-import { DynamicForm } from '@bach.software/vue-dynamic-form';
-import MyFormTemplate from './MyFormTemplate.vue';
-
-defineProps<{
-  metadata: FieldMetadata[]
-  settings?: DynamicFormSettings
-}>();
-</script>
-
-<template>
-  <form>
-    <DynamicForm
-      :template="MyFormTemplate"
-      :metadata="metadata"
-      :settings="settings"
-    />
-  </form>
-</template>
-```
-
-`DynamicForm` takes three props:
-
-| Prop | Description |
-|------|-------------|
-| `template` | Your `DynamicFormTemplate` SFC |
-| `metadata` | The array of field definitions |
-| `settings` | Optional configuration for validation behavior and messages |
-
-## Handling Submission
-
-`useDynamicForm()` is a thin wrapper around vee-validate's `useForm()`. Use it in the component that submits the form:
+With a metadata definition and a template, you can now assemble a working form.
 
 ```vue
 <!-- MyPage.vue -->
 <script setup lang="ts">
-import { useDynamicForm } from '@bach.software/vue-dynamic-form';
-import type { Metadata } from './MyFormTemplate.vue';
-import MyForm from './MyForm.vue';
+import type { Metadata } from './MyFormTemplate';
+import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
+import MyFormTemplate from './MyFormTemplate.vue';
 
-const { handleSubmit, values, meta } = useDynamicForm();
+const { handleSubmit, values } = useDynamicForm();
 
 const onSubmit = handleSubmit((formValues) => {
   console.log('Submitted:', formValues);
@@ -62,11 +22,21 @@ const fields: Metadata[] = [
 </script>
 
 <template>
-  <MyForm :metadata="fields" @submit.prevent="onSubmit" />
+  <form @submit.prevent="onSubmit">
+    <DynamicForm :template="MyFormTemplate" :metadata="fields" />
+  </form>
 
   <pre>{{ JSON.stringify(values, null, 2) }}</pre>
 </template>
 ```
+
+`DynamicForm` takes three props:
+
+| Prop | Description |
+|------|-------------|
+| `template` | Your `DynamicFormTemplate` SFC |
+| `metadata` | The array of field definitions |
+| `settings` | Optional configuration for validation behavior and messages |
 
 You can use all standard vee-validate utilities (`setValues`, `resetForm`, `setErrors`, etc.) alongside `useDynamicForm()`.
 
@@ -150,6 +120,65 @@ Controls how many times a field can repeat. The default is `1`. Set to a higher 
 // → values.phoneNumbers[0], values.phoneNumbers[1], ...
 ```
 
+### `restriction`
+
+Adds built-in validation constraints to a field without writing custom rules:
+
+```ts
+{
+  name: 'username',
+  type: 'text',
+  fieldOptions: { label: 'Username' },
+  restriction: {
+    minLength: 3,
+    maxLength: 20,
+    pattern: '^[a-zA-Z0-9_]+$',
+  },
+}
+
+{
+  name: 'age',
+  type: 'text',
+  fieldOptions: { label: 'Age' },
+  restriction: {
+    minInclusive: 18,
+    maxInclusive: 120,
+  },
+}
+
+{
+  name: 'price',
+  type: 'text',
+  fieldOptions: { label: 'Price' },
+  restriction: {
+    minExclusive: 0,
+    fractionDigits: 2,
+    totalDigits: 8,
+  },
+}
+
+{
+  name: 'status',
+  type: 'text',
+  fieldOptions: { label: 'Status' },
+  restriction: {
+    enumeration: ['active', 'inactive', 'pending'],
+  },
+}
+```
+
+| Restriction | What it validates |
+|-------------|-------------------|
+| `minLength` / `maxLength` | String length |
+| `length` | Exact string length |
+| `pattern` | Regex pattern |
+| `minInclusive` / `maxInclusive` | Numeric range (inclusive) |
+| `minExclusive` / `maxExclusive` | Numeric range (exclusive) |
+| `enumeration` | Value must be one of the listed options |
+| `fractionDigits` | Maximum number of decimal places |
+| `totalDigits` | Maximum total significant digits |
+| `whiteSpace` | `'preserve'`, `'replace'` (no tabs/newlines), or `'collapse'` (no leading/trailing/multiple spaces) |
+
 ### `children`
 
 Turns a field into a group that holds nested fields. The group's own `name` becomes the parent path segment:
@@ -194,10 +223,6 @@ const settings: DynamicFormSettings = {
 ```
 
 All `messages` entries accept a string template (with `{field}`, `{length}`, `{min}`, etc.) or a function `(ctx) => string`. See [Validation](/guide/validation) for the full list.
-
-## Live Example
-
-<BasicFormExample name="default" title="Basic Form" description="A minimal form with a label, text input, and validation messages." />
 
 ---
 
