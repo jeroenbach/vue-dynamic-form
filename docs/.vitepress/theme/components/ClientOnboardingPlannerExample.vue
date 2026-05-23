@@ -510,9 +510,10 @@ function reset() {
       :timeline
       @reset="reset"
     />
+
     <pre
       v-if="!submitted"
-      class="mt-4 overflow-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-900 p-4 text-xs leading-relaxed text-slate-100"
+      class="bg-gray-100 dark:bg-slate-800 p-4 rounded-lg text-sm overflow-auto"
     >
 IsDirty: {{ meta.dirty }}
 Touched: {{ meta.touched }}

@@ -7,10 +7,13 @@ const { values, meta } = useDynamicForm();
 
 const metadata: Metadata[] = [
   {
-    fieldOptions: { label: 'Field 1' },
-  },
-  {
-    fieldOptions: { label: 'Field 2' },
+    name: 'person',
+    type: 'heading',
+    fieldOptions: { label: 'Person' },
+    children: [
+      { name: 'firstName', type: 'text', fieldOptions: { label: 'First name' } },
+      { name: 'lastName', type: 'text', fieldOptions: { label: 'Last name' } },
+    ],
   },
 ];
 </script>

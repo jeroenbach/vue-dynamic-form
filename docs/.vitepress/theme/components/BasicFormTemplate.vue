@@ -3,6 +3,7 @@ import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
 import { defineMetadata, DynamicFormTemplate } from '@bach.software/vue-dynamic-form';
 import ErrorMessage from './ErrorMessage.vue';
 import FormField from './FormField.vue';
+import SectionCard from './SectionCard.vue';
 import TextInput from './TextInput.vue';
 
 // #region basic-form-template
@@ -11,6 +12,7 @@ export type Metadata = GetMetadataType<typeof metadata>;
 const metadata = defineMetadata<
   {
     text: string
+    heading: string
   }
 >();
 // #endregion basic-form-template
@@ -18,6 +20,16 @@ const metadata = defineMetadata<
 
 <template>
   <DynamicFormTemplate :metadata-configuration="metadata">
+    <template #heading="{ fieldMetadata, fieldContext: { errorMessage, label } }">
+      <SectionCard
+        :label
+        :error-message="errorMessage.value"
+        :data-testid="fieldMetadata.path"
+      >
+        <slot />
+      </SectionCard>
+    </template>
+
     <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, required }">
       <FormField :input-id="fieldMetadata.path" :label :required>
         <slot />

@@ -21,50 +21,74 @@
 
 Write to `field` to change properties. Read from `value` to subscribe to the field's own value. Read from `childFields` to subscribe to changes in children's computed state. All three trigger the computed to re-run whenever their reactive dependencies change.
 
-Because each function runs inside a Vue `computed()`, vee-validate composables such as `useFieldValue` (from `vee-validate`) can be called directly inside `computedProps` functions — they subscribe to the form context via `inject` and integrate naturally into Vue's reactivity.
+To react to a *different* field's value, call `useFieldValue` in `<script setup>` and close over the resulting `Ref` — do not call it inside the `computedProps` function itself, as `inject()` is not available inside a `computed()` callback.
 
-## Showing and Hiding a Field
+## Disabling or Hiding a Field
 
-Setting `minOccurs` or `maxOccurs` to `0` disables the field. Combine that with a reactive read of another field:
+`maxOccurs` is not writable in `computedProps`, so you cannot disable a field that way dynamically. Instead, declare a `disabled` (or `hidden`) property in your extended metadata and handle it in your template:
 
 ```ts
-import { useFieldValue } from 'vee-validate';
-
-{
-  name: 'vatNumber',
-  type: 'text',
-  fieldOptions: { label: 'VAT number' },
-  computedProps: [
-    (field) => {
-      const accountType = useFieldValue('accountType');
-      // Show only when account type is 'business'
-      field.minOccurs = accountType.value === 'business' ? 1 : 0;
-      field.maxOccurs = accountType.value === 'business' ? 1 : 0;
-    }
-  ]
-}
+// MyFormTemplate.ts
+export const metadata = defineMetadata<
+  { text: string },
+  { disabled?: boolean; hidden?: boolean }
+>();
 ```
 
-Setting `maxOccurs: 0` disables the field and all of its children in one go.
+Then set it reactively in `computedProps`:
+
+```vue
+<script setup lang="ts">
+import { useFieldValue } from 'vee-validate';
+
+const accountType = useFieldValue('accountType');
+
+const fields: Metadata[] = [
+  {
+    name: 'vatNumber',
+    type: 'text',
+    fieldOptions: { label: 'VAT number' },
+    computedProps: [
+      (field) => {
+        if (accountType.value !== 'business') field.disabled = true;
+      }
+    ]
+  }
+]
+</script>
+```
+
+And in your template, use the extended property to conditionally disable or hide the input:
+
+```vue
+<template #text-input="{ fieldMetadata, fieldContext: { value, handleChange } }">
+  <input :disabled="fieldMetadata.disabled" :value="value.value" @change="handleChange" />
+</template>
+```
 
 ## Changing Select Options Dynamically
 
-```ts
+```vue
+<script setup lang="ts">
 import { useFieldValue } from 'vee-validate';
 
-{
-  name: 'city',
-  type: 'select',
-  fieldOptions: { label: 'City' },
-  computedProps: [
-    (field) => {
-      const country = useFieldValue('country');
-      field.options = country.value === 'nl'
-        ? [{ key: 'ams', value: 'Amsterdam' }, { key: 'rtd', value: 'Rotterdam' }]
-        : [{ key: 'ber', value: 'Berlin' }];
-    }
-  ]
-}
+const country = useFieldValue('country');
+
+const fields: Metadata[] = [
+  {
+    name: 'city',
+    type: 'select',
+    fieldOptions: { label: 'City' },
+    computedProps: [
+      (field) => {
+        field.options = country.value === 'nl'
+          ? [{ key: 'ams', value: 'Amsterdam' }, { key: 'rtd', value: 'Rotterdam' }]
+          : [{ key: 'ber', value: 'Berlin' }];
+      }
+    ]
+  }
+]
+</script>
 ```
 
 Because `country.value` is read inside the function, the computed re-runs every time the country field changes.
@@ -91,29 +115,54 @@ Use the `value` parameter to subscribe to this field's own current value:
 
 If you never read `value.value`, changes to this field will not re-trigger the function.
 
+## Updating the Field's Own Value
+
+You can also write to `value.value` to programmatically set the field's value. A common use case is normalising or transforming input — for example, trimming whitespace or uppercasing a code:
+
+```ts
+{
+  name: 'couponCode',
+  type: 'text',
+  fieldOptions: { label: 'Coupon code' },
+  computedProps: [
+    (_field, value) => {
+      if (typeof value.value === 'string')
+        value.value = value.value.toUpperCase();
+    }
+  ]
+}
+```
+
+Make sure the transform is idempotent — writing `value.value` triggers a re-run, so a non-idempotent write will cause an infinite loop. The library detects this and throws after a set number of synchronous re-runs.
+
 ## Reacting to Child Value Changes
 
 By default, `computedProps` does not re-run when a child field changes. Enable tracking of child changes with `computeOnChildValueChange`:
 
-```ts
+```vue
+<script setup lang="ts">
 import { useFieldValue } from 'vee-validate';
 
-{
-  name: 'shippingAddress',
-  computeOnChildValueChange: true,
-  children: [
-    { name: 'country', type: 'select', ... },
-    { name: 'city',    type: 'select', ... },
-  ],
-  computedProps: [
-    (field) => {
-      const address = useFieldValue('shippingAddress');
-      field.description = address.value?.country
-        ? `Delivering to ${address.value.country}`
-        : 'Enter your address above';
-    }
-  ]
-}
+const address = useFieldValue('shippingAddress');
+
+const fields: Metadata[] = [
+  {
+    name: 'shippingAddress',
+    computeOnChildValueChange: true,
+    children: [
+      { name: 'country', type: 'select', ... },
+      { name: 'city',    type: 'select', ... },
+    ],
+    computedProps: [
+      (field) => {
+        field.description = address.value?.country
+          ? `Delivering to ${address.value.country}`
+          : 'Enter your address above';
+      }
+    ]
+  }
+]
+</script>
 ```
 
 ## Reacting to Children's Computed Field State
@@ -122,98 +171,74 @@ The `childFields` parameter gives a parent field a reactive window into its dire
 
 This is distinct from `computeOnChildValueChange`, which reacts to a child's **form value** changing. `childFields` reacts to changes in a child's **computed metadata**, such as a sibling becoming hidden or disabled through its own `computedProps`.
 
-A common use case is hiding a group when every one of its children is already hidden:
+A common use case is hiding a group when every one of its children is hidden. Here the children are hidden based on an external `inEditMode` ref, and the parent collapses itself automatically when all of them are gone:
 
-```ts
-{
-  name: 'addressGroup',
-  type: 'heading',
-  computedProps: [
-    (field, _value, childFields) => {
-      if (childFields.value.length > 0 && childFields.value.every(c => c.hidden))
-        field.hidden = true;
-    }
-  ],
-  children: [
-    {
-      name: 'street',
-      type: 'text',
-      minOccurs: 0,
-      computedProps: [(f, v) => { if (!v.value) f.hidden = true; }],
-    },
-    {
-      name: 'city',
-      type: 'text',
-      minOccurs: 0,
-      computedProps: [(f, v) => { if (!v.value) f.hidden = true; }],
-    },
-  ],
-}
+```vue
+<script setup lang="ts">
+const inEditMode = ref(false);
+
+const fields: Metadata[] = [
+  {
+    name: 'addressGroup',
+    type: 'heading',
+    computedProps: [
+      (field, _value, childFields) => {
+        if (childFields.value.length > 0 && childFields.value.every(c => c.hidden))
+          field.hidden = true;
+      }
+    ],
+    children: [
+      {
+        name: 'street',
+        type: 'text',
+        minOccurs: 0,
+        computedProps: [(f, v) => { if (!inEditMode.value && !v.value) f.hidden = true; }],
+      },
+      {
+        name: 'city',
+        type: 'text',
+        minOccurs: 0,
+        computedProps: [(f, v) => { if (!inEditMode.value && !v.value) f.hidden = true; }],
+      },
+    ],
+  }
+]
+</script>
 ```
 
 The parent re-computes only when a child's mutable properties actually change, keeping reactivity efficient.
 
-### childFields in Array Fields
-
-For array fields, `childFields.value` contains the computed fields of the rendered **occurrences** (`people[0]`, `people[1]`, …), not the child fields inside them. For changes to propagate from a grandchild all the way to the outer array field, each intermediate level must also read `childFields.value` so it re-emits when its own computed state changes.
-
-Use `field.path` to distinguish the outer array field from its occurrences — they share the same `computedProps` definition:
-
-```ts
-{
-  name: 'people',
-  type: 'heading',
-  maxOccurs: 3,
-  computedProps: [
-    // Runs for each occurrence: disable it when any of its children are disabled
-    (f, _v, childFields) => {
-      if (f.path !== 'people' && childFields.value.some(c => c.disabled))
-        f.disabled = true;
-    },
-    // Runs for the outer array field: react to each occurrence's computed state
-    (f, _v, childFields) => {
-      if (f.path === 'people') {
-        const disabledCount = childFields.value.filter(c => c.disabled).length;
-        if (disabledCount)
-          f.description = disabledCount > 0
-            ? `${disabledCount} occurrence(s) are currently disabled`
-            : undefined;
-      }
-    },
-  ],
-  children: [
-    { name: 'firstName', type: 'text' },
-    { name: 'lastName',  type: 'text' },
-  ],
-}
-```
-
 ## Multiple Functions in computedProps
 
-You can split concerns across multiple functions. They run in order, each receiving the already-mutated `field` from the previous step:
+You can split concerns across multiple functions. All of them always run, each receiving the already-mutated `field` from the previous one:
 
-```ts
-computedProps: [
-  (field) => {
-    // Step 1: set visibility
-    const role = useFieldValue('role');
-    field.maxOccurs = role.value === 'admin' ? 1 : 0;
-  },
-  (field) => {
-    // Step 2: set description (only meaningful if visible)
-    field.description = 'Only admins can edit this field.';
+```vue
+<script setup lang="ts">
+const role = useFieldValue('role');
+
+const fields: Metadata[] = [
+  {
+    name: 'adminNote',
+    type: 'text',
+    computedProps: [
+      (field) => { if (role.value !== 'admin') field.hidden = true; },
+      (field) => { field.description = 'Only visible to admins.'; },
+    ]
   }
 ]
+</script>
 ```
 
 ## What You Can and Cannot Change
 
 **Writable in computedProps:**
 
-- All extended properties (`options`, `disabled`, `description`, `fullWidth`, …)
+- All extended properties you declared in `defineMetadata()` (e.g. `options`, `hidden`, `description`, `fullWidth`)
 - `minOccurs` — changes whether the field is required
 - `type` — changes the rendered slot
-- `restriction` — changes validation rules
+- `restriction` — changes the built-in validation constraints
+- `validation` — changes the vee-validate validation rules
+- `autoAddMinOccurs` — controls whether the array auto-fills empty items up to `minOccurs`
 
 **Read-only in computedProps (cannot be mutated):**
 

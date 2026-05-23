@@ -33,7 +33,7 @@ const settings = {
 </script>
 
 <template>
-  <form class="grid grid-cols-2 gap-2">
+  <form>
     <DynamicForm
       :template="BasicFormTemplate"
       :metadata="metadata"
