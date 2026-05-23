@@ -224,6 +224,38 @@ const settings: DynamicFormSettings = {
 
 All `messages` entries accept a string template (with `{field}`, `{length}`, `{min}`, etc.) or a function `(ctx) => string`. See [Validation](/guide/validation) for the full list.
 
+### Extending Settings
+
+You can add custom properties to the settings object by declaring `ExtendedSettingsProperties` in `defineMetadata`. This is useful for template-level display flags that every slot can read:
+
+```ts
+// MyFormTemplate.vue
+const metadata = defineMetadata<
+  { text: string },
+  {},
+  {},
+  { showRequiredOrOptional?: 'optional' | 'required' }
+>();
+```
+
+Every slot then receives the extended property via `settings`:
+
+```vue
+<template #default="{ required, settings: { showRequiredOrOptional } }">
+  <span v-if="showRequiredOrOptional === 'optional' && !required">Optional</span>
+</template>
+```
+
+Use `GetDynamicFormSettingsType` from your template file to get a typed settings alias for use in the form page:
+
+```ts
+import type { GetDynamicFormSettingsType } from '@bach.software/vue-dynamic-form';
+import { metadata } from './MyFormTemplate.vue';
+
+type FormSettings = GetDynamicFormSettingsType<typeof metadata>;
+const settings: FormSettings = { showRequiredOrOptional: 'optional' };
+```
+
 ---
 
 Continue to [Step 4: Dynamic Fields](/guide/dynamic-fields) to make fields react to user input.

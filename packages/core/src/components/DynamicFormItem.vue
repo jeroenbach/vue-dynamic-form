@@ -486,6 +486,7 @@ function updateArrayValue(_value: unknown) {
       :field-metadata="computedField"
       :field-context
       :slot-props
+      :settings
       :required
       :disabled
       :index
@@ -518,6 +519,7 @@ function updateArrayValue(_value: unknown) {
             :field-metadata="computedField"
             :field-context
             :slot-props
+            :settings
             :required
             :disabled
             :index

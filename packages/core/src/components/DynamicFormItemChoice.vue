@@ -304,10 +304,11 @@ function updateChildValue(
     :type="`${fieldMetadata.type}-choice`"
     :field-metadata
     :field-context
+    :slot-props
+    :settings
     :required
     :index
     :disabled
-    :slot-props
     :can-add-items
     :can-remove-items
     :add-item

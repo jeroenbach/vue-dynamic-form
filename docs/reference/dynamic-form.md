@@ -71,6 +71,24 @@ const form = useDynamicForm<MyFormValues>({
 });
 ```
 
+## Typed Settings
+
+When your metadata declares extended settings properties, use `GetDynamicFormSettingsType` to derive the fully typed settings object:
+
+```ts
+import type { GetDynamicFormSettingsType } from '@bach.software/vue-dynamic-form';
+import { metadata } from './MyFormTemplate.vue';
+
+type FormSettings = GetDynamicFormSettingsType<typeof metadata>;
+
+const settings: FormSettings = {
+  showRequiredOrOptional: 'optional', // typed from ExtendedSettingsProperties
+  validateOnBlur: true,               // always available from DynamicFormSettings
+};
+```
+
+The settings object is injected into every template slot as the `settings` prop, so templates can react to it without threading values through field metadata. See [`defineMetadata` — ExtendedSettingsProperties](/reference/define-metadata#extendedsettingsproperties) for how to declare extended settings.
+
 ## Settings Reference
 
 Pass a `DynamicFormSettings` object via `:settings` to control when validation runs and what messages are shown.

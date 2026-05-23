@@ -1,10 +1,13 @@
 <script lang="ts" setup>
+import type { GetDynamicFormSettingsType } from '@/types/GetDynamicFormSettingsType';
 import type { GetMetadataType } from '@/types/GetMetadataType';
 import DynamicFormTemplate from '@/components/DynamicFormTemplate.vue';
 import { defineMetadata } from '@/core/defineMetadata';
 import IconButton from './components/IconButton.vue';
 
 export type Metadata = GetMetadataType<typeof metadata>;
+
+export type DynamicFormSettings = GetDynamicFormSettingsType<typeof metadata>;
 
 const metadata = defineMetadata<
   {
@@ -35,6 +38,9 @@ const metadata = defineMetadata<
     /** Helps identifying that we're below a choice field, so if we're rendering an array we can adjust our layout */
     belowChoiceField?: boolean
     hidden?: boolean
+  },
+  {
+    showOptionalInsteadOfRequired?: boolean
   }
 >();
 </script>
@@ -65,10 +71,12 @@ const metadata = defineMetadata<
       <slot />
     </template>
 
-    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps }">
+    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired } }">
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
-        <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled, 'after:content-[\'*\'] after:-ml-0.5 after:text-red-500': required }">
+        <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled }">
           {{ label }}
+          <span v-if="required && !showOptionalInsteadOfRequired" class="text-red-500 dark:text-rose-400">*</span>
+          <span v-if="!required && showOptionalInsteadOfRequired" class="text-sm text-gray-400">(optional)</span>
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
           <slot :level="(slotProps?.level ?? 0) + 1" :below-choice-field="true" />
@@ -82,11 +90,12 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #default-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem }">
+    <template #default-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem, settings: { showOptionalInsteadOfRequired } }">
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <label :for="`${fieldMetadata.path}[0]`" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }" class="flex gap-2 items-center">
           {{ label }}
-          <span v-if="required" class="-ml-0.5 text-red-500">*</span>
+          <span v-if="required && !showOptionalInsteadOfRequired" class="text-red-500 dark:text-rose-400">*</span>
+          <span v-if="!required && showOptionalInsteadOfRequired" class="text-sm text-gray-400">(optional)</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
         </label>
         <slot :hide-label="true" />
@@ -99,11 +108,12 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canRemoveItems, removeItem, slotProps }">
+    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canRemoveItems, removeItem, slotProps, settings: { showOptionalInsteadOfRequired } }">
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
-        <label v-if="!slotProps?.hideLabel" :for="fieldMetadata.path" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
+        <label v-if="!slotProps?.hideLabel" :for="fieldMetadata.path" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }" class="flex gap-1 items-center">
           {{ label }}
-          <span v-if="required" class="-ml-0.5 text-red-500">*</span>
+          <span v-if="required && !showOptionalInsteadOfRequired" class="text-red-500 dark:text-rose-400">*</span>
+          <span v-if="!required && showOptionalInsteadOfRequired" class="text-sm text-gray-400">(optional)</span>
         </label>
         <div class="flex gap-2 items-center">
           <div class="flex flex-col grow">
@@ -121,13 +131,14 @@ const metadata = defineMetadata<
       <slot name="attributes" />
     </template>
 
-    <template #group-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem, slotProps }">
+    <template #group-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem, slotProps, settings: { showOptionalInsteadOfRequired } }">
       <template v-if="fieldMetadata.hidden" />
       <!-- In case we're below a choice field, the first array item is not automatically added, so show a label with buttons -->
       <div v-else-if="slotProps?.belowChoiceField" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
-          <span v-if="required" class="-ml-0.5 text-red-500">*</span>
+          <span v-if="required && !showOptionalInsteadOfRequired" class="text-red-500 dark:text-rose-400">*</span>
+          <span v-if="!required && showOptionalInsteadOfRequired" class="text-sm text-gray-400">(optional)</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
         </span>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
@@ -144,12 +155,13 @@ const metadata = defineMetadata<
       <slot v-else />
     </template>
 
-    <template #group="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem, slotProps }">
+    <template #group="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem, slotProps, settings: { showOptionalInsteadOfRequired } }">
       <!-- In case of a grouped field we render the field differently -->
       <div v-if="!fieldMetadata.hidden" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span v-if="!slotProps?.hideLabel" class="flex gap-2 items-center mb-2" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
           {{ label }}
-          <span v-if="required" class="-ml-0.5 text-red-500">*</span>
+          <span v-if="required && !showOptionalInsteadOfRequired" class="text-red-500 dark:text-rose-400">*</span>
+          <span v-if="!required && showOptionalInsteadOfRequired" class="text-sm text-gray-400">(optional)</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
           <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" :data-testid="`${fieldMetadata.path}-remove-button`" color="red" @click="removeItem" />
         </span>

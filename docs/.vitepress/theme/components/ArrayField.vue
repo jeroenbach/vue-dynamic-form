@@ -7,7 +7,6 @@ export interface Props {
   label?: MaybeRefOrGetter<string | undefined>
   itemsLength?: number
   description?: string
-  required?: boolean
   disabled?: boolean
   canAddItems?: boolean
   errorMessage?: string

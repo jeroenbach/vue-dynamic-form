@@ -1,7 +1,6 @@
 import type { GenericObject } from 'vee-validate';
-import type { Metadata } from '@/examples/TestFormTemplate.vue';
+import type { DynamicFormSettings, Metadata } from '@/examples/TestFormTemplate.vue';
 
-import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import { defineComponent, h, markRaw } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 

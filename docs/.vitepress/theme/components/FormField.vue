@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
 import ErrorMessage from './ErrorMessage.vue';
+import OptionalRequiredTag from './OptionalRequiredTag.vue';
 
 export interface Props {
   inputId?: string
@@ -8,6 +9,7 @@ export interface Props {
   description?: string
   disabled?: boolean
   required?: boolean
+  showRequiredOrOptional?: 'optional' | 'required'
   dependentOnMessage?: string
   errorMessage?: string
   canRemoveItems?: boolean
@@ -25,12 +27,7 @@ defineEmits<{
   >
     <label class="flex justify-between" :for="inputId">
       {{ label }}
-      <span
-        v-if="!required"
-        class="optional-tag inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:text-slate-400"
-      >
-        Optional
-      </span>
+      <OptionalRequiredTag :required :show-required-or-optional />
     </label>
     <div
       v-if="dependentOnMessage"

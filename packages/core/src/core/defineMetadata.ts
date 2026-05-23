@@ -9,6 +9,7 @@
  *   Use `never` for display-only types (headings, separators) that hold no value.
  * @typeParam ExtendedFieldProperties - Extra properties merged into every `FieldMetadata` object.
  * @typeParam SlotProperties - Shape of `slotProps` passed from parent slots to child slots.
+ * @typeParam ExtendedSettingsProperties - Extra properties merged into `Settings` object.
  * @example
  * const config = defineMetadata<
  *   {
@@ -22,6 +23,15 @@
  *     // This will add a label and options property to each field's metadata
  *     label?: string;
  *     options?: Array<{ key: string; value: string }>;
+ *   },
+ *   {
+ *     // This will add allow you to pass hideLabel and depth through the slots
+ *     hideLabel?: boolean;
+ *     depth?: number;
+ *   },
+ *   {
+ *     // This will add a showOptionalOrRequired property to the settings object
+ *     showOptionalOrRequired?: 'optional' | 'required';
  *   }
  * >();
  */
@@ -29,6 +39,7 @@ export function defineMetadata<
   const FieldValueTypes extends Record<string, any>,
   ExtendedFieldProperties extends object = object,
   SlotProperties extends object = object,
+  ExtendedSettingsProperties extends object = object,
 >() {
   type IncludeFields = 'default';
 
@@ -45,6 +56,7 @@ export function defineMetadata<
     fieldTypes: Object.keys({} as FieldValueTypes) as unknown as readonly FieldTypeMetadata[],
     extendedProperties: {} as ExtendedFieldProperties,
     slotProperties: {} as SlotProperties,
+    extendedSettingsProperties: {} as ExtendedSettingsProperties,
     valueTypes: {} as ValueTypeMap,
   };
 }

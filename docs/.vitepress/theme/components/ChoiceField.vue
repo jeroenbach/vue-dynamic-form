@@ -1,11 +1,13 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
 import ErrorMessage from './ErrorMessage.vue';
+import OptionalRequiredTag from './OptionalRequiredTag.vue';
 
 export interface Props {
   label?: MaybeRefOrGetter<string | undefined>
   description?: string
   required?: boolean
+  showRequiredOrOptional?: 'optional' | 'required'
   disabled?: boolean
   errorMessage?: string
   dataTestid?: string
@@ -19,7 +21,7 @@ defineProps<Props>();
     <div class="space-y-1">
       <span class="block text-sm font-semibold text-slate-900 dark:text-slate-100" :class="{ 'text-slate-400 dark:text-slate-500': disabled }">
         {{ label }}
-        <span v-if="required" class="text-red-500 dark:text-rose-400">*</span>
+        <OptionalRequiredTag :required :show-required-or-optional />
       </span>
       <p v-if="description" class="text-sm text-slate-600 dark:text-slate-400">
         {{ description }}

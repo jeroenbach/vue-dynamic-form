@@ -149,8 +149,51 @@ All named slots receive:
 | `canRemoveItems` | `boolean` | `true` when the current occurrence can be removed |
 | `addItem()` | `() => void` | Appends a new array occurrence |
 | `removeItem()` | `() => void` | Removes the current array occurrence |
+| `settings` | `DynamicFormSettings` | The form settings object, including any extended properties declared in `defineMetadata` |
+| `slotProps` | `SlotProperties \| undefined` | Values threaded down from a parent slot's `<slot />` binding |
 
 The array and choice container slots (`#default-array`, `#default-choice`, and their type-specific variants) receive all the same props except that `fieldContext` only exposes `errors`, `errorMessage`, and `label`.
+
+## Accessing Settings in Templates
+
+Every slot receives a `settings` prop containing the form's `DynamicFormSettings` object. You can destructure it directly to access any setting — including extended properties declared in your metadata:
+
+```vue
+<template #default="{ fieldMetadata, fieldContext: { label, errorMessage }, required, settings: { showRequiredOrOptional } }">
+  <label :for="fieldMetadata.path">
+    {{ label }}
+    <span v-if="showRequiredOrOptional === 'required' && required" class="text-red-500"> *</span>
+    <span v-if="showRequiredOrOptional === 'optional' && !required" class="text-gray-400"> Optional</span>
+  </label>
+  <slot />
+  <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
+</template>
+```
+
+This lets template display logic (like required/optional indicators, theme flags, or mode toggles) be driven by form settings without threading values through individual field metadata.
+
+To declare extended settings properties, add the fourth generic to `defineMetadata`:
+
+```ts
+const metadata = defineMetadata<
+  { text: string; select: string },
+  {},   // ExtendedFieldProperties — per-field extras
+  {},   // SlotProperties — values threaded through <slot />
+  { showRequiredOrOptional?: 'optional' | 'required' }
+>();
+```
+
+Then pass the setting when using the form:
+
+```vue
+<DynamicForm
+  :template="MyFormTemplate"
+  :metadata="fields"
+  :settings="{ showRequiredOrOptional: 'optional' }"
+/>
+```
+
+All slots — `#default`, `#default-input`, `#default-array`, `#default-choice`, and every type-specific slot — receive the same `settings` object.
 
 ## Passing Data to Child Slots
 

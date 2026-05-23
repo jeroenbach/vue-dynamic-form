@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
+import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
 import type { LoadingResolve } from '../utils/loadingResolve';
 import type { AppIconName } from './AppIcon.vue';
 import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
@@ -26,6 +26,8 @@ const submitButton = 'Submit';
 
 // #region template-metadata-contract
 export type Metadata = GetMetadataType<typeof metadata>;
+
+export type DynamicFormSettings = GetDynamicFormSettingsType<typeof metadata>;
 
 const metadata = defineMetadata<
   {
@@ -61,6 +63,9 @@ const metadata = defineMetadata<
   {
     currentStepIndex?: number
     gotoStepIndex?: (index: number) => void
+  },
+  {
+    showRequiredOrOptional?: 'optional' | 'required'
   }
 >();
 // #endregion template-metadata-contract
@@ -162,7 +167,7 @@ const metadata = defineMetadata<
     <template #wizardPage-array-item="{ fieldMetadata, fieldContext: { value }, canRemoveItems, removeItem, index }">
       <RepeaterCard
         :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
-        class="hide-optional"
+        class="hide-optional-required"
         :index
         :title="fieldMetadata.arrayItemFieldForTitle && (value.value as any)?.[fieldMetadata.arrayItemFieldForTitle]"
         :placeholderTitle="`New ${fieldMetadata.arrayItemName}`"
@@ -174,13 +179,14 @@ const metadata = defineMetadata<
       </RepeaterCard>
     </template>
 
-    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required }">
+    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, settings: { showRequiredOrOptional } }">
       <ChoiceField
         v-show="!fieldMetadata.hide"
         :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
         :label
         :description="fieldMetadata.description"
         :required
+        :show-required-or-optional
         :disabled="fieldMetadata.disabled || disabled"
         :error-message="errorMessage.value"
         :data-testid="fieldMetadata.path"
@@ -189,13 +195,12 @@ const metadata = defineMetadata<
       </ChoiceField>
     </template>
 
-    <template #default-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem }">
+    <template #default-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, canAddItems, addItem }">
       <ArrayField
         v-show="!fieldMetadata.hide"
         :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
         :label
         :description="fieldMetadata.description"
-        :required
         :disabled="fieldMetadata.disabled || disabled"
         :can-add-items="canAddItems"
         :error-message="errorMessage.value"
@@ -206,7 +211,7 @@ const metadata = defineMetadata<
       </ArrayField>
     </template>
 
-    <template #checkbox="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required }">
+    <template #checkbox="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, settings: { showRequiredOrOptional } }">
       <CheckboxField
         v-show="!fieldMetadata.hide"
         :input-id="fieldMetadata.path"
@@ -214,6 +219,7 @@ const metadata = defineMetadata<
         :label
         :description="fieldMetadata.description"
         :required
+        :show-required-or-optional
         :disabled="fieldMetadata.disabled || disabled"
         :error-message="errorMessage.value"
         :data-testid="fieldMetadata.path"
@@ -222,7 +228,7 @@ const metadata = defineMetadata<
       </CheckboxField>
     </template>
 
-    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem }">
+    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem, settings: { showRequiredOrOptional } }">
       <GroupField
         v-if="fieldMetadata.children?.length"
         v-show="!fieldMetadata.hide"
@@ -230,6 +236,7 @@ const metadata = defineMetadata<
         :label
         :description="fieldMetadata.description"
         :required
+        :show-required-or-optional
         :disabled="fieldMetadata.disabled || disabled"
         :can-add-items="canAddItems"
         :can-remove-items="canRemoveItems"
@@ -249,6 +256,7 @@ const metadata = defineMetadata<
         :description="fieldMetadata.description"
         :label
         :required
+        :show-required-or-optional
         :dependentOnMessage="fieldMetadata.dependentOnMessage"
         :errorMessage="errorMessage.value"
       >
@@ -296,9 +304,3 @@ const metadata = defineMetadata<
     <!-- #endregion input-slots -->
   </DynamicFormTemplate>
 </template>
-
-<style lang="css">
-.hide-optional .optional-tag {
-  display: none;
-}
-</style>
