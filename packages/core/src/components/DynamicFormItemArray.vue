@@ -238,10 +238,11 @@ function guardAndNotifyItemUpdate(value: any, index: number) {
     :type="`${fieldMetadata.type}-array`"
     :field-metadata
     :field-context
+    :slot-props
+    :settings
     :required
     :disabled
     :index
-    :slot-props
     :can-add-items="_canAddItems"
     :can-remove-items="_canRemoveItems"
     :add-item="_addItem"

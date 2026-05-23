@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { GenericObject } from 'vee-validate';
 
-import type { Metadata } from './TestFormTemplate.vue';
-import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
+import type { DynamicFormSettings, Metadata } from './TestFormTemplate.vue';
 import { computed, ref } from 'vue';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { mapEachMetadataItem } from '@/utils/mapEachMetadataItem';

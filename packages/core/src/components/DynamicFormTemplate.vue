@@ -5,6 +5,7 @@
 >
 import type { FieldContext as _FieldContext } from 'vee-validate';
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue';
+import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { ReadOnlyFieldType } from '@/types/FieldMetadata';
 import type { MetadataConfiguration } from '@/types/MetadataConfiguration';
 import { computed, useAttrs } from 'vue';
@@ -76,6 +77,10 @@ export interface Attributes<
    * With these properties you can set values that can be read by components "living" further down the tree.
    */
   slotProps: TMetadataConfiguration['slotProperties']
+  /**
+   * The form settings
+   */
+  settings: DynamicFormSettings<TMetadataConfiguration['extendedSettingsProperties']>
 }
 
 export interface ItemAttributes<

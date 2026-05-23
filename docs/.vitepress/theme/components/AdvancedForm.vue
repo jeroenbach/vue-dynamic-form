@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { DynamicFormSettings, FieldMetadata } from '@bach.software/vue-dynamic-form';
+import type { DynamicFormSettings, Metadata } from './AdvancedFormTemplate.vue';
 import { DynamicForm } from '@bach.software/vue-dynamic-form';
 import { computed } from 'vue';
 import AdvancedFormTemplate from './AdvancedFormTemplate.vue';
 
 export interface Props {
-  metadata: FieldMetadata[]
+  metadata: Metadata[]
   settings?: DynamicFormSettings
 }
 

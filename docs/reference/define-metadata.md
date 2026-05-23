@@ -9,6 +9,7 @@ function defineMetadata<
   FieldValueTypes extends Record<string, any>,
   ExtendedFieldProperties extends object = object,
   SlotProperties extends object = object,
+  ExtendedSettingsProperties extends object = object,
 >(): MetadataConfiguration
 ```
 
@@ -63,6 +64,28 @@ defineMetadata<
 // slotProps is now typed as { hideLabel?: boolean; depth?: number } | undefined
 ```
 
+### `ExtendedSettingsProperties`
+
+Optional. Extra properties merged into the `DynamicFormSettings` object passed to `DynamicForm`. These flow through to every template slot as `settings.*`, making them available for template-level display logic.
+
+```ts
+defineMetadata<
+  { text: string; select: string },
+  {},
+  {},
+  { showRequiredOrOptional?: 'optional' | 'required' }
+>()
+// settings.showRequiredOrOptional is now available in every slot
+```
+
+Slots can then destructure the setting directly:
+
+```vue
+<template #default="{ required, settings: { showRequiredOrOptional } }">
+  <span v-if="showRequiredOrOptional === 'optional' && !required">Optional</span>
+</template>
+```
+
 ## Return Value
 
 The returned object is a `MetadataConfiguration`. It carries no runtime data — its sole purpose is to give TypeScript the type information needed for:
@@ -89,6 +112,27 @@ Pass it to `DynamicFormTemplate` via `:metadata-configuration`.
 Avoid names ending in `-input`, `-array`, `-array-item`, or `-choice` — they are valid but will generate ambiguous slot names. For example, declaring `my-array` as a type produces `#my-array` (wrapper) and `#my-array-array` (array container), which is hard to distinguish from the generated slots.
 :::
 
+## GetDynamicFormSettingsType
+
+Use the `GetDynamicFormSettingsType` helper to derive the fully typed `DynamicFormSettings` alias, including any extended properties declared in the fourth generic:
+
+```ts
+import { defineMetadata } from '@bach.software/vue-dynamic-form';
+import type { GetDynamicFormSettingsType } from '@bach.software/vue-dynamic-form';
+
+export const metadata = defineMetadata<
+  { text: string; select: string },
+  {},
+  {},
+  { showRequiredOrOptional?: 'optional' | 'required' }
+>();
+
+export type DynamicFormSettings = GetDynamicFormSettingsType<typeof metadata>;
+// DynamicFormSettings is DynamicFormSettings<{ showRequiredOrOptional?: 'optional' | 'required' }>
+```
+
+Import `DynamicFormSettings` wherever you pass settings to `DynamicForm`. TypeScript will enforce that extended properties like `showRequiredOrOptional` are correctly typed alongside the built-in settings properties.
+
 ## GetMetadataType
 
 Use the `GetMetadataType` helper to derive the fully typed `FieldMetadata` alias for use in form definitions:
@@ -111,9 +155,9 @@ Import `Metadata` wherever you write field arrays. TypeScript will enforce that 
 ## Full Example
 
 ```ts
-// AdvancedFormTemplate.vue
+// MyFormTemplate.vue
 import { defineMetadata } from '@bach.software/vue-dynamic-form';
-import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
+import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
 
 export const metadata = defineMetadata<
   {
@@ -130,15 +174,19 @@ export const metadata = defineMetadata<
   },
   {
     hideLabel?: boolean
+  },
+  {
+    showRequiredOrOptional?: 'optional' | 'required'
   }
 >();
 
 export type Metadata = GetMetadataType<typeof metadata>;
+export type FormSettings = GetDynamicFormSettingsType<typeof metadata>;
 ```
 
 ```ts
 // MyPage.vue
-import type { Metadata } from './AdvancedFormTemplate.vue';
+import type { FormSettings, Metadata } from './MyFormTemplate.vue';
 
 const fields: Metadata[] = [
   {
@@ -151,4 +199,9 @@ const fields: Metadata[] = [
     ],
   },
 ];
+
+const settings: FormSettings = {
+  showRequiredOrOptional: 'optional',   // ✓ typed from ExtendedSettingsProperties
+  validateOnBlur: true,                  // ✓ always available from DynamicFormSettings
+};
 ```

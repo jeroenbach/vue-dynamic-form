@@ -2,11 +2,13 @@
 import type { MaybeRefOrGetter } from 'vue';
 import AppButton from './AppButton.vue';
 import ErrorMessage from './ErrorMessage.vue';
+import OptionalRequiredTag from './OptionalRequiredTag.vue';
 
 export interface Props {
   label?: MaybeRefOrGetter<string | undefined>
   description?: string
   required?: boolean
+  showRequiredOrOptional?: 'optional' | 'required'
   disabled?: boolean
   canAddItems?: boolean
   canRemoveItems?: boolean
@@ -31,12 +33,7 @@ defineEmits<{
       <div class="space-y-1 grow">
         <span class="flex justify-between text-sm font-semibold text-slate-900 dark:text-slate-100">
           {{ label }}
-          <span
-            v-if="!required"
-            class="optional-tag inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:text-slate-400"
-          >
-            Optional
-          </span>
+          <OptionalRequiredTag v-if="showRequiredOrOptional === 'optional'" :required :show-required-or-optional />
         </span>
         <p v-if="description" class="text-sm text-slate-600 dark:text-slate-400">
           {{ description }}
@@ -56,15 +53,9 @@ defineEmits<{
         />
       </div>
     </div>
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2" :class="{ 'hide-optional': !required }">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2" :class="{ 'hide-optional-required': showRequiredOrOptional === 'optional' }">
       <slot />
     </div>
     <ErrorMessage :error-message="errorMessage" :data-testid="dataTestid" />
   </section>
 </template>
-
-<style lang="css">
-.hide-optional .optional-tag {
-  display: none;
-}
-</style>

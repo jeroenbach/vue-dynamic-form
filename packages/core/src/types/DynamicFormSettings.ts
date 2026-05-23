@@ -2,7 +2,9 @@ import type { ValidationMessage } from '@/types/ValidationMessage';
 
 export const dynamicFormSettingsKey = Symbol('dynamicFormSettings');
 
-export interface DynamicFormSettings {
+export type DynamicFormSettings<
+  ExtendedProperties extends object = object,
+> = {
   /**
    * Enables diagnostic data output via concealed DOM elements for reactivity testing
    */
@@ -94,4 +96,4 @@ export interface DynamicFormSettings {
     /** XSD: totalDigits. Available placeholders: `{field}`, `{0}` or `{digits}` (max total digits) */
     totalDigits?: ValidationMessage
   }
-}
+} & ExtendedProperties;

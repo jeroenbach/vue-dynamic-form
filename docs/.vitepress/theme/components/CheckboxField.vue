@@ -1,12 +1,14 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
 import ErrorMessage from './ErrorMessage.vue';
+import OptionalRequiredTag from './OptionalRequiredTag.vue';
 
 export interface Props {
   label?: MaybeRefOrGetter<string | undefined>
   description?: string
   inputId?: string
   required?: boolean
+  showRequiredOrOptional?: 'optional' | 'required'
   disabled?: boolean
   errorMessage?: string
   dataTestid?: string
@@ -32,7 +34,7 @@ const emits = defineEmits<Emits>();
     <label :for="inputId" @click="emits('click')">
       <p class="text-sm font-medium text-slate-800 dark:text-slate-200">
         {{ label }}
-        <span v-if="required" class="text-red-500 dark:text-rose-400">*</span>
+        <OptionalRequiredTag :required :show-required-or-optional />
       </p>
       <p v-if="description" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
         {{ description }}
