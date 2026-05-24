@@ -21,10 +21,10 @@ hero:
 features:
   - title: You own the UI
     details: Define your field types once in your own template — the HTML, the components, the styling. The library handles the rest.
+  - title: Fields That Adapt Automatically
+    details: Display and behaviour stay separate. The template handle how fields look; the form definition handles when they show, disable, or change — and the library applies it automatically.
   - title: Complex fields, simple API
     details: Arrays, grouped fields, and mutually exclusive choices are genuinely hard to get right — dynamic field naming, array indexing, conditional branches. This library handles all of it out of the box.
-  - title: Grows with your needs
-    details: computedProps let fields react to other field values — show/hide, change options, override labels — without touching the schema.
 ---
 
 ## What You Get
@@ -33,7 +33,7 @@ Vue Dynamic Form is an opinionated layer built on top of `vee-validate` — you 
 
 It separates two things that usually get tangled together: **what your form looks like** and **how it behaves**.
 
-You describe your form as metadata — a plain object tree that says which fields exist, whether they repeat, whether they're part of a group or a mutually exclusive choice, and what validation rules apply. The library reads that description and takes care of the rest: generating field paths, managing repeating sections, tracking which choice branch is active, and keeping everything in sync with `vee-validate`.
+You describe your form as metadata — a plain object tree that says which fields exist, whether they repeat, whether they're part of a group or a choice, and what validation rules apply. The library reads that description and takes care of the rest: generating field paths, managing repeating sections, tracking which choice branch is active, and keeping everything in sync with `vee-validate`.
 
 Your template layer stays completely under your control. You decide which field types your app supports, what extra properties they need, and what HTML gets rendered.
 
@@ -43,7 +43,33 @@ The metadata model is inspired by XSD — one of the most battle-tested formats 
 
 ## Live Demo
 
-<ClientOnboardingPlannerExampleContext />
+<FormExampleClientOnboardingPlannerContext />
+
+## Fields That Adapt Automatically
+
+Most form logic comes down to "if this field has a certain value, show/hide/require/change that other field." In practice that means conditional logic spread across your form component — fields hidden with `v-if`, others disabled through computed properties, options reloaded in `watch()` calls. All in the same component, but scattered through it. As forms grow, tracing what controls each field becomes its own challenge.
+
+Vue Dynamic Form keeps all of that with the field itself. Each field carries a `computedProps` function right next to its name, type, and validation rules — so the full picture of a field stays in one place:
+
+```ts
+const fields: Metadata[] = [
+  { name: 'accountType', type: 'select', ... },
+  {
+    name: 'vatNumber',
+    type: 'text',
+    fieldOptions: { label: 'VAT Number' },
+    computedProps: [
+      (field) => { field.disabled = accountType.value !== 'business' }
+    ]
+  }
+]
+```
+
+The function reads whatever it needs; Vue detects those reads and re-runs it automatically when they change. No `watch()` calls, no `v-if` conditions scattered through the template — you write the logic, not the subscription.
+
+Your **components provide the functionality** — a field that can be disabled, a select with configurable options, an input that can be hidden. The **form definition decides when to use it**. Components stay clean and reusable; the form definition is the single source of truth for behaviour.
+
+[Learn how →](/guide/dynamic-fields)
 
 ## What You Will Find Here
 

@@ -93,6 +93,92 @@ const fields: Metadata[] = [
 
 Because `country.value` is read inside the function, the computed re-runs every time the country field changes.
 
+## Loading Options from an External Source
+
+When options come from an API, keep the loaded data outside the form — in a prop or a reactive store — and emit a request event when a value changes that should trigger a new load.
+
+The form component emits `loadOptions` and receives the results back as a prop:
+
+```vue
+<!-- MyFormContext.vue -->
+<script setup lang="ts">
+import { reactive } from 'vue';
+import MyForm from './MyForm.vue';
+
+const optionStore = reactive({
+  industry: [] as { key: string; value: string }[],
+  teamSize: [] as { key: string; value: string }[],
+});
+
+function loadOptions(name: 'industry' | 'teamSize', params?: { industry?: string }) {
+  if (name === 'industry') {
+    // fetch from API and populate
+    optionStore.industry = [
+      { key: 'saas', value: 'SaaS' },
+      { key: 'retail', value: 'Retail' },
+    ];
+  }
+  if (name === 'teamSize') {
+    // use params to fetch options filtered by the selected industry
+    optionStore.teamSize = params?.industry === 'saas'
+      ? [{ key: 'small', value: '1–50' }, { key: 'large', value: '51–500' }]
+      : [{ key: 'small', value: '1–20' }, { key: 'large', value: '21–200' }];
+  }
+}
+</script>
+
+<template>
+  <MyForm :option-store="optionStore" @load-options="loadOptions" />
+</template>
+```
+
+Inside the form component, emit the load request when a value changes and read the options directly from the prop in `computedProps`:
+
+```vue
+<!-- MyForm.vue -->
+<script setup lang="ts">
+import type { Metadata } from './MyFormTemplate';
+
+const props = defineProps<{
+  optionStore: { industry: { key: string; value: string }[]; teamSize: { key: string; value: string }[] }
+}>();
+
+const emit = defineEmits<{
+  loadOptions: [name: 'industry' | 'teamSize', params?: { industry?: string }]
+}>();
+
+// Request initial options on mount
+onMounted(() => emit('loadOptions', 'industry'));
+
+const fields: Metadata[] = [
+  {
+    name: 'industry',
+    type: 'select',
+    fieldOptions: { label: 'Industry' },
+    computedProps: [
+      (field, value) => {
+        field.options = props.optionStore.industry;
+        // when industry changes, request teamSize options filtered by the new value
+        emit('loadOptions', 'teamSize', { industry: value.value as string });
+      }
+    ],
+  },
+  {
+    name: 'teamSize',
+    type: 'select',
+    fieldOptions: { label: 'Team size' },
+    computedProps: [
+      (field) => {
+        field.options = props.optionStore.teamSize;
+      }
+    ],
+  },
+]
+</script>
+```
+
+Because `props.optionStore.teamSize` is read inside `computedProps`, Vue tracks it as a reactive dependency — when the parent updates the store after the API responds, the options update automatically without any extra wiring.
+
 ## Reacting to the Field's Own Value
 
 Use the `value` parameter to subscribe to this field's own current value:
@@ -277,6 +363,13 @@ labelRef.value = 'Number of licences';
 ```
 
 This is almost always caused by writing to `value` (the field's own form value) inside `computedProps`. Mutate `field` properties — not the form value — in these functions.
+
+## Live Example
+<FormExampleDynamicFieldsContext />
+
+Full source:
+[FormExampleDynamicFields.vue](https://github.com/jeroenbach/vue-dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleDynamicFields.vue) ·
+[FormExampleDynamicFieldsContext.vue](https://github.com/jeroenbach/vue-dynamic-form/blob/main/docs/.vitepress/theme/context/FormExampleDynamicFieldsContext.vue)
 
 ---
 

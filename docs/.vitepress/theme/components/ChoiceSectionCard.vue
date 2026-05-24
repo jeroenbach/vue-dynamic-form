@@ -37,7 +37,7 @@ function changeSelectedOption(value: string) {
 
 <template>
   <SectionCard v-bind="$props">
-    <div class="grid grid-cols-1 gap-3 md:col-span-2" :class="gridCols" role="radiogroup">
+    <div v-if="options?.length" class="grid grid-cols-1 gap-3 md:col-span-2" :class="gridCols" role="radiogroup">
       <ChoiceCard
         v-for="option in options"
         :key="option.value"

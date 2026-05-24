@@ -221,9 +221,18 @@ The rendering splits the same way as arrays:
 </template>
 ```
 
-## Live Example
+## Live Example Arrays
+<FormExampleArrayFields />
 
-<BasicFormExample name="choices" title="Choice Behaviors" description="Simple choices, grouped choices, and array-based choices rendered from metadata." />
+Full source:
+[FormExampleArrayFields.vue](https://github.com/jeroenbach/vue-dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleArrayFields.vue) ·
+
+## Live Example Choices
+<FormExampleChoiceFields />
+
+Full source:
+[FormExampleChoiceFields.vue](https://github.com/jeroenbach/vue-dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoiceFields.vue) ·
+
 
 ---
 

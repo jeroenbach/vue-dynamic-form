@@ -1,18 +1,29 @@
-# Choices
+# Choice Fields
 
-Choice fields are where the library differs most from a plain field renderer.
+Mutually exclusive branches. Selecting one branch disables the others and relaxes their child field validation until that branch becomes active.
 
 ## What It Demonstrates
 
-- simple mutually exclusive branches
-- grouped choice branches
-- array-based choice branches
-- disabling sibling branches when one branch becomes active
+- `choice` array on a heading to declare mutually exclusive branches
+- Branch children are only validated once the branch is active
+- Sibling branches are automatically disabled when one branch has a value
+- Each branch can have its own `children` with independent fields
 
 ## Example
 
-<BasicFormExample name="choices" />
+<FormExampleChoiceFields />
 
-## Notes
+## Choice Structure
 
-Choice logic calculates runtime overrides for branch availability. That includes disabling siblings, relaxing nested branch requirements until a branch becomes active, and limiting branch array capacity inside a shared choice.
+The `choice` property replaces `children` on the heading. Each entry becomes a selectable branch:
+
+<<< @/.vitepress/theme/components/FormExampleChoiceFields.vue#choice-structure{ts} [FormExampleChoiceFields.vue]
+
+## Full Metadata
+
+<<< @/.vitepress/theme/components/FormExampleChoiceFields.vue#metadata{ts} [FormExampleChoiceFields.vue]
+
+## Related Source
+
+- [FormExampleChoiceFields.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoiceFields.vue)
+- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)

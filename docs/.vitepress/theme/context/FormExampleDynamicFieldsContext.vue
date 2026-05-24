@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import type { LoadOptionsParams, OptionName, OptionStore, SelectOption } from '../components/ClientOnboardingPlannerExample.vue';
+import type { LoadOptionsParams, OptionName, OptionStore, SelectOption } from '../components/FormExampleDynamicFields.vue';
 import { reactive } from 'vue';
-import ClientOnboardingPlannerExample from '../components/ClientOnboardingPlannerExample.vue';
+import FormExampleDynamicFields from '../components/FormExampleDynamicFields.vue';
 
 const optionStore = reactive<OptionStore>({
   industry: [],
   teamSize: [],
-  role: [],
-  trainingFormat: [],
 });
 
 const teamSizeOptionsByIndustry: Record<string, SelectOption[]> = {
@@ -33,6 +31,7 @@ const teamSizeOptionsByIndustry: Record<string, SelectOption[]> = {
   ],
 };
 
+// #region load-options
 /**
  * Simulate an external API.
  */
@@ -44,34 +43,17 @@ function loadOptions(optionName: OptionName, params?: LoadOptionsParams) {
       { key: 'healthcare', value: 'Healthcare' },
       { key: 'logistics', value: 'Logistics' },
     ];
-    return;
   }
 
   if (optionName === 'teamSize') {
     const industry = params?.industry;
 
     optionStore.teamSize = industry ? (teamSizeOptionsByIndustry[industry] ?? []) : [];
-    return;
   }
-
-  if (optionName === 'role') {
-    optionStore.role = [
-      { key: 'admin', value: 'System admin' },
-      { key: 'ops', value: 'Operations lead' },
-      { key: 'finance', value: 'Finance owner' },
-      { key: 'support', value: 'Support manager' },
-    ];
-    return;
-  }
-
-  optionStore.trainingFormat = [
-    { key: 'remote', value: 'Remote workshop' },
-    { key: 'onsite', value: 'On-site training' },
-    { key: 'async', value: 'Recorded training' },
-  ];
 }
+// #endregion load-options
 </script>
 
 <template>
-  <ClientOnboardingPlannerExample :option-store="optionStore" @load-options="loadOptions" />
+  <FormExampleDynamicFields :option-store="optionStore" @load-options="loadOptions" />
 </template>
