@@ -257,6 +257,7 @@ const metadata: Metadata[] = [
             description: 'Turn this on when records need to be imported from another system.',
             fullWidth: true,
           },
+          // #region conditional-field
           {
             name: 'migrationDeadline',
             fieldOptions: {
@@ -274,6 +275,7 @@ const metadata: Metadata[] = [
                 field.hide = true;
             }],
           },
+          // #endregion conditional-field
         ],
       },
       {
@@ -318,6 +320,7 @@ const metadata: Metadata[] = [
         helpText: 'How will we go live?',
         fullWidth: true,
         computedProps: [registerWizardPagePath],
+        choiceShowChoiceSelect: true,
         changeChoice: key => selectedLaunchApproach.value = key as LaunchApproach,
         choice: [
           {
@@ -327,9 +330,11 @@ const metadata: Metadata[] = [
             iconName: 'bolt',
             fullWidth: true,
             computedProps: [
-              (thisField) => {
-                if (selectedLaunchApproach.value !== 'selfServe')
+              (thisField, thisValue) => {
+                if (selectedLaunchApproach.value !== 'selfServe') {
                   thisField.hide = true;
+                  thisValue.value = {};
+                }
               },
             ],
             children: [
@@ -361,9 +366,11 @@ const metadata: Metadata[] = [
             iconName: 'users',
             fullWidth: true,
             computedProps: [
-              (thisField) => {
-                if (selectedLaunchApproach.value !== 'guidedRollout')
+              (thisField, thisValue) => {
+                if (selectedLaunchApproach.value !== 'guidedRollout') {
                   thisField.hide = true;
+                  thisValue.value = {};
+                }
               },
             ],
             children: [

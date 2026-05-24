@@ -120,7 +120,7 @@ const fields: Metadata[] = [
 
 ## A Simple Example
 
-<BasicFormExample />
+<FormExampleBasic />
 
 ## Continue
 

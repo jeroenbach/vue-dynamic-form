@@ -55,4 +55,4 @@ The example template in this repository is here:
 
 ## Interactive Example
 
-<BasicFormExample name="groups" title="Template Demo With Groups" description="The repository example template rendering required groups, optional groups, and grouped arrays." />
+<FormExampleBasic name="groups" title="Template Demo With Groups" description="The repository example template rendering required groups, optional groups, and grouped arrays." />

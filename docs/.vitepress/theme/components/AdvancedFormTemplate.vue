@@ -46,6 +46,7 @@ const metadata = defineMetadata<
     arrayItemNamePlural?: string
     arrayItemFieldForTitle?: string
     arrayNoItemsMessage?: string
+    choiceShowChoiceSelect?: boolean
     iconName?: AppIconName
     dependentOnMessage?: string
     placeholder?: string
@@ -92,18 +93,6 @@ const metadata = defineMetadata<
       </FormWizard>
     </template>
 
-    <template #wizardPage="{ fieldMetadata, fieldContext: { errorMessage, label }, slotProps, index }">
-      <SectionCard
-        v-show="slotProps.currentStepIndex !== undefined && slotProps.currentStepIndex === index"
-        :label
-        :description="fieldMetadata.description"
-        :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
-      >
-        <slot />
-      </SectionCard>
-    </template>
-
     <template #wizardSummaryPage="{ fieldMetadata, fieldContext: { errorMessage, label }, slotProps, index }">
       <SectionCard
         v-if="slotProps.currentStepIndex !== undefined && slotProps.currentStepIndex === index"
@@ -130,24 +119,65 @@ const metadata = defineMetadata<
       </SectionCard>
     </template>
 
-    <template #wizardPage-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, slotProps, index }">
+    <template #wizardPage="_props">
+      <div v-show="_props.slotProps.currentStepIndex !== undefined && _props.slotProps.currentStepIndex === _props.index">
+        <!-- #region inherit the heading template -->
+        <AdvancedFormTemplate v-bind="_props" type="heading">
+          <slot />
+        </AdvancedFormTemplate>
+      </div>
+    </template>
+
+    <template #wizardPage-array="_props">
+      <div v-show="_props.slotProps.currentStepIndex !== undefined && _props.slotProps.currentStepIndex === _props.index">
+        <AdvancedFormTemplate v-bind="_props" type="heading-array">
+          <slot />
+        </AdvancedFormTemplate>
+      </div>
+    </template>
+
+    <template #wizardPage-array-item="_props">
+      <AdvancedFormTemplate v-bind="_props" type="heading-array-item">
+        <slot />
+      </AdvancedFormTemplate>
+    </template>
+
+    <template #wizardPage-choice="_props">
+      <div v-show="_props.slotProps.currentStepIndex !== undefined && _props.slotProps.currentStepIndex === _props.index">
+        <AdvancedFormTemplate v-bind="_props" type="heading-choice">
+          <slot />
+        </AdvancedFormTemplate>
+      </div>
+    </template>
+
+    <template #heading="{ fieldMetadata, fieldContext: { errorMessage, label } }">
+      <SectionCard
+        v-show="!fieldMetadata.hide"
+        :label
+        :description="fieldMetadata.description"
+        :error-message="errorMessage.value"
+        :data-testid="fieldMetadata.path"
+      >
+        <slot />
+      </SectionCard>
+    </template>
+
+    <template #heading-choice="{ fieldMetadata, fieldContext: { errorMessage, label } }">
       <ChoiceSectionCard
-        v-show="slotProps.currentStepIndex !== undefined && slotProps.currentStepIndex === index"
         v-slot="{ selectedOption }"
         :label
         :description="fieldMetadata.description"
         :error-message="errorMessage.value"
         :data-testid="fieldMetadata.path"
-        :options="fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName }))"
+        :options="fieldMetadata.choiceShowChoiceSelect ? fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
         @select="fieldMetadata.changeChoice?.($event)"
       >
         <slot :selectedOption />
       </ChoiceSectionCard>
     </template>
 
-    <template #wizardPage-array="{ fieldMetadata, fieldContext: { errorMessage, label, value }, canAddItems, addItem, slotProps, index }">
+    <template #heading-array="{ fieldMetadata, fieldContext: { errorMessage, label, value }, canAddItems, addItem }">
       <ArraySectionCard
-        v-show="slotProps.currentStepIndex !== undefined && slotProps.currentStepIndex === index"
         :label
         :description="fieldMetadata.description"
         :noItemsMessage="fieldMetadata.arrayNoItemsMessage"
@@ -164,7 +194,7 @@ const metadata = defineMetadata<
       </ArraySectionCard>
     </template>
 
-    <template #wizardPage-array-item="{ fieldMetadata, fieldContext: { value }, canRemoveItems, removeItem, index }">
+    <template #heading-array-item="{ fieldMetadata, fieldContext: { value }, canRemoveItems, removeItem, index }">
       <RepeaterCard
         :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
         class="hide-optional-required"

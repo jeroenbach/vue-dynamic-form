@@ -28,7 +28,6 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Reference', link: '/reference/' },
       { text: 'Examples', link: '/examples/' },
-      { text: 'Core README', link: '/core-readme' },
       { text: 'GitHub', link: 'https://github.com/jeroenbach/dynamic-form' },
     ],
     sidebar: {
@@ -67,6 +66,7 @@ export default defineConfig({
             { text: 'Basic Form', link: '/examples/basic' },
             { text: 'Arrays And Groups', link: '/examples/arrays-and-groups' },
             { text: 'Choices', link: '/examples/choices' },
+            { text: 'Dynamic Fields', link: '/examples/dynamic-fields' },
             { text: 'Advanced example', link: '/examples/advanced' },
           ],
         },
