@@ -1,5 +1,6 @@
 {
   "name": "@bach.software/vue-dynamic-form-element-plus",
+  "private": true,
   "type": "module",
   "version": "0.1.0",
   "description": "Element Plus components for Vue Dynamic Form",
