@@ -1,5 +1,19 @@
 # @bach.software/vue-dynamic-form
 
+## 0.4.0
+
+### Minor Changes
+
+- e95806b: Extendable settings, now available in template slots
+  - **`settings` in slots** — all template slots (`#default`, `#default-array`, `#default-choice`, `#group`, `#group-array`, etc.) now receive a `settings` prop, giving templates access to the active form settings without prop-drilling or `inject`.
+  - **Extendable settings** — `defineMetadata()` accepts a new 4th generic `ExtendedSettingsProperties`, which is merged into the `DynamicFormSettings` type. This lets you add your own settings keys (e.g. `showOptionalInsteadOfRequired`) and have them fully typed end-to-end.
+  - **`GetDynamicFormSettingsType` helper** — derives the correctly-typed `DynamicFormSettings` alias from a metadata configuration, analogous to `GetMetadataType`.
+
+  **Breaking changes:**
+  - The `#attributes` slot is now always rendered (visibility is controlled inside the slot). If your template relied on the slot being absent when the field had no attributes, move that guard inside your slot content.
+  - `DynamicFormItemProps` no longer exposes `input`, `children`, `choice`, and `array` slot stubs — only `default` and `attributes` remain.
+  - `ValidationRule` and related validation helpers are no longer re-exported from the package root.
+
 ## 0.3.0
 
 ### Minor Changes
@@ -7,7 +21,6 @@
 - cb5b411: Improved defineMetadata() typing, reactive parent–child computedProps, partial form validation, auto-add first array item, and per-type array/choice slots.
 
   ## New features
-
   - **`slotProperties` in `defineMetadata()`** — `slotProps` is no longer a separate Vue prop on the
     template component; pass your slot properties as the third generic of `defineMetadata()` instead,
     where they are exposed through the `Attributes` slot as `slotProperties`. ⚠️ **Breaking for existing
