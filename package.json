@@ -3,7 +3,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "postinstall": "pnpm install --prefix docs --ignore-workspace && pnpm install --prefix playgrounds/storybook --ignore-workspace",
+    "postinstall": "(cd docs && pnpm i) & (cd playgrounds/storybook && pnpm i)",
     "dev": "pnpm build:watch & pnpm --prefix playgrounds/storybook dev",
     "storybook": "pnpm --prefix playgrounds/storybook dev",
     "docs:dev": "pnpm --prefix docs dev",
@@ -26,7 +26,7 @@
     "@changesets/cli": "catalog:tooling"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.13.0"
   },
   "packageManager": "pnpm@11.4.0"
 }

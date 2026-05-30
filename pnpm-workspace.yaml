@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
   - '!playgrounds'
+  - '!docs'
 
 allowBuilds:
   '@tailwindcss/oxide': true
