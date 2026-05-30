@@ -1,6 +1,12 @@
 packages:
   - 'packages/*'
   - '!playgrounds'
+  - '!docs'
+
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  vue-demi: true
 
 catalogs:
   build:
