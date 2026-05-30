@@ -2,6 +2,11 @@ packages:
   - 'packages/*'
   - '!playgrounds'
 
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  vue-demi: true
+
 catalogs:
   build:
     '@vitejs/plugin-vue': 6.0.1
