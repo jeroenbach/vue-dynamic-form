@@ -13,6 +13,8 @@ import ChoiceSectionCard from './ChoiceSectionCard.vue';
 import FormField from './FormField.vue';
 import FormWizard from './FormWizard.vue';
 import GroupField from './GroupField.vue';
+import PasswordInput from './PasswordInput.vue';
+import PasswordStrengthBar from './PasswordStrengthBar.vue';
 import RepeaterCard from './RepeaterCard.vue';
 import ReviewGroup from './ReviewGroup.vue';
 import SectionCard from './SectionCard.vue';
@@ -38,6 +40,7 @@ const metadata = defineMetadata<
     text: string
     select: string
     checkbox: boolean | undefined
+    password: string
   },
   {
     description?: string
@@ -54,6 +57,7 @@ const metadata = defineMetadata<
     fullWidth?: boolean
     disabled?: boolean
     hide?: boolean
+    showStrengthBar?: boolean
     validatePage?: (pageIndex: number, loadingResolve: LoadingResolve) => Promise<void>
     submitForm?: (loadingResolve: LoadingResolve) => Promise<void>
     changeChoice?: (key: string) => void
@@ -329,6 +333,22 @@ const metadata = defineMetadata<
         :placeholder="fieldMetadata.placeholder"
         @input="handleChange"
         @blur="handleBlur"
+      />
+    </template>
+
+    <template #password-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange, errorMessage }, disabled }">
+      <PasswordInput
+        :id="fieldMetadata.path"
+        :value="value.value"
+        :disabled="fieldMetadata.disabled || disabled"
+        :errorMessage="errorMessage.value"
+        :placeholder="fieldMetadata.placeholder"
+        @input="handleChange"
+        @blur="handleBlur"
+      />
+      <PasswordStrengthBar
+        v-if="fieldMetadata.showStrengthBar !== false"
+        :password="value.value"
       />
     </template>
     <!-- #endregion input-slots -->

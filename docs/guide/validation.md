@@ -97,6 +97,4 @@ const settings = {
 ```
 
 ## Interactive Example
-// TODO: add validation examples
-
-<FormExampleBasic name="individual" title="Focused Validation Example" description="A compact scenario for trying built-in validation, attributes, and form state." />
+<FormExampleValidation />

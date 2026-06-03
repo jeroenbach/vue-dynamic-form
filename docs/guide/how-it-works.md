@@ -65,7 +65,7 @@ This is the part of the library that behaves most like XSD choice semantics.
 
 ## Interactive Example
 
-<FormExampleBasic name="choices" title="Choice Behaviors" description="Simple choices, grouped choices, and array-based choices rendered from metadata." />
+<FormExampleBasic />
 
 ## Validation Integration
 
