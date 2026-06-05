@@ -22,11 +22,10 @@ catalogs:
 
   framework:
     '@bach.software/vue-dynamic-form': '>=0.1.0'
-    '@vee-validate/rules': '>=4.15'
+    '@vee-validate/rules': '>=4.12'
     element-plus: '>=2.0.0'
-    type-fest: '>=4.8.3'
-    vee-validate: '>=4.15'
-    vue: '>=3.5'
+    vee-validate: '>=4.12'
+    vue: '>=3.5.18'
 
   test:
     '@vue/test-utils': 2.4.6

@@ -1,4 +1,4 @@
-import { max, max_value, min, min_value, one_of, regex, required } from '@vee-validate/rules';
+import { max, max_value, min, min_value, one_of, regex } from '@vee-validate/rules';
 import { defineRule } from 'vee-validate';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 
@@ -21,8 +21,8 @@ export type ValidationRule = 'xsd_required'
   | 'xsd_fractionDigits'
   | 'xsd_totalDigits';
 
-// XSD: required
-defineRule('xsd_required' as ValidationRule, required);
+// XSD: required — null/undefined/empty string are invalid; false is a valid boolean value
+defineRule('xsd_required' as ValidationRule, (value: unknown) => value !== null && value !== undefined && value !== '');
 
 // XSD: minOccurs — minimum number of array items that have a value
 defineRule('xsd_minOccurs' as ValidationRule, (value: unknown, [min]: [number]) => {
