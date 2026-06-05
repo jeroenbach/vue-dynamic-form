@@ -6,6 +6,7 @@ export interface Step {
 interface Props {
   steps: Step[]
   currentStep: number
+  dataTestid?: string
 }
 interface Emits {
   (e: 'goto', step: number): void
@@ -16,7 +17,7 @@ defineEmits<Emits>();
 </script>
 
 <template>
-  <nav aria-label="Progress">
+  <nav :data-testid="dataTestid" aria-label="Progress">
     <ol class="flex items-center">
       <li
         v-for="(step, i) in steps"
@@ -26,6 +27,7 @@ defineEmits<Emits>();
       >
         <button
           type="button"
+          :data-testid="dataTestid ? `${dataTestid}-step-${i}` : undefined"
           :disabled="i > currentStep"
           :aria-label="`Step ${i + 1}: ${step.title}`"
           :aria-current="i === currentStep ? 'step' : undefined"

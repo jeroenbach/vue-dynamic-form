@@ -23,17 +23,16 @@ const metadata = defineMetadata<
     <template #heading="{ fieldMetadata, fieldContext: { errorMessage, label } }">
       <SectionCard
         :label
-        :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :errorMessage="errorMessage.value"
+        :dataTestid="fieldMetadata.path"
       >
         <slot />
       </SectionCard>
     </template>
 
     <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, required }">
-      <FormField :input-id="fieldMetadata.path" :label :required>
+      <FormField :input-id="fieldMetadata.path" :dataTestid="fieldMetadata.path" :label :required>
         <slot />
-        <ErrorMessage :error-message="errorMessage.value" :data-testid="fieldMetadata.path" />
       </FormField>
     </template>
 

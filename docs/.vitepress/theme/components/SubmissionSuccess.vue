@@ -16,6 +16,7 @@ export interface Props {
   timelineTitle?: string
   timeline?: TimelineItem[]
   submittedJson?: string
+  dataTestid?: string
 }
 
 defineProps<Props>();
@@ -25,7 +26,7 @@ const showJson = ref(false);
 </script>
 
 <template>
-  <SectionCard>
+  <SectionCard :dataTestid="dataTestid">
     <div class="md:col-span-2 flex flex-col items-center text-center">
       <div class="grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-600">
         <AppIcon name="check" :size="32" />
@@ -70,11 +71,11 @@ const showJson = ref(false);
     </div>
 
     <div class="md:col-span-2 mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <AppButton variant="ghost" @click="showJson = !showJson">
+      <AppButton variant="ghost" :dataTestid="dataTestid ? `${dataTestid}-toggle-json-button` : undefined" @click="showJson = !showJson">
         <AppIcon name="chevronRight" :size="14" class="transition-transform" :class="showJson ? 'rotate-90' : ''" />
         {{ showJson ? 'Hide' : 'View' }} submitted JSON
       </AppButton>
-      <AppButton variant="primary" @click="$emit('reset')">
+      <AppButton variant="primary" :dataTestid="dataTestid ? `${dataTestid}-reset-button` : undefined" @click="$emit('reset')">
         <AppIcon name="refresh" />
         Start a new onboarding
       </AppButton>

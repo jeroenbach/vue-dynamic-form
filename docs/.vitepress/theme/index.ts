@@ -2,6 +2,7 @@ import type { Theme } from 'vitepress';
 import DefaultTheme from 'vitepress/theme';
 import FormExampleArrayFields from './components/FormExampleArrayFields.vue';
 import FormExampleBasic from './components/FormExampleBasic.vue';
+import FormExampleValidation from './components/FormExampleValidation.vue';
 import FormExampleChoiceFields from './components/FormExampleChoiceFields.vue';
 import FormExampleClientOnboardingPlannerContext from './context/FormExampleClientOnboardingPlannerContext.vue';
 import FormExampleDynamicFieldsContext from './context/FormExampleDynamicFieldsContext.vue';
@@ -11,6 +12,7 @@ export default {
   extends: DefaultTheme,
   enhanceApp({ app }) {
     app.component('FormExampleBasic', FormExampleBasic);
+    app.component('FormExampleValidation', FormExampleValidation);
     app.component('FormExampleArrayFields', FormExampleArrayFields);
     app.component('FormExampleChoiceFields', FormExampleChoiceFields);
     app.component('FormExampleClientOnboardingPlannerContext', FormExampleClientOnboardingPlannerContext);

@@ -67,6 +67,7 @@ export default defineConfig({
             { text: 'Arrays And Groups', link: '/examples/arrays-and-groups' },
             { text: 'Choices', link: '/examples/choices' },
             { text: 'Dynamic Fields', link: '/examples/dynamic-fields' },
+            { text: 'Validation', link: '/examples/validation' },
             { text: 'Advanced example', link: '/examples/advanced' },
           ],
         },

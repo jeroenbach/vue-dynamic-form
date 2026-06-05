@@ -1,9 +1,10 @@
 <script setup lang="ts">
-const { checked = false, label = '', disabled = false, falseAsUndefined = false } = defineProps<{
+const { checked = false, label = '', disabled = false, falseAsUndefined = false, dataTestid } = defineProps<{
   checked?: boolean
   label?: string
   disabled?: boolean
   falseAsUndefined?: boolean
+  dataTestid?: string
 }>();
 const emit = defineEmits<{
   'update:checked': [value: boolean | undefined]
@@ -25,12 +26,14 @@ function onBlur(event: FocusEvent) {
 
 <template>
   <label
+    :data-testid="dataTestid"
     class="relative inline-flex shrink-0 items-center"
     :class="disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'"
   >
     <input
       type="checkbox"
       class="peer sr-only"
+      :data-testid="dataTestid ? `${dataTestid}-input` : undefined"
       :checked="checked"
       :disabled="disabled"
       :aria-label="label"

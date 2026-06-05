@@ -117,16 +117,17 @@ const fields: Metadata[] = [
 Instead of writing watchers and side effects, describe what each field looks like given the current state. The library re-evaluates on every relevant change:
 
 ```ts
-const field = {
-  name: 'vatNumber',
-  type: 'text',
-  fieldOptions: { label: 'VAT Number' },
-  computedProps: [
-    (field) => {
-      field.disabled = accountType.value !== 'business';
-    }
-  ]
-};
+const fields: Metadata[] = [
+  { name: 'accountType', type: 'select', /* ... */ },
+  {
+    name: 'vatNumber',
+    type: 'text',
+    fieldOptions: { label: 'VAT Number' },
+    computedProps: [
+      (field) => { field.disabled = accountType.value !== 'business'; }
+    ]
+  }
+];
 ```
 
 No watchers, no event handlers. Change `accountType` and the field responds instantly. Works for visibility, options, validation rules, labels — anything on the field.
@@ -136,17 +137,19 @@ No watchers, no event handlers. Change `accountType` and the field responds inst
 Control repetition with `minOccurs` and `maxOccurs`. The library manages array indexing, add/remove, and validates each occurrence independently:
 
 ```ts
-const field = {
-  name: 'contacts',
-  type: 'heading',
-  minOccurs: 1,
-  maxOccurs: 5,
-  arrayItemName: 'contact',
-  children: [
-    { name: 'name', type: 'text', fieldOptions: { label: 'Name' } },
-    { name: 'email', type: 'text', fieldOptions: { label: 'Email' } },
-  ],
-};
+const fields: Metadata[] = [
+  {
+    name: 'contacts',
+    type: 'heading',
+    minOccurs: 1,
+    maxOccurs: 5,
+    arrayItemName: 'contact',
+    children: [
+      { name: 'name', type: 'text', fieldOptions: { label: 'Name' } },
+      { name: 'email', type: 'text', fieldOptions: { label: 'Email' } },
+    ],
+  },
+];
 ```
 
 ### Mutually exclusive choices
@@ -154,26 +157,28 @@ const field = {
 Branches that disable their siblings the moment one becomes active. Nested validation only applies to the active branch:
 
 ```ts
-const field = {
-  name: 'payment',
-  type: 'heading',
-  choice: [
-    {
-      name: 'card',
-      fieldOptions: { label: 'Credit card' },
-      children: [
-        { name: 'number', type: 'text', fieldOptions: { label: 'Card number' } },
-      ],
-    },
-    {
-      name: 'transfer',
-      fieldOptions: { label: 'Bank transfer' },
-      children: [
-        { name: 'iban', type: 'text', fieldOptions: { label: 'IBAN' } },
-      ],
-    },
-  ],
-};
+const fields: Metadata[] = [
+  {
+    name: 'payment',
+    type: 'heading',
+    choice: [
+      {
+        name: 'card',
+        fieldOptions: { label: 'Credit card' },
+        children: [
+          { name: 'number', type: 'text', fieldOptions: { label: 'Card number' } },
+        ],
+      },
+      {
+        name: 'transfer',
+        fieldOptions: { label: 'Bank transfer' },
+        children: [
+          { name: 'iban', type: 'text', fieldOptions: { label: 'IBAN' } },
+        ],
+      },
+    ],
+  },
+];
 ```
 
 ### XSD-inspired validation rules
@@ -181,15 +186,17 @@ const field = {
 Built-in rules derived from the XSD specification, with human-readable message overrides:
 
 ```ts
-const field = {
-  name: 'username',
-  type: 'text',
-  restriction: {
-    minLength: 3,
-    maxLength: 30,
-    pattern: '^[a-z0-9_]+$',
+const fields: Metadata[] = [
+  {
+    name: 'username',
+    type: 'text',
+    restriction: {
+      minLength: 3,
+      maxLength: 30,
+      pattern: '^[a-z0-9_]+$',
+    },
   },
-};
+];
 ```
 
 Pass `settings.messages` to `DynamicForm` to customise any message globally.

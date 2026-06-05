@@ -8,6 +8,7 @@ interface Props {
   title?: MaybeRefOrGetter<string | undefined>
   placeholderTitle?: string
   canRemove?: boolean
+  dataTestid?: string
 }
 
 withDefaults(defineProps<Props>(), {
@@ -22,7 +23,7 @@ defineEmits<{
 </script>
 
 <template>
-  <article class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+  <article :data-testid="dataTestid" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
     <header class="mb-3 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <span
@@ -37,6 +38,7 @@ defineEmits<{
       <AppButton
         variant="danger-light"
         :disabled="!canRemove"
+        :dataTestid="dataTestid ? `${dataTestid}-remove-button` : undefined"
         :aria-label="`Remove item ${index + 1}`"
         @click="$emit('remove')"
       >

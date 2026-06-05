@@ -15,9 +15,10 @@ export interface ChoiceOption {
 
 export interface Props extends /* @vue-ignore */ SectionCardProps {
   options?: ChoiceOption[]
+  dataTestid?: string
 }
 
-const { options } = defineProps<Props>();
+const { options, dataTestid } = defineProps<Props>();
 const emits = defineEmits<{ select: [key: string] }>();
 const selectedOption = ref(options?.[0]?.value);
 
@@ -41,6 +42,7 @@ function changeSelectedOption(value: string) {
       <ChoiceCard
         v-for="option in options"
         :key="option.value"
+        :dataTestid="dataTestid ? `${dataTestid}-${option.value}` : undefined"
         :title="option.title"
         :description="option.description"
         :selected="selectedOption === option.value"

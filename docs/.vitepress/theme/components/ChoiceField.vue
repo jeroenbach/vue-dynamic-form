@@ -17,7 +17,7 @@ defineProps<Props>();
 </script>
 
 <template>
-  <section class="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 p-4 md:col-span-2">
+  <section :data-testid="dataTestid" class="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 p-4 md:col-span-2">
     <div class="space-y-1">
       <span class="block text-sm font-semibold text-slate-900 dark:text-slate-100" :class="{ 'text-slate-400 dark:text-slate-500': disabled }">
         {{ label }}
@@ -30,6 +30,6 @@ defineProps<Props>();
     <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
       <slot />
     </div>
-    <ErrorMessage :error-message="errorMessage" :data-testid="dataTestid" />
+    <ErrorMessage :errorMessage="errorMessage" :dataTestid="dataTestid" />
   </section>
 </template>

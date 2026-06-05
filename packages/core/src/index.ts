@@ -19,3 +19,9 @@ export * from '@/types/GetMetadataType';
 export * from '@/types/MetadataConfiguration';
 export * from '@/types/RequireOnly';
 export * from '@/types/ValidationMessage';
+
+// Utils
+export * from '@/utils/checkTreeHasValue';
+export * from '@/utils/mapEachMetadataItem';
+export * from '@/utils/removeNullValues';
+export * from '@/utils/setInPath';
