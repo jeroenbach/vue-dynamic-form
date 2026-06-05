@@ -1,5 +1,11 @@
 # @bach.software/vue-dynamic-form
 
+## 0.5.0
+
+### Minor Changes
+
+- ad73109: Exported new utility helpers: `removeNullValues`, `checkTreeHasValue`, `mapEachMetadataItem`, and `setInPath`.
+
 ## 0.4.0
 
 ### Minor Changes

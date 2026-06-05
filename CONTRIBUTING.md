@@ -77,3 +77,5 @@ This will:
 - bump the version in `packages/core/package.json`
 - append the changelog entry to `CHANGELOG.md`
 - and finally publish the package to npm
+
+Please makes sure to `Merge` the PR and not squash it.
