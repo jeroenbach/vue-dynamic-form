@@ -12,8 +12,14 @@ describe('validation rules', () => {
     it('passes for a non-empty string', async () => {
       expect(await passes('hello', 'xsd_required')).toBe(true);
     });
-    it('fails for an empty string', async () => {
+    it('passes for false (boolean false is a valid required value)', async () => {
+      expect(await passes(false, 'xsd_required')).toBe(true);
+    });
+    it('fails for empty string (empty element has no value in XML)', async () => {
       expect(await passes('', 'xsd_required')).toBe(false);
+    });
+    it('fails for null', async () => {
+      expect(await passes(null, 'xsd_required')).toBe(false);
     });
     it('fails for undefined', async () => {
       expect(await passes(undefined, 'xsd_required')).toBe(false);

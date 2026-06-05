@@ -1,10 +1,10 @@
-import type { PartialDeep } from 'type-fest';
 import type {
   FlattenAndSetPathsType,
   FormContext,
   GenericObject,
   Path,
   PathValue,
+  FormOptions as VeeFormOptions,
 } from 'vee-validate';
 import type { MaybeRef, MaybeRefOrGetter, Ref } from 'vue';
 import {
@@ -15,7 +15,7 @@ import { useValidatePartialForm } from '@/core/useValidatePartialForm';
 
 /** Options forwarded directly to vee-validate's `useForm()`. */
 export interface FormOptions<TValues extends GenericObject> {
-  initialValues?: PartialDeep<TValues> | undefined | null
+  initialValues?: VeeFormOptions<TValues>['initialValues']
   initialErrors?: FlattenAndSetPathsType<TValues, string | undefined>
   initialTouched?: FlattenAndSetPathsType<TValues, boolean>
   validateOnMount?: boolean
