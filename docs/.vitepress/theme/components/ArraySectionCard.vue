@@ -10,6 +10,7 @@ export interface Props extends /* @vue-ignore */ SectionCardProps {
   itemsName?: string
   itemsNamePlural?: string
   noItemsMessage?: string
+  dataTestid?: string
 }
 
 defineProps<Props>();
@@ -33,7 +34,7 @@ defineEmits<{ addItem: [] }>();
         <p v-if="noItemsMessage" class="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {{ noItemsMessage }}
         </p>
-        <AppButton class="mt-4" variant="primary" @click="$emit('addItem')">
+        <AppButton class="mt-4" variant="primary" :dataTestid="dataTestid ? `${dataTestid}-add-button` : undefined" @click="$emit('addItem')">
           <AppIcon name="plus" />
           Add a {{ itemsName ?? 'item' }}
         </AppButton>
@@ -42,7 +43,7 @@ defineEmits<{ addItem: [] }>();
     </template>
     <template #footer>
       <div class="mt-4">
-        <AppButton :disabled="!canAddItems" @click="$emit('addItem')">
+        <AppButton :disabled="!canAddItems" :dataTestid="dataTestid ? `${dataTestid}-add-button` : undefined" @click="$emit('addItem')">
           <AppIcon name="plus" />
           <slot name="add-label">
             Add {{ itemsName ?? 'item' }}

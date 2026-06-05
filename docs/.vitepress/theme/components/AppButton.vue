@@ -4,6 +4,7 @@ import type { ButtonHTMLAttributes } from 'vue';
 export interface Props extends /* @vue-ignore */ ButtonHTMLAttributes {
   label?: string
   variant?: 'default' | 'danger' | 'danger-light' | 'primary' | 'ghost'
+  dataTestid?: string
 }
 
 defineOptions({ inheritAttrs: false });
@@ -18,6 +19,7 @@ withDefaults(defineProps<Props>(), {
   <button
     v-bind="$attrs"
     type="button"
+    :data-testid="dataTestid"
     class="inline-flex items-center gap-2 rounded-md !px-3 !py-2 text-sm font-medium cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
     :class="{
       'border border-red-200 dark:border-rose-800 bg-red-50 dark:bg-rose-950 text-red-700 dark:text-rose-400 hover:border-red-400 dark:hover:border-rose-600 hover:bg-red-100 dark:hover:bg-rose-900': variant === 'danger',

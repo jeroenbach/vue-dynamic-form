@@ -3,6 +3,7 @@ export interface Props {
   title?: string
   description?: string
   selected?: boolean
+  dataTestid?: string
 }
 
 defineProps<Props>();
@@ -13,6 +14,7 @@ defineEmits<{ select: [] }>();
   <button
     type="button"
     role="radio"
+    :data-testid="dataTestid"
     :aria-checked="selected"
     class="rounded-xl border bg-white dark:bg-slate-900 p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer"
     :class="selected

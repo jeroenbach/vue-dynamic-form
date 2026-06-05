@@ -15,6 +15,7 @@ interface Props {
   nextButton?: string
   prevButton?: string
   submitButton?: string
+  dataTestid?: string
 }
 interface Emits {
   (e: 'validatePage', pageIndex: number, loadingResolve: LoadingResolve): void
@@ -60,7 +61,7 @@ function prev() {
 </script>
 
 <template>
-  <div>
+  <div :data-testid="dataTestid">
     <header class="mb-6 flex items-center justify-between">
       <div>
         <p v-if="title" class="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -83,6 +84,7 @@ function prev() {
     <footer class="mt-8 flex items-center justify-between">
       <AppButton
         type="button"
+        :dataTestid="dataTestid ? `${dataTestid}-back-button` : undefined"
         class="inline-flex items-center gap-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
         :class="{ invisible: isFirst }"
         @click="prev"
@@ -99,6 +101,7 @@ function prev() {
         v-if="isLast"
         variant="primary"
         type="submit"
+        :dataTestid="dataTestid ? `${dataTestid}-submit-button` : undefined"
         @click="submit"
       >
         {{ submitButton }}
@@ -108,6 +111,7 @@ function prev() {
         v-else
         type="button"
         variant="primary"
+        :dataTestid="dataTestid ? `${dataTestid}-next-button` : undefined"
         @click="next"
       >
         {{ nextButton }}

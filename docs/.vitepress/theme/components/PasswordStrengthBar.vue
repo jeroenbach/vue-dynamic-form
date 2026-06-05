@@ -3,6 +3,7 @@ import { computed } from 'vue';
 
 const props = defineProps<{
   password?: string | unknown
+  dataTestid?: string
 }>();
 
 type Strength = 'empty' | 'weak' | 'fair' | 'good' | 'strong';
@@ -36,7 +37,7 @@ const config = computed(() => {
 
 <template>
   <Transition name="fade">
-    <div v-if="password" class="mt-2 flex flex-col gap-1">
+    <div v-if="password" :data-testid="props.dataTestid" class="mt-2 flex flex-col gap-1">
       <div class="flex gap-1">
         <div
           v-for="i in 4"
@@ -45,7 +46,7 @@ const config = computed(() => {
           :class="i <= config.segments ? config.colorClass : 'bg-slate-200 dark:bg-slate-700'"
         />
       </div>
-      <p class="text-xs font-medium transition-colors duration-300" :class="config.labelClass">
+      <p :data-testid="props.dataTestid ? `${props.dataTestid}-strength` : undefined" class="text-xs font-medium transition-colors duration-300" :class="config.labelClass">
         {{ config.label }}
       </p>
     </div>

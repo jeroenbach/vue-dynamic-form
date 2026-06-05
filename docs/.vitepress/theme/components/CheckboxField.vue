@@ -24,6 +24,7 @@ const emits = defineEmits<Emits>();
 
 <template>
   <div
+    :data-testid="dataTestid"
     class="flex items-start justify-between gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border "
     :class="{
       'opacity-60': disabled,
@@ -39,7 +40,7 @@ const emits = defineEmits<Emits>();
       <p v-if="description" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
         {{ description }}
       </p>
-      <ErrorMessage :error-message="errorMessage" :data-testid="dataTestid" />
+      <ErrorMessage :errorMessage="errorMessage" :dataTestid="dataTestid" />
     </label>
     <slot />
   </div>

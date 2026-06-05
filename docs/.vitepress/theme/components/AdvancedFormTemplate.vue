@@ -85,7 +85,7 @@ const metadata = defineMetadata<
         :title="label"
         :subTitle="fieldMetadata.description"
         :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
         :steps="fieldMetadata.children?.map(x => ({ title: toValue(x.fieldOptions?.label) ?? x.name, description: x.helpText }))"
         :nextButton
         :prevButton
@@ -103,7 +103,7 @@ const metadata = defineMetadata<
         :label
         :description="fieldMetadata.description"
         :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
       >
         <ReviewGroup
           v-for="(group, i) in (fieldMetadata.wizardSummary ?? [])"
@@ -160,7 +160,7 @@ const metadata = defineMetadata<
         :label
         :description="fieldMetadata.description"
         :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
       >
         <slot />
       </SectionCard>
@@ -172,7 +172,7 @@ const metadata = defineMetadata<
         :label
         :description="fieldMetadata.description"
         :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
         :options="fieldMetadata.choiceShowChoiceSelect ? fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
         @select="fieldMetadata.changeChoice?.($event)"
       >
@@ -187,7 +187,7 @@ const metadata = defineMetadata<
         :noItemsMessage="fieldMetadata.arrayNoItemsMessage"
         :addButtonText="`Add another ${fieldMetadata.arrayItemName}`"
         :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
         :canAddItems
         :itemsCount="value.value?.length ?? 0"
         :itemsName="fieldMetadata.arrayItemName"
@@ -206,7 +206,7 @@ const metadata = defineMetadata<
         :title="fieldMetadata.arrayItemFieldForTitle && (value.value as any)?.[fieldMetadata.arrayItemFieldForTitle]"
         :placeholderTitle="`New ${fieldMetadata.arrayItemName}`"
         :canRemove="canRemoveItems"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
         @remove="removeItem"
       >
         <slot />
@@ -223,7 +223,7 @@ const metadata = defineMetadata<
         :show-required-or-optional
         :disabled="fieldMetadata.disabled || disabled"
         :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
       >
         <slot />
       </ChoiceField>
@@ -238,7 +238,7 @@ const metadata = defineMetadata<
         :disabled="fieldMetadata.disabled || disabled"
         :can-add-items="canAddItems"
         :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
         @add="addItem"
       >
         <slot />
@@ -256,7 +256,7 @@ const metadata = defineMetadata<
         :show-required-or-optional
         :disabled="fieldMetadata.disabled || disabled"
         :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
       >
         <slot />
       </CheckboxField>
@@ -275,7 +275,7 @@ const metadata = defineMetadata<
         :can-add-items="canAddItems"
         :can-remove-items="canRemoveItems"
         :error-message="errorMessage.value"
-        :data-testid="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
         @add="addItem"
         @remove="removeItem"
       >
@@ -287,6 +287,7 @@ const metadata = defineMetadata<
         :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
         :disabled="fieldMetadata.disabled || disabled"
         :input-id="fieldMetadata.path"
+        :dataTestid="fieldMetadata.path"
         :description="fieldMetadata.description"
         :label
         :required
@@ -303,6 +304,7 @@ const metadata = defineMetadata<
     <template #select-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange, errorMessage }, disabled }">
       <SelectInput
         :id="fieldMetadata.path"
+        :dataTestid="`${fieldMetadata.path}-input`"
         :value="value.value"
         :options="fieldMetadata.options"
         :disabled="fieldMetadata.disabled || disabled"
@@ -315,6 +317,7 @@ const metadata = defineMetadata<
     <template #checkbox-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange, errorMessage }, disabled }">
       <ToggleSwitch
         :id="fieldMetadata.path"
+        :dataTestid="`${fieldMetadata.path}-input`"
         :checked="value.value"
         :disabled="fieldMetadata.disabled || disabled"
         :errorMessage="errorMessage.value"
@@ -327,6 +330,7 @@ const metadata = defineMetadata<
     <template #default-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange, errorMessage }, disabled }">
       <TextInput
         :id="fieldMetadata.path"
+        :dataTestid="`${fieldMetadata.path}-input`"
         :value="value.value"
         :disabled="fieldMetadata.disabled || disabled"
         :errorMessage="errorMessage.value"
@@ -339,6 +343,7 @@ const metadata = defineMetadata<
     <template #password-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange, errorMessage }, disabled }">
       <PasswordInput
         :id="fieldMetadata.path"
+        :dataTestid="`${fieldMetadata.path}-input`"
         :value="value.value"
         :disabled="fieldMetadata.disabled || disabled"
         :errorMessage="errorMessage.value"
@@ -348,6 +353,7 @@ const metadata = defineMetadata<
       />
       <PasswordStrengthBar
         v-if="fieldMetadata.showStrengthBar !== false"
+        :dataTestid="`${fieldMetadata.path}-input`"
         :password="value.value"
       />
     </template>

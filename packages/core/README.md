@@ -118,16 +118,16 @@ Instead of writing watchers and side effects, describe what each field looks lik
 
 ```ts
 const fields: Metadata[] = [
-  { name: 'accountType', type: 'select', ... },
+  { name: 'accountType', type: 'select', /* ... */ },
   {
     name: 'vatNumber',
     type: 'text',
     fieldOptions: { label: 'VAT Number' },
     computedProps: [
-      (field) => { field.disabled = accountType.value !== 'business' }
+      (field) => { field.disabled = accountType.value !== 'business'; }
     ]
   }
-]
+];
 ```
 
 No watchers, no event handlers. Change `accountType` and the field responds instantly. Works for visibility, options, validation rules, labels — anything on the field.
@@ -149,7 +149,7 @@ const fields: Metadata[] = [
       { name: 'email', type: 'text', fieldOptions: { label: 'Email' } },
     ],
   },
-]
+];
 ```
 
 ### Mutually exclusive choices
@@ -178,7 +178,7 @@ const fields: Metadata[] = [
       },
     ],
   },
-]
+];
 ```
 
 ### XSD-inspired validation rules
@@ -196,7 +196,7 @@ const fields: Metadata[] = [
       pattern: '^[a-z0-9_]+$',
     },
   },
-]
+];
 ```
 
 Pass `settings.messages` to `DynamicForm` to customise any message globally.

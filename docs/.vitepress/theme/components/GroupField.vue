@@ -26,6 +26,7 @@ defineEmits<{
 
 <template>
   <section
+    :data-testid="dataTestid"
     class="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6"
     :class="{ 'opacity-60': disabled }"
   >
@@ -43,12 +44,14 @@ defineEmits<{
         <AppButton
           v-if="canAddItems"
           label="Add"
+          :dataTestid="dataTestid ? `${dataTestid}-add-button` : undefined"
           @click="$emit('add')"
         />
         <AppButton
           v-if="canRemoveItems"
           label="Remove"
           variant="danger"
+          :dataTestid="dataTestid ? `${dataTestid}-remove-button` : undefined"
           @click="$emit('remove')"
         />
       </div>
@@ -56,6 +59,6 @@ defineEmits<{
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2" :class="{ 'hide-optional-required': showRequiredOrOptional === 'optional' }">
       <slot />
     </div>
-    <ErrorMessage :error-message="errorMessage" :data-testid="dataTestid" />
+    <ErrorMessage :errorMessage="errorMessage" :dataTestid="dataTestid" />
   </section>
 </template>

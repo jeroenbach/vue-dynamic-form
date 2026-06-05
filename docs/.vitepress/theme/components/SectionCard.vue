@@ -14,7 +14,7 @@ defineProps<Props>();
 </script>
 
 <template>
-  <section class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-sm">
+  <section :data-testid="dataTestid" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-sm">
     <header class="mb-5 flex items-start justify-between gap-4">
       <div>
         <h2 v-if="label" class="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -23,7 +23,7 @@ defineProps<Props>();
         <p v-if="description" class="text-sm leading-6 text-slate-600 dark:text-slate-400">
           {{ description }}
         </p>
-        <ErrorMessage :error-message="errorMessage" :data-testid="dataTestid" />
+        <ErrorMessage :errorMessage="errorMessage" :dataTestid="dataTestid" />
       </div>
       <span v-if="tag" class="inline-flex items-center rounded-full text-nowrap bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
         {{ tag }}

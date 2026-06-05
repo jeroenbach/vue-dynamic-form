@@ -7,6 +7,7 @@ export interface Props {
   placeholder?: string
   disabled?: boolean
   errorMessage?: string
+  dataTestid?: string
 }
 
 defineProps<Props>();
@@ -19,8 +20,9 @@ const showPassword = ref(false);
 </script>
 
 <template>
-  <div class="relative">
+  <div :data-testid="dataTestid" class="relative">
     <input
+      :data-testid="dataTestid ? `${dataTestid}-input` : undefined"
       :type="showPassword ? 'text' : 'password'"
       :id
       :value="(value as string | undefined)"
@@ -38,6 +40,7 @@ const showPassword = ref(false);
     <button
       type="button"
       tabindex="-1"
+      :data-testid="dataTestid ? `${dataTestid}-toggle` : undefined"
       class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
       :aria-label="showPassword ? 'Hide password' : 'Show password'"
       @click="showPassword = !showPassword"

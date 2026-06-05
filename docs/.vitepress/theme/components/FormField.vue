@@ -13,6 +13,7 @@ export interface Props {
   dependentOnMessage?: string
   errorMessage?: string
   canRemoveItems?: boolean
+  dataTestid?: string
 }
 defineProps<Props>();
 defineEmits<{
@@ -22,6 +23,7 @@ defineEmits<{
 
 <template>
   <div
+    :data-testid="dataTestid"
     class="flex flex-col gap-2"
     :class="{ 'opacity-60': disabled }"
   >
@@ -43,12 +45,13 @@ defineEmits<{
         v-if="canRemoveItems"
         label="Remove"
         variant="danger"
+        :dataTestid="dataTestid ? `${dataTestid}-remove-button` : undefined"
         @click="$emit('removeItem')"
       />
     </div>
     <p v-if="description" class="text-sm leading-5 text-slate-500 dark:text-slate-400">
       {{ description }}
     </p>
-    <ErrorMessage :error-message="errorMessage" :data-testid="`${inputId}-error-message`" />
+    <ErrorMessage :errorMessage="errorMessage" :dataTestid="dataTestid" />
   </div>
 </template>
