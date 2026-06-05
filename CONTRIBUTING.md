@@ -62,6 +62,7 @@ pnpm changeset
 ```
 
 Choose the bump type (`major` / `minor` / `patch`) and write a changelog entry. This creates a Markdown file under `.changeset/`. Commit that file as part of your feature branch before opening (or merging) your PR — the changeset file must land on `main` so that Step 2 can pick it up.
+Do this for each branch, that way, every contributor can describe their own change, and multiple changesets can accumulate on main from different PRs. 
 
 ### Step 2 — cut the release (done when ready to publish)
 
