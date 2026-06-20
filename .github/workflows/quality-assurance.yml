@@ -101,6 +101,9 @@ jobs:
   test:
     needs: prepare
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -123,5 +126,89 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run Tests
-        run: pnpm run ci:test
+      - name: Run Tests with Coverage
+        run: pnpm run ci:test:coverage
+
+      - name: Report Coverage (core)
+        if: always()
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          name: core
+          json-summary-path: packages/core/coverage/coverage-summary.json
+          json-final-path: packages/core/coverage/coverage-final.json
+
+      - name: Report Coverage (element-plus)
+        if: always()
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          name: element-plus
+          json-summary-path: packages/element-plus/coverage/coverage-summary.json
+          json-final-path: packages/element-plus/coverage/coverage-final.json
+
+      - name: Upload coverage for SonarQube
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: |
+            packages/core/coverage/lcov.info
+            packages/element-plus/coverage/lcov.info
+          retention-days: 1
+
+  sonar:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check SonarQube reachability
+        id: sonar-check
+        run: |
+          if curl --silent --max-time 10 --fail https://sonar.bach.software/api/system/status > /dev/null 2>&1; then
+            echo "reachable=true" >> $GITHUB_OUTPUT
+          else
+            echo "SonarQube at sonar.bach.software is not reachable, skipping scan"
+            echo "reachable=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download coverage reports
+        if: steps.sonar-check.outputs.reachable == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-lcov
+
+      - name: SonarQube Scan
+        if: steps.sonar-check.outputs.reachable == 'true'
+        uses: sonarsource/sonarqube-scan-action@v8.2.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonar.bach.software
+
+  trivy-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          version: v0.71.2
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif

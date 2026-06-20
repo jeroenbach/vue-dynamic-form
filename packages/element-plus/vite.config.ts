@@ -1,12 +1,20 @@
 import path from 'node:path';
 import vue from '@vitejs/plugin-vue';
 import { defineConfig } from 'vite';
+import { coverageConfigDefaults } from 'vitest/config';
 
 export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
       '@/': new URL('./src/', import.meta.url).pathname,
+    },
+  },
+  test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'json', 'html', 'lcov'],
+      exclude: [...coverageConfigDefaults.exclude],
     },
   },
   build: {

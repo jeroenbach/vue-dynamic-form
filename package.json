@@ -17,6 +17,7 @@
     "ci": "pnpm -r ci",
     "ci:lint": "pnpm -r ci:lint",
     "ci:test": "pnpm -r ci:test",
+    "ci:test:coverage": "pnpm -r ci:test:coverage",
     "ci:typecheck": "pnpm -r ci:typecheck",
     "ci:build": "pnpm -r ci:build",
     "changeset": "changeset"
