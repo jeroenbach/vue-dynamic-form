@@ -48,6 +48,7 @@
     "prepublishOnly": "npm run ci",
     "ci": "pnpm ci:test && pnpm ci:lint && pnpm ci:typecheck",
     "ci:test": "TZ=Europe/Amsterdam vitest run",
+    "ci:test:coverage": "TZ=Europe/Amsterdam vitest run --coverage",
     "ci:lint": "eslint",
     "ci:typecheck": "vue-tsc --noEmit",
     "changeset": "changeset"
@@ -62,6 +63,7 @@
     "@changesets/cli": "catalog:tooling",
     "@types/node": "catalog:types",
     "@vitejs/plugin-vue": "catalog:build",
+    "@vitest/coverage-v8": "catalog:test",
     "@vue/test-utils": "catalog:test",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",

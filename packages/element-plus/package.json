@@ -44,6 +44,7 @@
     "test": "vitest run",
     "ci": "pnpm ci:test && pnpm ci:lint && pnpm ci:typecheck",
     "ci:test": "TZ=Europe/Amsterdam vitest run",
+    "ci:test:coverage": "TZ=Europe/Amsterdam vitest run --coverage",
     "ci:lint": "eslint",
     "ci:typecheck": "vue-tsc --noEmit"
   },
@@ -58,7 +59,8 @@
     "@bach.software/vue-dynamic-form": "workspace:*",
     "@types/node": "catalog:types",
     "@vitejs/plugin-vue": "catalog:build",
-    "element-plus": "catalog:framework",
+    "@vitest/coverage-v8": "catalog:test",
+    "element-plus": "catalog:framework-pinned",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
     "tsc-alias": "catalog:build",

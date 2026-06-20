@@ -1,6 +1,7 @@
 import path from 'node:path';
 import vue from '@vitejs/plugin-vue';
 import { defineConfig } from 'vite';
+import { coverageConfigDefaults } from 'vitest/config';
 
 // import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 
@@ -18,6 +19,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/tests/test-setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'json', 'html', 'lcov'],
+      exclude: [...coverageConfigDefaults.exclude, 'src/tests/**'],
+    },
   },
 
   build: {
