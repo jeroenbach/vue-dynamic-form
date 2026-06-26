@@ -9,7 +9,7 @@ Always run these steps before committing or pushing changes:
 1. **Run all pipeline checks** — `pnpm ci` (runs tests, lint, and typecheck together). Fix every error before pushing.
 2. **Keep coverage green** — run `pnpm -r ci:test:coverage` and verify that statement/branch/function coverage does not drop compared to the baseline. The codecov integration tracks this on every PR.
 3. **Add tests** — any functional change must be accompanied by tests that exercise the new or fixed behaviour.
-4. **Take screenshots** — for any visual/UI change, take a screenshot of the result using Playwright (pre-installed at `/opt/pw-browsers/chromium`) and attach it to the PR or commit message.
+4. **Take screenshots** — for any visual/UI change, take a screenshot using Playwright. Chromium is pre-installed at `/opt/pw-browsers/chromium`; the `playwright` package is available under `playgrounds/storybook/node_modules/playwright`. Launch with `args: ['--no-proxy-server']` when screenshotting localhost (the environment proxy does not forward to local ports). Run the docs or Storybook server first, screenshot it, and attach the image to the PR or commit.
 5. **Check the Cloudflare Pages preview** — if `docs/` content changed, run `pnpm docs:build` locally first to confirm the VitePress site compiles. Cloudflare Pages automatically builds a preview environment for every PR (the URL is posted as a PR comment by the `cloudflare-workers-and-pages` bot). Verify the preview before merging. On merge to `main`, Cloudflare deploys to production at [vue-dynamic-form.bach.software](https://vue-dynamic-form.bach.software).
 
 ## Commands
