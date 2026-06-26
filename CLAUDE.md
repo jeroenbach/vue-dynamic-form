@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Before Every Push
+
+Always run these steps before committing or pushing changes:
+
+1. **Run all pipeline checks** — `pnpm ci` (runs tests, lint, and typecheck together). Fix every error before pushing.
+2. **Keep coverage green** — run `pnpm -r ci:test:coverage` and verify that statement/branch/function coverage does not drop compared to the baseline. The codecov integration tracks this on every PR.
+3. **Add tests** — any functional change must be accompanied by tests that exercise the new or fixed behaviour.
+4. **Take screenshots** — for any visual/UI change, take a screenshot of the result using Playwright (pre-installed at `/opt/pw-browsers/chromium`) and attach it to the PR or commit message.
+5. **Verify the docs build** — if `docs/` content changed, run `pnpm docs:build` to confirm the VitePress site compiles. The Cloudflare Pages deployment is triggered automatically on merge to `main`; check the deployed site at [vue-dynamic-form.bach.software](https://vue-dynamic-form.bach.software) after the release workflow completes.
+
 ## Commands
 
 ```bash
