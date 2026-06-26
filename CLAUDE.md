@@ -10,7 +10,7 @@ Always run these steps before committing or pushing changes:
 2. **Keep coverage green** — run `pnpm -r ci:test:coverage` and verify that statement/branch/function coverage does not drop compared to the baseline. The codecov integration tracks this on every PR.
 3. **Add tests** — any functional change must be accompanied by tests that exercise the new or fixed behaviour.
 4. **Take screenshots** — for any visual/UI change, take a screenshot of the result using Playwright (pre-installed at `/opt/pw-browsers/chromium`) and attach it to the PR or commit message.
-5. **Verify the docs build** — if `docs/` content changed, run `pnpm docs:build` to confirm the VitePress site compiles. The Cloudflare Pages deployment is triggered automatically on merge to `main`; check the deployed site at [vue-dynamic-form.bach.software](https://vue-dynamic-form.bach.software) after the release workflow completes.
+5. **Check the Cloudflare Pages preview** — if `docs/` content changed, run `pnpm docs:build` locally first to confirm the VitePress site compiles. Cloudflare Pages automatically builds a preview environment for every PR (the URL is posted as a PR comment by the `cloudflare-workers-and-pages` bot). Verify the preview before merging. On merge to `main`, Cloudflare deploys to production at [vue-dynamic-form.bach.software](https://vue-dynamic-form.bach.software).
 
 ## Commands
 
