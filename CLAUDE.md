@@ -11,6 +11,14 @@ Always run these steps before committing or pushing changes:
 3. **Add tests** — any functional change must be accompanied by tests that exercise the new or fixed behaviour.
 4. **Take screenshots** — for any visual/UI change, take a screenshot using Playwright. Chromium is pre-installed at `/opt/pw-browsers/chromium`; the `playwright` package is available under `playgrounds/storybook/node_modules/playwright`. Launch with `args: ['--no-proxy-server']` when screenshotting localhost (the environment proxy does not forward to local ports). Run the docs or Storybook server first, screenshot it, and attach the image to the PR or commit.
 5. **Check the Cloudflare Pages preview** — if `docs/` content changed, run `pnpm docs:build` locally first to confirm the VitePress site compiles. Cloudflare Pages automatically builds a preview environment for every PR (the URL is posted as a PR comment by the `cloudflare-workers-and-pages` bot). Verify the preview before merging. On merge to `main`, Cloudflare deploys to production at [vue-dynamic-form.bach.software](https://vue-dynamic-form.bach.software).
+6. **Add a changeset** — only required when `packages/core/src/` has changed (the published library). Skip it for changes that only touch `docs/`, `playgrounds/`, `packages/element-plus/` (private), root config files, or CI workflows — those don't affect the published package.
+
+   Run `pnpm changeset` and choose the bump type based on backwards compatibility:
+   - **patch** — bug fix or internal change with no API impact
+   - **minor** — new feature or export that is backwards compatible (existing code keeps working unchanged)
+   - **major** — breaking change: removed or renamed export, changed function/component signature, behaviour change that existing consumers relied on
+
+   Commit the generated `.changeset/*.md` file with the branch.
 
 ## Commands
 
