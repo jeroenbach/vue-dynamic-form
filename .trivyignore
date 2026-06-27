@@ -1,0 +1,5 @@
+# vitepress 1.x locks to vite@^5 which has no 5.x fix for this CVE.
+# The bypass only affects the dev server on Windows. The docs site is served as
+# a static build (Cloudflare Pages), so there is no production exposure.
+# Remove this entry when vitepress is upgraded to a version that supports vite>=6.4.3.
+GHSA-fx2h-pf6j-xcff
