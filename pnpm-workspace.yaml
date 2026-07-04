@@ -11,8 +11,8 @@ allowBuilds:
 catalogs:
   build:
     '@vitejs/plugin-vue': 6.0.1
-    tsc-alias: 1.8.16
-    vite: 7.1.2
+    tsc-alias: 1.8.17
+    vite: 7.3.6
     vue-tsc: 3.0.5
 
   dev:
@@ -31,10 +31,10 @@ catalogs:
     element-plus: 2.14.2
 
   test:
-    '@vitest/coverage-v8': 3.2.4
+    '@vitest/coverage-v8': 3.2.6
     '@vue/test-utils': 2.4.6
     jsdom: 26.0.0
-    vitest: 3.2.4
+    vitest: 3.2.6
 
   tooling:
     '@changesets/cli': 2.29.5
