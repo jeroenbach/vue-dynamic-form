@@ -100,7 +100,10 @@ const needsTraining = computed(() =>
   Boolean(values?.launchApproach?.guidedRollout?.needsTraining),
 );
 
-const selectedLaunchApproach = ref<LaunchApproach>('selfServe');
+// Two-way bound to the launchApproach choice through the activeChoices metadata property:
+// the form writes the selection into this ref, and external writes update the form.
+const activeLaunchApproaches = ref<string[]>(['selfServe']);
+const selectedLaunchApproach = computed(() => activeLaunchApproaches.value[0] as LaunchApproach | undefined);
 
 const industryLabel = computed(() =>
   props.optionStore.industry.find(o => o.key === industryValue.value)?.value,
@@ -321,7 +324,10 @@ const metadata: Metadata[] = [
         fullWidth: true,
         computedProps: [registerWizardPagePath],
         choiceShowChoiceSelect: true,
-        changeChoice: key => selectedLaunchApproach.value = key as LaunchApproach,
+        // #region explicit-activation
+        activeChoices: activeLaunchApproaches,
+        keepValuesOnDeactivate: true,
+        // #endregion explicit-activation
         choice: [
           {
             name: 'selfServe',
@@ -329,24 +335,7 @@ const metadata: Metadata[] = [
             description: 'The client drives the rollout themselves. Fastest path to go-live.',
             iconName: 'bolt',
             fullWidth: true,
-            computedProps: [
-              (thisField, thisValue) => {
-                if (selectedLaunchApproach.value !== 'selfServe') {
-                  thisField.hide = true;
-                  thisValue.value = {};
-                }
-              },
-            ],
             children: [
-              {
-                hide: true,
-                computedProps: [
-                  (_, thisValue) => {
-                    // The choice fields are "enabled" once 1 of the values is filled in, we simulate this here
-                    thisValue.value = selectedLaunchApproach.value === 'selfServe' ? true : undefined;
-                  },
-                ],
-              },
               {
                 name: 'goLiveDate',
                 fieldOptions: { label: 'Target go-live date' },
@@ -365,24 +354,7 @@ const metadata: Metadata[] = [
             description: 'We run kickoff, training, and launch alongside the client team.',
             iconName: 'users',
             fullWidth: true,
-            computedProps: [
-              (thisField, thisValue) => {
-                if (selectedLaunchApproach.value !== 'guidedRollout') {
-                  thisField.hide = true;
-                  thisValue.value = {};
-                }
-              },
-            ],
             children: [
-              {
-                hide: true,
-                computedProps: [
-                  (_, thisValue) => {
-                    // The choice fields are "enabled" once 1 of the values is filled in, we simulate this here
-                    thisValue.value = selectedLaunchApproach.value === 'guidedRollout' ? true : undefined;
-                  },
-                ],
-              },
               {
                 name: 'kickoffDate',
                 fieldOptions: { label: 'Kickoff call date' },

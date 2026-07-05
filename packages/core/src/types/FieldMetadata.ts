@@ -1,5 +1,5 @@
 import type { FieldOptions, RuleExpression } from 'vee-validate';
-import type { Ref } from 'vue';
+import type { MaybeRef, Ref } from 'vue';
 
 export type FieldMetadata<
   ExtendedFieldTypes extends string = string,
@@ -123,6 +123,41 @@ export type FieldMetadata<
   choice?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[]
 
   /**
+   * Explicitly activates one or more choice branches by name, without requiring the user to
+   * first enter a value in that branch. Only applicable to fields that have a `choice` collection.
+   *
+   * Activating a branch:
+   * - consumes one of the choice's shared occurrences (disabling siblings once `maxOccurs` is reached)
+   * - activates the branch's own validation (its required children start validating)
+   * - satisfies the choice-level `minOccurs` validation for that occurrence
+   *
+   * Pass a plain array to set the initially active branches, or a `Ref` for two-way binding:
+   * the form writes to the ref whenever the selection changes (e.g. through the `changeChoice`
+   * and `activateChoice` functions exposed to choice template slots), and external writes to the
+   * ref update the selection inside the form.
+   *
+   * Once this property is provided (or `changeChoice`/`activateChoice` is called), the choice
+   * switches to explicit-selection mode: branch activity follows the explicit selection instead of
+   * being derived purely from which branches contain values. Entering a value in an unselected
+   * branch still activates that branch explicitly.
+   *
+   * @example
+   * const launchApproach = ref(['selfServe']);
+   * { name: 'launch', choice: [...], activeChoices: launchApproach }
+   */
+  activeChoices?: MaybeRef<string[]>
+
+  /**
+   * Only applicable to fields that have a `choice` collection and only in explicit-selection mode
+   * (see `activeChoices`). When a branch is deactivated its values are removed from the form values.
+   * With this flag set to `true`, the removed values are cached internally and restored when the
+   * branch is activated again, so users can switch between branches without losing their input.
+   *
+   * Defaults to `false` — deactivated branch values are discarded.
+   */
+  keepValuesOnDeactivate?: boolean
+
+  /**
    * Attributes are additional metadata that can be attached to a field.
    * These attributes can be used to provide extra information about the field,
    * such as for example whether the data is verified.
@@ -215,6 +250,9 @@ export type ComputedPropsFieldType<
       // Not allowed to update the following values as they aren't read from the computedField, but the prop field
       | 'isComplexType'
       | 'computeOnChildValueChange'
+      // Choice activation is driven through the activation functions / a user-provided ref, not computedProps
+      | 'activeChoices'
+      | 'keepValuesOnDeactivate'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string

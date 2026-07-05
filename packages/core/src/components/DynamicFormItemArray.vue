@@ -169,10 +169,11 @@ watch(
 );
 
 // Auto-add empty placeholder items to satisfy minOccurs.
-// Skipped for choice-field children — the choice manages their count.
+// Skipped for choice-field children — the choice manages their count — unless the branch is
+// explicitly activated, in which case it behaves like a regular array again.
 // Skipped when autoAddMinOccurs is explicitly set to false.
 watchEffect(() => {
-  if (props.partOfChoiceField)
+  if (props.partOfChoiceField && props.choiceActive !== true)
     return;
 
   if (field.value?.autoAddMinOccurs === false)
@@ -247,6 +248,7 @@ function guardAndNotifyItemUpdate(value: any, index: number) {
     :can-remove-items="_canRemoveItems"
     :add-item="_addItem"
     :remove-item="_removeItem"
+    :choice-active
   >
     <template #default="slotProps">
       <DynamicFormItem

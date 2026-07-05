@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
+import { ref } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 import { formValues } from './DynamicFormItem.test-helpers';
 
@@ -825,6 +826,225 @@ describe('component DynamicFormItemChoice - logic', () => {
         belowChoiceField: true,
         level: 1,
       });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Explicit activation — changeChoice/activateChoice/activeChoices
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('explicit activation', () => {
+    function mountSimpleChoice(extraChoiceProps: Record<string, unknown> = {}) {
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+            ...extraChoiceProps,
+          }],
+        },
+      });
+    }
+
+    it('changeChoice activates an empty branch and disables the sibling', async () => {
+      const wrapper = mountSimpleChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick-choose-opt1"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-choose-opt1"]').attributes('data-active')).toBe('true');
+      expect(wrapper.find('[id="pick.opt1"]').attributes('disabled')).toBeUndefined();
+      expect(wrapper.find('[id="pick.opt2"]').attributes('disabled')).toBeDefined();
+    });
+
+    it('switching branches clears the values of the deactivated branch by default', async () => {
+      const wrapper = mountSimpleChoice();
+      await flushPromises();
+
+      await wrapper.find('[id="pick.opt1"]').setValue('hello');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick-choose-opt2"]').trigger('click');
+      await flushPromises();
+
+      expect(formValues(wrapper).pick?.opt1).toBeUndefined();
+      expect(wrapper.find('[id="pick.opt1"]').attributes('disabled')).toBeDefined();
+      expect(wrapper.find('[id="pick.opt2"]').attributes('disabled')).toBeUndefined();
+
+      // Switching back does not restore the cleared value without keepValuesOnDeactivate.
+      await wrapper.find('[data-testid="pick-choose-opt1"]').trigger('click');
+      await flushPromises();
+
+      expect(formValues(wrapper).pick?.opt1).toBeUndefined();
+      expect((wrapper.find('[id="pick.opt1"]').element as HTMLInputElement).value).toBe('');
+    });
+
+    it('keepValuesOnDeactivate caches deactivated values and restores them on re-activation', async () => {
+      const wrapper = mountSimpleChoice({ keepValuesOnDeactivate: true });
+      await flushPromises();
+
+      await wrapper.find('[id="pick.opt1"]').setValue('hello');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick-choose-opt2"]').trigger('click');
+      await flushPromises();
+
+      // The value is removed from the form values while opt1 is deactivated.
+      expect(formValues(wrapper).pick?.opt1).toBeUndefined();
+
+      await wrapper.find('[data-testid="pick-choose-opt1"]').trigger('click');
+      await flushPromises();
+
+      expect(formValues(wrapper).pick?.opt1).toBe('hello');
+      expect((wrapper.find('[id="pick.opt1"]').element as HTMLInputElement).value).toBe('hello');
+    });
+
+    it('a plain activeChoices array sets the initial selection', async () => {
+      const wrapper = mountSimpleChoice({ activeChoices: ['opt2'] });
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-choose-opt2"]').attributes('data-active')).toBe('true');
+      expect(wrapper.find('[id="pick.opt1"]').attributes('disabled')).toBeDefined();
+      expect(wrapper.find('[id="pick.opt2"]').attributes('disabled')).toBeUndefined();
+    });
+
+    it('an activeChoices ref creates a two-way binding', async () => {
+      const activeChoices = ref<string[]>(['opt2']);
+      const wrapper = mountSimpleChoice({ activeChoices });
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-choose-opt2"]').attributes('data-active')).toBe('true');
+
+      // Internal changes are written back to the ref.
+      await wrapper.find('[data-testid="pick-choose-opt1"]').trigger('click');
+      await flushPromises();
+      expect(activeChoices.value).toEqual(['opt1']);
+
+      // External writes to the ref update the selection (and clear the deactivated branch).
+      await wrapper.find('[id="pick.opt1"]').setValue('hello');
+      await flushPromises();
+      activeChoices.value = ['opt2'];
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-choose-opt2"]').attributes('data-active')).toBe('true');
+      expect(formValues(wrapper).pick?.opt1).toBeUndefined();
+      expect(wrapper.find('[id="pick.opt1"]').attributes('disabled')).toBeDefined();
+    });
+
+    describe('multi-active — minOccurs=0, maxOccurs=2, three branches', () => {
+      function mountMultiChoice() {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              fieldOptions: { label: 'Pick Up To Two' },
+              minOccurs: 0,
+              maxOccurs: 2,
+              choice: [
+                { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+                { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+                { name: 'opt3', fieldOptions: { label: 'Option 3' } },
+              ],
+            }],
+          },
+        });
+      }
+
+      it('multiple branches can be active until the budget is consumed', async () => {
+        const wrapper = mountMultiChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick-toggle-opt1"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick-toggle-opt2"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="pick-toggle-opt1"]').attributes('data-active')).toBe('true');
+        expect(wrapper.find('[data-testid="pick-toggle-opt2"]').attributes('data-active')).toBe('true');
+
+        // Budget of 2 is consumed: the third branch can no longer be activated.
+        expect(wrapper.find('[data-testid="pick-toggle-opt3"]').attributes('disabled')).toBeDefined();
+      });
+
+      it('an active branch auto-adds its first array item and deactivation removes it again', async () => {
+        const wrapper = mountMultiChoice();
+        await flushPromises();
+
+        // maxOccurs=2 turns the branches into arrays; no items are shown initially.
+        expect(wrapper.find('[id="pick.opt1[0]"]').exists()).toBe(false);
+
+        await wrapper.find('[data-testid="pick-toggle-opt1"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[id="pick.opt1[0]"]').exists()).toBe(true);
+
+        await wrapper.find('[data-testid="pick-toggle-opt1"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="pick-toggle-opt1"]').attributes('data-active')).toBe('false');
+        expect(wrapper.find('[id="pick.opt1[0]"]').exists()).toBe(false);
+      });
+
+      it('deactivating a branch frees up budget again', async () => {
+        const wrapper = mountMultiChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick-toggle-opt1"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick-toggle-opt2"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="pick-toggle-opt3"]').attributes('disabled')).toBeDefined();
+
+        await wrapper.find('[data-testid="pick-toggle-opt2"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="pick-toggle-opt2"]').attributes('data-active')).toBe('false');
+        expect(wrapper.find('[data-testid="pick-toggle-opt3"]').attributes('disabled')).toBeUndefined();
+      });
+
+      it('entering a value in an inactive branch activates it explicitly', async () => {
+        const wrapper = mountMultiChoice();
+        await flushPromises();
+
+        // Engage explicit mode by activating the first branch.
+        await wrapper.find('[data-testid="pick-toggle-opt1"]').trigger('click');
+        await flushPromises();
+
+        // Add an item to the second (inactive) branch and enter a value.
+        await addButton(wrapper, 'pick.opt2').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="pick-toggle-opt2"]').attributes('data-active')).toBe('false');
+
+        await wrapper.find('[id="pick.opt2[0]"]').setValue('hello');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="pick-toggle-opt2"]').attributes('data-active')).toBe('true');
+        expect(wrapper.find('[data-testid="pick-toggle-opt3"]').attributes('disabled')).toBeDefined();
+      });
+    });
+
+    it('a value-driven choice adopts branches with values when explicit mode is engaged', async () => {
+      const wrapper = mountSimpleChoice();
+      await flushPromises();
+
+      // Value-driven activity first: no explicit selection has been made yet.
+      await wrapper.find('[id="pick.opt1"]').setValue('hello');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-choose-opt1"]').attributes('data-active')).toBe('true');
+
+      // The first explicit interaction adopts opt1, so switching clears it correctly.
+      await wrapper.find('[data-testid="pick-choose-opt2"]').trigger('click');
+      await flushPromises();
+
+      expect(formValues(wrapper).pick?.opt1).toBeUndefined();
+      expect(wrapper.find('[data-testid="pick-choose-opt2"]').attributes('data-active')).toBe('true');
+      expect(wrapper.find('[data-testid="pick-choose-opt1"]').attributes('data-active')).toBe('false');
     });
   });
 });

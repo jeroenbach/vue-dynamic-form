@@ -547,4 +547,116 @@ describe('component DynamicFormItemChoice', () => {
       expect(wrapper.find('[data-testid="outer-error-message"]').exists()).toBe(true);
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Explicit activation — validation follows the explicit selection
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('explicit activation', () => {
+    function mountGroupBranches() {
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'payment',
+            fieldOptions: { label: 'Payment' },
+            choice: [
+              {
+                name: 'card',
+                type: 'group',
+                fieldOptions: { label: 'Card' },
+                children: [
+                  { name: 'number', fieldOptions: { label: 'Card number' } },
+                  { name: 'cvv', fieldOptions: { label: 'CVV' } },
+                ],
+              },
+              {
+                name: 'transfer',
+                type: 'group',
+                fieldOptions: { label: 'Transfer' },
+                children: [
+                  { name: 'iban', fieldOptions: { label: 'IBAN' } },
+                ],
+              },
+            ],
+          }],
+          settings: { messages: {
+            required: '{field} is required',
+            choiceMinOccurs: 'Pick at least {min} in {field}',
+          } },
+        },
+      });
+    }
+
+    it('an explicitly activated branch satisfies the choice minOccurs but requires its children', async () => {
+      const wrapper = mountGroupBranches();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="payment-choose-card"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      // The choice-level "pick one" error is satisfied by the explicit selection...
+      expect(wrapper.find('[data-testid="payment-error-message"]').exists()).toBe(false);
+      // ...the active branch's children take over the required validation...
+      expect(wrapper.find('[data-testid="payment.card.number-error-message"]').text())
+        .toContain('Card number is required');
+      expect(wrapper.find('[data-testid="payment.card.cvv-error-message"]').exists()).toBe(true);
+      // ...without a redundant required error on the branch group itself...
+      expect(wrapper.find('[data-testid="payment.card-error-message"]').exists()).toBe(false);
+      // ...and the inactive branch stays out of the validation entirely.
+      expect(wrapper.find('[data-testid="payment.transfer.iban-error-message"]').exists()).toBe(false);
+    });
+
+    it('switching the active branch moves the child validation along', async () => {
+      const wrapper = mountGroupBranches();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="payment-choose-card"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="payment-choose-transfer"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="payment.transfer.iban-error-message"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="payment.card.number-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="payment.card.cvv-error-message"]').exists()).toBe(false);
+    });
+
+    it('an explicitly activated leaf branch still shows its own required error', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+          }],
+          settings: { messages: {
+            required: '{field} is required',
+            choiceMinOccurs: 'Pick at least {min} in {field}',
+          } },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick-choose-opt1"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      // The choice-level error is suppressed, the selected leaf carries the required error itself.
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="pick.opt1-error-message"]').text())
+        .toContain('Option 1 is required');
+      expect(wrapper.find('[data-testid="pick.opt2-error-message"]').exists()).toBe(false);
+    });
+  });
 });
