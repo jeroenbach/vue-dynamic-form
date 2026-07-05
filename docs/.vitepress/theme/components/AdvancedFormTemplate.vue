@@ -60,7 +60,6 @@ const metadata = defineMetadata<
     showStrengthBar?: boolean
     validatePage?: (pageIndex: number, loadingResolve: LoadingResolve) => Promise<void>
     submitForm?: (loadingResolve: LoadingResolve) => Promise<void>
-    changeChoice?: (key: string) => void
     falseAsUndefined?: boolean
     wizardSummary?: ReviewGroupProps[]
     submitButtonText?: string
@@ -166,17 +165,17 @@ const metadata = defineMetadata<
       </SectionCard>
     </template>
 
-    <template #heading-choice="{ fieldMetadata, fieldContext: { errorMessage, label } }">
+    <template #heading-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, activeChoices, changeChoice }">
       <ChoiceSectionCard
-        v-slot="{ selectedOption }"
         :label
         :description="fieldMetadata.description"
         :error-message="errorMessage.value"
         :dataTestid="fieldMetadata.path"
         :options="fieldMetadata.choiceShowChoiceSelect ? fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
-        @select="fieldMetadata.changeChoice?.($event)"
+        :selected="activeChoices"
+        @select="changeChoice"
       >
-        <slot :selectedOption />
+        <slot />
       </ChoiceSectionCard>
     </template>
 
@@ -262,10 +261,10 @@ const metadata = defineMetadata<
       </CheckboxField>
     </template>
 
-    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem, settings: { showRequiredOrOptional } }">
+    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, canRemoveItems, addItem, removeItem, choiceActive, settings: { showRequiredOrOptional } }">
       <GroupField
         v-if="fieldMetadata.children?.length"
-        v-show="!fieldMetadata.hide"
+        v-show="!fieldMetadata.hide && choiceActive !== false"
         class="md:col-span-2"
         :label
         :description="fieldMetadata.description"
@@ -283,7 +282,7 @@ const metadata = defineMetadata<
       </GroupField>
       <FormField
         v-else
-        v-show="!fieldMetadata.hide"
+        v-show="!fieldMetadata.hide && choiceActive !== false"
         :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
         :disabled="fieldMetadata.disabled || disabled"
         :input-id="fieldMetadata.path"

@@ -300,7 +300,12 @@ watchEffect(() => {
   const _restriction = field.value.restriction ?? {};
   const _messages = settings?.value?.messages;
 
-  if (required.value)
+  // An explicitly activated choice branch that wraps other fields delegates its "required"
+  // messaging to those fields (or to the nested array/choice), so the redundant
+  // branch-level required error is skipped.
+  const suppressRequired = props.choiceActive === true && !isInput.value;
+
+  if (required.value && !suppressRequired)
     _validations.push(createValidation('xsd_required', undefined, _messages?.required));
 
   if (_restriction.minLength != null)
@@ -494,6 +499,7 @@ function updateArrayValue(_value: unknown) {
       :can-remove-items="_canRemoveItems"
       :add-item
       :remove-item
+      :choice-active
     >
       <template #default="slotProps">
         <template v-if="isParent">

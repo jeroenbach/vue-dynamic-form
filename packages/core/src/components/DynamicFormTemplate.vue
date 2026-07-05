@@ -73,6 +73,13 @@ export interface Attributes<
   /** Removes this item from the parent array field. */
   removeItem: () => void
   /**
+   * For choice branches while the parent choice is in explicit-selection mode (see
+   * `FieldMetadata.activeChoices`): whether this branch is currently active. Use it to show or
+   * hide branch content. `undefined` when the field is not a choice branch or when the parent
+   * choice derives branch activity purely from values.
+   */
+  choiceActive?: boolean
+  /**
    * The user defined properties that are passed between templates by adding attributes on the <slot /> elements.
    * With these properties you can set values that can be read by components "living" further down the tree.
    */
@@ -102,9 +109,38 @@ export interface ArrayChoiceAttributes<
   fieldContext: LimitedFieldContext<unknown[]>
 }
 
+export interface ChoiceAttributes<
+  TMetadataConfiguration extends MetadataConfiguration,
+> extends ArrayChoiceAttributes<TMetadataConfiguration> {
+  /**
+   * The names of the currently active choice branches. In explicit-selection mode this is the
+   * explicit selection; otherwise it reflects which branches currently hold a value.
+   */
+  activeChoices: string[]
+  /**
+   * Single-select convenience: activates the given branch and deactivates all others
+   * (clearing — or caching, see `FieldMetadata.keepValuesOnDeactivate` — their values).
+   * Calling this switches the choice into explicit-selection mode.
+   */
+  changeChoice: (name: string) => void
+  /**
+   * Activates (or deactivates, when `active` is false) a branch by name. Multiple branches can
+   * be active at the same time, as long as the choice's maxOccurs budget allows it.
+   * Calling this switches the choice into explicit-selection mode.
+   */
+  activateChoice: (name: string, active?: boolean) => void
+  /**
+   * Whether the given branch can be activated in addition to the currently active branches,
+   * i.e. without deactivating another branch first. Useful to disable options in multi-select
+   * choice UIs once the occurrence budget is used up.
+   */
+  canActivateChoice: (name: string) => boolean
+}
+
 type Props = DynamicFormConfigurationProps<TMetadataConfiguration>;
 type SlotProps<FieldType extends string = string> = ItemAttributes<TMetadataConfiguration, FieldType>;
 type ArrayChoiceSlotProps = ArrayChoiceAttributes<TMetadataConfiguration>;
+type ChoiceSlotProps = ChoiceAttributes<TMetadataConfiguration>;
 
 type SlotsFromMetadata = {
   // Fallback slot for field types that don't have a dedicated slot.
@@ -120,7 +156,7 @@ type SlotsFromMetadata = {
   'default-array-item': (props: SlotProps) => any
 } & {
   // Fallback slot for components that are choice fields but don't have a dedicated slot.
-  'default-choice': (props: ArrayChoiceSlotProps) => any
+  'default-choice': (props: ChoiceSlotProps) => any
 } & {
   // One slot per field type defined in the metadata configuration.
   [K in TMetadataConfiguration['fieldTypes'][number]]: (props: SlotProps<K>) => any;
@@ -135,7 +171,7 @@ type SlotsFromMetadata = {
   [K in `${TMetadataConfiguration['fieldTypes'][number]}-array-item`]: (props: SlotProps<K extends `${infer FieldType}-input` ? FieldType : never>) => any;
 } & {
   // One choice slot per field type (e.g. "text-choice") for defining how to render the type when it is a choice.
-  [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice`]: (props: ArrayChoiceSlotProps) => any;
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice`]: (props: ChoiceSlotProps) => any;
 };
 
 // #endregion
@@ -187,7 +223,7 @@ const typeWithFallback = computed((): RegularSlotName => {
 <template>
   <template v-if="attrs.fieldMetadata">
     <slot v-if="attrs.type?.endsWith('-array')" :name="typeWithFallback" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
-    <slot v-else-if="attrs.type?.endsWith('-choice')" :name="typeWithFallback" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
+    <slot v-else-if="attrs.type?.endsWith('-choice')" :name="typeWithFallback" v-bind="(attrs as unknown as ChoiceSlotProps)" />
     <slot v-else :name="typeWithFallback" v-bind="attrs" />
   </template>
 </template>

@@ -3,14 +3,15 @@
   setup
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
+import type { GenericObject, Path } from 'vee-validate';
 import type { ComputedRef } from 'vue';
 import type { LimitedFieldContext } from '@/components/DynamicFormTemplate.vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { useField } from 'vee-validate';
-import { computed, inject, ref, watch } from 'vue';
+import { FormContextKey, useField } from 'vee-validate';
+import { computed, inject, isRef, ref, toValue, watch } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
@@ -40,6 +41,8 @@ interface ChildValue {
 const props = defineProps<Props>();
 const emits = defineEmits<Emit>();
 const settings = inject<ComputedRef<DynamicFormSettings>>(dynamicFormSettingsKey);
+// The vee-validate form context; used to clear/restore branch values on explicit (de)activation.
+const form = inject(FormContextKey, undefined);
 // #endregion
 
 // #region Internal tracking
@@ -96,6 +99,21 @@ const childValues = ref<{ [index: string]: ChildValue }>({});
 
 // Raw child values are emitted upward as-is; occurrence-aware counting happens below.
 const values = computed(() => Object.values(childValues.value).map(x => x.value));
+
+// --- Explicit branch activation ---
+
+// Branch names that have been explicitly activated (through activateChoice/changeChoice,
+// the activeChoices metadata property, or by entering a value while in explicit mode).
+const explicitlyActive = ref<string[]>([]);
+
+// Explicit-selection mode is engaged the first time activation is driven explicitly.
+// Outside this mode branch activity stays purely value-derived (backwards compatible).
+const explicitModeEngaged = ref(false);
+const explicitMode = computed(() =>
+  explicitModeEngaged.value || field.value?.activeChoices !== undefined);
+
+// Cached values of deactivated branches; only used when keepValuesOnDeactivate is set.
+const deactivatedValuesCache = new Map<string, unknown>();
 
 // --- Single-child shortcut ---
 
@@ -160,7 +178,7 @@ const occurrences = computed(() => {
     // How many choice occurrences does this child consume?
     // e.g. choice.maxOccurs=4, child.maxOccurs=2: every 2 child items = 1 choice occurrence.
     let choiceOccurrences = Math.ceil(child.occurrences / child.maxOccurrences);
-    const choiceValuesCount = Math.ceil(child.valuesCount / child.maxOccurrences);
+    let choiceValuesCount = Math.ceil(child.valuesCount / child.maxOccurrences);
 
     // For a non-array child (totalChildOccurrences=1) the field is always shown, so its
     // "occupancy" should be based on whether it actually has a value, not on it being shown.
@@ -169,13 +187,32 @@ const occurrences = computed(() => {
       choiceOccurrences = choiceValuesCount;
     }
 
+    // Whether this branch's own validation should be active; outside explicit mode this is
+    // purely value-derived (a branch with no values stays optional).
+    let branchIsActive = child.valuesCount > 0;
+
+    // In explicit mode the explicit selection is the source of truth for occupancy: an active
+    // branch consumes at least one occurrence (even while empty) and satisfies one choice
+    // occurrence; an inactive branch consumes none (any leftover values are being cleared).
+    if (explicitMode.value) {
+      branchIsActive = isBranchActive(field.value?.choice?.[Number(key)]?.name);
+      if (branchIsActive) {
+        choiceOccurrences = Math.max(1, choiceOccurrences);
+        choiceValuesCount = Math.max(1, choiceValuesCount);
+      }
+      else {
+        choiceOccurrences = 0;
+        choiceValuesCount = 0;
+      }
+    }
+
     _occurrences[key] = {
       childValuesCount: child.valuesCount,
       childOccurrences: child.occurrences,
       childMaxOccurrences: child.maxOccurrences,
       choiceOccurrences,
       choiceValuesCount,
-      overrideChildMinOccurrences: child.valuesCount === 0 ? 0 : undefined, // optional when empty
+      overrideChildMinOccurrences: branchIsActive ? undefined : 0, // optional while inactive
       overrideChildMaxOccurrences: undefined, // calculated in pass 2
     };
   }
@@ -205,6 +242,27 @@ const valuesCount = computed(() =>
     0,
   ),
 );
+
+// Total consumed choice occurrences; determines the remaining budget for further activations.
+const totalChoiceOccurrences = computed(() =>
+  Object.values(occurrences.value).reduce(
+    (acc, c) => acc + c.choiceOccurrences,
+    0,
+  ),
+);
+
+// The currently active branch names, exposed to the template slot. In explicit mode this is
+// the explicit selection; otherwise it reflects which branches currently hold a value.
+const activeChoiceNames = computed(() => {
+  if (singleChild.value)
+    return [];
+
+  return field.value?.choice
+    ?.filter((child, index) => explicitMode.value
+      ? isBranchActive(child.name)
+      : (occurrences.value[index]?.choiceValuesCount ?? 0) > 0)
+    .map(child => child.name ?? '') ?? [];
+});
 
 // --- Vee-Validate field context ---
 
@@ -247,6 +305,34 @@ watch(field, (_field) => {
   });
 }, { immediate: true });
 
+// Keep the explicit selection in sync with the activeChoices metadata property.
+// A plain array sets the initial selection; a Ref creates a two-way binding.
+watch(
+  () => toValue(field.value?.activeChoices),
+  (names) => {
+    if (!names || sameBranchNames(names, explicitlyActive.value))
+      return;
+
+    // Route external changes through the activation API so value clearing/caching applies.
+    [...explicitlyActive.value]
+      .filter(name => !names.includes(name))
+      .forEach(name => activateChoice(name, false));
+    names
+      .filter(name => !isBranchActive(name))
+      .forEach(name => activateChoice(name));
+  },
+  { immediate: true, deep: true },
+);
+
+// Write selection changes back into a user-provided activeChoices ref (two-way binding).
+watch(explicitlyActive, (names) => {
+  const target = field.value?.activeChoices;
+  if (!isRef(target) || sameBranchNames(names, target.value))
+    return;
+
+  target.value = [...names];
+});
+
 // #endregion
 
 // #region Methods
@@ -281,6 +367,14 @@ function updateChildValue(
   const occurrences = calculateValues.length;
   const valuesCount = calculateValues.filter(v => checkTreeHasValue(v)).length;
 
+  // In explicit-selection mode, entering a value in an inactive branch activates it explicitly,
+  // keeping the selection consistent (and sticky) with what the user typed.
+  if (explicitMode.value && valuesCount > 0) {
+    const name = field.value?.choice?.[childIndex]?.name;
+    if (name && !isBranchActive(name))
+      explicitlyActive.value = [...explicitlyActive.value, name];
+  }
+
   const childValue = childValues.value[childIndex] ?? ({} as ChildValue);
   childValue.value = value;
   childValue.occurrences = occurrences;
@@ -293,6 +387,133 @@ function updateChildValue(
 
   emits('update:modelValue', values.value);
 };
+
+// --- Explicit branch activation ---
+
+function isBranchActive(name: string | undefined) {
+  return name !== undefined && explicitlyActive.value.includes(name);
+}
+
+function sameBranchNames(a: string[], b: string[]) {
+  return a.length === b.length && a.every(name => b.includes(name));
+}
+
+function findBranchIndex(name: string) {
+  return field.value?.choice?.findIndex(child => child.name === name) ?? -1;
+}
+
+function branchPath(index: number) {
+  const child = field.value?.choice?.[index];
+  return normalizePath(overridePath(child?.path ?? '', props.pathOverride));
+}
+
+/**
+ * Engages explicit-selection mode. When the choice was value-driven until now, the branches
+ * that currently hold values are adopted into the explicit selection, so that a subsequent
+ * deactivation clears them correctly.
+ */
+function engageExplicitMode() {
+  if (!explicitMode.value) {
+    explicitlyActive.value = field.value?.choice
+      ?.filter((_, index) => (childValues.value[index]?.valuesCount ?? 0) > 0)
+      .map(child => child.name ?? '') ?? [];
+  }
+  explicitModeEngaged.value = true;
+}
+
+/**
+ * Whether the given branch can be activated *in addition to* the currently active branches,
+ * i.e. without deactivating another branch first. Use changeChoice to switch branches instead.
+ */
+function canActivateChoice(name: string): boolean {
+  if (disabled.value || singleChild.value)
+    return false;
+
+  const index = findBranchIndex(name);
+  if (index === -1)
+    return false;
+
+  const alreadyActive = explicitMode.value
+    ? isBranchActive(name)
+    : (occurrences.value[index]?.choiceValuesCount ?? 0) > 0;
+  if (alreadyActive)
+    return true;
+
+  return totalChoiceOccurrences.value < (maxOccurs.value ?? 1);
+}
+
+/**
+ * Explicitly activates (or deactivates) a choice branch by name. Multiple branches can be
+ * active at the same time, as long as the choice's maxOccurs budget allows it.
+ * Deactivating a branch removes its values from the form; with keepValuesOnDeactivate set on
+ * the choice field, the values are cached and restored when the branch is activated again.
+ */
+function activateChoice(name: string, active: boolean = true) {
+  if (singleChild.value)
+    return;
+
+  const index = findBranchIndex(name);
+  if (index === -1)
+    return;
+
+  engageExplicitMode();
+
+  if (active) {
+    if (isBranchActive(name) || !canActivateChoice(name))
+      return;
+
+    explicitlyActive.value = [...explicitlyActive.value, name];
+    restoreBranchValues(name, index);
+  }
+  else {
+    if (!isBranchActive(name))
+      return;
+
+    explicitlyActive.value = explicitlyActive.value.filter(n => n !== name);
+    clearBranchValues(name, index);
+  }
+}
+
+/**
+ * Single-select convenience: activates the given branch and deactivates all others.
+ */
+function changeChoice(name: string) {
+  if (singleChild.value)
+    return;
+
+  engageExplicitMode();
+
+  [...explicitlyActive.value]
+    .filter(activeName => activeName !== name)
+    .forEach(activeName => activateChoice(activeName, false));
+  activateChoice(name);
+}
+
+function clearBranchValues(name: string, index: number) {
+  const path = branchPath(index);
+  if (!path || !form)
+    return;
+
+  const currentValue = childValues.value[index]?.value;
+  if (field.value?.keepValuesOnDeactivate && checkTreeHasValue(currentValue))
+    deactivatedValuesCache.set(name, currentValue);
+
+  form.setFieldValue(path as Path<GenericObject>, undefined, false);
+}
+
+function restoreBranchValues(name: string, index: number) {
+  if (!field.value?.keepValuesOnDeactivate || !deactivatedValuesCache.has(name))
+    return;
+
+  const cached = deactivatedValuesCache.get(name);
+  deactivatedValuesCache.delete(name);
+
+  const path = branchPath(index);
+  if (!path || !form)
+    return;
+
+  form.setFieldValue(path as Path<GenericObject>, cached, false);
+}
 
 // #endregion
 </script>
@@ -313,6 +534,11 @@ function updateChildValue(
     :can-remove-items
     :add-item
     :remove-item
+    :choice-active
+    :active-choices="activeChoiceNames"
+    :change-choice="changeChoice"
+    :activate-choice="activateChoice"
+    :can-activate-choice="canActivateChoice"
   >
     <DynamicFormItem
       v-if="singleChild"
@@ -339,6 +565,7 @@ function updateChildValue(
         :min-occurs-override="occurrences[index]?.overrideChildMinOccurrences"
         :max-occurs-override="occurrences[index]?.overrideChildMaxOccurrences"
         :is-array-override="childrenAreArrays"
+        :choice-active="explicitMode ? isBranchActive(child.name) : undefined"
         part-of-choice-field
 
         @update:model-value="updateChildValue($event, index, child.maxOccurs)"

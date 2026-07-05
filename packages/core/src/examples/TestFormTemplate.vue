@@ -71,13 +71,41 @@ const metadata = defineMetadata<
       <slot />
     </template>
 
-    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired } }">
+    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, activeChoices, changeChoice, activateChoice, canActivateChoice, settings: { showOptionalInsteadOfRequired } }">
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled }">
           {{ label }}
           <span v-if="required && !showOptionalInsteadOfRequired" class="text-red-500 dark:text-rose-400">*</span>
           <span v-if="!required && showOptionalInsteadOfRequired" class="text-sm text-gray-400">(optional)</span>
         </span>
+        <!-- Explicit branch activation controls, mainly exercised by the tests -->
+        <div class="flex gap-2">
+          <button
+            v-for="option in fieldMetadata.choice"
+            :key="`choose-${option.name}`"
+            type="button"
+            tabindex="-1"
+            class="text-sm border rounded px-2"
+            :data-testid="`${fieldMetadata.path}-choose-${option.name}`"
+            :data-active="activeChoices.includes(option.name)"
+            @click="changeChoice(option.name)"
+          >
+            Choose {{ option.name }}
+          </button>
+          <button
+            v-for="option in fieldMetadata.choice"
+            :key="`toggle-${option.name}`"
+            type="button"
+            tabindex="-1"
+            class="text-sm border rounded px-2"
+            :data-testid="`${fieldMetadata.path}-toggle-${option.name}`"
+            :data-active="activeChoices.includes(option.name)"
+            :disabled="!activeChoices.includes(option.name) && !canActivateChoice(option.name)"
+            @click="activateChoice(option.name, !activeChoices.includes(option.name))"
+          >
+            Toggle {{ option.name }}
+          </button>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
           <slot :level="(slotProps?.level ?? 0) + 1" :below-choice-field="true" />
         </div>

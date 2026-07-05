@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { AppIconName } from './AppIcon.vue';
 import type { Props as SectionCardProps } from './SectionCard.vue';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import AppIcon from './AppIcon.vue';
 import ChoiceCard from './ChoiceCard.vue';
 import SectionCard from './SectionCard.vue';
@@ -15,12 +15,13 @@ export interface ChoiceOption {
 
 export interface Props extends /* @vue-ignore */ SectionCardProps {
   options?: ChoiceOption[]
+  /** The currently active option values, as provided by the choice slot's `activeChoices`. */
+  selected?: string[]
   dataTestid?: string
 }
 
-const { options, dataTestid } = defineProps<Props>();
+const { options, selected, dataTestid } = defineProps<Props>();
 const emits = defineEmits<{ select: [key: string] }>();
-const selectedOption = ref(options?.[0]?.value);
 
 const gridCols = computed(() => {
   const n = options?.length ?? 0;
@@ -30,10 +31,6 @@ const gridCols = computed(() => {
     return 'md:grid-cols-2';
   return 'md:grid-cols-1';
 });
-function changeSelectedOption(value: string) {
-  selectedOption.value = value;
-  emits('select', value);
-}
 </script>
 
 <template>
@@ -45,8 +42,8 @@ function changeSelectedOption(value: string) {
         :dataTestid="dataTestid ? `${dataTestid}-${option.value}` : undefined"
         :title="option.title"
         :description="option.description"
-        :selected="selectedOption === option.value"
-        @select="changeSelectedOption(option.value)"
+        :selected="selected?.includes(option.value) ?? false"
+        @select="emits('select', option.value)"
       >
         <template v-if="option.icon" #icon>
           <AppIcon :name="option.icon" />
@@ -54,6 +51,6 @@ function changeSelectedOption(value: string) {
       </ChoiceCard>
     </div>
 
-    <slot :selectedOption />
+    <slot />
   </SectionCard>
 </template>

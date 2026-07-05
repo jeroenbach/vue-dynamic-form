@@ -52,6 +52,12 @@ export interface DynamicFormItemProps<
    */
   partOfChoiceField?: boolean
   /**
+   * Whether this choice branch is currently active, set by the parent choice field when it is in
+   * explicit-selection mode (see `FieldMetadata.activeChoices`). Undefined when the field is not a
+   * choice branch or when branch activity is derived purely from values.
+   */
+  choiceActive?: boolean
+  /**
    * We check the maxOccurs to see if the field is an Array. If we want to override this, we can do so with this property.
    * In case the field is a child of a choice field, it needs to be made repeatable and we can set this to true.
    */
