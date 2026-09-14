@@ -117,6 +117,25 @@ const metadata = defineMetadata<
       </div>
     </template>
 
+    <template #default-choice-item="{ fieldMetadata, slotProps, branchKey, removeItem }">
+      <!--
+        Repeatable explicit-choice occurrence test harness (ST-02): renders the branchKey slot
+        prop directly (as a "kind badge") so tests can assert it arrived as a real slot prop
+        rather than being inferred from the path, plus a remove button wired to removeItem.
+        Forwards the default slot for the occurrence's own fields, mirroring #default's own
+        remove-button pattern.
+      -->
+      <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2 border-s-2 ps-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
+        <div class="flex gap-2 items-center">
+          <span :data-testid="`${fieldMetadata.path}-kind-badge`">{{ branchKey }}</span>
+          <IconButton icon="minus" tabindex="-1" color="red" :data-testid="`${fieldMetadata.path}-remove-choice-button`" @click="removeItem" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <slot :level="(slotProps?.level ?? 0) + 1" />
+        </div>
+      </div>
+    </template>
+
     <template #default-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, canAddItems, addItem, settings: { showOptionalInsteadOfRequired } }">
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <label :for="`${fieldMetadata.path}[0]`" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }" class="flex gap-2 items-center">

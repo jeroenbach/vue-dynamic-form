@@ -46,7 +46,7 @@ export interface LimitedFieldContext<TValue = unknown> {
 export interface Attributes<
   TMetadataConfiguration extends MetadataConfiguration,
 > {
-  type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'default-array' | 'default-array-item' | 'default-choice'
+  type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'default-array' | 'default-array-item' | 'default-choice' | 'default-choice-item'
   /** The metadata you configured for this field. */
   fieldMetadata: ReadOnlyFieldType<
     TMetadataConfiguration['fieldTypes'][number],
@@ -123,10 +123,25 @@ export interface ChoiceAttributes<
   activeChoiceOccurrences: ChoiceOccurrence[]
 }
 
+/**
+ * Slot props for a single occurrence of a repeatable explicit choice (`maxOccurs > 1`), rendered
+ * through the `*-choice-item` / `default-choice-item` slot. Mirrors `ItemAttributes` (the same
+ * shape `*-array-item` receives) plus `branchKey`, the occurrence's branch name (drives a "kind"
+ * badge in the template).
+ */
+export interface ChoiceItemAttributes<
+  TMetadataConfiguration extends MetadataConfiguration,
+  FieldType extends string = string,
+> extends ItemAttributes<TMetadataConfiguration, FieldType> {
+  /** The choice branch this occurrence belongs to (the child's `name`). Drives the "kind" badge. */
+  branchKey: string
+}
+
 type Props = DynamicFormConfigurationProps<TMetadataConfiguration>;
 type SlotProps<FieldType extends string = string> = ItemAttributes<TMetadataConfiguration, FieldType>;
 type ArrayChoiceSlotProps = ArrayChoiceAttributes<TMetadataConfiguration>;
 type ChoiceSlotProps = ChoiceAttributes<TMetadataConfiguration>;
+type ChoiceItemSlotProps<FieldType extends string = string> = ChoiceItemAttributes<TMetadataConfiguration, FieldType>;
 
 type SlotsFromMetadata = {
   // Fallback slot for field types that don't have a dedicated slot.
@@ -144,6 +159,9 @@ type SlotsFromMetadata = {
   // Fallback slot for components that are choice fields but don't have a dedicated slot.
   'default-choice': (props: ChoiceSlotProps) => any
 } & {
+  // Fallback slot for components that are repeatable-choice occurrence items but don't have a dedicated slot.
+  'default-choice-item': (props: ChoiceItemSlotProps) => any
+} & {
   // One slot per field type defined in the metadata configuration.
   [K in TMetadataConfiguration['fieldTypes'][number]]: (props: SlotProps<K>) => any;
 } & {
@@ -158,6 +176,9 @@ type SlotsFromMetadata = {
 } & {
   // One choice slot per field type (e.g. "text-choice") for defining how to render the type when it is a choice.
   [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice`]: (props: ChoiceSlotProps) => any;
+} & {
+  // One choice-item slot per field type (e.g. "text-choice-item") for rendering a single occurrence of a repeatable explicit choice branch.
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice-item`]: (props: ChoiceItemSlotProps<K extends `${infer FieldType}-choice-item` ? FieldType : never>) => any;
 };
 
 // #endregion
@@ -196,6 +217,9 @@ const typeWithFallback = computed((): RegularSlotName => {
   }
   if (type?.endsWith('-array-item')) {
     return slots['default-array-item'] ? 'default-array-item' : 'default';
+  }
+  if (type?.endsWith('-choice-item')) {
+    return slots['default-choice-item'] ? 'default-choice-item' : 'default';
   }
   if (type?.endsWith('-choice')) {
     return slots['default-choice'] ? 'default-choice' : 'default';

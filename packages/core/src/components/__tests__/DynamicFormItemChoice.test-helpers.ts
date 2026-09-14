@@ -48,3 +48,23 @@ export function childValuesEntry(wrapper: ReturnType<typeof mount>, path: string
 
   return { occurrences: entry.occurrences, valuesCount: entry.valuesCount };
 }
+
+/**
+ * Reads the `-kind-badge` testid text at `occurrencePath` (e.g. `pick.apiEndpoint[0]`), asserting
+ * the `*-choice-item`/`default-choice-item` slot actually received `branchKey` as a real slot
+ * prop (ST-02), rather than the test inferring it from the path itself.
+ */
+export function occurrenceBranchKey(wrapper: ReturnType<typeof mount>, occurrencePath: string): string | undefined {
+  const badge = wrapper.find(`[data-testid="${occurrencePath}-kind-badge"]`);
+  return badge.exists() ? badge.text() : undefined;
+}
+
+/**
+ * Reads the fixture's per-branch add-choice button `disabled` attribute for `branchKey` at the
+ * choice rendered at `choicePath`, exercising `canAddChoiceOccurrence` through the real public
+ * slot-prop contract (the same indirection used elsewhere in this suite), not a `setupState()` reach-in.
+ */
+export function canAddChoiceOccurrence(wrapper: ReturnType<typeof mount>, choicePath: string, branchKey: string): boolean {
+  const button = wrapper.find(`[data-testid="${choicePath}.${branchKey}-add-choice-button"]`);
+  return button.exists() && button.attributes('disabled') === undefined;
+}

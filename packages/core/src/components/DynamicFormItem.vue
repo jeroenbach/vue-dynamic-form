@@ -488,7 +488,7 @@ function updateArrayValue(_value: unknown) {
   <template v-else>
     <component
       :is="template"
-      :type="partOfArrayField ? `${computedField.type}-array-item` : computedField.type"
+      :type="branchKey !== undefined ? `${computedField.type}-choice-item` : partOfArrayField ? `${computedField.type}-array-item` : computedField.type"
       :field-metadata="computedField"
       :field-context
       :slot-props
@@ -500,6 +500,7 @@ function updateArrayValue(_value: unknown) {
       :can-remove-items="_canRemoveItems"
       :add-item
       :remove-item
+      :branch-key="branchKey"
     >
       <template #default="slotProps">
         <template v-if="isParent">

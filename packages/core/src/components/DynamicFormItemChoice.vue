@@ -12,6 +12,7 @@ import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 import { useField, useFieldValue, useFormContext } from 'vee-validate';
 import { computed, inject, ref, watch } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
+import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
@@ -91,6 +92,16 @@ const explicitlySelectedBranch = ref<string | null>(null);
 const branchValueRefs = (field.value?.choice ?? []).map(child =>
   useFieldValue(() => child.path ? overridePath(child.path, props.pathOverride) : ''),
 );
+
+// Per-branch reactive path + field array, used for the repeatable case (ST-02: maxOccurs > 1
+// explicit selection). Created once per branch at setup — branches are static from metadata —
+// but each over a reactive computed path (never a setup-time string), per the DECIDED binding
+// requirement on finding 3: a choice nested inside an array occurrence has a pathOverride that
+// changes (reindexes) when an earlier sibling array item is removed, and the field array must
+// keep following that change rather than staying bound to a stale path.
+const branchPaths = (field.value?.choice ?? []).map(child =>
+  computed(() => child.path ? normalizePath(overridePath(child.path, props.pathOverride)) : ''));
+const branchFieldArrays = branchPaths.map(branchPath => useFieldArrayExtended(branchPath));
 
 // --- Occurrence limits ---
 
@@ -251,6 +262,20 @@ const activeChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
   const active: ChoiceOccurrence[] = [];
 
   field.value?.choice?.forEach((child, index) => {
+    // Repeatable case (ST-02): every item currently in this branch's own field array is an
+    // active occurrence, whether or not it holds a value yet — an empty placeholder is a real,
+    // already-committed occurrence (ADR-1: "selected" means "a placeholder item exists"), the
+    // same way an unfilled array item is still an item. Grouped by branch declaration order
+    // (the outer forEach), then by index within the branch (the inner forEach), derived purely
+    // from the value tree with no separate ephemeral ordering list (DECIDED Q8).
+    if (explicitChoiceSelection && maxOccurs.value > 1) {
+      const branchFields = branchFieldArrays[index]?.fields.value ?? [];
+      branchFields.forEach((_, occurrenceIndex) => {
+        active.push({ branchKey: child.name as string, index: occurrenceIndex });
+      });
+      return;
+    }
+
     const valueDriven = checkTreeHasValue(branchValueRefs[index]?.value);
     const isExplicitlySelected = explicitChoiceSelection && explicitlySelectedBranch.value === child.name;
 
@@ -262,15 +287,18 @@ const activeChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
   return active;
 });
 
-// In explicit mode, an explicitly selected branch counts toward xsd_choiceMinOccurs even before
-// any of its fields hold a value (parity, DECIDED finding 2): the branch's own required fields
-// then drive their own validation independently. Auto mode stays value-driven, unchanged.
+// In explicit mode, an explicitly selected branch (maxOccurs:1) or an added occurrence
+// (maxOccurs > 1) counts toward xsd_choiceMinOccurs even before any of its fields hold a value
+// (parity, DECIDED finding 2): the branch's own required fields then drive their own validation
+// independently. Auto mode stays value-driven, unchanged.
 const effectiveValuesCount = computed(() => {
   if (explicitChoiceSelection && maxOccurs.value === 1)
     return Math.max(valuesCount.value, explicitlySelectedBranch.value ? 1 : 0);
 
-  // Auto mode stays value-driven, unchanged. maxOccurs > 1 explicit parity (folding in
-  // activeChoiceOccurrences.length) is ST-02's addition; it stays value-driven for now too.
+  if (explicitChoiceSelection && maxOccurs.value > 1)
+    return Math.max(valuesCount.value, activeChoiceOccurrences.value.length);
+
+  // Auto mode stays value-driven, unchanged.
   return valuesCount.value;
 });
 
@@ -314,6 +342,29 @@ watch(field, (_field) => {
       updateChildValue(undefined, index, child.maxOccurs);
   });
 }, { immediate: true });
+
+// Repeatable case (ST-02): keep childValues in sync with each branch's own field array, so the
+// existing occurrences/valuesCount machinery (and, through it, the shared choice-level budget in
+// overrideChildMaxOccurrences) reflects reality without needing every occurrence's DynamicFormItem
+// to individually emit update:modelValue. A batch size of 1 is used here (not the branch's own
+// declared maxOccurs) so overrideChildMaxOccurrences measures the shared budget in plain raw-item
+// units; the branch's own independent maxOccurs is checked separately in canAddChoiceOccurrence
+// (see there for why: the pre-existing batching semantics alone cannot express an independent
+// per-branch cap distinct from the shared budget).
+if (explicitChoiceSelection) {
+  watch(
+    () => branchFieldArrays.map(fieldArray => fieldArray.values.value),
+    (allBranchValues) => {
+      if (maxOccurs.value <= 1)
+        return;
+
+      allBranchValues.forEach((branchValues, index) => {
+        updateChildValue(branchValues, index, 1);
+      });
+    },
+    { immediate: true },
+  );
+}
 
 // #endregion
 
@@ -398,13 +449,25 @@ function clearBranch(branchKey: string) {
   }
 }
 
-/** Mark a branch active (maxOccurs:1). No-op when canAddChoiceOccurrence is false, the branchKey is unknown, or it is already the active branch. */
+/** Mark a branch active (maxOccurs:1) or add one occurrence of it (maxOccurs > 1). No-op when canAddChoiceOccurrence is false, or the branchKey is unknown. */
 function addChoiceOccurrence(branchKey: string) {
   // canAddChoiceOccurrence already returns false for an unknown branchKey (branchIndexOf < 0),
   // so no separate existence check is needed here.
   if (!canAddChoiceOccurrence(branchKey))
     return;
 
+  const index = branchIndexOf(branchKey);
+
+  if (maxOccurs.value > 1) {
+    // Repeatable case (ST-02): an occurrence is a real (possibly empty) item pushed into the
+    // branch's own field array via useFieldArrayExtended, mirroring DynamicFormItemArray's own
+    // _addItem. No separate ephemeral selection ref is needed (ADR-1): the pushed item IS the
+    // selection, so activeChoiceOccurrences picks it up on the next recompute.
+    branchFieldArrays[index]?.push(null); // empty placeholder
+    return;
+  }
+
+  // ST-01: maxOccurs:1 — mark a single branch active, clearing any previously active branch.
   if (explicitlySelectedBranch.value === branchKey)
     return; // idempotent: already selected
 
@@ -416,11 +479,25 @@ function addChoiceOccurrence(branchKey: string) {
   explicitlySelectedBranch.value = branchKey;
 }
 
-/** Deselect a branch. index is ignored in maxOccurs:1 (there is only ever one active occurrence). No-op for an unknown or inactive branchKey. */
-function removeChoiceOccurrence(branchKey: string, _index?: number) {
-  if (branchIndexOf(branchKey) < 0)
+/** Remove a previously added occurrence. index is required in maxOccurs > 1; ignored (optional) in maxOccurs:1 where it deselects the active branch. No-op for an unknown branchKey, an inactive branch, or (maxOccurs > 1) a missing/out-of-range index. */
+function removeChoiceOccurrence(branchKey: string, index?: number) {
+  const branchIdx = branchIndexOf(branchKey);
+  if (branchIdx < 0)
     return;
 
+  if (maxOccurs.value > 1) {
+    if (index === undefined)
+      return;
+
+    const fieldsLength = branchFieldArrays[branchIdx]?.fields.value.length ?? 0;
+    if (index < 0 || index >= fieldsLength)
+      return; // out-of-range: no-op, no throw
+
+    branchFieldArrays[branchIdx]?.remove(index);
+    return;
+  }
+
+  // ST-01: maxOccurs:1 — index is ignored; deselect the active branch.
   const isActive = activeChoiceOccurrences.value.some(occurrence => occurrence.branchKey === branchKey);
   if (!isActive)
     return;
@@ -432,12 +509,106 @@ function removeChoiceOccurrence(branchKey: string, _index?: number) {
   }
 }
 
-/** Per-branch "may add" guard: false when the choice is disabled or branchKey is unknown. Budget-aware behaviour (maxOccurs > 1) is ST-02's concern. */
+/**
+ * Per-branch "may add" guard: false when the choice is disabled or branchKey is unknown.
+ * maxOccurs:1 has no per-branch budget to exhaust (ST-01). maxOccurs > 1 (ST-02) checks two
+ * independent limits: this branch's own declared maxOccurs (a hard cap, checked directly against
+ * the branch's own raw item count, since the shared-budget math below only bounds the shared
+ * total, not any one branch's own ceiling), and the shared choice-level budget, read from the
+ * existing occurrences computed's overrideChildMaxOccurrences (fed a batch size of 1, see the
+ * childValues-sync watch above, so it measures the remaining shared budget in plain raw-item
+ * units).
+ */
 function canAddChoiceOccurrence(branchKey: string): boolean {
   if (disabled.value)
     return false;
 
-  return branchIndexOf(branchKey) >= 0;
+  const index = branchIndexOf(branchKey);
+  if (index < 0)
+    return false;
+
+  if (maxOccurs.value <= 1)
+    return true; // ST-01: no per-branch budget in the single case
+
+  // Both indexed accesses below are safe without further guards: `index` was already validated
+  // above, and `branchFieldArrays`/`field.value.choice` are built from (and stay the same length
+  // as) the same static branch list, so a valid index always has a corresponding entry in both.
+  // `.maxOccurs!` reflects that correctMetadataAndSetDefaults has already defaulted it by the
+  // time DynamicFormItemChoice renders, even though the type only guarantees it on the top-level
+  // InternalFieldMetadata, not recursively on nested `choice` children.
+  const branchOwnMax = field.value!.choice![index].maxOccurs!;
+  const branchCount = branchFieldArrays[index].fields.value.length;
+  if (branchCount >= branchOwnMax)
+    return false; // this branch's own maxOccurs is exhausted
+
+  const remainingSharedBudget = occurrences.value[index]?.overrideChildMaxOccurrences;
+  return remainingSharedBudget === undefined || branchCount < remainingSharedBudget;
+}
+
+/**
+ * Looks up the per-branch field array helper (ST-02) for a given branchKey. Relies on plain
+ * negative-index array semantics (`branchFieldArrays[-1]` is `undefined` at runtime) rather than
+ * an explicit guard, for an unknown branchKey.
+ */
+function branchFieldArrayFor(branchKey: string) {
+  return branchFieldArrays[branchIndexOf(branchKey)];
+}
+
+/**
+ * The raw vee-validate field-array key of an occurrence. Only ever called with a real occurrence
+ * from `activeChoiceOccurrences`, which is itself derived directly from these same field arrays,
+ * so `branchKey`/`index` are always valid here — no defensive fallback needed. Each branch's own
+ * `useFieldArrayExtended` generates these keys independently, so the same raw value can be
+ * assigned to occurrences in *different* branches (e.g. both branches' first-ever item); callers
+ * that need a value unique across the whole merged, all-branches list must namespace it with the
+ * branchKey (see occurrenceKey below).
+ */
+function rawOccurrenceKey(occurrence: ChoiceOccurrence): string | number {
+  return branchFieldArrayFor(occurrence.branchKey).fields.value[occurrence.index].key;
+}
+
+/**
+ * The Vue :key for an occurrence, namespaced with its branchKey so it stays unique across the
+ * merged, all-branches list (see rawOccurrenceKey) — without the namespace, two different
+ * branches' occurrences could collide on the same raw key and Vue's v-for would wrongly reuse one
+ * branch's component instance for another branch's occurrence instead of mounting a new one.
+ */
+function occurrenceKey(occurrence: ChoiceOccurrence): string {
+  return `${occurrence.branchKey}:${rawOccurrenceKey(occurrence)}`;
+}
+
+/** The resolved pathOverride for a single repeatable-choice occurrence (ST-02), e.g. `pick.apiEndpoint[0]`. */
+function occurrencePathOverride(occurrence: ChoiceOccurrence): string {
+  return `${branchPaths[branchIndexOf(occurrence.branchKey)].value}[${occurrence.index}]`;
+}
+
+// Memoized per-occurrence remove-item handlers (ST-02), keyed by the same namespaced key used for
+// the Vue :key (occurrenceKey). Vue's v-for regenerates every item's inline bindings whenever the
+// list itself changes (an occurrence is added/removed anywhere in the choice), so a plain inline
+// arrow function here would hand every *other*, unaffected occurrence a brand new removeItem
+// reference on every add/remove, forcing an avoidable re-render of each of them (a real prop
+// change, not a bug, but one the reactivity/analytics plan requires we avoid). Memoizing keeps the
+// reference identical across renders for any occurrence whose own position hasn't changed. The
+// handler itself resolves the occurrence's CURRENT index within its own branch by the occurrence's
+// raw (unnamespaced) field-array key at call time (not a snapshot), so it still removes the right
+// item even after an earlier removal has reindexed it.
+const occurrenceRemoveHandlers = new Map<string, () => void>();
+function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
+  const mapKey = occurrenceKey(occurrence);
+  const cached = occurrenceRemoveHandlers.get(mapKey);
+  if (cached)
+    return cached;
+
+  const rawKey = rawOccurrenceKey(occurrence);
+  const handler = () => {
+    const currentIndex = branchFieldArrayFor(occurrence.branchKey).fields.value.findIndex(entry => entry.key === rawKey);
+    if (currentIndex >= 0) {
+      removeChoiceOccurrence(occurrence.branchKey, currentIndex);
+    }
+    occurrenceRemoveHandlers.delete(mapKey);
+  };
+  occurrenceRemoveHandlers.set(mapKey, handler);
+  return handler;
 }
 
 // #endregion
@@ -477,7 +648,8 @@ function canAddChoiceOccurrence(branchKey: string): boolean {
       @update:model-value="updateChildValue($event, 0, singleChild!.maxOccurs, true)"
       @update:computed-field="emits('update:computedField', $event)"
     />
-    <template v-else-if="explicitChoiceSelection">
+    <template v-else-if="explicitChoiceSelection && maxOccurs === 1">
+      <!-- ST-01: exactly one active branch, rendered directly (no -choice-item wrapping). -->
       <DynamicFormItem
         v-for="occurrence in activeChoiceOccurrences"
         :key="occurrence.branchKey"
@@ -492,6 +664,34 @@ function canAddChoiceOccurrence(branchKey: string): boolean {
         part-of-choice-field
 
         @update:model-value="updateChildValue($event, branchIndexOf(occurrence.branchKey), branchByKey(occurrence.branchKey)!.maxOccurs)"
+        @update:computed-field="emits('update:computedField', $event)"
+      />
+    </template>
+    <template v-else-if="explicitChoiceSelection">
+      <!--
+        ST-02: one DynamicFormItem per active occurrence across every branch, rendered through
+        the *-choice-item / default-choice-item slot (mirrors DynamicFormItemArray's own items).
+        part-of-array-field lets DynamicFormItem's own onBeforeUnmount skip its usual "write
+        undefined back to my path" cleanup, since removal already goes through the branch's
+        useFieldArrayExtended remove() above (writing here too would target a since-reindexed
+        path — the same fragility DynamicFormItemArray's items already guard against).
+      -->
+      <DynamicFormItem
+        v-for="occurrence in activeChoiceOccurrences"
+        :key="occurrenceKey(occurrence)"
+        :field-metadata="(branchByKey(occurrence.branchKey) as InternalMetadata)"
+        :path-override="occurrencePathOverride(occurrence)"
+        :index="occurrence.index"
+        :template
+        :slot-props
+        :max-occurs-override="1"
+        is-array-override="single"
+        part-of-array-field
+        part-of-choice-field
+        :branch-key="occurrence.branchKey"
+        :can-remove-items="true"
+        :remove-item="removeItemHandlerFor(occurrence)"
+
         @update:computed-field="emits('update:computedField', $event)"
       />
     </template>
