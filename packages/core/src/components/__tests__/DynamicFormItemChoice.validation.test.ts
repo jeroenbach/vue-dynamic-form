@@ -639,6 +639,114 @@ describe('component DynamicFormItemChoice', () => {
       // ...but the branch's own required field still enforces its own content independently.
       expect(wrapper.find('[data-testid="pick.guidedRollout.contactEmail-error-message"]').exists()).toBe(true);
     });
+
+    // ───────────────────────────────────────────────────────────────────────
+    // maxOccurs > 1 (ST-02, AC5) — placed beside the maxOccurs:1 cases above so both
+    // cardinalities are visible side by side in one diff/review, per the DECIDED parity
+    // requirement (feature spec, finding 2).
+    // ───────────────────────────────────────────────────────────────────────
+    describe('maxOccurs > 1 (ST-02, AC5)', () => {
+      function mountExplicitRequiredRepeatableChoice() {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              maxOccurs: 3,
+              fieldOptions: { label: 'Pick Several' },
+              choice: [
+                { name: 'apiEndpoint', maxOccurs: 2, fieldOptions: { label: 'Api Endpoint' } },
+                { name: 'crmExport', maxOccurs: 2, fieldOptions: { label: 'Crm Export' } },
+              ],
+            }],
+            settings: { messages: { choiceMinOccurs: 'Pick at least {min} in {field}' } },
+          },
+        });
+      }
+
+      it('shows an error when nothing is added on submit', async () => {
+        const wrapper = mountExplicitRequiredRepeatableChoice();
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="pick-error-message"]').text())
+          .toContain('Pick at least 1 in Pick Several');
+      });
+
+      it('clears the error the moment an occurrence is added, even with no field inside it filled in', async () => {
+        const wrapper = mountExplicitRequiredRepeatableChoice();
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+      });
+
+      it('reappears once the only occurrence is removed again', async () => {
+        const wrapper = mountExplicitRequiredRepeatableChoice();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
+      });
+
+      it('the occurrence\'s own required fields still validate independently once the occurrence holds some data', async () => {
+        // An occurrence is an array item (part-of-array-field), so — matching plain array-item
+        // semantics elsewhere in the codebase — its own children stay optional until the
+        // occurrence holds any data at all; once it does, its own required fields enforce their
+        // content independently of the (already-satisfied) choice-level minimum.
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              maxOccurs: 3,
+              fieldOptions: { label: 'Pick Several' },
+              choice: [
+                {
+                  name: 'apiEndpoint',
+                  maxOccurs: 2,
+                  fieldOptions: { label: 'Api Endpoint' },
+                  children: [
+                    { name: 'url', fieldOptions: { label: 'Url' } },
+                    { name: 'token', fieldOptions: { label: 'Token' } },
+                  ],
+                },
+                { name: 'crmExport', maxOccurs: 2, fieldOptions: { label: 'Crm Export' } },
+              ],
+            }],
+            settings: { messages: { choiceMinOccurs: 'Choice required' } },
+          },
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="pick.apiEndpoint[0].token"]').setValue('secret');
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+
+        // Adding the occurrence alone satisfies the choice-level minimum...
+        expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+        // ...but the occurrence's own required field still enforces its own content, once touched.
+        expect(wrapper.find('[data-testid="pick.apiEndpoint[0].url-error-message"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="pick.apiEndpoint[0].token-error-message"]').exists()).toBe(false);
+      });
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────

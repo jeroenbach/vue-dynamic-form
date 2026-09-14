@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { removeNullValues } from '@/utils/removeNullValues';
 import { formValues } from './DynamicFormItem.test-helpers';
-import { activeChoiceOccurrences, childValuesEntry, findDynamicFormItemChoiceByPath } from './DynamicFormItemChoice.test-helpers';
+import { activeChoiceOccurrences, canAddChoiceOccurrence, childValuesEntry, findDynamicFormItemChoiceByPath, occurrenceBranchKey } from './DynamicFormItemChoice.test-helpers';
 
 function addButton(wrapper: ReturnType<typeof mount>, path: string) {
   return wrapper.find(`[data-testid="${path}-add-button"]`);
@@ -1226,6 +1226,266 @@ describe('component DynamicFormItemChoice - logic', () => {
       const cleaned = removeNullValues(values)!;
       expect(cleaned.pick).toEqual({ guidedRollout: 'world' });
       expect('selfServe' in cleaned.pick).toBe(false);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 10. Explicit selection — maxOccurs > 1 (ST-02)
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('explicit selection — maxOccurs>1 (ST-02)', () => {
+    function mountExplicitRepeatableChoice(extraProps: Record<string, any> = {}) {
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            maxOccurs: 3,
+            fieldOptions: { label: 'Pick Several' },
+            choice: [
+              { name: 'apiEndpoint', maxOccurs: 2, fieldOptions: { label: 'Api Endpoint' } },
+              { name: 'crmExport', maxOccurs: 2, fieldOptions: { label: 'Crm Export' } },
+            ],
+          }],
+          ...extraProps,
+        },
+      });
+    }
+
+    // --- AC1 ---
+    it('(AC1) adding an occurrence pushes a real placeholder item into the branch\'s array', async () => {
+      const wrapper = mountExplicitRepeatableChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[id="pick.apiEndpoint[0]"]').exists()).toBe(true);
+      expect((wrapper.find('[id="pick.apiEndpoint[0]"]').element as HTMLInputElement).value).toBe('');
+      expect(formValues(wrapper).pick.apiEndpoint).toEqual([null]);
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
+    });
+
+    // --- AC2 ---
+    describe('(AC2) canAddChoiceOccurrence respects both the branch\'s own maxOccurs and the shared choice budget', () => {
+      it('disables only the branch whose own maxOccurs is reached, leaving siblings addable', async () => {
+        const wrapper = mountExplicitRepeatableChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'apiEndpoint')).toBe(false);
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'crmExport')).toBe(true);
+      });
+
+      it('disables every branch once the shared choice budget is exhausted, even with room left in a branch\'s own cap', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              maxOccurs: 2,
+              fieldOptions: { label: 'Pick Several' },
+              choice: [
+                { name: 'apiEndpoint', maxOccurs: 3, fieldOptions: { label: 'Api Endpoint' } },
+                { name: 'crmExport', maxOccurs: 3, fieldOptions: { label: 'Crm Export' } },
+              ],
+            }],
+          },
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'apiEndpoint')).toBe(false);
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'crmExport')).toBe(false);
+      });
+    });
+
+    // --- AC3 ---
+    it('(AC3) removeChoiceOccurrence(branchKey, index) removes the specified occurrence and shifts the remaining one down', async () => {
+      const wrapper = mountExplicitRepeatableChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[id="pick.apiEndpoint[0]"]').setValue('first');
+      await flushPromises();
+      await wrapper.find('[id="pick.apiEndpoint[1]"]').setValue('second');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(formValues(wrapper).pick.apiEndpoint).toEqual(['second']);
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
+    });
+
+    // --- AC4 ---
+    it('(AC4) activeChoiceOccurrences is grouped by branch declaration order, then index within branch', async () => {
+      const wrapper = mountExplicitRepeatableChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      const expectedOrder = [
+        { branchKey: 'apiEndpoint', index: 0 },
+        { branchKey: 'crmExport', index: 0 },
+        { branchKey: 'crmExport', index: 1 },
+      ];
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual(expectedOrder);
+
+      // Re-derive purely from the resulting value tree (no ephemeral ordering state persisted).
+      const remounted = mountExplicitRepeatableChoice({ initialValues: formValues(wrapper) });
+      await flushPromises();
+
+      expect(activeChoiceOccurrences(remounted, 'pick')).toEqual(expectedOrder);
+    });
+
+    // --- AC6 ---
+    it('(AC6) the *-choice-item slot receives branchKey, and its removeItem calls through to removeChoiceOccurrence', async () => {
+      const wrapper = mountExplicitRepeatableChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(occurrenceBranchKey(wrapper, 'pick.apiEndpoint[0]')).toBe('apiEndpoint');
+
+      await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(formValues(wrapper).pick.apiEndpoint).toEqual([]);
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([]);
+    });
+
+    // --- AC7 ---
+    describe('(AC7) choice-in-array, maxOccurs > 1 reindex safety', () => {
+      function mountChoiceInsideRepeatableArray() {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'projectContacts',
+              maxOccurs: 3,
+              minOccurs: 0,
+              autoAddMinOccurs: false,
+              fieldOptions: { label: 'Project Contacts' },
+              children: [{
+                name: 'certifications',
+                explicitChoiceSelection: true,
+                maxOccurs: 4,
+                minOccurs: 0,
+                fieldOptions: { label: 'Certifications' },
+                choice: [
+                  { name: 'basic', maxOccurs: 3, fieldOptions: { label: 'Basic' } },
+                  { name: 'advanced', maxOccurs: 3, fieldOptions: { label: 'Advanced' } },
+                ],
+              }],
+            }],
+          },
+        });
+      }
+
+      it('the surviving choice keeps tracking the reindexed path after an earlier sibling array item is removed', async () => {
+        const wrapper = mountChoiceInsideRepeatableArray();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="projectContacts-add-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="projectContacts-add-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="projectContacts-add-button"]').trigger('click');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="projectContacts[2].certifications.basic-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="projectContacts[2].certifications.basic-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="projectContacts[0]-remove-button"]:not(.invisible)').trigger('click');
+        await flushPromises();
+
+        expect(activeChoiceOccurrences(wrapper, 'projectContacts[1].certifications')).toEqual([
+          { branchKey: 'basic', index: 0 },
+          { branchKey: 'basic', index: 1 },
+        ]);
+        expect(wrapper.find('[id="projectContacts[1].certifications.basic[0]"]').exists()).toBe(true);
+        expect(wrapper.find('[id="projectContacts[1].certifications.basic[1]"]').exists()).toBe(true);
+        expect(wrapper.find('[id="projectContacts[2].certifications.basic[0]"]').exists()).toBe(false);
+        expect(formValues(wrapper).projectContacts[1].certifications.basic).toHaveLength(2);
+
+        await wrapper.find('[data-testid="projectContacts[1].certifications.advanced-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[id="projectContacts[1].certifications.advanced[0]"]').exists()).toBe(true);
+        expect(wrapper.find('[id="projectContacts[2].certifications.advanced[0]"]').exists()).toBe(false);
+      });
+    });
+
+    // --- Edge cases ---
+    describe('edge cases', () => {
+      it('removing the last occurrence of a branch that had exhausted the shared budget frees room for other branches reactively', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              maxOccurs: 2,
+              fieldOptions: { label: 'Pick Several' },
+              choice: [
+                { name: 'apiEndpoint', maxOccurs: 3, fieldOptions: { label: 'Api Endpoint' } },
+                { name: 'crmExport', maxOccurs: 3, fieldOptions: { label: 'Crm Export' } },
+              ],
+            }],
+          },
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'crmExport')).toBe(false);
+
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'crmExport')).toBe(true);
+      });
+
+      it('removeChoiceOccurrence with an out-of-range index is a no-op, no throw', async () => {
+        const wrapper = mountExplicitRepeatableChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        const choiceComp = findDynamicFormItemChoiceByPath(wrapper, 'pick');
+        expect(() => {
+          (choiceComp!.vm as any).$.setupState.removeChoiceOccurrence('apiEndpoint', 99);
+        }).not.toThrow();
+        await flushPromises();
+
+        expect(formValues(wrapper).pick.apiEndpoint).toHaveLength(1);
+        expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
+      });
     });
   });
 });
