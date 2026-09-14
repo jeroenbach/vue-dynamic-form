@@ -1,7 +1,7 @@
 ---
 id: FEAT-001
 type: feature
-status: in-progress
+status: done
 created: 2026-09-09
 approved_by: Jeroen
 epic: ""
