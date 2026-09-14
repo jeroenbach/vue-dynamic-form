@@ -71,6 +71,11 @@ const normalizedPath = computed(() => normalizePath(closestPath.value));
 // mount-unmount storm ADR-2 exists to prevent.
 const explicitChoiceSelection = props.fieldMetadata?.explicitChoiceSelection === true;
 
+// `preserveOnSwitch` (ST-05) is likewise static metadata, captured once at setup for the same
+// reason as `explicitChoiceSelection` above: it is excluded from `ComputedPropsFieldType`, so
+// this is purely defence in depth against an `as any` cast, not a reachable runtime mutation.
+const preserveOnSwitch = props.fieldMetadata?.preserveOnSwitch === true;
+
 // vee-validate form context, used to clear a deselected branch's data on switch (ADR-3).
 // `DynamicFormItemChoice` is always a descendant of the `useForm()` call in `useDynamicForm`,
 // so a plain `useFormContext()` resolves it here (unlike the same-instance quirk
@@ -80,6 +85,14 @@ const formContext = useFormContext();
 // Ephemeral UI state for the `maxOccurs: 1` explicit-selection case (ADR-1). Never written to
 // form `values` — selection is tracked here and folded into the existing occurrence math below.
 const explicitlySelectedBranch = ref<string | null>(null);
+
+// Ephemeral, instance-local stash for preserve-on-switch (ST-05), keyed by branchKey. Never
+// written to form `values` (decision 4), exactly like `explicitlySelectedBranch` above. Only
+// populated/read when `preserveOnSwitch` is enabled; scoped to `maxOccurs: 1` (the feature
+// architecture's preserve-on-switch verdict does not cover the repeatable case). Bounded in size
+// by the number of branches (keyed by branchKey, not appended), so no unbounded growth across
+// many switches of the same branch.
+const stashedBranchValues = ref<Record<string, unknown>>({});
 
 // Value-driven read per branch, independent of whether that branch's own DynamicFormItem is
 // currently mounted. Needed for the "loading saved data still reads as selected" guarantee
@@ -430,13 +443,25 @@ function branchByKey(branchKey: string): InternalMetadata | undefined {
 // contract; consumers who need a byte-clean tree call the exported removeNullValues at submit time.
 // The childValues entry is also reset synchronously here (not left to the branch's own unmount),
 // so valuesCount/combinedValidation settle in one tick instead of oscillating.
-function clearBranch(branchKey: string) {
+//
+// `stash` (ST-05, preserve-on-switch) is passed by the caller — only the switch-away path in
+// addChoiceOccurrence opts in — and, when true, deep-clones the branch's current values into
+// `stashedBranchValues` BEFORE the clear below, using the same value-driven read
+// (`branchValueRefs`, backed by vee-validate's `useFieldValue` at this exact branchPath) already
+// used elsewhere in this component for the value-driven active-branch view. This is the same
+// underlying read the feature architecture describes as `useFormContext().values` at branchPath.
+function clearBranch(branchKey: string, options: { stash?: boolean } = {}) {
   const index = branchIndexOf(branchKey);
   if (index < 0)
     return;
 
   const branchChild = field.value?.choice?.[index];
   const branchPath = branchChild?.path ? overridePath(branchChild.path, props.pathOverride) : undefined;
+
+  if (options.stash) {
+    stashedBranchValues.value[branchKey] = structuredClone(branchValueRefs[index]?.value ?? undefined);
+  }
+
   if (branchPath) {
     formContext?.setFieldValue(branchPath as any, undefined, false);
   }
@@ -447,6 +472,29 @@ function clearBranch(branchKey: string) {
     existing.occurrences = 0;
     existing.valuesCount = 0;
   }
+}
+
+// Restores a previously stashed branch's values (ST-05, preserve-on-switch), if a stash entry
+// exists for it. Called right before the branch is marked active again, so its DynamicFormItem
+// mounts with the restored data already present on its very first render (no oscillation — the
+// value is committed to the vee-validate values tree before the branch mounts and reads it).
+// `shouldValidate: false` mirrors clearBranch's own clear call, so a restored-but-still-empty
+// required field does not flash an error immediately after restore (AC4's pristine requirement).
+// A no-op, no-throw when no stash entry exists yet for this branch (e.g. its first-ever
+// selection) — checked with `in` rather than a truthiness check, since an empty branch can be
+// legitimately stashed as `undefined`. No defensive branchPath fallback is needed here (unlike
+// clearBranch, which is also reachable from removeChoiceOccurrence with less upstream
+// validation): restoreStashedBranch is only ever called from addChoiceOccurrence, immediately
+// after canAddChoiceOccurrence(branchKey) has already confirmed branchIndexOf(branchKey) >= 0,
+// so the branch (and its `path`, always set by correctMetadataAndSetDefaults) is guaranteed to
+// exist.
+function restoreStashedBranch(branchKey: string) {
+  if (!preserveOnSwitch || !(branchKey in stashedBranchValues.value))
+    return;
+
+  const index = branchIndexOf(branchKey);
+  const branchPath = overridePath(field.value!.choice![index].path as string, props.pathOverride);
+  formContext?.setFieldValue(branchPath as any, stashedBranchValues.value[branchKey], false);
 }
 
 /** Mark a branch active (maxOccurs:1) or add one occurrence of it (maxOccurs > 1). No-op when canAddChoiceOccurrence is false, or the branchKey is unknown. */
@@ -473,8 +521,12 @@ function addChoiceOccurrence(branchKey: string) {
 
   const previousBranch = explicitlySelectedBranch.value;
   if (previousBranch && previousBranch !== branchKey) {
-    clearBranch(previousBranch);
+    // ST-05: stash the deselected branch's values before clearing when preserveOnSwitch is on.
+    clearBranch(previousBranch, { stash: preserveOnSwitch });
   }
+
+  // ST-05: restore any stash for the newly selected branch before it mounts.
+  restoreStashedBranch(branchKey);
 
   explicitlySelectedBranch.value = branchKey;
 }

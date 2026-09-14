@@ -135,6 +135,26 @@ export type FieldMetadata<
   explicitChoiceSelection?: boolean
 
   /**
+   * Opt into preserve-on-switch for a `maxOccurs: 1` explicit choice (only meaningful together
+   * with `explicitChoiceSelection: true`). When true, switching away from a branch (calling
+   * `addChoiceOccurrence` for a different branch) deep-clones that branch's current values into
+   * an ephemeral, instance-local stash before clearing it as usual; switching back to that branch
+   * restores the stashed values via `setFieldValue`. The stash is never written to the form
+   * `values`, exactly like the selection state itself.
+   *
+   * When false or omitted (the default), switching clears the branch with nothing preserved,
+   * matching the baseline clear-on-switch behaviour.
+   *
+   * Restored fields start with fresh touched/validation state (as if freshly re-entered), and no
+   * error renders immediately after restore even if a required field is still empty.
+   *
+   * Has no effect on non-choice nodes, on `maxOccurs > 1` explicit choices, or when
+   * `explicitChoiceSelection` is not set. Read from static metadata only: it is excluded from
+   * `ComputedPropsFieldType`, so a `computedProps` function cannot flip it at runtime.
+   */
+  preserveOnSwitch?: boolean
+
+  /**
    * Attributes are additional metadata that can be attached to a field.
    * These attributes can be used to provide extra information about the field,
    * such as for example whether the data is verified.
@@ -230,6 +250,9 @@ export type ComputedPropsFieldType<
       // Static metadata only: flipping this via computedProps would change the render mode
       // mid-form (initial flash / mount-unmount storm), see DynamicFormItemChoice's ADR-2.
       | 'explicitChoiceSelection'
+      // Static metadata only, for the same reason as explicitChoiceSelection: flipping this
+      // via computedProps would change stash/restore behaviour mid-form (ST-05).
+      | 'preserveOnSwitch'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string

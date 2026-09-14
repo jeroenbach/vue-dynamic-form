@@ -2,7 +2,7 @@
 id: ST-05
 type: story
 feature: FEAT-001
-status: approved
+status: done
 created: 2026-09-10
 approved_by: Jeroen
 pr: ""
@@ -180,7 +180,116 @@ Ran in STORY (lite) mode on 2026-09-10, blockers-first, against the installed co
 No acceptance criterion required a rewrite; all five are testable as written and correctly mapped, and both should-fixes are routed as concrete PROPOSED edits rather than left as holes.
 
 ## Implementation notes
-Filled by developer during implementation.
+
+**Flag surface (resolves the story's own flagged finding 1).** Implemented as a per-choice `FieldMetadata` boolean, `preserveOnSwitch?: boolean`, declared next to `explicitChoiceSelection` in `packages/core/src/types/FieldMetadata.ts`, per the story's Architecture reference's accepted PROPOSED edit. Added to the `ComputedPropsFieldType` `Omit` list alongside `explicitChoiceSelection`, for the same reason (a `computedProps` mutation must not be able to flip stash/restore behaviour mid-form). No feature-spec amendment needed since this was already the architecture reference's own recommended resolution, not a new story-level override.
+
+**Restore uses `shouldValidate: false` (resolves finding 2).** `restoreStashedBranch` calls `formContext.setFieldValue(branchPath, stashed, false)`, mirroring `clearBranch`'s existing `setFieldValue(branchPath, undefined, false)`. Matches the story's accepted PROPOSED refinement of the architecture's verdict text.
+
+**Deviation: reused `branchValueRefs` instead of a new `useFormContext().values` path read.** `DynamicFormItemChoice` already maintains one `useFieldValue()` ref per branch (`branchValueRefs`, added in ST-01 for the value-driven "loading saved data still reads as selected" guarantee). `clearBranch`'s stash step reads `branchValueRefs[index].value` (deep-cloned via `structuredClone`) instead of writing a new path-parsing helper against `useFormContext().values`. Both reads resolve to the exact same underlying vee-validate value at `branchPath`; reusing the existing ref avoids a duplicate mechanism, per "reuse first."
+
+**Deviation: stash-before-clear is scoped to the switch path inside `addChoiceOccurrence`, not `removeChoiceOccurrence`'s plain deselect.** The Architecture reference specifies the stash happens "before the existing clear in `addChoiceOccurrence`'s switch path"; none of the ACs or edge cases exercise stashing on a plain deselect (`removeChoiceOccurrence` with no other branch selected). Implemented narrowly as specified: `clearBranch(previousBranch, { stash: preserveOnSwitch })` is only called from `addChoiceOccurrence`'s switch branch; `removeChoiceOccurrence` calls `clearBranch(branchKey)` with no stash option, unchanged from ST-01.
+
+**Test finding: vee-validate's own field-unregistration lifecycle removes a switched-away branch's key entirely (not just to `undefined`), independent of this feature.** While writing AC5's "no stash-shaped key" tests, an `Object.keys()` check revealed that a deselected branch's key can disappear from `values.pick` entirely (not merely become `undefined`), because vee-validate's `useField` unregisters with the form's default `keepValuesOnUnmount: false`, which schedules a debounced `unsetPathValue` on the path when the field's owning `DynamicFormItem` unmounts. This happens on every switch, flag on or off, and pre-dates ST-05 (it also affects ST-01's baseline, though the existing ST-01 tests use `toEqual`, which does not distinguish an `undefined`-valued key from an absent one, so it was never surfaced there). AC5's tests were written to assert "only declared branch names ever appear as keys, no stash-shaped extra key" (a subset check) rather than an exact key set, so they do not depend on this pre-existing, out-of-scope timing detail. Not fixed here: it is not part of this story's scope (ADR-3's residue contract) and does not affect any ST-05 acceptance criterion.
+
+**AC4 test note: `meta.validated` legitimately becomes `true` immediately after restoring a non-empty branch.** `DynamicForm.vue` defaults `validateOnValueUpdate: true`, so any field that mounts (or changes) with a truthy value already present validates immediately — this is the same behaviour a freshly-typed value triggers, not something specific to restore. The AC4 test therefore asserts what is actually verifiable and meaningful: the restored field is a genuinely new vee-validate field registration (fresh field `id`, not the same instance touched before switching away), `meta.touched` resets to `false`, and there is no stale error carried over (`meta.valid` is `true`, no error message renders). The companion case (a restored-but-empty required field shows no error immediately after restore) is the concrete form of AC4's "no error flash" requirement and passes as specified.
+
+**No docs/example changes.** Confirmed engine-only per the story's own scope: `docs/` and the onboarding example are untouched (ST-03 already ships with the default clear-on-switch baseline; a docs mention of `preserveOnSwitch` is optional and left to ST-04 per the story's Out of scope section).
+
+**Files changed:**
+- `packages/core/src/types/FieldMetadata.ts` — `preserveOnSwitch?: boolean`, `ComputedPropsFieldType` `Omit` entry.
+- `packages/core/src/components/DynamicFormItemChoice.vue` — `preserveOnSwitch` static capture, `stashedBranchValues` ref, stash/restore wiring in `clearBranch`/`restoreStashedBranch`/`addChoiceOccurrence`.
+- `packages/core/src/components/__tests__/DynamicFormItemChoice.test-helpers.ts` — `enablePreserveOnSwitch(metadata, choicePath, enabled?)` and `stashedBranchValues(wrapper, path)` helpers.
+- `packages/core/src/components/__tests__/DynamicFormItemChoice.logic.test.ts`, `.validation.test.ts`, `.analytics.test.ts` — new `describe` blocks per the QA plan (AC1-AC5, edge cases, touched/validation reset, render-count contracts).
+- `specs/components.md` — `DynamicFormItemChoice` entry and `FieldMetadata` types section updated.
+- `.changeset/preserve-on-switch-explicit-choice.md` — `minor`, its own entry (consistent with ST-02's precedent of one changeset per story touching `packages/core/src/`).
+
+**Verification commands:**
+```
+cd packages/core && TZ=Europe/Amsterdam npx vitest run src/components/__tests__/DynamicFormItemChoice.logic.test.ts src/components/__tests__/DynamicFormItemChoice.validation.test.ts src/components/__tests__/DynamicFormItemChoice.analytics.test.ts
+pnpm -r run ci
+pnpm -r run ci:test:coverage
+```
+
+Full `packages/core` suite: 504 tests passing (baseline 488 + 16 new). `packages/element-plus`: 1 test passing, unaffected. Lint clean, typecheck clean (root `pnpm -r run build` re-run first, since `packages/core/src` types changed, per the environment note). Coverage: 96.84% / 92.72% / 96.25% / 96.84% (stmts/branch/funcs/lines), no drop against the 96.82/92.52/96.2/96.82 baseline (all four metrics improved slightly).
 
 ## Verification report
-Filled by qa-verifier after implementation.
+
+### Pipeline checks
+- `pnpm -r run build` (needed before typecheck since `packages/core/src` types changed): both `packages/core` and `packages/element-plus` build clean.
+- `pnpm -r run ci` (test + lint + typecheck): 22 test files, **504/504 tests passing** in `packages/core` (baseline 488 + 16 new, matches the developer's claim exactly); `packages/element-plus` 1/1 passing. ESLint and `vue-tsc --noEmit` clean on both packages.
+- `pnpm -r run ci:test:coverage`: `packages/core` **96.84% / 92.72% / 96.25% / 96.84%** (stmts/branch/funcs/lines), verified byte-identical to the developer's reported numbers. No drop against the pre-story baseline (96.82/92.52/96.2/96.82); all four metrics improved slightly. `packages/element-plus` coverage unaffected (0%/100%/100%/0%, pre-existing, untouched by this story).
+- No `docs/` content changed by this story, so `pnpm docs:build` was not required and was not run.
+
+### Acceptance criteria
+
+| AC | Description | Verdict | Evidence |
+| --- | --- | --- | --- |
+| 1 | Default behaviour unchanged (flag absent/`false`) | Pass | `DynamicFormItemChoice.logic.test.ts` `(AC1) default behaviour is unchanged` — `1a` (flag absent) and `1b` (flag explicitly `false`) both assert switch-away clears to the ST-01 residue shape and switch-back renders empty, not restored. Code path: `clearBranch(previousBranch, { stash: preserveOnSwitch })` where `preserveOnSwitch` is `false` when absent/`false`, so `stash` is never set and `restoreStashedBranch` no-ops (no stash key exists). Confirmed identical to ST-01's own AC4/AC10 assertions (`DynamicFormItemChoice.logic.test.ts:914`, `:1218`, unmodified). |
+| 2 | Enabling the flag stashes data outside `values` before clearing | Pass | `(AC2/AC3) stashes before clearing, and switching back restores the stashed data` — asserts the residue immediately after switch-away is byte-identical to the AC1 shape (`pick.selfServe` undefined, DOM node gone), then AC3's restore proves the stash was captured pre-clear (a post-clear capture would restore empty). Code: `clearBranch` stashes via `structuredClone(branchValueRefs[index]?.value ?? undefined)` before calling `setFieldValue(branchPath, undefined, false)`. |
+| 3 | Switching back restores the stash | Pass | Same test: after switching to `guidedRollout` and back to `selfServe`, the input's DOM value and `formValues(wrapper).pick.selfServe` both equal `'hello'`, `guidedRollout`'s input no longer exists, and `activeChoiceOccurrences` shows exactly `selfServe` active. |
+| 4 | Restored data starts with fresh touched/validation state | Pass | `DynamicFormItemChoice.validation.test.ts` `preserve-on-switch — touched/validation reset (AC4)`: asserts the restored field has a new vee-validate field `id` (genuinely re-registered, not the same touched instance), `meta.touched` resets to `false`, `meta.valid` is `true`, and no error message renders. Companion case: an empty required field, once restored, shows no error message immediately. See "Flagged deviation 4" below for why `meta.validated` itself is not asserted true/false. |
+| 5 | The stash is pure ephemeral UI state, never in `values` | Pass | `(AC5) the stash never appears in values` — 5a/5b assert `Object.keys(formValues(wrapper).pick)` only ever contains declared branch names at stash time and at restore time; 5c triggers the `TestForm` submit handler at both points and re-asserts the same on the submitted values. `stashedBranchValues` itself is a plain `ref` on the component instance, never passed to `setFieldValue`/`values` except via the deliberate `restoreStashedBranch` write of its *value*, not the stash structure itself. |
+
+Edge cases (switching twice without returning, empty-branch stash, first-ever-selection no-stash, per-instance isolation inside `projectContacts`, and a `maxOccurs > 1` sanity check) are all present in `DynamicFormItemChoice.logic.test.ts` and pass.
+
+### Prototype / feature-architecture comparison
+
+This story is engine-only (confirmed: no `docs/` diff, no `index.ts` diff). Per the story's own Design reference, `#single-switch` documents preserve-on-switch as deferred with no dedicated UI, and the visible outcome of a restore is pixel-identical to the already-drawn `#single-selected`/`#single-selected-guided` states from ST-01 — there is no new visual state to compare against the prototype, no new VitePress color-mode surface, and no responsive-behaviour change. This matches the story's own "States policy" note that no new render state is introduced. Verified there is genuinely no drift: `git diff --stat` shows only `packages/core/src` (component + types) and its own test files changed, nothing in `docs/`.
+
+### Process compliance
+
+- `specs/components.md`: updated — the `DynamicFormItemChoice` row gains the `preserveOnSwitch` behaviour description, and the `FieldMetadata` section gains a paragraph for the new flag including its `ComputedPropsFieldType` exclusion. Accurate against the actual code.
+- Changeset: present, `.changeset/preserve-on-switch-explicit-choice.md`, bump `minor`. Matches the architecture's additive-only classification (new optional `FieldMetadata` property, no export/signature change).
+- Library API rules: one new optional `FieldMetadata` boolean (`preserveOnSwitch`), camelCase, placed next to `explicitChoiceSelection` per the story's own accepted resolution of its flagged finding 1; correctly added to the `ComputedPropsFieldType` `Omit` list (verified in the `FieldMetadata.ts` diff) so `computedProps` cannot flip it mid-form, mirroring `explicitChoiceSelection`'s own treatment. No new export from `index.ts`; no existing export's shape changed.
+- Test naming: `*.logic.test.ts`, `*.validation.test.ts`, `*.analytics.test.ts` extended per repo convention, matching the QA plan's file list exactly.
+- No undocumented spec deviations found; see below.
+
+### The four flagged deviations, checked individually
+
+1. **Reusing `branchValueRefs` instead of a new `useFormContext().values` path-reader.** Confirmed equivalent. `branchValueRefs[index]` is `useFieldValue(() => overridePath(child.path, props.pathOverride))` (vee-validate's own reactive path-aware value accessor), already used elsewhere in the same component (line 292, the value-driven `activeChoiceOccurrences` fold) to read the identical `branchPath` the architecture's stash text targets. Both resolve to the same underlying value in the form's `values` tree at `branchPath`; `useFieldValue` is vee-validate's supported way to read a path reactively and is not a private/unsupported API. This is a legitimate "reuse first" simplification, not a behavioural gap: it reads before the subsequent `setFieldValue(..., undefined, false)` call in the same function body, preserving the "stash before clear" ordering the architecture requires. No concern.
+2. **Stash-before-clear scoped to `addChoiceOccurrence`'s switch path only, not `removeChoiceOccurrence`.** Confirmed as a faithful, literal reading of the architecture text, not an invented narrowing. The feature architecture's preserve-on-switch verdict and the story's own Architecture reference both say the stash happens "before the existing clear in `addChoiceOccurrence`'s switch path" verbatim. None of the story's five ACs or three edge cases exercise a plain deselect (`removeChoiceOccurrence` with no other branch subsequently selected) as a stash trigger; the story's own Out of scope section only excludes `maxOccurs > 1`, but the QA plan's edge-case list and AC-to-test mapping both confine themselves to the switch flow. Verified in code: `removeChoiceOccurrence` calls `clearBranch(branchKey)` with no `stash` option (unchanged from ST-01), while only `addChoiceOccurrence`'s switch branch passes `{ stash: preserveOnSwitch }`. Correct scope, not a silent narrowing.
+3. **Pre-existing vee-validate `keepValuesOnUnmount: false` key-deletion quirk.** Confirmed as pre-existing and not introduced by this story. `useDynamicForm.ts` exposes `keepValuesOnUnmount` as an optional form-level setting (defaults to vee-validate's own default, `false`, when the consumer does not override it); `DynamicFormItem.vue`'s `useField` call does not override it per-field. This is form-wide lifecycle behaviour, not choice-specific or ST-05-specific. Checked ST-01's own pre-existing assertions at `DynamicFormItemChoice.logic.test.ts:914` and `:1218` (both unmodified by this story): they use `toEqual({ selfServe: undefined, guidedRollout: 'world' })`, and Vitest/Jest's `toEqual` treats an `undefined`-valued property as equivalent to an absent one, so these tests would not have caught (and did not catch) the key genuinely disappearing versus merely becoming `undefined`. This confirms the developer's claim: the quirk already affects ST-01's committed behaviour and was simply never surfaced there because `toEqual` masks the distinction. ST-05's own AC5 tests use `Object.keys()` subset checks (only declared branch names may appear; no stash-shaped key), which is true regardless of whether a switched-away key is present-as-`undefined` or fully absent, so the claimed independence holds under inspection, not just by assertion.
+4. **AC4's `meta.validated` adjustment.** Confirmed as a legitimate, non-weakening adjustment. `DynamicForm.vue` does default `validateOnValueUpdate: true` at the form level (verified in the codebase), so any field mounting with a truthy value validates immediately — this is a genuine, correctly-identified library default, not a rationalization invented to dodge a failing assertion. The actual AC4 test still verifies everything AC4 requires: a fresh vee-validate field `id` (new registration, not the same touched instance), `meta.touched` reset to `false`, `meta.valid` true with no error message rendered for the filled-branch case, and the companion case directly proves "no error message renders immediately after restore" for an empty required field. This is the concrete, literal wording of AC4 ("their vee-validate touched/validation state is reset... matching the accepted caveat") satisfied without asserting a `meta.validated` value that the library's own documented default would make flaky/definitionally-true regardless of the restore mechanism. Not a defect being dodged: the "accepted caveat" is exactly what the feature architecture's preserve-on-switch verdict subsection already conceded ("vee-validate touched/validation state for the branch resets on restore... acceptable, it behaves like freshly re-entered data").
+
+### Additional confirmations requested
+
+- **Default behaviour byte-identical to ST-01's clear-on-switch (AC1):** confirmed above; AC1's own tests assert the identical residue and empty-render-on-switch-back that ST-01's suite already established, and the full pre-existing ST-01 `DynamicFormItemChoice.*` suites remain green, unmodified.
+- **Stash never written to form `values` (decision 4, AC5):** confirmed; `stashedBranchValues` is a component-local `ref`, only ever read to feed `setFieldValue`'s *value* argument (the actual field data), never itself passed into `values` as a structure, and AC5's tests assert this both pre- and post-submit.
+- **DECIDED Q7 (clear-on-switch remains baseline) respected:** confirmed; the flag defaults to `false`/absent and every AC1 test proves the baseline is unchanged when the flag is off.
+
+### Overall verdict: **pass**
+
+All five acceptance criteria are met with direct test evidence, all four flagged deviations hold up under independent verification (none are silent scope-narrowing or defect-dodging), process compliance is complete (changeset, `specs/components.md`, `Omit` list treatment, no new exports), and the full pipeline (build, test, lint, typecheck, coverage) is green with coverage improving slightly against baseline. Status set to `done`.
+
+**This was the last story of FEAT-001.** All five stories (ST-01 through ST-05) are now `done`. The feature itself can move to `done`, but that status transition belongs to whoever owns the feature-level spec, not this story-level report.
+
+Reminder for Jeroen: the `pr` field in this story's frontmatter is still `""` — please link the PR once opened.
+
+```
+FEAT-001 ST-05: add preserve-on-switch for maxOccurs:1 explicit choice selection
+
+Add an opt-in FieldMetadata flag, preserveOnSwitch, that stashes a maxOccurs:1
+explicit choice branch's values outside form values before clear-on-switch and
+restores them on switch-back, so exploratory switching does not force
+re-entry. Defaulted off so ST-01's clear-on-switch stays the baseline for
+everyone who does not opt in.
+
+- packages/core/src/types/FieldMetadata.ts: preserveOnSwitch?: boolean, added
+  to the ComputedPropsFieldType Omit list alongside explicitChoiceSelection so
+  computedProps cannot flip stash/restore behaviour mid-form.
+- packages/core/src/components/DynamicFormItemChoice.vue: stashedBranchValues
+  ref, stash-before-clear and restore-on-select wiring in clearBranch,
+  restoreStashedBranch, and addChoiceOccurrence, restoring with
+  shouldValidate: false so a restored empty required field does not flash an
+  error.
+- Test coverage across DynamicFormItemChoice.logic/.validation/.analytics.test.ts
+  for all five acceptance criteria, the three edge cases, and render-count
+  contracts, plus a new enablePreserveOnSwitch test helper.
+- specs/components.md updated for the new flag; changeset added (minor).
+
+This is the last story of FEAT-001 (explicit choice selection); all five
+stories are now done.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Pvp6HRuzqFTfwy1pnbf4gC
+```

@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { configure } from 'vee-validate';
 import { afterEach, describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
+import { setupState } from './DynamicFormItem.test-helpers';
+import { enablePreserveOnSwitch } from './DynamicFormItemChoice.test-helpers';
 
 describe('component DynamicFormItemChoice', () => {
   afterEach(() => {
@@ -779,6 +781,79 @@ describe('component DynamicFormItemChoice', () => {
       await flushPromises();
 
       expect(wrapper.find('[data-testid="pick.only-error-message"]').exists()).toBe(true);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 11. Preserve-on-switch — touched/validation reset (AC4, ST-05)
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('preserve-on-switch — touched/validation reset (AC4)', () => {
+    function mountPreserveOnSwitchRequiredChoice() {
+      const metadata = enablePreserveOnSwitch([{
+        name: 'pick',
+        explicitChoiceSelection: true,
+        fieldOptions: { label: 'Pick One' },
+        choice: [
+          { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+          { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+        ],
+      }], 'pick');
+
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata,
+          settings: { messages: { required: '{field} is required' } },
+        },
+      });
+    }
+
+    it('a restored field is a genuinely fresh field registration: touched resets to false, and it is valid with no stale error carried over', async () => {
+      const wrapper = mountPreserveOnSwitchRequiredChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      const input = wrapper.find('[id="pick.selfServe"]');
+      await input.setValue('hello');
+      await input.trigger('blur');
+      await flushPromises();
+
+      const idBeforeSwitch = setupState(wrapper, 'pick.selfServe')?.fieldContext.meta.id;
+      expect(setupState(wrapper, 'pick.selfServe')?.fieldContext.meta.touched).toBe(true);
+
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      // The restored data is present...
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('hello');
+      // ...as a genuinely new field registration (a fresh vee-validate field id, not the same
+      // instance that was touched before switching away)...
+      expect(setupState(wrapper, 'pick.selfServe')?.fieldContext.meta.id).not.toBe(idBeforeSwitch);
+      // ...so its own touched flag is fresh, not carried over from before the switch.
+      expect(setupState(wrapper, 'pick.selfServe')?.fieldContext.meta.touched).toBe(false);
+      // No stale error carries over either: the restored value is valid.
+      expect(setupState(wrapper, 'pick.selfServe')?.fieldContext.meta.valid).toBe(true);
+      expect(wrapper.find('[data-testid="pick.selfServe-error-message"]').exists()).toBe(false);
+    });
+
+    it('companion: restoring a stash where a required field was left empty shows no error immediately after restore', async () => {
+      const wrapper = mountPreserveOnSwitchRequiredChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      // selfServe is left empty on purpose.
+
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick.selfServe-error-message"]').exists()).toBe(false);
     });
   });
 });
