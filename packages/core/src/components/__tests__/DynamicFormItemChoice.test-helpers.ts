@@ -30,6 +30,46 @@ export function explicitlySelectedBranch(wrapper: ReturnType<typeof mount>, path
 }
 
 /**
+ * Reads the ephemeral preserve-on-switch stash (ST-05) for the choice at `path`. Returns
+ * undefined if the choice is not found. Best-effort internal-state reader, per the QA plan: no
+ * test in this suite requires it, but it names the stash ref directly for tests that want a
+ * stronger assertion than the observable restore behaviour alone.
+ */
+export function stashedBranchValues(wrapper: ReturnType<typeof mount>, path: string): Record<string, unknown> | undefined {
+  return setupState(wrapper, path)?.stashedBranchValues;
+}
+
+/**
+ * Patches fixture metadata to enable preserve-on-switch (ST-05) on the choice at `branchKey`
+ * (the choice's own `name`, e.g. `'pick'`). Centralises the flag surface (a `FieldMetadata`
+ * boolean, `preserveOnSwitch`, per the story's architecture reference) so tests do not hardcode
+ * a property name directly.
+ */
+export function enablePreserveOnSwitch<T>(metadata: T[], choicePath: string, enabled: boolean = true): T[] {
+  const segments = choicePath.split('.');
+
+  function visit(nodes: any[] | undefined, remaining: string[]): void {
+    if (!nodes)
+      return;
+
+    const [head, ...rest] = remaining;
+    const node = nodes.find(n => n.name === head);
+    if (!node)
+      return;
+
+    if (rest.length === 0) {
+      node.preserveOnSwitch = enabled;
+      return;
+    }
+
+    visit(node.children, rest);
+  }
+
+  visit(metadata as any[], segments);
+  return metadata;
+}
+
+/**
  * Reads the `childValues` entry for `branchKey` at the choice registered at `path`, resolving the
  * branch name to its internal numeric index via the choice's own metadata.
  */

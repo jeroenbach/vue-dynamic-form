@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { removeNullValues } from '@/utils/removeNullValues';
 import { formValues } from './DynamicFormItem.test-helpers';
-import { activeChoiceOccurrences, canAddChoiceOccurrence, childValuesEntry, findDynamicFormItemChoiceByPath, occurrenceBranchKey } from './DynamicFormItemChoice.test-helpers';
+import { activeChoiceOccurrences, canAddChoiceOccurrence, childValuesEntry, enablePreserveOnSwitch, findDynamicFormItemChoiceByPath, occurrenceBranchKey } from './DynamicFormItemChoice.test-helpers';
 
 function addButton(wrapper: ReturnType<typeof mount>, path: string) {
   return wrapper.find(`[data-testid="${path}-add-button"]`);
@@ -1226,6 +1226,314 @@ describe('component DynamicFormItemChoice - logic', () => {
       const cleaned = removeNullValues(values)!;
       expect(cleaned.pick).toEqual({ guidedRollout: 'world' });
       expect('selfServe' in cleaned.pick).toBe(false);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 9b. Preserve-on-switch — maxOccurs:1 (ST-05)
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('preserve-on-switch (ST-05)', () => {
+    function baseMetadata() {
+      return [{
+        name: 'pick',
+        explicitChoiceSelection: true,
+        fieldOptions: { label: 'Pick One' },
+        choice: [
+          { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+          { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+          { name: 'apiEndpoint', fieldOptions: { label: 'Api Endpoint' } },
+        ],
+      }];
+    }
+
+    function mountPreserveOnSwitchChoice(extraProps: Record<string, any> = {}) {
+      const metadata = enablePreserveOnSwitch(baseMetadata(), 'pick');
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata, ...extraProps },
+      });
+    }
+
+    // --- AC1: default behaviour unchanged (opt-in, defaulted off) ---
+    describe('(AC1) default behaviour is unchanged', () => {
+      it('1a. flag absent: switching away clears (ST-01 residue), and switching back renders empty, not restored', async () => {
+        const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: baseMetadata() } });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="pick.selfServe"]').setValue('hello');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(formValues(wrapper).pick.selfServe).toBeUndefined();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('');
+      });
+
+      it('1b. flag explicitly false: identical to absent', async () => {
+        const metadata = enablePreserveOnSwitch(baseMetadata(), 'pick', false);
+        const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata } });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="pick.selfServe"]').setValue('hello');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(formValues(wrapper).pick.selfServe).toBeUndefined();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('');
+      });
+    });
+
+    // --- AC2 + AC3 (joint, per the QA plan) ---
+    it('(AC2/AC3) stashes before clearing, and switching back restores the stashed data', async () => {
+      const wrapper = mountPreserveOnSwitchChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="pick.selfServe"]').setValue('hello');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      // AC2: the residue shape at the moment of stashing is byte-identical to the flag-off shape.
+      expect(formValues(wrapper).pick.selfServe).toBeUndefined();
+      expect(wrapper.find('[id="pick.selfServe"]').exists()).toBe(false);
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      // AC3: restored, guidedRollout unmounted, exactly one branch mounted.
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('hello');
+      expect(formValues(wrapper).pick.selfServe).toBe('hello');
+      expect(wrapper.find('[id="pick.guidedRollout"]').exists()).toBe(false);
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'selfServe', index: 0 }]);
+    });
+
+    // --- AC5: pure ephemeral UI state ---
+    // Only the metadata-declared branch names may appear as keys of `pick` — no extra,
+    // stash-shaped key (e.g. `_stash`/`stashedBranchValues`) is ever allowed to leak in. This is
+    // deliberately NOT an exact-key-set check: which branch keys are present at any given moment
+    // is governed by vee-validate's own field (un)registration lifecycle (out of this story's
+    // scope), not by the stash feature: the stash itself never touches `values` at all.
+    describe('(AC5) the stash never appears in values', () => {
+      const declaredBranchNames = ['selfServe', 'guidedRollout', 'apiEndpoint'];
+
+      function expectOnlyDeclaredBranchKeys(wrapper: ReturnType<typeof mount>) {
+        expect(Object.keys(formValues(wrapper))).toEqual(['pick']);
+        expect(Object.keys(formValues(wrapper).pick).every(key => declaredBranchNames.includes(key))).toBe(true);
+      }
+
+      it('5a/5b. no stash-shaped key at stash time or restore time', async () => {
+        const wrapper = mountPreserveOnSwitchChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="pick.selfServe"]').setValue('hello');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expectOnlyDeclaredBranchKeys(wrapper);
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expectOnlyDeclaredBranchKeys(wrapper);
+        expect(formValues(wrapper).pick.selfServe).toBe('hello');
+      });
+
+      it('5c. the values object submit would receive carries no stash-shaped key either', async () => {
+        const wrapper = mountPreserveOnSwitchChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="pick.selfServe"]').setValue('hello');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expectOnlyDeclaredBranchKeys(wrapper);
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+        expectOnlyDeclaredBranchKeys(wrapper);
+        expect(formValues(wrapper).pick.selfServe).toBe('hello');
+      });
+    });
+
+    // --- Edge cases ---
+    describe('edge cases', () => {
+      it('only the most recent stash per branch is kept; restore-then-edit-then-switch-again keeps latest data', async () => {
+        const wrapper = mountPreserveOnSwitchChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="pick.selfServe"]').setValue('A');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('A');
+
+        await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('A');
+
+        await wrapper.find('[id="pick.selfServe"]').setValue('B');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('B');
+      });
+
+      it('empty branch stashed: switching back renders empty with no error/crash, same shape as a fresh empty selection', async () => {
+        const wrapper = mountPreserveOnSwitchChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('');
+        expect(formValues(wrapper).pick.selfServe).toBeUndefined();
+      });
+
+      it('first-ever selection, no stash exists: mounts empty with no throw and no attempted restore', async () => {
+        const wrapper = mountPreserveOnSwitchChoice();
+        await flushPromises();
+
+        // apiEndpoint has never been deselected before, so no stash entry exists for it.
+        await expect(
+          wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click'),
+        ).resolves.not.toThrow();
+        await flushPromises();
+
+        expect(wrapper.find('[id="pick.apiEndpoint"]').exists()).toBe(true);
+        expect((wrapper.find('[id="pick.apiEndpoint"]').element as HTMLInputElement).value).toBe('');
+      });
+
+      it('per-instance isolation inside an array (decision 6): each contact restores its own stash, not the other\'s', async () => {
+        const metadata = enablePreserveOnSwitch([{
+          name: 'projectContacts',
+          maxOccurs: 2,
+          minOccurs: 0,
+          autoAddMinOccurs: false,
+          fieldOptions: { label: 'Project Contacts' },
+          children: [{
+            name: 'method',
+            explicitChoiceSelection: true,
+            minOccurs: 0,
+            fieldOptions: { label: 'Method' },
+            choice: [
+              { name: 'email', fieldOptions: { label: 'Email' } },
+              { name: 'phone', fieldOptions: { label: 'Phone' } },
+            ],
+          }],
+        }], 'projectContacts.method');
+
+        const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata } });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="projectContacts-add-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="projectContacts-add-button"]').trigger('click');
+        await flushPromises();
+
+        // Contact 0: fill email, switch to phone (stashes contact 0's email data).
+        await wrapper.find('[data-testid="projectContacts[0].method.email-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="projectContacts[0].method.email"]').setValue('contact0@example.com');
+        await flushPromises();
+        await wrapper.find('[data-testid="projectContacts[0].method.phone-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        // Contact 1: fill phone with a different value, switch to email (stashes contact 1's phone data).
+        await wrapper.find('[data-testid="projectContacts[1].method.phone-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="projectContacts[1].method.phone"]').setValue('+1-555-0100');
+        await flushPromises();
+        await wrapper.find('[data-testid="projectContacts[1].method.email-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        // Switch contact 0 back to email: restores contact 0's original value.
+        await wrapper.find('[data-testid="projectContacts[0].method.email-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect((wrapper.find('[id="projectContacts[0].method.email"]').element as HTMLInputElement).value).toBe('contact0@example.com');
+
+        // Switch contact 1 back to phone: restores contact 1's original value.
+        await wrapper.find('[data-testid="projectContacts[1].method.phone-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect((wrapper.find('[id="projectContacts[1].method.phone"]').element as HTMLInputElement).value).toBe('+1-555-0100');
+      });
+
+      it('sanity: the flag has no effect on a maxOccurs > 1 choice (out of scope, ST-02\'s own path)', async () => {
+        const metadata = enablePreserveOnSwitch([{
+          name: 'pick',
+          explicitChoiceSelection: true,
+          maxOccurs: 3,
+          fieldOptions: { label: 'Pick Several' },
+          choice: [
+            { name: 'apiEndpoint', maxOccurs: 2, fieldOptions: { label: 'Api Endpoint' } },
+            { name: 'crmExport', maxOccurs: 2, fieldOptions: { label: 'Crm Export' } },
+          ],
+        }], 'pick');
+
+        const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata } });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="pick.apiEndpoint[0]"]').setValue('first');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect((wrapper.find('[id="pick.apiEndpoint[0]"]').element as HTMLInputElement).value).toBe('');
+      });
     });
   });
 

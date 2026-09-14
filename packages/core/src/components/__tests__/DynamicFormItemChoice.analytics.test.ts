@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { renderCount } from './DynamicFormItem.test-helpers';
-import { setupState } from './DynamicFormItemChoice.test-helpers';
+import { enablePreserveOnSwitch, setupState } from './DynamicFormItemChoice.test-helpers';
 
 function mountExplicitChoiceWithSibling() {
   return mount(TestForm, {
@@ -241,6 +241,131 @@ describe('component DynamicFormItemChoice - analytics', () => {
       const survivorCountAfter = renderCount(wrapper, 'projectContacts[0].certifications.basic[0]');
       expect(survivorCountAfter).toBeGreaterThanOrEqual(survivorCountBefore);
       expect(survivorCountAfter).toBeLessThanOrEqual(survivorCountBefore + 1);
+    });
+  });
+
+  describe('preserve-on-switch — render counts (ST-05)', () => {
+    function mountPreserveOnSwitchChoiceWithSibling() {
+      const metadata = enablePreserveOnSwitch([
+        { name: 'sibling', fieldOptions: { label: 'Sibling' } },
+        {
+          name: 'pick',
+          explicitChoiceSelection: true,
+          fieldOptions: { label: 'Pick One' },
+          choice: [
+            { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+            { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+          ],
+        },
+      ], 'pick');
+
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata },
+      });
+    }
+
+    it('restoring a branch mounts its DynamicFormItem exactly once, with the restored data already present at that first render', async () => {
+      const wrapper = mountPreserveOnSwitchChoiceWithSibling();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="pick.selfServe"]').setValue('hello');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      // Read immediately after the switch-back call, with no intervening flushPromises-triggered
+      // increment: the restored data must already be present at the very first render.
+      await flushPromises();
+
+      expect(renderCount(wrapper, 'pick.selfServe')).toBe(1);
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('hello');
+    });
+
+    it('switching away with the flag on does not add any extra _analytics_occurrencesCalculatedCount recompute compared to the flag-off baseline', async () => {
+      // Flag-off baseline (ST-01's existing single-recompute contract for plain clear-on-switch).
+      const metadataOff = [
+        { name: 'sibling', fieldOptions: { label: 'Sibling' } },
+        {
+          name: 'pick',
+          explicitChoiceSelection: true,
+          fieldOptions: { label: 'Pick One' },
+          choice: [
+            { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+            { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+          ],
+        },
+      ];
+      const wrapperOff = mount(TestForm, { attachTo: document.body, props: { metadata: metadataOff } });
+      await flushPromises();
+      await wrapperOff.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      const countBeforeOff = setupState(wrapperOff, 'pick')?._analytics_occurrencesCalculatedCount;
+      await wrapperOff.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      const countAfterOff = setupState(wrapperOff, 'pick')?._analytics_occurrencesCalculatedCount;
+
+      // Flag-on: stash capture must not add a second recompute on top of the baseline above.
+      const wrapper = mountPreserveOnSwitchChoiceWithSibling();
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      const countBeforeOn = setupState(wrapper, 'pick')?._analytics_occurrencesCalculatedCount;
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      const countAfterOn = setupState(wrapper, 'pick')?._analytics_occurrencesCalculatedCount;
+
+      expect(countAfterOn - countBeforeOn).toBe(countAfterOff - countBeforeOff);
+    });
+
+    it('does not re-render a sibling field outside the choice across a stash/restore cycle', async () => {
+      const wrapper = mountPreserveOnSwitchChoiceWithSibling();
+      await flushPromises();
+      const siblingCountBefore = renderCount(wrapper, 'sibling');
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="pick.selfServe"]').setValue('hello');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(renderCount(wrapper, 'sibling')).toBe(siblingCountBefore);
+    });
+
+    it('flag-off baseline: render counts for a plain switch-away/switch-back-to-empty cycle are unchanged', async () => {
+      const metadata = [
+        { name: 'sibling', fieldOptions: { label: 'Sibling' } },
+        {
+          name: 'pick',
+          explicitChoiceSelection: true,
+          fieldOptions: { label: 'Pick One' },
+          choice: [
+            { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+            { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+          ],
+        },
+      ];
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata } });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      expect(renderCount(wrapper, 'pick.selfServe')).toBe(1);
+
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      // Switching back to an empty branch (flag off, so no restore) mounts it exactly once too.
+      expect(renderCount(wrapper, 'pick.selfServe')).toBe(1);
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('');
     });
   });
 });
