@@ -5,7 +5,7 @@ import type { LoadingResolve } from '../utils/loadingResolve';
 import type { Metadata } from './AdvancedFormTemplate.vue';
 import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
 import type { TimelineItem } from './SubmissionSuccess.vue';
-import { useDynamicForm } from '@bach.software/vue-dynamic-form';
+import { removeNullValues, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { computed, onMounted, ref, watch } from 'vue';
 import AdvancedForm from './AdvancedForm.vue';
 import SubmissionSuccess from './SubmissionSuccess.vue';
@@ -100,7 +100,19 @@ const needsTraining = computed(() =>
   Boolean(values?.launchApproach?.guidedRollout?.needsTraining),
 );
 
-const selectedLaunchApproach = ref<LaunchApproach>('selfServe');
+// Derived from the submitted-data-shaped `values`, not engine-internal selection state (decision 5:
+// no composable-level read access to the current choice selection exists). By the time the summary
+// page reads this, the active branch's own required field is populated (xsd_choiceMinOccurs plus
+// the branch's own required fields must pass before the wizard lets the user reach this page), so
+// checking that leaf directly is unambiguous: it does not need to know about the mid-selection,
+// not-yet-filled-in state the engine tracks for `activeChoiceOccurrences`.
+const currentLaunchApproach = computed<LaunchApproach | undefined>(() => {
+  if (values?.launchApproach?.selfServe?.goLiveDate)
+    return 'selfServe';
+  if (values?.launchApproach?.guidedRollout?.kickoffDate)
+    return 'guidedRollout';
+  return undefined;
+});
 
 const industryLabel = computed(() =>
   props.optionStore.industry.find(o => o.key === industryValue.value)?.value,
@@ -133,14 +145,14 @@ function dateValidation(value: unknown) {
 // #region summary information
 const wizardSummary = computed<ReviewGroupProps[]>(() => {
   const launchRows = (): ReviewGroupProps['rows'] => {
-    if (selectedLaunchApproach.value === 'selfServe') {
+    if (currentLaunchApproach.value === 'selfServe') {
       return [
         ['Approach', 'Self-serve launch'],
         ['Go-live date', values?.launchApproach?.selfServe?.goLiveDate || '—'],
         ['Client-side owner', values?.launchApproach?.selfServe?.internalOwner || '—'],
       ];
     }
-    if (selectedLaunchApproach.value === 'guidedRollout') {
+    if (currentLaunchApproach.value === 'guidedRollout') {
       return [
         ['Approach', 'Guided rollout'],
         ['Kickoff', values?.launchApproach?.guidedRollout?.kickoffDate || '—'],
@@ -199,7 +211,13 @@ const metadata: Metadata[] = [
     submitForm: async (resolve: LoadingResolve) => {
       handleSubmit(
         (values) => {
-          submitted.value = values;
+          // removeNullValues prunes the `undefined`-residue vee-validate leaves behind after a
+          // choice branch switch (ADR-3's accepted contract, FEAT-001 spec): the deselected
+          // branch's key stays present in `values` with `undefined` children until this cleanup
+          // runs. Note the "View submitted JSON" panel on this page cannot prove this by itself:
+          // JSON.stringify drops undefined-valued keys either way, so a clean-looking JSON view
+          // is not evidence that this call ran. Verify against the live `submitted` object instead.
+          submitted.value = removeNullValues(values);
           resolve(true);
         },
         () => resolve(false),
@@ -316,12 +334,12 @@ const metadata: Metadata[] = [
         name: 'launchApproach',
         type: 'wizardPage',
         fieldOptions: { label: 'Launch approach' },
-        description: `Pick one. You can switch later if plans change — we'll keep the fields you've filled in.`,
+        description: 'Pick one. Switching later clears the fields you filled in for the previous option.',
         helpText: 'How will we go live?',
         fullWidth: true,
         computedProps: [registerWizardPagePath],
         choiceShowChoiceSelect: true,
-        changeChoice: key => selectedLaunchApproach.value = key as LaunchApproach,
+        explicitChoiceSelection: true,
         choice: [
           {
             name: 'selfServe',
@@ -329,24 +347,7 @@ const metadata: Metadata[] = [
             description: 'The client drives the rollout themselves. Fastest path to go-live.',
             iconName: 'bolt',
             fullWidth: true,
-            computedProps: [
-              (thisField, thisValue) => {
-                if (selectedLaunchApproach.value !== 'selfServe') {
-                  thisField.hide = true;
-                  thisValue.value = {};
-                }
-              },
-            ],
             children: [
-              {
-                hide: true,
-                computedProps: [
-                  (_, thisValue) => {
-                    // The choice fields are "enabled" once 1 of the values is filled in, we simulate this here
-                    thisValue.value = selectedLaunchApproach.value === 'selfServe' ? true : undefined;
-                  },
-                ],
-              },
               {
                 name: 'goLiveDate',
                 fieldOptions: { label: 'Target go-live date' },
@@ -365,24 +366,7 @@ const metadata: Metadata[] = [
             description: 'We run kickoff, training, and launch alongside the client team.',
             iconName: 'users',
             fullWidth: true,
-            computedProps: [
-              (thisField, thisValue) => {
-                if (selectedLaunchApproach.value !== 'guidedRollout') {
-                  thisField.hide = true;
-                  thisValue.value = {};
-                }
-              },
-            ],
             children: [
-              {
-                hide: true,
-                computedProps: [
-                  (_, thisValue) => {
-                    // The choice fields are "enabled" once 1 of the values is filled in, we simulate this here
-                    thisValue.value = selectedLaunchApproach.value === 'guidedRollout' ? true : undefined;
-                  },
-                ],
-              },
               {
                 name: 'kickoffDate',
                 fieldOptions: { label: 'Kickoff call date' },
