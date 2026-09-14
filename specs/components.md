@@ -11,8 +11,8 @@ Everything listed as exported comes from `packages/core/src/index.ts` and ships 
 | `DynamicForm` | The runtime engine. Accepts `metadata` + a `template` component, normalises paths and defaults (`correctMetadataAndSetDefaults`), provides settings via provide/inject, renders the `DynamicFormItem` tree. |
 | `DynamicFormItem` | The core recursive item. Registers with vee-validate (`useField`), evaluates `computedProps`, detects its shape (array / choice / parent / input) and delegates or renders into the template. The most complex file in the codebase. |
 | `DynamicFormItemArray` | Renders repeatable nodes (`maxOccurs > 1`), one sub-tree per occurrence. |
-| `DynamicFormItemChoice` | Renders mutually exclusive branches (`choice` non-empty). |
-| `DynamicFormTemplate` | The rendering bridge for user templates. Dispatches to named slots with priority fallback (per-type slot → `default-input`/`default-array`/`default-array-item`/`default-choice` → `default`). Slot props typed via `defineMetadata`. |
+| `DynamicFormItemChoice` | Renders mutually exclusive branches (`choice` non-empty). For `maxOccurs: 1` choices, `explicitChoiceSelection: true` switches to selection-first rendering: no branch mounts until the `-choice` slot's `addChoiceOccurrence(branchKey)` is called, and switching branches clears the deselected branch's data (`removeChoiceOccurrence`/`canAddChoiceOccurrence`/`activeChoiceOccurrences` complete the set). Flag absent/`false` keeps today's value-driven behaviour unchanged. `maxOccurs > 1` explicit selection is not yet implemented (planned for a follow-up story). |
+| `DynamicFormTemplate` | The rendering bridge for user templates. Dispatches to named slots with priority fallback (per-type slot → `default-input`/`default-array`/`default-array-item`/`default-choice` → `default`). Slot props typed via `defineMetadata`. The `-choice`/`default-choice` slots receive `ChoiceAttributes` (extends `ArrayChoiceAttributes` with `addChoiceOccurrence`, `removeChoiceOccurrence`, `canAddChoiceOccurrence`, `activeChoiceOccurrences: ChoiceOccurrence[]`). |
 
 ## Composables & core (exported)
 
@@ -25,6 +25,10 @@ Everything listed as exported comes from `packages/core/src/index.ts` and ships 
 ## Types (exported)
 
 `DynamicFormItemProps`, `DynamicFormSettings`, `FieldMetadata`, `GetDynamicFormSettingsType`, `GetMetadataType`, `MetadataConfiguration`, `RequireOnly`, `ValidationMessage`.
+
+`FieldMetadata` gained `explicitChoiceSelection?: boolean` (additive, default off; see `DynamicFormItemChoice` above). It is excluded from `ComputedPropsFieldType`: `computedProps` cannot change it at runtime, so a choice's render mode can never flip mid-form.
+
+`ChoiceOccurrence` (`{ branchKey: string, index: number }`) and `ChoiceAttributes` are declared in `DynamicFormTemplate.vue` next to `ArrayChoiceAttributes`/`ItemAttributes` and surface through the `-choice` slot typing; not (yet) re-exported from `index.ts`.
 
 ## Utils (exported)
 

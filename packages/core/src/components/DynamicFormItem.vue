@@ -200,6 +200,12 @@ const computedField = computed(() => {
   // Always restore our calculated path — computedProps may read it but must not override it.
   const _internalMetadata = _computedField as InternalMetadata;
   _internalMetadata.path = path.value;
+  // explicitChoiceSelection is static metadata (excluded from ComputedPropsFieldType, see
+  // FieldMetadata.ts). Restore the original value after computedProps ran, exactly like path
+  // above, so a computedProps mutation (only reachable via a runtime `as any` cast, since the
+  // property does not typecheck as assignable) cannot flip a choice's render mode mid-form —
+  // the initial flash / mount-unmount storm ADR-2 exists to prevent (DynamicFormItemChoice.vue).
+  _internalMetadata.explicitChoiceSelection = field.value?.explicitChoiceSelection;
   _internalMetadata._hash = hashField(_internalMetadata);
 
   return _internalMetadata;

@@ -4,12 +4,12 @@
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
 import type { ComputedRef } from 'vue';
-import type { LimitedFieldContext } from '@/components/DynamicFormTemplate.vue';
+import type { ChoiceOccurrence, LimitedFieldContext } from '@/components/DynamicFormTemplate.vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { useField } from 'vee-validate';
+import { useField, useFieldValue, useFormContext } from 'vee-validate';
 import { computed, inject, ref, watch } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
@@ -46,6 +46,7 @@ const settings = inject<ComputedRef<DynamicFormSettings>>(dynamicFormSettingsKey
 // Plain variables (not reactive) to avoid triggering renders when measuring analytics.
 let _analytics_updateCallCount = 0;
 let _analytics_occurrencesCalculatedCount = 0;
+let _analytics_activeChoiceOccurrencesCalculatedCount = 0;
 // #endregion
 
 // #region Computed state
@@ -60,6 +61,36 @@ const closestPath = computed(() =>
   overridePath(field.value.path ?? '', props.pathOverride));
 
 const normalizedPath = computed(() => normalizePath(closestPath.value));
+
+// `explicitChoiceSelection` is static metadata (ADR-2, DECIDED finding 4): captured once at
+// setup rather than read reactively from `field`. `field` is the parent's `computedField`, so a
+// `computedProps` mutation of `thisField.explicitChoiceSelection` (only possible via an `as any`
+// cast, since the property is excluded from `ComputedPropsFieldType`) would otherwise still be
+// visible here and could flip the render mode mid-form, causing the exact initial-flash /
+// mount-unmount storm ADR-2 exists to prevent.
+const explicitChoiceSelection = props.fieldMetadata?.explicitChoiceSelection === true;
+
+// vee-validate form context, used to clear a deselected branch's data on switch (ADR-3).
+// `DynamicFormItemChoice` is always a descendant of the `useForm()` call in `useDynamicForm`,
+// so a plain `useFormContext()` resolves it here (unlike the same-instance quirk
+// `useValidatePartialForm` has to guard against).
+const formContext = useFormContext();
+
+// Ephemeral UI state for the `maxOccurs: 1` explicit-selection case (ADR-1). Never written to
+// form `values` — selection is tracked here and folded into the existing occurrence math below.
+const explicitlySelectedBranch = ref<string | null>(null);
+
+// Value-driven read per branch, independent of whether that branch's own DynamicFormItem is
+// currently mounted. Needed for the "loading saved data still reads as selected" guarantee
+// (decision 4): in explicit mode only active branches are mounted, so an unmounted branch could
+// never self-report a pre-loaded value through childValues (which only ever hears from a branch
+// once it is mounted). Resolved through a getter (not a plain string) so it keeps tracking the
+// right path if pathOverride changes reactively (decision 6, e.g. an earlier array sibling being
+// removed re-indexes this choice's own pathOverride). The branch list itself is static metadata,
+// so a fixed number of useFieldValue() calls at setup satisfies the rules of hooks.
+const branchValueRefs = (field.value?.choice ?? []).map(child =>
+  useFieldValue(() => child.path ? overridePath(child.path, props.pathOverride) : ''),
+);
 
 // --- Occurrence limits ---
 
@@ -101,8 +132,10 @@ const values = computed(() => Object.values(childValues.value).map(x => x.value)
 
 // When a choice field has exactly one option there is no meaningful branching — skip
 // all occurrence math and render that one child directly.
+// Bypassed when explicitChoiceSelection is set (DECIDED finding 5): a single-branch explicit
+// choice behaves as an explicit "add this block / remove it" selection instead.
 const singleChild = computed(() =>
-  field.value?.choice?.length === 1 ? field.value?.choice[0] as InternalMetadata : undefined,
+  (!explicitChoiceSelection && field.value?.choice?.length === 1) ? field.value?.choice[0] as InternalMetadata : undefined,
 );
 
 // --- Occurrence budget calculation ---
@@ -206,6 +239,41 @@ const valuesCount = computed(() =>
   ),
 );
 
+// --- Explicit selection (maxOccurs:1, ST-01 foundation) ---
+
+// The active branch(es), merging the value-driven view (a branch with real data, the existing
+// childValues-based logic) with the explicit view (explicitlySelectedBranch). This is what makes
+// "loading saved data still reads as selected" fall out for free: a loaded-but-not-explicitly-
+// selected branch still appears here because it already has a value.
+const activeChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
+  _analytics_activeChoiceOccurrencesCalculatedCount++;
+
+  const active: ChoiceOccurrence[] = [];
+
+  field.value?.choice?.forEach((child, index) => {
+    const valueDriven = checkTreeHasValue(branchValueRefs[index]?.value);
+    const isExplicitlySelected = explicitChoiceSelection && explicitlySelectedBranch.value === child.name;
+
+    if (valueDriven || isExplicitlySelected) {
+      active.push({ branchKey: child.name as string, index: 0 });
+    }
+  });
+
+  return active;
+});
+
+// In explicit mode, an explicitly selected branch counts toward xsd_choiceMinOccurs even before
+// any of its fields hold a value (parity, DECIDED finding 2): the branch's own required fields
+// then drive their own validation independently. Auto mode stays value-driven, unchanged.
+const effectiveValuesCount = computed(() => {
+  if (explicitChoiceSelection && maxOccurs.value === 1)
+    return Math.max(valuesCount.value, explicitlySelectedBranch.value ? 1 : 0);
+
+  // Auto mode stays value-driven, unchanged. maxOccurs > 1 explicit parity (folding in
+  // activeChoiceOccurrences.length) is ST-02's addition; it stays value-driven for now too.
+  return valuesCount.value;
+});
+
 // --- Vee-Validate field context ---
 
 // Only validate when the total filled choices fall below the minimum required.
@@ -216,7 +284,7 @@ const combinedValidation = computed(() => {
   if (disabled.value)
     return;
 
-  if (valuesCount.value >= minOccurs.value)
+  if (effectiveValuesCount.value >= minOccurs.value)
     return;
 
   const _messages = settings?.value?.messages;
@@ -294,6 +362,84 @@ function updateChildValue(
   emits('update:modelValue', values.value);
 };
 
+// --- Explicit selection primitives (maxOccurs:1, ST-01 foundation) ---
+
+function branchIndexOf(branchKey: string): number {
+  return field.value?.choice?.findIndex(child => child.name === branchKey) ?? -1;
+}
+
+function branchByKey(branchKey: string): InternalMetadata | undefined {
+  const index = branchIndexOf(branchKey);
+  return index >= 0 ? (field.value?.choice?.[index] as InternalMetadata) : undefined;
+}
+
+// Clears a deselected branch's data through the vee-validate form context (ADR-3), resolved via
+// the same overridePath the rest of the component uses so this is correct through array indices
+// (decision 6). The residual `undefined`-valued key that setInPath leaves behind is the accepted
+// contract; consumers who need a byte-clean tree call the exported removeNullValues at submit time.
+// The childValues entry is also reset synchronously here (not left to the branch's own unmount),
+// so valuesCount/combinedValidation settle in one tick instead of oscillating.
+function clearBranch(branchKey: string) {
+  const index = branchIndexOf(branchKey);
+  if (index < 0)
+    return;
+
+  const branchChild = field.value?.choice?.[index];
+  const branchPath = branchChild?.path ? overridePath(branchChild.path, props.pathOverride) : undefined;
+  if (branchPath) {
+    formContext?.setFieldValue(branchPath as any, undefined, false);
+  }
+
+  const existing = childValues.value[index];
+  if (existing) {
+    existing.value = undefined;
+    existing.occurrences = 0;
+    existing.valuesCount = 0;
+  }
+}
+
+/** Mark a branch active (maxOccurs:1). No-op when canAddChoiceOccurrence is false, the branchKey is unknown, or it is already the active branch. */
+function addChoiceOccurrence(branchKey: string) {
+  // canAddChoiceOccurrence already returns false for an unknown branchKey (branchIndexOf < 0),
+  // so no separate existence check is needed here.
+  if (!canAddChoiceOccurrence(branchKey))
+    return;
+
+  if (explicitlySelectedBranch.value === branchKey)
+    return; // idempotent: already selected
+
+  const previousBranch = explicitlySelectedBranch.value;
+  if (previousBranch && previousBranch !== branchKey) {
+    clearBranch(previousBranch);
+  }
+
+  explicitlySelectedBranch.value = branchKey;
+}
+
+/** Deselect a branch. index is ignored in maxOccurs:1 (there is only ever one active occurrence). No-op for an unknown or inactive branchKey. */
+function removeChoiceOccurrence(branchKey: string, _index?: number) {
+  if (branchIndexOf(branchKey) < 0)
+    return;
+
+  const isActive = activeChoiceOccurrences.value.some(occurrence => occurrence.branchKey === branchKey);
+  if (!isActive)
+    return;
+
+  clearBranch(branchKey);
+
+  if (explicitlySelectedBranch.value === branchKey) {
+    explicitlySelectedBranch.value = null;
+  }
+}
+
+/** Per-branch "may add" guard: false when the choice is disabled or branchKey is unknown. Budget-aware behaviour (maxOccurs > 1) is ST-02's concern. */
+function canAddChoiceOccurrence(branchKey: string): boolean {
+  if (disabled.value)
+    return false;
+
+  return branchIndexOf(branchKey) >= 0;
+}
+
 // #endregion
 </script>
 
@@ -313,6 +459,10 @@ function updateChildValue(
     :can-remove-items
     :add-item
     :remove-item
+    :add-choice-occurrence="addChoiceOccurrence"
+    :remove-choice-occurrence="removeChoiceOccurrence"
+    :can-add-choice-occurrence="canAddChoiceOccurrence"
+    :active-choice-occurrences="activeChoiceOccurrences"
   >
     <DynamicFormItem
       v-if="singleChild"
@@ -327,6 +477,24 @@ function updateChildValue(
       @update:model-value="updateChildValue($event, 0, singleChild!.maxOccurs, true)"
       @update:computed-field="emits('update:computedField', $event)"
     />
+    <template v-else-if="explicitChoiceSelection">
+      <DynamicFormItem
+        v-for="occurrence in activeChoiceOccurrences"
+        :key="occurrence.branchKey"
+        :field-metadata="(branchByKey(occurrence.branchKey) as InternalMetadata)"
+        :path-override
+        :index="branchIndexOf(occurrence.branchKey)"
+        :template
+        :slot-props
+        :min-occurs-override="_minOccursOverride"
+        :max-occurs-override="_maxOccursOverride"
+        :is-array-override="childrenAreArrays"
+        part-of-choice-field
+
+        @update:model-value="updateChildValue($event, branchIndexOf(occurrence.branchKey), branchByKey(occurrence.branchKey)!.maxOccurs)"
+        @update:computed-field="emits('update:computedField', $event)"
+      />
+    </template>
     <template v-else>
       <DynamicFormItem
         v-for="(child, index) in field.choice"

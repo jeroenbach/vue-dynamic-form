@@ -547,4 +547,130 @@ describe('component DynamicFormItemChoice', () => {
       expect(wrapper.find('[data-testid="outer-error-message"]').exists()).toBe(true);
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 9. Explicit selection — xsd_choiceMinOccurs parity (AC6, ST-01)
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('explicit selection — xsd_choiceMinOccurs parity (AC6)', () => {
+    function mountExplicitRequiredChoice() {
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+              { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+            ],
+          }],
+          settings: { messages: { choiceMinOccurs: 'Pick at least {min} in {field}' } },
+        },
+      });
+    }
+
+    it('shows an error when nothing is selected on submit', async () => {
+      const wrapper = mountExplicitRequiredChoice();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').text())
+        .toContain('Pick at least 1 in Pick One');
+    });
+
+    it('clears the error the moment a branch is selected, even with no field inside it filled in', async () => {
+      const wrapper = mountExplicitRequiredChoice();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+    });
+
+    it('reappears when switching away from the only selected branch', async () => {
+      const wrapper = mountExplicitRequiredChoice();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+
+      await wrapper.find('[data-testid="pick.selfServe-remove-choice-button"]').trigger('click');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
+    });
+
+    it('the selected branch\'s own required fields still validate independently of the choice-level error', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+              {
+                name: 'guidedRollout',
+                fieldOptions: { label: 'Guided Rollout' },
+                children: [{ name: 'contactEmail', fieldOptions: { label: 'Contact Email' } }],
+              },
+            ],
+          }],
+          settings: { messages: { choiceMinOccurs: 'Choice required' } },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      // Selection alone satisfies the choice-level minimum...
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+      // ...but the branch's own required field still enforces its own content independently.
+      expect(wrapper.find('[data-testid="pick.guidedRollout.contactEmail-error-message"]').exists()).toBe(true);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 10. Explicit selection — single-branch degenerate case (AC8, ST-01)
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('explicit selection — single-branch degenerate case (AC8)', () => {
+    it('shows the choice-level required error before selection, then validates the branch\'s own field after selection', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [{ name: 'only', fieldOptions: { label: 'Only Option' } }],
+          }],
+          settings: { messages: { choiceMinOccurs: 'Choice required' } },
+        },
+      });
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').text()).toContain('Choice required');
+
+      await wrapper.find('[data-testid="pick.only-add-choice-button"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick.only-error-message"]').exists()).toBe(true);
+    });
+  });
 });
