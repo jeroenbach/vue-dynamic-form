@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FEAT-001 Explicit choice selection — prototype</title>
+<style>
+  /* ------------------------------------------------------------------
+     Palette mirrors the docs demos (Tailwind slate / indigo / sky / rose)
+     Dark mode is driven by a `.dark` class on <html>, exactly like VitePress.
+     Every color below flips in the `.dark` block so both modes come for free.
+  ------------------------------------------------------------------ */
+  :root {
+    --page-bg: #f1f5f9;
+    --card-bg: #ffffff;
+    --card-border: #e2e8f0;
+    --heading: #0f172a;
+    --text-strong: #0f172a;
+    --text-muted: #475569;
+    --text-faint: #64748b;
+    --tag-bg: #eef2ff;
+    --tag-text: #4338ca;
+    --accent: #4f46e5;
+    --accent-soft-top: #eef2ff;
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --input-bg: #ffffff;
+    --input-border: #e5e7eb;
+    --input-text: #0f172a;
+    --dashed-border: #cbd5e1;
+    --dashed-bg: #f8fafc;
+    --error: #ef4444;
+    --error-text: #b91c1c;
+    --error-bg: #fef2f2;
+    --error-border: #fecaca;
+    --success-text: #065f46;
+    --success-bg: #ecfdf5;
+    --success-border: #a7f3d0;
+    --btn-border: #cbd5e1;
+    --btn-bg: #ffffff;
+    --btn-text: #334155;
+    --radio-border: #cbd5e1;
+    --anno: #64748b;
+    --anno-bg: #ffffff;
+    --divider: #cbd5e1;
+    --num-bg: #eef2ff;
+    --num-text: #4338ca;
+    --danger-text: #b91c1c;
+    --optional-bg: #f1f5f9;
+    --optional-text: #475569;
+  }
+  html.dark {
+    --page-bg: #161618;
+    --card-bg: #0f172a;
+    --card-border: #334155;
+    --heading: #f1f5f9;
+    --text-strong: #f1f5f9;
+    --text-muted: #94a3b8;
+    --text-faint: #94a3b8;
+    --tag-bg: #1e1b4b;
+    --tag-text: #a5b4fc;
+    --accent: #818cf8;
+    --accent-soft-top: #1e1b4b;
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --input-bg: #0f172a;
+    --input-border: #334155;
+    --input-text: #f1f5f9;
+    --dashed-border: #475569;
+    --dashed-bg: #1e293b;
+    --error: #e11d48;
+    --error-text: #fb7185;
+    --error-bg: #4c0519;
+    --error-border: #9f1239;
+    --success-text: #6ee7b7;
+    --success-bg: #052e2b;
+    --success-border: #065f46;
+    --btn-border: #475569;
+    --btn-bg: #0f172a;
+    --btn-text: #cbd5e1;
+    --radio-border: #475569;
+    --anno: #94a3b8;
+    --anno-bg: #1e293b;
+    --divider: #334155;
+    --num-bg: #312e81;
+    --num-text: #c7d2fe;
+    --danger-text: #fb7185;
+    --optional-bg: #334155;
+    --optional-text: #94a3b8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--page-bg);
+    color: var(--text-strong);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 940px; margin: 0 auto; padding: 32px 20px 120px; }
+
+  /* Page intro */
+  .page-head { margin-bottom: 8px; }
+  .page-head h1 { font-size: 26px; margin: 0 0 6px; color: var(--heading); }
+  .page-head p { margin: 0; color: var(--text-muted); font-size: 14px; max-width: 70ch; }
+
+  /* Section dividers */
+  .divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 48px 0 20px;
+  }
+  .divider::before, .divider::after {
+    content: ""; height: 1px; background: var(--divider); flex: 1;
+  }
+  .divider span {
+    font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-faint); white-space: nowrap;
+  }
+  .lede { color: var(--text-muted); font-size: 14px; margin: -6px 0 20px; max-width: 74ch; }
+
+  .panel-label {
+    font-size: 12px; font-weight: 600; color: var(--text-faint);
+    margin: 22px 0 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .panel-label .pill {
+    font-size: 11px; font-weight: 700; border-radius: 999px;
+    padding: 1px 8px; background: var(--tag-bg); color: var(--tag-text);
+  }
+
+  /* Annotation labels */
+  .anno {
+    font-size: 12px; color: var(--anno); font-style: italic;
+    margin: 8px 2px 0; display: block;
+  }
+  .anno::before { content: "\21B3  "; font-style: normal; }
+  .anno.code { font-style: normal; }
+  .anno code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px; background: var(--anno-bg); border: 1px solid var(--card-border);
+    border-radius: 4px; padding: 1px 5px; color: var(--text-muted); font-style: normal;
+  }
+
+  /* Section card (reuse of SectionCard.vue) */
+  .section-card {
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    border-radius: 12px; padding: 24px;
+    box-shadow: 0 1px 2px rgba(15,23,42,.06);
+  }
+  .section-card.dim { opacity: .6; }
+  .sc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
+  .sc-head h2 { font-size: 18px; font-weight: 600; color: var(--heading); margin: 0; }
+  .sc-head p { font-size: 14px; color: var(--text-muted); margin: 2px 0 0; }
+  .tag {
+    display: inline-flex; align-items: center; white-space: nowrap;
+    border-radius: 999px; background: var(--tag-bg); color: var(--tag-text);
+    padding: 2px 10px; font-size: 12px; font-weight: 600;
+  }
+  .err-text { color: var(--error-text); font-size: 14px; display: block; margin-top: 6px; }
+  .help-inline { color: var(--text-faint); font-size: 13px; }
+
+  /* Choice card grid (reuse of ChoiceSectionCard + ChoiceCard.vue) */
+  .choice-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px;
+  }
+  .choice-card {
+    border: 1px solid var(--card-border); background: var(--card-bg);
+    border-radius: 12px; padding: 16px; text-align: left; cursor: pointer;
+    transition: border-color .15s, box-shadow .15s; width: 100%; font: inherit;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .choice-card:hover { border-color: #a5b4fc; }
+  .choice-card.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+    background: linear-gradient(to bottom, var(--accent-soft-top), var(--card-bg));
+  }
+  .choice-card.disabled {
+    opacity: .5; cursor: not-allowed; background: var(--dashed-bg);
+  }
+  .choice-card .radio {
+    margin-top: 2px; height: 16px; width: 16px; flex: none; border-radius: 999px;
+    border: 2px solid var(--radio-border); display: grid; place-items: center;
+  }
+  .choice-card.selected .radio { border-color: var(--accent); }
+  .choice-card .radio i {
+    height: 8px; width: 8px; border-radius: 999px; background: var(--accent);
+    transform: scale(0); transition: transform .15s;
+  }
+  .choice-card.selected .radio i { transform: scale(1); }
+  .cc-title { display: flex; align-items: center; gap: 8px; }
+  .cc-title .ico { color: var(--accent); display: inline-flex; }
+  .cc-title p { font-size: 14px; font-weight: 600; color: var(--text-strong); margin: 0; }
+  .cc-desc { font-size: 12px; color: var(--text-muted); margin: 4px 0 0; line-height: 1.5; }
+
+  /* Field grid (reuse of the md:grid-cols-2 body of SectionCard) */
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+  .field.col2 { grid-column: 1 / -1; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--text-strong); margin-bottom: 6px; }
+  .field .opt {
+    display: inline-flex; align-items: center; border-radius: 999px;
+    background: var(--optional-bg); color: var(--optional-text);
+    padding: 0 8px; font-size: 11px; font-weight: 700; margin-left: 4px; vertical-align: middle;
+  }
+  .field .req { color: var(--error); font-weight: 700; }
+  .field .desc { font-size: 12px; color: var(--text-faint); margin: 6px 0 0; }
+  .input, .select {
+    height: 40px; width: 100%; border-radius: 8px; padding: 8px 12px; font-size: 14px;
+    background: var(--input-bg); color: var(--input-text);
+    border: 1px solid var(--input-border); transition: border-color .15s, box-shadow .15s;
+  }
+  .input::placeholder { color: var(--text-faint); }
+  .input:focus, .select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(2,132,199,.25); }
+  .input.invalid, .select.invalid { border-color: var(--error); }
+  .input.valid { border-color: var(--success-border); }
+  .input:disabled, .select:disabled { background: var(--dashed-bg); color: var(--text-faint); cursor: not-allowed; }
+  .field-err { color: var(--error-text); font-size: 12px; margin-top: 6px; display: block; }
+  .field-ok { color: var(--success-text); font-size: 12px; margin-top: 6px; display: inline-flex; gap: 4px; align-items: center; }
+
+  /* Toggle switch (reuse of ToggleSwitch) */
+  .switch { display: inline-flex; align-items: center; gap: 10px; }
+  .switch .track { width: 40px; height: 22px; border-radius: 999px; background: var(--input-border); position: relative; transition: background .15s; }
+  .switch.on .track { background: var(--primary); }
+  .switch .knob { position: absolute; top: 2px; left: 2px; height: 18px; width: 18px; border-radius: 999px; background: #fff; transition: left .15s; }
+  .switch.on .knob { left: 20px; }
+  .switch .lbl { font-size: 13px; color: var(--text-strong); }
+
+  /* Buttons (reuse of AppButton variants) */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; border-radius: 6px;
+    padding: 8px 12px; font-size: 14px; font-weight: 500; cursor: pointer;
+    border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--btn-text);
+    transition: background .15s, border-color .15s;
+  }
+  .btn:hover { border-color: var(--text-faint); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn.primary:hover { background: var(--primary-hover); }
+  .btn.danger-light { border-color: transparent; background: transparent; color: var(--danger-text); }
+  .btn.danger-light:hover { background: var(--error-bg); border-color: transparent; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+  /* Empty / dashed prompt (reuse of ArraySectionCard empty state) */
+  .empty {
+    grid-column: 1 / -1; border: 1px dashed var(--dashed-border); background: var(--dashed-bg);
+    border-radius: 12px; padding: 28px; text-align: center; margin-top: 18px;
+  }
+  .empty .ei { color: var(--text-faint); display: inline-flex; margin-bottom: 6px; }
+  .empty p.t { font-size: 14px; font-weight: 600; color: var(--text-strong); margin: 0; }
+  .empty p.s { font-size: 12px; color: var(--text-faint); margin: 4px 0 0; }
+
+  /* Occurrence / repeater card (reuse of RepeaterCard.vue) */
+  .repeater {
+    border: 1px solid var(--card-border); background: var(--card-bg); border-radius: 12px;
+    padding: 16px; margin-top: 12px;
+  }
+  .rp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .rp-title { display: flex; align-items: center; gap: 8px; }
+  .rp-num { height: 28px; width: 28px; border-radius: 999px; background: var(--num-bg); color: var(--num-text);
+    display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+  .rp-title p { font-size: 14px; font-weight: 600; color: var(--text-strong); margin: 0; }
+  .kind-badge {
+    display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+    background: var(--tag-bg); color: var(--tag-text); padding: 2px 9px; font-size: 11px; font-weight: 700;
+  }
+
+  /* Before / after two-column compare */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .compare .col > h3 { font-size: 13px; font-weight: 700; margin: 0 0 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; }
+  .note-list { margin: 12px 0 0; padding: 0; list-style: none; }
+  .note-list li { font-size: 12px; color: var(--text-muted); padding: 6px 0 6px 20px; position: relative; border-top: 1px solid var(--card-border); }
+  .note-list li:first-child { border-top: 0; }
+  .note-list.bad li::before { content: "\2717"; color: var(--error-text); position: absolute; left: 0; font-weight: 700; }
+  .note-list.good li::before { content: "\2713"; color: var(--success-text); position: absolute; left: 0; font-weight: 700; }
+  .note-list code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+
+  /* Switch-flow arrow row */
+  .flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; }
+  .flow .arrow { text-align: center; color: var(--text-faint); font-size: 12px; }
+  .flow .arrow b { display: block; font-size: 22px; line-height: 1; color: var(--accent); }
+
+  .callout {
+    grid-column: 1 / -1; margin-top: 18px; border-radius: 12px; padding: 14px 16px;
+    background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success-text); font-size: 13px;
+  }
+  .callout.warn { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 4px; }
+
+  /* Theme toggle button (drives .dark on <html>, like VitePress) */
+  .theme-toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 50;
+    border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--btn-text);
+    border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(15,23,42,.12); display: inline-flex; gap: 8px; align-items: center;
+  }
+
+  @media (max-width: 720px) {
+    .choice-grid, .fields, .compare, .flow { grid-template-columns: 1fr; }
+    .flow .arrow b { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+  <span id="themeIcon">&#9789;</span><span id="themeLabel">Dark</span>
+</button>
+
+<div class="wrap">
+  <header class="page-head" id="overview">
+    <h1>Explicit choice selection</h1>
+    <p>
+      Design surface for FEAT-001. A framework-native way to select (and, for repeatable choices, add / remove) a
+      <code>choice</code> branch before any field inside it holds a value, exposed as slot props on the
+      <code>-choice</code> slot mirroring the array <code>addItem</code> / <code>removeItem</code> pattern. The
+      widgets below are all built by the template author on top of the same low-level primitives (decision 2); the
+      engine ships no prescribed UI. Flip the toggle top-right to review every section in dark.
+    </p>
+    <span class="anno code">Provisional slot-prop names used in annotations, final names are the architect's call:
+      <code>addChoiceOccurrence(branchKey)</code>, <code>removeChoiceOccurrence(branchKey, index?)</code>,
+      <code>canAddChoiceOccurrence(branchKey)</code>, <code>activeChoiceOccurrences</code>.</span>
+  </header>
+
+  <!-- =================================================================
+       SECTION 1  maxOccurs: 1  (pick exactly one branch)
+  ================================================================== -->
+  <div class="divider"><span>1 &middot; Single select (maxOccurs: 1)</span></div>
+  <p class="lede">
+    The "pick one, then fill in" case. Selecting a branch marks it active immediately and reveals its fields, with no
+    phantom hidden field needed. This replaces the current hand-rolled workaround in the onboarding planner's
+    Launch approach step.
+  </p>
+
+  <!-- 1a unselected -->
+  <section id="single-unselected">
+    <div class="panel-label"><span class="pill">state</span> Unselected (initial)</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Launch approach</h2>
+          <p>Pick one. We reveal the fields for the option you choose.</p>
+        </div>
+      </div>
+      <div class="choice-grid" role="radiogroup" aria-label="Launch approach">
+        <button class="choice-card" role="radio" aria-checked="false">
+          <span class="radio"><i></i></span>
+          <span>
+            <span class="cc-title"><span class="ico">&#9889;</span><p>Self-serve launch</p></span>
+            <p class="cc-desc">The client drives the rollout themselves. Fastest path to go-live.</p>
+          </span>
+        </button>
+        <button class="choice-card" role="radio" aria-checked="false">
+          <span class="radio"><i></i></span>
+          <span>
+            <span class="cc-title"><span class="ico">&#128101;</span><p>Guided rollout</p></span>
+            <p class="cc-desc">We run kickoff, training, and launch alongside the client team.</p>
+          </span>
+        </button>
+      </div>
+      <div class="empty">
+        <p class="t">Nothing selected yet</p>
+        <p class="s">Choose an option above to continue.</p>
+      </div>
+    </div>
+    <span class="anno">New capability: the choice can start with no branch active. Today the example hard-defaults
+      <code>selectedLaunchApproach = 'selfServe'</code>, so Self-serve is always pre-selected. Starting empty is a
+      deliberate design choice for the true "pick first" UX (see section 6).</span>
+    <span class="anno code"><code>activeChoiceOccurrences</code> is empty, so the template renders the dashed prompt
+      instead of any branch fields.</span>
+  </section>
+
+  <!-- 1b selected self-serve -->
+  <section id="single-selected">
+    <div class="panel-label"><span class="pill">state</span> Selected &middot; Self-serve (default / hover shown on cards)</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Launch approach</h2>
+          <p>Pick one. We reveal the fields for the option you choose.</p>
+        </div>
+      </div>
+      <div class="choice-grid" role="radiogroup" aria-label="Launch approach">
+        <button class="choice-card selected" role="radio" aria-checked="true">
+          <span class="radio"><i></i></span>
+          <span>
+            <span class="cc-title"><span class="ico">&#9889;</span><p>Self-serve launch</p></span>
+            <p class="cc-desc">The client drives the rollout themselves. Fastest path to go-live.</p>
+          </span>
+        </button>
+        <button class="choice-card" role="radio" aria-checked="false">
+          <span class="radio"><i></i></span>
+          <span>
+            <span class="cc-title"><span class="ico">&#128101;</span><p>Guided rollout</p></span>
+            <p class="cc-desc">We run kickoff, training, and launch alongside the client team.</p>
+          </span>
+        </button>
+      </div>
+      <div class="fields">
+        <div class="field">
+          <label>Target go-live date</label>
+          <input class="input" type="text" placeholder="dd/mm/yyyy" value="30/04/2026" />
+        </div>
+        <div class="field">
+          <label>Client-side owner</label>
+          <input class="input" type="text" value="Dana Whitfield" />
+        </div>
+      </div>
+    </div>
+    <span class="anno code">Clicking a card calls <code>addChoiceOccurrence('selfServe')</code>. The branch counts as
+      active even with both fields empty, so its fields render right away.</span>
+    <span class="anno">Selected card: indigo border + 1px ring + subtle top-to-bottom indigo gradient, filled radio dot.
+      Hover on an unselected card lifts its border to indigo-300 (not separately demonstrable in a static page).</span>
+  </section>
+
+  <!-- 1c selected guided (validation states shown here) -->
+  <section id="single-selected-guided">
+    <div class="panel-label"><span class="pill">state</span> Selected &middot; Guided rollout (validation states: valid / invalid)</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Launch approach</h2>
+          <p>Pick one. We reveal the fields for the option you choose.</p>
+        </div>
+      </div>
+      <div class="choice-grid" role="radiogroup" aria-label="Launch approach">
+        <button class="choice-card" role="radio" aria-checked="false">
+          <span class="radio"><i></i></span>
+          <span>
+            <span class="cc-title"><span class="ico">&#9889;</span><p>Self-serve launch</p></span>
+            <p class="cc-desc">The client drives the rollout themselves. Fastest path to go-live.</p>
+          </span>
+        </button>
+        <button class="choice-card selected" role="radio" aria-checked="true">
+          <span class="radio"><i></i></span>
+          <span>
+            <span class="cc-title"><span class="ico">&#128101;</span><p>Guided rollout</p></span>
+            <p class="cc-desc">We run kickoff, training, and launch alongside the client team.</p>
+          </span>
+        </button>
+      </div>
+      <div class="fields">
+        <div class="field col2">
+          <label>Kickoff call date <span class="req">*</span></label>
+          <input class="input valid" type="text" value="12/05/2026" />
+          <span class="field-ok">&#10003; Looks good</span>
+        </div>
+        <div class="field col2">
+          <div class="switch on"><span class="track"><span class="knob"></span></span><span class="lbl">Include team training</span></div>
+          <p class="desc">Turn on to schedule a training session during onboarding.</p>
+        </div>
+        <div class="field col2">
+          <label>Training format <span class="req">*</span></label>
+          <select class="select invalid">
+            <option value="">Select an option</option>
+            <option>Live workshop</option>
+            <option>Recorded course</option>
+          </select>
+          <span class="field-err">Required because guided rollout includes team training.</span>
+        </div>
+      </div>
+    </div>
+    <span class="anno">Field-level validation (pristine / invalid-with-message / valid) is unchanged by this feature;
+      it is inherited from the existing per-field templates. Shown here to confirm the revealed branch renders the
+      normal states. The engine only decides <em>whether</em> the branch renders, not how its fields validate.</span>
+    <span class="anno">Loading has no choice-level representation: the selector itself is synchronous. Async lives on
+      individual fields inside a branch (e.g. the Training format options load exactly as they do today).</span>
+  </section>
+
+  <!-- 1d switching -->
+  <section id="single-switch">
+    <div class="panel-label"><span class="pill">behavior</span> Switching selection (clear-on-switch baseline)</div>
+    <div class="flow">
+      <div class="section-card">
+        <div class="sc-head"><div><h2>Launch approach</h2></div></div>
+        <div class="choice-grid">
+          <button class="choice-card selected" role="radio" aria-checked="true">
+            <span class="radio"><i></i></span>
+            <span><span class="cc-title"><span class="ico">&#9889;</span><p>Self-serve launch</p></span></span>
+          </button>
+          <button class="choice-card" role="radio" aria-checked="false">
+            <span class="radio"><i></i></span>
+            <span><span class="cc-title"><span class="ico">&#128101;</span><p>Guided rollout</p></span></span>
+          </button>
+        </div>
+        <div class="fields">
+          <div class="field"><label>Target go-live date</label><input class="input" value="30/04/2026" /></div>
+          <div class="field"><label>Client-side owner</label><input class="input" value="Dana Whitfield" /></div>
+        </div>
+      </div>
+      <div class="arrow"><b>&rarr;</b>user clicks<br />Guided rollout</div>
+      <div class="section-card">
+        <div class="sc-head"><div><h2>Launch approach</h2></div></div>
+        <div class="choice-grid">
+          <button class="choice-card" role="radio" aria-checked="false">
+            <span class="radio"><i></i></span>
+            <span><span class="cc-title"><span class="ico">&#9889;</span><p>Self-serve launch</p></span></span>
+          </button>
+          <button class="choice-card selected" role="radio" aria-checked="true">
+            <span class="radio"><i></i></span>
+            <span><span class="cc-title"><span class="ico">&#128101;</span><p>Guided rollout</p></span></span>
+          </button>
+        </div>
+        <div class="fields">
+          <div class="field col2"><label>Kickoff call date</label><input class="input" placeholder="dd/mm/yyyy" value="" /></div>
+        </div>
+      </div>
+    </div>
+    <span class="anno code">Switching calls <code>addChoiceOccurrence('guidedRollout')</code>. Per decision 3 the
+      previously entered Self-serve values (go-live date, owner) are removed from the form <code>values</code>. The
+      engine owns this clearing now; today the example's per-branch <code>computedProps</code> fakes it with
+      <code>thisValue.value = {}</code>.</span>
+    <span class="anno">Preserve-on-switch (stashing the old branch data outside <code>values</code> and restoring it if the
+      user switches back) is explicitly deferred to after architecture, so no UI is designed for it here. If it ships,
+      the visual surface is unchanged: the data simply reappears when Self-serve is re-selected.</span>
+  </section>
+
+  <!-- 1e error / disabled -->
+  <section id="single-error">
+    <div class="panel-label"><span class="pill">state</span> Required but unselected (error) &amp; disabled branch</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Launch approach</h2>
+          <p>Pick one. We reveal the fields for the option you choose.</p>
+          <span class="err-text">Please select at least one option.</span>
+        </div>
+      </div>
+      <div class="choice-grid" role="radiogroup" aria-label="Launch approach">
+        <button class="choice-card" role="radio" aria-checked="false">
+          <span class="radio"><i></i></span>
+          <span>
+            <span class="cc-title"><span class="ico">&#9889;</span><p>Self-serve launch</p></span>
+            <p class="cc-desc">The client drives the rollout themselves.</p>
+          </span>
+        </button>
+        <button class="choice-card disabled" role="radio" aria-checked="false" aria-disabled="true" disabled>
+          <span class="radio"><i></i></span>
+          <span>
+            <span class="cc-title"><span class="ico">&#128101;</span><p>Guided rollout</p></span>
+            <p class="cc-desc">Unavailable for this plan tier.</p>
+          </span>
+        </button>
+      </div>
+    </div>
+    <span class="anno">Error copy comes from the existing <code>xsd_choiceMinOccurs</code> rule (semantics unchanged,
+      per scope). It anchors to the section header exactly like the current <code>ChoiceSectionCard</code> error slot.</span>
+    <span class="anno code">A branch is disabled when the template omits it from the selectable options or when
+      <code>canAddChoiceOccurrence('guidedRollout')</code> is false. Disabled card: 50% opacity, muted fill, no hover,
+      not focusable.</span>
+  </section>
+
+  <!-- =================================================================
+       SECTION 2  maxOccurs > 1  (add several, each of N kinds)
+  ================================================================== -->
+  <div class="divider"><span>2 &middot; Repeatable choice (maxOccurs &gt; 1)</span></div>
+  <p class="lede">
+    Selecting a branch <em>adds one occurrence</em> of it. Each occurrence is an independent sub-tree the user can fill
+    in and remove. Add affordances respect both each branch's own <code>maxOccurs</code> and the choice's shared
+    occurrence budget (the existing <code>occurrences</code> math in <code>DynamicFormItemChoice</code>). Two widget
+    styles below prove the primitives are widget-agnostic; both are template-author code.
+  </p>
+
+  <!-- 2a empty -->
+  <section id="multi-empty">
+    <div class="panel-label"><span class="pill">state</span> Empty (no occurrences yet)</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Data sources</h2>
+          <p>Add up to 3 sources we should pull records from. Each is one of three kinds.</p>
+        </div>
+        <span class="tag">0 of 3 sources</span>
+      </div>
+      <div class="empty">
+        <p class="t">No sources added yet</p>
+        <p class="s">Add a source below to get started.</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn"><span>&#43;</span> Add CRM export</button>
+        <button class="btn"><span>&#43;</span> Add spreadsheet</button>
+        <button class="btn"><span>&#43;</span> Add API endpoint</button>
+      </div>
+    </div>
+    <span class="anno code">One add button per branch. Each is enabled while
+      <code>canAddChoiceOccurrence(branchKey)</code> is true. The tag shows total occurrences against the choice's
+      shared <code>maxOccurs</code>.</span>
+  </section>
+
+  <!-- 2b populated (add buttons widget) -->
+  <section id="multi-add-buttons">
+    <div class="panel-label"><span class="pill">state</span> Populated &middot; per-branch add buttons</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Data sources</h2>
+          <p>Add up to 3 sources we should pull records from. Each is one of three kinds.</p>
+        </div>
+        <span class="tag">2 of 3 sources</span>
+      </div>
+
+      <div class="repeater">
+        <div class="rp-head">
+          <div class="rp-title">
+            <span class="rp-num">1</span>
+            <span class="kind-badge">&#128225; API endpoint</span>
+            <p>Billing webhook</p>
+          </div>
+          <button class="btn danger-light">&#128465; Remove</button>
+        </div>
+        <div class="fields">
+          <div class="field"><label>Endpoint URL</label><input class="input" value="https://api.acme.test/v2/records" /></div>
+          <div class="field"><label>Auth token</label><input class="input" value="sk_live_9f2a..." /></div>
+        </div>
+      </div>
+
+      <div class="repeater">
+        <div class="rp-head">
+          <div class="rp-title">
+            <span class="rp-num">2</span>
+            <span class="kind-badge">&#128202; CRM export</span>
+            <p>Salesforce nightly</p>
+          </div>
+          <button class="btn danger-light">&#128465; Remove</button>
+        </div>
+        <div class="fields">
+          <div class="field"><label>CRM system</label>
+            <select class="select"><option>Salesforce</option><option>HubSpot</option></select>
+          </div>
+          <div class="field"><label>Export scope</label><input class="input" value="Accounts + Contacts" /></div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn"><span>&#43;</span> Add CRM export</button>
+        <button class="btn"><span>&#43;</span> Add spreadsheet</button>
+        <button class="btn"><span>&#43;</span> Add API endpoint</button>
+      </div>
+    </div>
+    <span class="anno code">Occurrence cards come from <code>activeChoiceOccurrences</code> (each entry carries its
+      <code>branchKey</code> and stable index). Remove calls <code>removeChoiceOccurrence(branchKey, index)</code>.</span>
+    <span class="anno">Occurrence card reuses <code>RepeaterCard</code> (numbered badge + title + Remove) with one
+      addition: a "kind" badge naming which branch this occurrence belongs to. That badge is the only genuinely new
+      visual element in this feature.</span>
+  </section>
+
+  <!-- 2c limits: branch-max and shared-budget exhausted -->
+  <section id="multi-limits">
+    <div class="panel-label"><span class="pill">state</span> Disabled add &middot; branch max reached &amp; shared budget exhausted</div>
+
+    <div class="section-card" style="margin-bottom:16px">
+      <div class="sc-head">
+        <div>
+          <h2>Data sources</h2>
+          <p>API endpoint has its own maxOccurs of 2 and is already used twice; the shared budget (1 of 3 left) still
+            allows the other kinds.</p>
+        </div>
+        <span class="tag">2 of 3 sources</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn"><span>&#43;</span> Add CRM export</button>
+        <button class="btn"><span>&#43;</span> Add spreadsheet</button>
+        <button class="btn" disabled title="This kind's own maxOccurs is reached"><span>&#43;</span> Add API endpoint</button>
+      </div>
+      <span class="anno code" style="margin-top:14px"><code>canAddChoiceOccurrence('apiEndpoint')</code> is false (branch
+        maxOccurs 2 reached) so only that button disables; the others stay enabled because shared budget remains.</span>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Data sources</h2>
+          <p>All 3 shared occurrences are used; every add button disables regardless of branch.</p>
+        </div>
+        <span class="tag">3 of 3 sources</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn" disabled><span>&#43;</span> Add CRM export</button>
+        <button class="btn" disabled><span>&#43;</span> Add spreadsheet</button>
+        <button class="btn" disabled><span>&#43;</span> Add API endpoint</button>
+      </div>
+      <span class="anno code" style="margin-top:14px">Shared budget exhausted: <code>canAddChoiceOccurrence(k)</code> is
+        false for every branch. Disabled button: 40% opacity, not-allowed cursor (existing <code>AppButton</code>
+        disabled style).</span>
+    </div>
+  </section>
+
+  <!-- 2d dropdown widget -->
+  <section id="multi-dropdown">
+    <div class="panel-label"><span class="pill">state</span> Same primitives, dropdown widget</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Data sources</h2>
+          <p>Alternative widget: one dropdown that adds an occurrence of the chosen kind on selection.</p>
+        </div>
+        <span class="tag">1 of 3 sources</span>
+      </div>
+      <div class="repeater">
+        <div class="rp-head">
+          <div class="rp-title">
+            <span class="rp-num">1</span>
+            <span class="kind-badge">&#128220; Spreadsheet</span>
+            <p>Q1 pipeline.xlsx</p>
+          </div>
+          <button class="btn danger-light">&#128465; Remove</button>
+        </div>
+        <div class="fields">
+          <div class="field"><label>File name</label><input class="input" value="Q1 pipeline.xlsx" /></div>
+          <div class="field"><label>Sheet</label><input class="input" value="Contacts" /></div>
+        </div>
+      </div>
+      <div class="fields" style="margin-top:16px">
+        <div class="field col2">
+          <label>Add a data source</label>
+          <select class="select">
+            <option value="">Choose a kind to add...</option>
+            <option>CRM export</option>
+            <option>Spreadsheet</option>
+            <option>API endpoint</option>
+          </select>
+          <p class="desc">Selecting a kind adds one occurrence and resets the dropdown.</p>
+        </div>
+      </div>
+    </div>
+    <span class="anno code">Identical engine calls: choosing an option fires
+      <code>addChoiceOccurrence(branchKey)</code>. When the budget is exhausted the whole <code>select</code> is
+      disabled (kinds at their own limit are simply omitted from the option list). Decision 2: engine ships no widget,
+      only these primitives.</span>
+  </section>
+
+  <!-- =================================================================
+       SECTION 3  choice inside an array occurrence
+  ================================================================== -->
+  <div class="divider"><span>3 &middot; Choice inside an array occurrence</span></div>
+  <p class="lede">
+    A hard requirement (decision 6). A repeatable array where each occurrence contains its own <code>maxOccurs: 1</code>
+    choice. Each array item tracks its own active branch independently, addressed through the item's
+    <code>pathOverride</code>. Here: project contacts, each with a preferred contact method.
+  </p>
+
+  <section id="choice-in-array">
+    <div class="panel-label"><span class="pill">state</span> Two contacts, each with an independent method choice</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Project contacts</h2>
+          <p>Anyone who should be looped in. Each contact picks how we reach them.</p>
+        </div>
+        <span class="tag">2 contacts</span>
+      </div>
+
+      <!-- contact 1 -->
+      <div class="repeater">
+        <div class="rp-head">
+          <div class="rp-title"><span class="rp-num">1</span><p>Priya Nair</p></div>
+          <button class="btn danger-light">&#128465; Remove</button>
+        </div>
+        <div class="fields">
+          <div class="field"><label>Full name</label><input class="input" value="Priya Nair" /></div>
+          <div class="field"><label>Role</label>
+            <select class="select"><option>Project sponsor</option></select>
+          </div>
+        </div>
+        <div class="section-card" style="margin-top:16px;box-shadow:none">
+          <div class="sc-head"><div><h2 style="font-size:15px">Preferred contact method</h2></div></div>
+          <div class="choice-grid">
+            <button class="choice-card selected" role="radio" aria-checked="true">
+              <span class="radio"><i></i></span>
+              <span><span class="cc-title"><p>Email</p></span><p class="cc-desc">We send updates by email.</p></span>
+            </button>
+            <button class="choice-card" role="radio" aria-checked="false">
+              <span class="radio"><i></i></span>
+              <span><span class="cc-title"><p>Phone</p></span><p class="cc-desc">We call for anything urgent.</p></span>
+            </button>
+          </div>
+          <div class="fields">
+            <div class="field col2"><label>Work email</label><input class="input" value="priya@acme.test" /></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- contact 2 -->
+      <div class="repeater">
+        <div class="rp-head">
+          <div class="rp-title"><span class="rp-num">2</span><p>Marco Bianchi</p></div>
+          <button class="btn danger-light">&#128465; Remove</button>
+        </div>
+        <div class="fields">
+          <div class="field"><label>Full name</label><input class="input" value="Marco Bianchi" /></div>
+          <div class="field"><label>Role</label>
+            <select class="select"><option>Technical lead</option></select>
+          </div>
+        </div>
+        <div class="section-card" style="margin-top:16px;box-shadow:none">
+          <div class="sc-head"><div><h2 style="font-size:15px">Preferred contact method</h2></div></div>
+          <div class="choice-grid">
+            <button class="choice-card" role="radio" aria-checked="false">
+              <span class="radio"><i></i></span>
+              <span><span class="cc-title"><p>Email</p></span><p class="cc-desc">We send updates by email.</p></span>
+            </button>
+            <button class="choice-card selected" role="radio" aria-checked="true">
+              <span class="radio"><i></i></span>
+              <span><span class="cc-title"><p>Phone</p></span><p class="cc-desc">We call for anything urgent.</p></span>
+            </button>
+          </div>
+          <div class="fields">
+            <div class="field col2"><label>Phone number</label><input class="input" value="+39 02 1234 5678" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row"><button class="btn"><span>&#43;</span> Add contact</button></div>
+    </div>
+    <span class="anno code">Contact 1 has Email active, contact 2 has Phone active, proving selection is per-occurrence.
+      The nested choice's selection calls resolve through the array item's <code>pathOverride</code>
+      (e.g. <code>projectContacts[0]</code> vs <code>projectContacts[1]</code>), so one item's choice never leaks into
+      another's.</span>
+    <span class="anno">No new component: this is composition of the existing <code>RepeaterCard</code> (array item) with a
+      nested <code>ChoiceSectionCard</code>. The nested card drops its shadow so it reads as a sub-region inside the
+      item, not a peer card.</span>
+  </section>
+
+  <!-- =================================================================
+       SECTION 4  onboarding planner: before vs after
+  ================================================================== -->
+  <div class="divider"><span>4 &middot; Onboarding planner: today vs after</span></div>
+  <p class="lede">
+    The Launch approach step looks the same to the user in both worlds. The change is what the template author has to
+    write. Below, identical rendered output with the mechanism annotated on each side.
+  </p>
+
+  <section id="onboarding-before-after">
+    <div class="compare">
+      <div class="col">
+        <h3>Today (userland workaround)</h3>
+        <div class="section-card">
+          <div class="sc-head"><div><h2>Launch approach</h2><p>Pick one. You can switch later.</p></div></div>
+          <div class="choice-grid">
+            <button class="choice-card selected" role="radio" aria-checked="true">
+              <span class="radio"><i></i></span>
+              <span><span class="cc-title"><span class="ico">&#9889;</span><p>Self-serve launch</p></span></span>
+            </button>
+            <button class="choice-card" role="radio" aria-checked="false">
+              <span class="radio"><i></i></span>
+              <span><span class="cc-title"><span class="ico">&#128101;</span><p>Guided rollout</p></span></span>
+            </button>
+          </div>
+          <div class="fields">
+            <div class="field"><label>Target go-live date</label><input class="input" value="30/04/2026" /></div>
+            <div class="field"><label>Client-side owner</label><input class="input" value="Dana Whitfield" /></div>
+          </div>
+        </div>
+        <ul class="note-list bad">
+          <li>Invented <code>changeChoice</code> extended property the engine ignores</li>
+          <li>Selection kept in a local <code>ref</code> outside the form values</li>
+          <li>Every branch has <code>computedProps</code> that hide + <code>thisValue = {}</code> to clear</li>
+          <li>Every branch has a hidden phantom child faking a truthy value so counting works</li>
+          <li>Starts hard-defaulted to Self-serve; a true empty start is awkward</li>
+        </ul>
+      </div>
+
+      <div class="col">
+        <h3>After (framework-native)</h3>
+        <div class="section-card">
+          <div class="sc-head"><div><h2>Launch approach</h2><p>Pick one. You can switch later.</p></div></div>
+          <div class="choice-grid">
+            <button class="choice-card selected" role="radio" aria-checked="true">
+              <span class="radio"><i></i></span>
+              <span><span class="cc-title"><span class="ico">&#9889;</span><p>Self-serve launch</p></span></span>
+            </button>
+            <button class="choice-card" role="radio" aria-checked="false">
+              <span class="radio"><i></i></span>
+              <span><span class="cc-title"><span class="ico">&#128101;</span><p>Guided rollout</p></span></span>
+            </button>
+          </div>
+          <div class="fields">
+            <div class="field"><label>Target go-live date</label><input class="input" value="30/04/2026" /></div>
+            <div class="field"><label>Client-side owner</label><input class="input" value="Dana Whitfield" /></div>
+          </div>
+        </div>
+        <ul class="note-list good">
+          <li><code>ChoiceSectionCard</code> calls <code>addChoiceOccurrence(key)</code> from a slot prop</li>
+          <li>Selection is engine state, never in the submitted <code>values</code> (decision 4)</li>
+          <li>Clearing on switch handled by the engine (decision 3), no per-branch clear code</li>
+          <li>No phantom child: branch reads as active from explicit selection</li>
+          <li>Can start unselected; pre-selecting a default stays possible via one call on mount</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout">
+      <p><strong>Docs impact:</strong> <code>docs/examples/choices.md</code> gains a "Select first, then fill in"
+        section covering both the <code>maxOccurs: 1</code> and <code>maxOccurs &gt; 1</code> patterns, using this same
+        visual language. <code>AdvancedFormTemplate.vue</code>'s <code>#heading-choice</code> slot and
+        <code>ChoiceSectionCard.vue</code> are updated to consume the new slot props; the <code>changeChoice</code>
+        extended property and both phantom-field blocks are deleted from
+        <code>FormExampleClientOnboardingPlanner.vue</code>.</p>
+    </div>
+    <span class="anno">No visual redesign of <code>ChoiceCard</code> / <code>ChoiceSectionCard</code> beyond the new "kind"
+      badge and repeatable-mode add affordances (in scope). The maxOccurs:1 rendering is pixel-identical to today.</span>
+  </section>
+</div>
+
+<script>
+  // Drive the .dark class on <html> exactly like the VitePress theme switcher.
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('themeToggle');
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    function apply(isDark) {
+      root.classList.toggle('dark', isDark);
+      icon.innerHTML = isDark ? '&#9728;' : '&#9789;';
+      label.textContent = isDark ? 'Light' : 'Dark';
+    }
+    // Respect the OS preference on first load.
+    apply(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    btn.addEventListener('click', function () {
+      apply(!root.classList.contains('dark'));
+    });
+  })();
+</script>
+</body>
+</html>
