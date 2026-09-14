@@ -60,7 +60,6 @@ const metadata = defineMetadata<
     showStrengthBar?: boolean
     validatePage?: (pageIndex: number, loadingResolve: LoadingResolve) => Promise<void>
     submitForm?: (loadingResolve: LoadingResolve) => Promise<void>
-    changeChoice?: (key: string) => void
     falseAsUndefined?: boolean
     wizardSummary?: ReviewGroupProps[]
     submitButtonText?: string
@@ -166,7 +165,7 @@ const metadata = defineMetadata<
       </SectionCard>
     </template>
 
-    <template #heading-choice="{ fieldMetadata, fieldContext: { errorMessage, label } }">
+    <template #heading-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence, activeChoiceOccurrences }">
       <ChoiceSectionCard
         v-slot="{ selectedOption }"
         :label
@@ -174,7 +173,11 @@ const metadata = defineMetadata<
         :error-message="errorMessage.value"
         :dataTestid="fieldMetadata.path"
         :options="fieldMetadata.choiceShowChoiceSelect ? fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
-        @select="fieldMetadata.changeChoice?.($event)"
+        :repeatable="(fieldMetadata.maxOccurs ?? 1) > 1"
+        :activeChoiceOccurrences
+        :addChoiceOccurrence
+        :removeChoiceOccurrence
+        :canAddChoiceOccurrence
       >
         <slot :selectedOption />
       </ChoiceSectionCard>
