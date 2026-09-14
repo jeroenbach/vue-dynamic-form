@@ -123,6 +123,18 @@ export type FieldMetadata<
   choice?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[]
 
   /**
+   * Opt into selection-first rendering for a `choice` node. When true, no branch is shown until
+   * the template calls the `-choice` slot's `addChoiceOccurrence(branchKey)`; the engine clears a
+   * deselected branch from the form values on switch. When false or omitted (the default), the
+   * current value-driven behaviour is unchanged: every branch renders and siblings disable once
+   * one holds a value.
+   *
+   * Has no effect on non-choice nodes. Read from static metadata only: it is excluded from
+   * `ComputedPropsFieldType`, so a `computedProps` function cannot flip it at runtime.
+   */
+  explicitChoiceSelection?: boolean
+
+  /**
    * Attributes are additional metadata that can be attached to a field.
    * These attributes can be used to provide extra information about the field,
    * such as for example whether the data is verified.
@@ -215,6 +227,9 @@ export type ComputedPropsFieldType<
       // Not allowed to update the following values as they aren't read from the computedField, but the prop field
       | 'isComplexType'
       | 'computeOnChildValueChange'
+      // Static metadata only: flipping this via computedProps would change the render mode
+      // mid-form (initial flash / mount-unmount storm), see DynamicFormItemChoice's ADR-2.
+      | 'explicitChoiceSelection'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string
