@@ -5,7 +5,7 @@ feature: FEAT-001
 status: done
 created: 2026-09-10
 approved_by: Jeroen
-pr: ""
+pr: "https://github.com/jeroenbach/vue-dynamic-form/pull/43"
 ---
 
 # Story: Docs template migration to the framework-native choice mechanism
