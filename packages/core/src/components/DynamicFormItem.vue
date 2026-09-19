@@ -496,6 +496,7 @@ function updateArrayValue(_value: unknown) {
       :add-item
       :remove-item
       :branch-key="branchKey"
+      :global-index="globalIndex"
     >
       <template #default="slotProps">
         <template v-if="isParent">

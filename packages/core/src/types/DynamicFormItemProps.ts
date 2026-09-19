@@ -66,6 +66,14 @@ export interface DynamicFormItemProps<
   branchKey?: string
 
   /**
+   * In case this item is a single occurrence of a repeatable explicit choice branch
+   * (`DynamicFormItemChoice`, `maxOccurs > 1`), this occurrence's zero-based position across
+   * every branch's active occurrences (not just its own branch). Forwarded to the slot as
+   * `globalIndex`. `undefined` everywhere else.
+   */
+  globalIndex?: number
+
+  /**
    * In case this item is part of a field array, we need some extra info
    */
   index?: number

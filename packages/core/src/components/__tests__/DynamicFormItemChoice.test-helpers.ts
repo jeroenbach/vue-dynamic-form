@@ -99,6 +99,17 @@ export function occurrenceBranchKey(wrapper: ReturnType<typeof mount>, occurrenc
 }
 
 /**
+ * Reads the `-global-index` testid at `occurrencePath` (e.g. `pick.apiEndpoint[0]`), asserting
+ * the `*-choice-array-item`/`default-choice-array-item` slot actually received `globalIndex` as a
+ * real slot prop, rather than the test inferring it from the path itself. Mirrors
+ * `occurrenceBranchKey`'s rationale.
+ */
+export function occurrenceGlobalIndex(wrapper: ReturnType<typeof mount>, occurrencePath: string): number | undefined {
+  const badge = wrapper.find(`[data-testid="${occurrencePath}-global-index"]`);
+  return badge.exists() ? Number(badge.text()) : undefined;
+}
+
+/**
  * Reads the fixture's per-branch add-choice button `disabled` attribute for `branchKey` at the
  * choice rendered at `choicePath`, exercising `canAddChoiceOccurrence` through the real public
  * slot-prop contract (the same indirection used elsewhere in this suite), not a `setupState()` reach-in.

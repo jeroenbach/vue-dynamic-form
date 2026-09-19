@@ -762,7 +762,7 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
         path — the same fragility DynamicFormItemArray's items already guard against).
       -->
       <DynamicFormItem
-        v-for="occurrence in activeChoiceOccurrences"
+        v-for="(occurrence, globalIndex) in activeChoiceOccurrences"
         :key="occurrenceKey(occurrence)"
         :field-metadata="(branchByKey(occurrence.branchKey) as InternalMetadata)"
         :path-override="occurrencePathOverride(occurrence)"
@@ -774,6 +774,7 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
         part-of-array-field
         part-of-choice-field
         :branch-key="occurrence.branchKey"
+        :global-index="globalIndex"
         :can-remove-items="true"
         :remove-item="removeItemHandlerFor(occurrence)"
 

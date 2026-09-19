@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { renderCount } from './DynamicFormItem.test-helpers';
-import { enablePreserveOnSwitch, setupState } from './DynamicFormItemChoice.test-helpers';
+import { enablePreserveOnSwitch, occurrenceGlobalIndex, setupState } from './DynamicFormItemChoice.test-helpers';
 
 function mountExplicitChoiceWithSibling() {
   return mount(TestForm, {
@@ -143,6 +143,11 @@ describe('component DynamicFormItemChoice - analytics', () => {
       expect(wrapper.find('[id="pick.crmExport[0]"]').element).toBe(crmExportElementBefore);
       expect(renderCount(wrapper, 'pick.crmExport[0]')).toBeGreaterThanOrEqual(crmExportCountBefore);
       expect(renderCount(wrapper, 'pick.crmExport[0]')).toBeLessThanOrEqual(crmExportCountBefore + 1);
+      // globalIndex already reflects the correct cross-branch position at that very first render,
+      // no flash of a stale or undefined value (apiEndpoint is declared before crmExport, so it
+      // groups first regardless of add-press order).
+      expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
+      expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(1);
     });
 
     it('removing occurrence 0 of two does not remount the surviving occurrence', async () => {
@@ -165,6 +170,8 @@ describe('component DynamicFormItemChoice - analytics', () => {
       expect(wrapper.find('[id="pick.apiEndpoint[0]"]').element).toBe(survivorElementBefore);
       expect(renderCount(wrapper, 'pick.apiEndpoint[0]')).toBeGreaterThanOrEqual(survivorCountBefore);
       expect(renderCount(wrapper, 'pick.apiEndpoint[0]')).toBeLessThanOrEqual(survivorCountBefore + 1);
+      // The survivor's globalIndex is already renumbered at that same bounded render pass.
+      expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
     });
 
     it('_analytics_occurrencesCalculatedCount increases per addChoiceOccurrence/removeChoiceOccurrence call in the repeatable path too', async () => {
@@ -241,6 +248,73 @@ describe('component DynamicFormItemChoice - analytics', () => {
       const survivorCountAfter = renderCount(wrapper, 'projectContacts[0].certifications.basic[0]');
       expect(survivorCountAfter).toBeGreaterThanOrEqual(survivorCountBefore);
       expect(survivorCountAfter).toBeLessThanOrEqual(survivorCountBefore + 1);
+    });
+
+    describe('globalIndex — render counts', () => {
+      it('removing occurrence 1 of 4 across branches does not remount any survivor, and each renumbers at that same bounded render pass', async () => {
+        const wrapper = mountExplicitRepeatableChoiceWithSibling();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        // Grouped order: apiEndpoint[0]=0, apiEndpoint[1]=1, crmExport[0]=2, crmExport[1]=3.
+        const survivors = ['pick.crmExport[0]', 'pick.crmExport[1]'];
+        const elementsBefore = survivors.map(path => wrapper.find(`[id="${path}"]`).element);
+        const countsBefore = survivors.map(path => renderCount(wrapper, path));
+
+        // Remove the occurrence at globalIndex 1 (apiEndpoint[1]).
+        await wrapper.find('[data-testid="pick.apiEndpoint[1]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        survivors.forEach((path, i) => {
+          expect(wrapper.find(`[id="${path}"]`).element).toBe(elementsBefore[i]);
+          expect(renderCount(wrapper, path)).toBeGreaterThanOrEqual(countsBefore[i]);
+          expect(renderCount(wrapper, path)).toBeLessThanOrEqual(countsBefore[i] + 1);
+        });
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(1);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[1]')).toBe(2);
+      });
+
+      it('exercising globalIndex across branches does not change the sibling render count', async () => {
+        const wrapper = mountExplicitRepeatableChoiceWithSibling();
+        await flushPromises();
+        const siblingCountBefore = renderCount(wrapper, 'sibling');
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(renderCount(wrapper, 'sibling')).toBe(siblingCountBefore);
+      });
+
+      it('adds exactly one activeChoiceOccurrences recompute per add/remove call, unchanged by forwarding globalIndex', async () => {
+        const wrapper = mountExplicitRepeatableChoiceWithSibling();
+        await flushPromises();
+
+        const countBefore = setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount;
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount).toBe(countBefore + 1);
+
+        const countAfterAdd = setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount;
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount).toBe(countAfterAdd + 1);
+      });
     });
   });
 

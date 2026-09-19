@@ -163,7 +163,7 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #default-choice-array-item="{ fieldMetadata, slotProps, branchKey, removeItem }">
+    <template #default-choice-array-item="{ fieldMetadata, slotProps, branchKey, globalIndex, removeItem }">
       <!--
         Repeatable explicit-choice occurrence test harness: renders the branchKey slot
         prop directly (as a "kind badge") so tests can assert it arrived as a real slot prop
@@ -174,6 +174,7 @@ const metadata = defineMetadata<
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2 border-s-2 ps-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <div class="flex gap-2 items-center">
           <span :data-testid="`${fieldMetadata.path}-kind-badge`">{{ branchKey }}</span>
+          <span :data-testid="`${fieldMetadata.path}-global-index`">{{ globalIndex }}</span>
           <IconButton icon="minus" tabindex="-1" color="red" :data-testid="`${fieldMetadata.path}-remove-choice-button`" @click="removeItem" />
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
