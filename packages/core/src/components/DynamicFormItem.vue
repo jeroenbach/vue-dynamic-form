@@ -501,6 +501,7 @@ function updateArrayValue(_value: unknown) {
       :remove-item
       :branch-key="branchKey"
       :global-index="globalIndex"
+      :insertion-order="insertionOrder"
     >
       <template #default="slotProps">
         <template v-if="isParent">

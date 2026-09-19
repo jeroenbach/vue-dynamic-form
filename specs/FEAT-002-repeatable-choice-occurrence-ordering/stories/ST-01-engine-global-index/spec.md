@@ -4,7 +4,7 @@ type: story
 feature: FEAT-002
 status: done
 approved_by: Jeroen
-pr: ""
+pr: "https://github.com/jeroenbach/vue-dynamic-form/pull/44"
 ---
 
 # Story: Cross-branch `globalIndex` for repeatable explicit choice occurrences

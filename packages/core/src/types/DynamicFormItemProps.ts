@@ -74,6 +74,16 @@ export interface DynamicFormItemProps<
   globalIndex?: number
 
   /**
+   * In case this item is a single occurrence of a repeatable explicit choice branch
+   * (`DynamicFormItemChoice`, `maxOccurs > 1`), the instance-local, ephemeral position at which
+   * this occurrence was added this session (1-based, in add-press order across every branch).
+   * `undefined` for an occurrence that existed before this session (loaded saved data) or that
+   * was never added through `addChoiceOccurrence`. Forwarded to the slot as `insertionOrder`;
+   * never written to form values.
+   */
+  insertionOrder?: number
+
+  /**
    * In case this item is part of a field array, we need some extra info
    */
   index?: number

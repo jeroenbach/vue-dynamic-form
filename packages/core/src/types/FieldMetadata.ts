@@ -178,6 +178,25 @@ export type FieldMetadata<
   preserveOnSwitch?: boolean
 
   /**
+   * Selects the render order of a repeatable explicit choice's occurrences (`maxOccurs > 1`
+   * together with `explicitChoiceSelection: true`; a no-op everywhere else, including
+   * `maxOccurs: 1` explicit choices).
+   *
+   * `'grouped'` (the default when absent) renders occurrences grouped by branch declaration
+   * order, then by index within branch, identical to today's `activeChoiceOccurrences` order.
+   *
+   * `'added'` renders occurrences in the order they were added this session: an occurrence
+   * added via `addChoiceOccurrence` sorts by its add-press position across every branch, ahead
+   * of it any occurrence that already existed when the form mounted (loaded saved data),
+   * which keeps its grouped position since it has no add-press to sort by. Reloading the form
+   * loses the session's add-order and falls back to grouped order.
+   *
+   * Static metadata only: it is excluded from `ComputedPropsFieldType`, so a `computedProps`
+   * function cannot flip the render order mid-form.
+   */
+  displayOrder?: 'grouped' | 'added'
+
+  /**
    * Attributes are additional metadata that can be attached to a field.
    * These attributes can be used to provide extra information about the field,
    * such as for example whether the data is verified.
@@ -278,6 +297,9 @@ export type ComputedPropsFieldType<
       // Static metadata only, for the same reason as explicitChoiceSelection: flipping this
       // via computedProps would change stash/restore behaviour mid-form.
       | 'preserveOnSwitch'
+      // Static metadata only, for the same reason as its siblings above: flipping the render
+      // order mid-form would cause an already-rendered occurrence to visibly jump position.
+      | 'displayOrder'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string

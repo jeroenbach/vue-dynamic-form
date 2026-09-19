@@ -163,19 +163,22 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #default-choice-array-item="{ fieldMetadata, slotProps, branchKey, globalIndex, canAddItems, addItem, removeItem }">
+    <template #default-choice-array-item="{ fieldMetadata, slotProps, branchKey, globalIndex, insertionOrder, canAddItems, addItem, removeItem }">
       <!--
         Repeatable explicit-choice occurrence test harness: renders the branchKey slot
         prop directly (as a "kind badge") so tests can assert it arrived as a real slot prop
         rather than being inferred from the path, plus add/remove buttons wired to
         addItem/removeItem (addItem appends another occurrence of this occurrence's own branch,
         so the occurrence behaves like a regular array item). Forwards the default slot for the
-        occurrence's own fields, mirroring #default's own remove-button pattern.
+        occurrence's own fields, mirroring #default's own remove-button pattern. insertionOrder is optional (undefined for an occurrence never
+        added this session), so its absence is asserted as "the testid does not exist" rather
+        than a rendered "undefined" string.
       -->
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2 border-s-2 ps-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <div class="flex gap-2 items-center">
           <span :data-testid="`${fieldMetadata.path}-kind-badge`">{{ branchKey }}</span>
           <span :data-testid="`${fieldMetadata.path}-global-index`">{{ globalIndex }}</span>
+          <span v-if="insertionOrder !== undefined" :data-testid="`${fieldMetadata.path}-insertion-order`">{{ insertionOrder }}</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-choice-button`" @click="addItem" />
           <IconButton icon="minus" tabindex="-1" color="red" :data-testid="`${fieldMetadata.path}-remove-choice-button`" @click="removeItem" />
         </div>

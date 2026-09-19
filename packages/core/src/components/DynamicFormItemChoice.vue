@@ -49,6 +49,7 @@ const settings = inject<ComputedRef<DynamicFormSettings>>(dynamicFormSettingsKey
 let _analytics_updateCallCount = 0;
 let _analytics_occurrencesCalculatedCount = 0;
 let _analytics_activeChoiceOccurrencesCalculatedCount = 0;
+let _analytics_renderedChoiceOccurrencesCalculatedCount = 0;
 // #endregion
 
 // #region Computed state
@@ -76,6 +77,13 @@ const explicitChoiceSelection = props.fieldMetadata?.explicitChoiceSelection ===
 // this is purely defence in depth against an `as any` cast, not a reachable runtime mutation.
 const preserveOnSwitch = props.fieldMetadata?.preserveOnSwitch === true;
 
+// `displayOrder` is likewise static metadata, captured once at setup for the same reason as
+// `explicitChoiceSelection`/`preserveOnSwitch` above: it is excluded from `ComputedPropsFieldType`,
+// so this is defence in depth against an `as any` cast, not a reachable runtime mutation. Only
+// `'added'` is meaningful here; absent or `'grouped'` both fall through to the identity path in
+// renderedChoiceOccurrences below.
+const displayOrder = props.fieldMetadata?.displayOrder === 'added';
+
 // vee-validate form context, used to clear a deselected branch's data on switch.
 // `DynamicFormItemChoice` is always a descendant of the `useForm()` call in `useDynamicForm`,
 // so a plain `useFormContext()` resolves it here (unlike the same-instance quirk
@@ -91,6 +99,14 @@ const explicitlySelectedBranch = ref<string | null>(null);
 // `preserveOnSwitch` is enabled; scoped to `maxOccurs: 1`. Keyed (not appended), so its size
 // stays bounded by the number of branches no matter how often the user switches.
 const stashedBranchValues = ref<Record<string, unknown>>({});
+
+// Ephemeral, instance-local record of add-press order for a repeatable explicit choice
+// (maxOccurs > 1), keyed by the stable occurrenceKey so it survives an ancestor reindex. Never
+// written to form `values`, exactly like the refs above. `insertionCounter` is a plain (not
+// reactive) variable, mirroring the _analytics_* counters: only the Map write below needs to
+// trigger reactivity, not the counter itself.
+const insertionOrders = ref<Map<string, number>>(new Map());
+let insertionCounter = 0;
 
 // Value-driven read per branch, independent of whether that branch's own DynamicFormItem is
 // currently mounted. Needed for the "loading saved data still reads as selected" guarantee:
@@ -314,6 +330,34 @@ const activeChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
   });
 
   return active;
+});
+
+// The list the `-choice-array-item` v-for actually renders. Equal to activeChoiceOccurrences
+// (same membership, same order) whenever displayOrder is not 'added': the falsy branch returns
+// early without reading insertionOrders, so it introduces no extra reactive dependency and stays
+// byte-identical to the pre-existing behaviour. When displayOrder is 'added', occurrences with no
+// insertionOrder entry (loaded, pre-existing data) sort first, in their grouped order, followed by
+// occurrences that do have one, ascending by that value: a deterministic two-key comparator that
+// never compares undefined numerically, so no NaN/implementation-defined ordering can occur for a
+// mixed loaded-and-added set.
+const renderedChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
+  _analytics_renderedChoiceOccurrencesCalculatedCount++;
+
+  if (!displayOrder)
+    return activeChoiceOccurrences.value;
+
+  return activeChoiceOccurrences.value
+    .map(occurrence => ({ occurrence, insertionOrder: insertionOrders.value.get(occurrenceKey(occurrence)) }))
+    .sort((a, b) => {
+      const aAdded = a.insertionOrder !== undefined;
+      const bAdded = b.insertionOrder !== undefined;
+      if (aAdded !== bAdded)
+        return aAdded ? 1 : -1;
+      if (!aAdded)
+        return 0; // both loaded: keep grouped (activeChoiceOccurrences) order, sort is stable
+      return a.insertionOrder! - b.insertionOrder!;
+    })
+    .map(entry => entry.occurrence);
 });
 
 // Choice-occurrence-unit count of what is currently consumed, derived structurally from each
@@ -569,7 +613,14 @@ function addChoiceOccurrence(branchKey: string) {
     // branch's own field array via useFieldArrayExtended, mirroring DynamicFormItemArray's own
     // _addItem. No separate ephemeral selection ref is needed: the pushed item IS the
     // selection, so activeChoiceOccurrences picks it up on the next recompute.
+    //
+    // The occurrence's position in its own branch (before the push) is what its key resolves to
+    // right after the push, so the insertion order is assigned here, at add-press time, rather
+    // than lazily while iterating the grouped activeChoiceOccurrences list: that list is grouped
+    // by branch, so a lazy assignment would encode grouped order, not press order.
+    const newOccurrenceIndex = branchFieldArrays[index]?.fields.value.length ?? 0;
     branchFieldArrays[index]?.push(null); // empty placeholder
+    insertionOrders.value.set(occurrenceKey({ branchKey, index: newOccurrenceIndex }), ++insertionCounter);
     return;
   }
 
@@ -795,13 +846,16 @@ function addItemHandlerFor(branchKey: string): () => void {
       <!--
         One DynamicFormItem per active occurrence across every branch, rendered through
         the *-choice-array-item / default-choice-array-item slot (mirrors DynamicFormItemArray's own items).
+        The source list is renderedChoiceOccurrences, not activeChoiceOccurrences directly: the two
+        are identical unless displayOrder is 'added', in which case this is the sorted, actually
+        displayed sequence, and globalIndex is this loop's index over it.
         part-of-array-field lets DynamicFormItem's own onBeforeUnmount skip its usual "write
         undefined back to my path" cleanup, since removal already goes through the branch's
         useFieldArrayExtended remove() above (writing here too would target a since-reindexed
         path — the same fragility DynamicFormItemArray's items already guard against).
       -->
       <DynamicFormItem
-        v-for="(occurrence, globalIndex) in activeChoiceOccurrences"
+        v-for="(occurrence, globalIndex) in renderedChoiceOccurrences"
         :key="occurrenceKey(occurrence)"
         :field-metadata="(branchByKey(occurrence.branchKey) as InternalMetadata)"
         :path-override="occurrencePathOverride(occurrence)"
@@ -814,6 +868,7 @@ function addItemHandlerFor(branchKey: string): () => void {
         part-of-choice-field
         :branch-key="occurrence.branchKey"
         :global-index="globalIndex"
+        :insertion-order="insertionOrders.get(occurrenceKey(occurrence))"
         :can-add-items="canAddChoiceOccurrence(occurrence.branchKey)"
         :add-item="addItemHandlerFor(occurrence.branchKey)"
         :can-remove-items="true"
