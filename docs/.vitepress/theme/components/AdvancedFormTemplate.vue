@@ -189,7 +189,7 @@ const metadata = defineMetadata<
       </ChoiceSectionCard>
     </template>
 
-    <template #heading-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, addChoiceOccurrence, canAddChoiceOccurrence }">
+    <template #heading-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences }">
       <ChoiceArraySectionCard
         :label
         :description="fieldMetadata.description"
@@ -198,6 +198,8 @@ const metadata = defineMetadata<
         :options="fieldMetadata.choiceShowChoiceSelect ? fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
         :addChoiceOccurrence
         :canAddChoiceOccurrence
+        :usedChoiceOccurrences
+        :maxOccurs="fieldMetadata.maxOccurs"
       >
         <slot />
       </ChoiceArraySectionCard>

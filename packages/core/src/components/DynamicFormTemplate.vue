@@ -121,6 +121,13 @@ export interface ChoiceAttributes<
   canAddChoiceOccurrence: (branchKey: string) => boolean
   /** The currently active occurrences the template iterates for counts/selector state. */
   activeChoiceOccurrences: ChoiceOccurrence[]
+  /**
+   * Choice slots currently consumed, in choice-occurrence units rather than raw item count.
+   * For a repeatable branch (its own `maxOccurs > 1`), every group of up to that many items
+   * counts as one slot, the same unit `maxOccurs` on the choice itself is measured in, so a
+   * template can show an accurate "N of maxOccurs" without re-deriving the batching math.
+   */
+  usedChoiceOccurrences: number
 }
 
 /**

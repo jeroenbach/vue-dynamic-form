@@ -18,14 +18,15 @@ const metadata: Metadata[] = [
     name: 'integrations',
     type: 'heading',
     fieldOptions: { label: 'Integrations to add' },
-    description: 'Add up to 5 integrations in any mix. Each kind has its own limit of 3, so its Add button disables independently.',
+    description: 'Add up to 5 integrations in any mix. Each kind is capped at 3 in total (maxOccursTotal), so its Add button disables independently.',
     maxOccurs: 5,
     explicitChoiceSelection: true,
     choiceShowChoiceSelect: true,
     choice: [
       {
         name: 'crmExport',
-        maxOccurs: 3,
+        maxOccurs: 1,
+        maxOccursTotal: 3,
         fullWidth: true,
         fieldOptions: { label: 'CRM export' },
         children: [
@@ -35,7 +36,8 @@ const metadata: Metadata[] = [
       },
       {
         name: 'apiEndpoint',
-        maxOccurs: 3,
+        maxOccurs: 1,
+        maxOccursTotal: 3,
         fullWidth: true,
         fieldOptions: { label: 'API endpoint' },
         children: [

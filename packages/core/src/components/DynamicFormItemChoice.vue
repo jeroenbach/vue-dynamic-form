@@ -189,11 +189,14 @@ const occurrences = computed(() => {
       choiceOccurrences: number
       overrideChildMaxOccurrences: number | undefined
       overrideChildMinOccurrences: number | undefined
+      // The branch's own opt-in non-XSD total-occurrence cap, carried alongside the shared-budget
+      // numbers above so pass 2 can clamp to it without a second pass over field.value.choice.
+      maxOccursTotal: number | undefined
     }
   } = {};
 
   // Initialise defaults for every child upfront so all indices exist even if no value arrived yet.
-  field.value?.choice?.forEach((_, i) => {
+  field.value?.choice?.forEach((child, i) => {
     _occurrences[i] = {
       childValuesCount: 0,
       childOccurrences: 0,
@@ -202,6 +205,7 @@ const occurrences = computed(() => {
       choiceOccurrences: 0,
       overrideChildMaxOccurrences: undefined,
       overrideChildMinOccurrences: 0, // children are optional by default inside a choice
+      maxOccursTotal: child.maxOccursTotal,
     };
   });
 
@@ -238,6 +242,7 @@ const occurrences = computed(() => {
       choiceValuesCount,
       overrideChildMinOccurrences: child.valuesCount === 0 ? 0 : undefined, // optional when empty
       overrideChildMaxOccurrences: undefined, // calculated in pass 2
+      maxOccursTotal: field.value?.choice?.[Number(key)]?.maxOccursTotal,
     };
   }
 
@@ -253,7 +258,14 @@ const occurrences = computed(() => {
     const othersAsChildOccurrences = othersChoiceOccurrences * value.childMaxOccurrences;
     const totalChildOccurrences = _maxOccurs * value.childMaxOccurrences;
 
-    value.overrideChildMaxOccurrences = totalChildOccurrences - othersAsChildOccurrences;
+    let overrideChildMaxOccurrences = totalChildOccurrences - othersAsChildOccurrences;
+
+    // maxOccursTotal is a raw-item cap independent of the shared XSD budget above; it can only
+    // tighten the result, never loosen it.
+    if (value.maxOccursTotal !== undefined)
+      overrideChildMaxOccurrences = Math.min(overrideChildMaxOccurrences, value.maxOccursTotal);
+
+    value.overrideChildMaxOccurrences = overrideChildMaxOccurrences;
   });
 
   return _occurrences;
@@ -304,6 +316,29 @@ const activeChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
   return active;
 });
 
+// Choice-occurrence-unit count of what is currently consumed, derived structurally from each
+// branch's own field array length rather than from values. In the repeatable explicit case a
+// branch's maxOccurs batches its raw items into slots (ceil(items / branchMax) per branch), the
+// same unit xsd_choiceMinOccurs counts in, so an "N of maxOccurs" indicator built on this never
+// silently over-counts once a branch's items and its choice slots diverge.
+const usedChoiceOccurrences = computed(() => {
+  if (disabled.value)
+    return 0;
+
+  if (explicitChoiceSelection && maxOccurs.value > 1) {
+    // Non-null: correctMetadataAndSetDefaults has already defaulted every branch's maxOccurs.
+    return branchFieldArrays.reduce((total, fieldArray, index) => {
+      const branchMaxOccurrences = field.value!.choice![index].maxOccurs!;
+      return total + Math.ceil(fieldArray.fields.value.length / branchMaxOccurrences);
+    }, 0);
+  }
+
+  if (explicitChoiceSelection)
+    return activeChoiceOccurrences.value.length;
+
+  return valuesCount.value;
+});
+
 // In explicit mode, an explicitly selected branch (maxOccurs: 1) or an added occurrence
 // (maxOccurs > 1) counts toward xsd_choiceMinOccurs even before any of its fields hold a value;
 // the branch's own required fields then drive their own validation independently. Auto mode
@@ -313,7 +348,7 @@ const effectiveValuesCount = computed(() => {
     return Math.max(valuesCount.value, explicitlySelectedBranch.value ? 1 : 0);
 
   if (explicitChoiceSelection && maxOccurs.value > 1)
-    return Math.max(valuesCount.value, activeChoiceOccurrences.value.length);
+    return Math.max(valuesCount.value, usedChoiceOccurrences.value);
 
   // Auto mode stays value-driven, unchanged.
   return valuesCount.value;
@@ -363,11 +398,9 @@ watch(field, (_field) => {
 // Repeatable case: keep childValues in sync with each branch's own field array, so the
 // existing occurrences/valuesCount machinery (and, through it, the shared choice-level budget in
 // overrideChildMaxOccurrences) reflects reality without needing every occurrence's DynamicFormItem
-// to individually emit update:modelValue. A batch size of 1 is used here (not the branch's own
-// declared maxOccurs) so overrideChildMaxOccurrences measures the shared budget in plain raw-item
-// units; the branch's own independent maxOccurs is checked separately in canAddChoiceOccurrence
-// (see there for why: the pre-existing batching semantics alone cannot express an independent
-// per-branch cap distinct from the shared budget).
+// to individually emit update:modelValue. The branch's own maxOccurs is used as the batch size,
+// exactly like the auto-mode template branch below: every group of up to that many raw items
+// consumes one shared choice slot, matching how a repeated element behaves inside <xs:choice>.
 if (explicitChoiceSelection) {
   watch(
     () => branchFieldArrays.map(fieldArray => fieldArray.values.value),
@@ -376,7 +409,9 @@ if (explicitChoiceSelection) {
         return;
 
       allBranchValues.forEach((branchValues, index) => {
-        updateChildValue(branchValues, index, 1);
+        // Non-null: correctMetadataAndSetDefaults has already defaulted every branch's maxOccurs.
+        const branchMaxOccurrences = field.value!.choice![index].maxOccurs!;
+        updateChildValue(branchValues, index, branchMaxOccurrences);
       });
     },
     { immediate: true },
@@ -568,13 +603,13 @@ function removeChoiceOccurrence(branchKey: string, index?: number) {
 
 /**
  * Per-branch "may add" guard: false when the choice is disabled or branchKey is unknown.
- * maxOccurs:1 has no per-branch budget to exhaust. maxOccurs > 1 checks two
- * independent limits: this branch's own declared maxOccurs (a hard cap, checked directly against
- * the branch's own raw item count, since the shared-budget math below only bounds the shared
- * total, not any one branch's own ceiling), and the shared choice-level budget, read from the
- * existing occurrences computed's overrideChildMaxOccurrences (fed a batch size of 1, see the
- * childValues-sync watch above, so it measures the remaining shared budget in plain raw-item
- * units).
+ * maxOccurs:1 has no per-branch budget to exhaust. maxOccurs > 1 checks the shared
+ * choice-level budget, read from the existing occurrences computed's overrideChildMaxOccurrences.
+ * That value is fed a batch size equal to the branch's own maxOccurs (see the childValues-sync
+ * watch above), so it already expresses the branch's true XSD headroom in raw-item units;
+ * a branch's optional maxOccursTotal (a non-XSD total-count cap) is folded into the same
+ * overrideChildMaxOccurrences by the occurrences computed's pass 2, so no separate check is
+ * needed here.
  */
 function canAddChoiceOccurrence(branchKey: string): boolean {
   if (disabled.value)
@@ -587,16 +622,9 @@ function canAddChoiceOccurrence(branchKey: string): boolean {
   if (maxOccurs.value <= 1)
     return true; // no per-branch budget in the single case
 
-  // Both indexed accesses below are safe without further guards: `index` was already validated
-  // above, and `branchFieldArrays`/`field.value.choice` are built from (and stay the same length
-  // as) the same static branch list, so a valid index always has a corresponding entry in both.
-  // `.maxOccurs!` reflects that correctMetadataAndSetDefaults has already defaulted it by the
-  // time DynamicFormItemChoice renders, even though the type only guarantees it on the top-level
-  // InternalFieldMetadata, not recursively on nested `choice` children.
-  const branchOwnMax = field.value!.choice![index].maxOccurs!;
+  // Safe without further guards: `index` was already validated above, and `branchFieldArrays`
+  // is built from (and stays the same length as) the same static branch list as field.value.choice.
   const branchCount = branchFieldArrays[index].fields.value.length;
-  if (branchCount >= branchOwnMax)
-    return false; // this branch's own maxOccurs is exhausted
 
   const remainingSharedBudget = occurrences.value[index]?.overrideChildMaxOccurrences;
   return remainingSharedBudget === undefined || branchCount < remainingSharedBudget;
@@ -690,6 +718,7 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
     :remove-choice-occurrence="removeChoiceOccurrence"
     :can-add-choice-occurrence="canAddChoiceOccurrence"
     :active-choice-occurrences="activeChoiceOccurrences"
+    :used-choice-occurrences="usedChoiceOccurrences"
   >
     <DynamicFormItem
       v-if="singleChild"

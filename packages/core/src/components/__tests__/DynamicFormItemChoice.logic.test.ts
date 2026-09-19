@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { removeNullValues } from '@/utils/removeNullValues';
 import { formValues } from './DynamicFormItem.test-helpers';
-import { activeChoiceOccurrences, canAddChoiceOccurrence, childValuesEntry, enablePreserveOnSwitch, findDynamicFormItemChoiceByPath, occurrenceBranchKey } from './DynamicFormItemChoice.test-helpers';
+import { activeChoiceOccurrences, canAddChoiceOccurrence, childValuesEntry, enablePreserveOnSwitch, findDynamicFormItemChoiceByPath, occurrenceBranchKey, usedChoiceOccurrences } from './DynamicFormItemChoice.test-helpers';
 
 function addButton(wrapper: ReturnType<typeof mount>, path: string) {
   return wrapper.find(`[data-testid="${path}-add-button"]`);
@@ -1618,45 +1618,140 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
     });
 
-    describe('canAddChoiceOccurrence respects both the branch\'s own maxOccurs and the shared choice budget', () => {
-      it('disables only the branch whose own maxOccurs is reached, leaving siblings addable', async () => {
-        const wrapper = mountExplicitRepeatableChoice();
+    describe('canAddChoiceOccurrence follows XSD batching: a branch\'s own maxOccurs is the slot size, not an independent total cap', () => {
+      // choice.maxOccurs=5, branch maxOccurs 1 and 2: every 2 "pair" items consume 1 of the 5
+      // shared slots, so up to 10 "pair" items fit when "single" is empty.
+      function mountXsdBatchingChoice() {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              maxOccurs: 5,
+              fieldOptions: { label: 'Pick Several' },
+              choice: [
+                { name: 'single', maxOccurs: 1, fieldOptions: { label: 'Single' } },
+                { name: 'pair', maxOccurs: 2, fieldOptions: { label: 'Pair' } },
+              ],
+            }],
+          },
+        });
+      }
+
+      async function addOccurrence(wrapper: ReturnType<typeof mount>, branchKey: string) {
+        await wrapper.find(`[data-testid="pick.${branchKey}-add-choice-button"]`).trigger('click');
+        await flushPromises();
+      }
+
+      it('allows up to 10 items of the maxOccurs:2 branch when the other branch is empty', async () => {
+        const wrapper = mountXsdBatchingChoice();
         await flushPromises();
 
-        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        for (let i = 0; i < 10; i++)
+          await addOccurrence(wrapper, 'pair');
+
+        expect(formValues(wrapper).pick.pair).toHaveLength(10);
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'pair')).toBe(false);
+      });
+
+      it('8 items of the maxOccurs:2 branch (4 slots) leave exactly 1 shared slot for the other branch', async () => {
+        const wrapper = mountXsdBatchingChoice();
         await flushPromises();
-        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+
+        for (let i = 0; i < 8; i++)
+          await addOccurrence(wrapper, 'pair');
+
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'single')).toBe(true);
+        await addOccurrence(wrapper, 'single');
+
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'single')).toBe(false);
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'pair')).toBe(false);
+      });
+
+      it('adding a second item of the maxOccurs:2 branch consumes exactly one shared slot, not two', async () => {
+        const wrapper = mountXsdBatchingChoice();
+        await flushPromises();
+
+        await addOccurrence(wrapper, 'pair');
+        await addOccurrence(wrapper, 'pair');
+
+        expect(usedChoiceOccurrences(wrapper, 'pick')).toBe(1);
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'single')).toBe(true);
+      });
+    });
+
+    describe('maxOccursTotal — opt-in non-XSD per-branch cap', () => {
+      function mountWithCap() {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              maxOccurs: 5,
+              fieldOptions: { label: 'Pick Several' },
+              choice: [
+                { name: 'apiEndpoint', maxOccurs: 1, maxOccursTotal: 3, fieldOptions: { label: 'Api Endpoint' } },
+                { name: 'crmExport', maxOccurs: 1, maxOccursTotal: 3, fieldOptions: { label: 'Crm Export' } },
+              ],
+            }],
+          },
+        });
+      }
+
+      it('disables only the capped branch once its raw item count reaches maxOccursTotal, leaving the sibling addable', async () => {
+        const wrapper = mountWithCap();
+        await flushPromises();
+
+        for (let i = 0; i < 3; i++)
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
         await flushPromises();
 
         expect(canAddChoiceOccurrence(wrapper, 'pick', 'apiEndpoint')).toBe(false);
         expect(canAddChoiceOccurrence(wrapper, 'pick', 'crmExport')).toBe(true);
       });
 
-      it('disables every branch once the shared choice budget is exhausted, even with room left in a branch\'s own cap', async () => {
+      it('removing an item below the cap re-enables the add reactively', async () => {
+        const wrapper = mountWithCap();
+        await flushPromises();
+
+        for (let i = 0; i < 3; i++) {
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+        }
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'apiEndpoint')).toBe(false);
+
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(canAddChoiceOccurrence(wrapper, 'pick', 'apiEndpoint')).toBe(true);
+      });
+
+      it('clamps the auto-mode array headroom to maxOccursTotal even when the shared choice budget would allow more', async () => {
         const wrapper = mount(TestForm, {
           attachTo: document.body,
           props: {
             metadata: [{
               name: 'pick',
-              explicitChoiceSelection: true,
-              maxOccurs: 2,
+              maxOccurs: 5,
               fieldOptions: { label: 'Pick Several' },
               choice: [
-                { name: 'apiEndpoint', maxOccurs: 3, fieldOptions: { label: 'Api Endpoint' } },
-                { name: 'crmExport', maxOccurs: 3, fieldOptions: { label: 'Crm Export' } },
+                { name: 'apiEndpoint', maxOccurs: 1, maxOccursTotal: 2, fieldOptions: { label: 'Api Endpoint' } },
+                { name: 'crmExport', maxOccurs: 1, fieldOptions: { label: 'Crm Export' } },
               ],
             }],
           },
         });
         await flushPromises();
 
-        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await addButton(wrapper, 'pick.apiEndpoint').trigger('click');
         await flushPromises();
-        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await addButton(wrapper, 'pick.apiEndpoint').trigger('click');
         await flushPromises();
 
-        expect(canAddChoiceOccurrence(wrapper, 'pick', 'apiEndpoint')).toBe(false);
-        expect(canAddChoiceOccurrence(wrapper, 'pick', 'crmExport')).toBe(false);
+        expect(addButton(wrapper, 'pick.apiEndpoint').exists()).toBe(false);
+        expect(addButton(wrapper, 'pick.crmExport').exists()).toBe(true);
       });
     });
 
@@ -1787,7 +1882,7 @@ describe('component DynamicFormItemChoice - logic', () => {
 
     // --- Edge cases ---
     describe('edge cases', () => {
-      it('removing the last occurrence of a branch that had exhausted the shared budget frees room for other branches reactively', async () => {
+      it('removing occurrences of a branch that had exhausted the shared budget frees room for other branches reactively', async () => {
         const wrapper = mount(TestForm, {
           attachTo: document.body,
           props: {
@@ -1797,20 +1892,24 @@ describe('component DynamicFormItemChoice - logic', () => {
               maxOccurs: 2,
               fieldOptions: { label: 'Pick Several' },
               choice: [
-                { name: 'apiEndpoint', maxOccurs: 3, fieldOptions: { label: 'Api Endpoint' } },
-                { name: 'crmExport', maxOccurs: 3, fieldOptions: { label: 'Crm Export' } },
+                { name: 'apiEndpoint', maxOccurs: 2, fieldOptions: { label: 'Api Endpoint' } },
+                { name: 'crmExport', fieldOptions: { label: 'Crm Export' } },
               ],
             }],
           },
         });
         await flushPromises();
 
-        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
-        await flushPromises();
-        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
-        await flushPromises();
+        // 4 items of a maxOccurs:2 branch consume both of the choice's 2 shared slots.
+        for (let i = 0; i < 4; i++) {
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+        }
         expect(canAddChoiceOccurrence(wrapper, 'pick', 'crmExport')).toBe(false);
 
+        // Down to 2 items = 1 slot consumed, freeing the other slot for crmExport.
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
         await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
         await flushPromises();
 

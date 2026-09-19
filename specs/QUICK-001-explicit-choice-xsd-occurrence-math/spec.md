@@ -1,9 +1,9 @@
 ---
 id: QUICK-001
 type: quick
-status: draft
+status: verifying
 created: 2026-09-17
-approved_by: ""
+approved_by: Jeroen
 pr: ""
 ---
 
@@ -34,6 +34,8 @@ The per-branch total cap the current behaviour accidentally provides ("max 3 of 
 
 **Touches `packages/core/src/`, so a changeset is required at implementation time.** Recommended bump: **minor** (restores the documented XSD contract of a mode that shipped days ago, plus an additive metadata property and an additive slot prop). The conservative alternative is major, since it changes observable behaviour of a published mode; Jeroen decides at approval.
 
+> **PROPOSED (adversarial review) - the mode is not published, so the major-vs-minor dilemma does not exist (finding 1).** Verified against the tree: the current npm version is `0.5.0` (`packages/core/package.json`), whose CHANGELOG entry is only the utility-helper exports; the entire explicit-choice feature is still in pending changesets (`.changeset/curly-onions-explicit-choice.md`, `tame-carrots-repeatable-choice.md`, `preserve-on-switch-explicit-choice.md`, `preserve-on-switch-proxy-clone.md`) alongside FEAT-002's `choice-array-slot-family.md`, none consumed by `changeset version`. No published consumer relies on the per-branch-cap behaviour, so this is not a breaking change to anyone. Preferred handling: **amend the pending `tame-carrots-repeatable-choice.md` changeset** so the eventual `0.6.0` CHANGELOG describes the final XSD behaviour and `maxOccursTotal` from the start, instead of shipping a per-branch cap and a same-release correction. Adding a separate `minor` changeset is acceptable but noisier. Either way the bump is **minor** (net-new since `0.5.0`); drop the "changes observable behaviour of a published mode" and "major is the conservative alternative" framing.
+
 ### 1. Explicit repeatable mode reuses the auto-mode batching math
 
 - The `childValues` sync watch (`DynamicFormItemChoice.vue:364-377`) passes the branch's own `maxOccurs` as the batch size, exactly like the auto-mode template branch already does (`updateChildValue($event, index, child.maxOccurs)`, line 761): `updateChildValue(branchValues, index, branch.maxOccurs)`.
@@ -46,6 +48,8 @@ The per-branch total cap the current behaviour accidentally provides ("max 3 of 
 ### 3. Templates get the consumed-slot count as a slot prop
 
 `ChoiceAttributes` (`DynamicFormTemplate.vue`, lines 113-124) gains `usedChoiceOccurrences: number` (name open to review), the number of choice slots currently consumed in choice-occurrence units (the same structural count as change 2). Without it, every template showing "N of `maxOccurs`" (the docs legend currently renders `activeChoiceOccurrences.length` of `maxOccurs`) silently over-counts once items and slots diverge, and would have to re-derive the ceil math itself.
+
+> **PROPOSED (adversarial review) - the "docs legend" this change cites does not exist, and the example will not exercise the prop (finding 2).** Verified against the rendered docs path: a repeatable choice renders through `AdvancedFormTemplate.vue`'s `#heading-choice-array` slot into `ChoiceArraySectionCard.vue`, which renders **no** count legend at all (the slot does not even receive `activeChoiceOccurrences`). `ChoiceSectionCard.vue` is the `maxOccurs: 1` card and uses `activeChoiceOccurrences` only for selection state, not an "N of `maxOccurs`" count. So the "docs legend currently renders `activeChoiceOccurrences.length` of `maxOccurs`" rationale describes code that is not there, and the Affected-files entry names the wrong component (it lists `ChoiceSectionCard.vue`; the repeatable card is `ChoiceArraySectionCard.vue`, which is absent from the list). Compounding it: the proposed docs example (change 5) uses branch `maxOccurs: 1` + `maxOccursTotal: 3`, where each occurrence consumes exactly one slot, so `usedChoiceOccurrences` always equals `activeChoiceOccurrences.length` and the example never demonstrates the slot-vs-item divergence the prop exists to express. Proposed resolution: (a) rewrite this rationale to justify `usedChoiceOccurrences` as a proactive additive prop for consumers who want a slot-accurate count, since no shipped legend depends on it; (b) in Affected files, replace `ChoiceSectionCard.vue` with `ChoiceArraySectionCard.vue` for the repeatable count tag and, if a legend is wanted, add it to that card in change 5; (c) if demonstrating the divergence matters, give the example one branch with `maxOccurs > 1` and no `maxOccursTotal` so `usedChoiceOccurrences` visibly differs from the card count.
 
 ### 4. New opt-in non-XSD property: `maxOccursTotal`
 
@@ -89,3 +93,49 @@ FEAT-002 (repeatable-choice occurrence ordering) is in flight on branch `feature
 - Coverage must not drop (`pnpm -r ci:test:coverage`).
 
 ## Adversarial review
+
+Ran in QUICK (lite) mode on 2026-09-19 against the current working tree (branch `feature/override-choice-occurances-attempt-2`, FEAT-002 in flight), the cited code paths (`DynamicFormItemChoice.vue`, `DynamicFormTemplate.vue`, `FieldMetadata.ts`), the docs (`docs/examples/choices.md`, `FormExampleChoiceExplicitRepeatable.vue`, `ChoiceSectionCard.vue`, `ChoiceArraySectionCard.vue`, `AdvancedFormTemplate.vue`), the released package version (`package.json`, `CHANGELOG.md`, `.changeset/*`), and FEAT-001 (`spec.md`, `stories/ST-02`). The three fixed decisions from Jeroen (XSD fidelity mandatory; same-iteration adjacency out of scope; per-branch cap survives as an opt-in non-XSD property) were treated as settled, not re-litigated.
+
+**Verified correct (recorded so discussion does not re-open them):**
+
+- **The XSD batching arithmetic is right.** Traced the `occurrences` pass-1/pass-2 formula with the proposed batch size = `branch.maxOccurs`: `overrideChildMaxOccurrences_i = branchMax_i * (choiceMax - othersChoiceOccurrences)`, in raw-item units. The Problem section's docs example (choice 5, branch 3: up to 15 alone; 3 items = `ceil(3/3) = 1` slot) and the Test-impact numbers (choice 5, branches 1 and 2: 10 of the second alone; 8-of-second-plus-1-of-first; adds disable exactly at 5 consumed slots) all check out.
+- **The validation-unit change is unit-consistent.** After change 1, `valuesCount` becomes choice units (`sum ceil(filled_i / branchMax_i)`); change 2's structural count (`sum ceil(fields.length_i / branchMax_i)`) is also choice units and dominates `valuesCount`, so `effectiveValuesCount` for the repeatable case lands on the structural choice-unit count. The "`minOccurs: 2` not satisfied by 2 items of one `maxOccurs: 2` branch" claim (`ceil(2/2) = 1`) is correct.
+- **No silent override of an approved decision.** FEAT-001 is `done`; the quick lane referencing it is the sanctioned pattern (`specs/README.md`). The per-branch-cap reading was an implicit reading traceable to a mislabeled feature-spec line and an ST-02 implementation workaround (not a `DECIDED (Jeroen)` entry), and Jeroen has explicitly sanctioned the XSD correction, so this is not overturning an approved call.
+- **The docs example math is right.** Reproducing today's UX with branch `maxOccurs: 1` + `maxOccursTotal: 3` (each add = one slot, each branch capped at 3, choice `maxOccurs: 5` = 5 slots) matches the current `maxOccurs: 3` branch behaviour exactly; the spec correctly requires dropping branch `maxOccurs` to 1 for parity.
+
+**Findings:**
+
+1. **[should-fix] The semver framing rests on a false premise: the mode is unpublished.** The spec calls this a "published mode" that "shipped days ago" and frames major as the conservative alternative "since it changes observable behaviour of a published mode". Verified against `package.json` (`0.5.0`), `CHANGELOG.md` (0.5.0 is utility-helper exports only), and `.changeset/` (all FEAT-001 and FEAT-002 changesets still pending): the explicit-choice feature has never been released. No published consumer relies on the per-branch cap, so nothing breaks. Routed as a `PROPOSED (adversarial review)` edit on the bump paragraph: amend the pending `tame-carrots-repeatable-choice.md` changeset (preferred) or add a new one, bump stays **minor**, drop the major framing.
+
+2. **[should-fix] Change 3's rationale cites a docs legend that does not exist, names the wrong component, and the example will not exercise the new prop.** The repeatable choice renders through `ChoiceArraySectionCard.vue` (via `#heading-choice-array`), which has no count legend and is not in the Affected-files list; the "N of `maxOccurs`" legend the change invokes to justify `usedChoiceOccurrences` is not present anywhere, and the proposed `maxOccurs: 1` + `maxOccursTotal: 3` example keeps `usedChoiceOccurrences` equal to the card count so it never demonstrates the divergence. Routed as a `PROPOSED (adversarial review)` edit on change 3: re-justify the prop as proactively additive, fix the Affected-files component name, and optionally add a real legend or a `maxOccurs > 1` branch to the example.
+
+3. **[nit] Cited line numbers are consistently off by 7 against the current working tree.** `occurrences` (spec 173-253 / actual 180-260), `effectiveValuesCount` (304-313 / 311-320), `childValues` sync watch (364-377 / 371-384), `canAddChoiceOccurrence` (572-596 / 579-603), pass-2 clamp target (244-250 / 251-257), auto-mode `updateChildValue` (761 / 768). The region descriptions and function names are accurate, so a developer will still find the code, but the numbers were computed against a version seven lines shorter than the current tree. Refresh them or mark them approximate.
+
+4. **[nit] The `maxOccursTotal` auto-mode clamp needs per-branch data threaded into pass 2.** Pass 2 iterates `_occurrences` entries, which currently carry `childMaxOccurrences` but neither `maxOccursTotal` nor a branch reference, so `min(result, maxOccursTotal)` requires adding the per-branch `maxOccursTotal` (or a branch/index lookup) into that structure. Implementation detail, not a design gap; noted so the developer expects it.
+
+No blocker. Both should-fixes are routed as `PROPOSED (adversarial review)` edits; nits do not gate. There are no unresolved Open questions. Status set to `awaiting-approval`.
+
+## Implementation notes
+
+**Both PROPOSED (adversarial review) edits accepted as the operative text.** The changeset bump stays minor and amends the pending `tame-carrots-repeatable-choice.md` rather than adding a new one; change 3's rationale is rewritten as a proactively additive prop (no shipped legend depended on it), the Affected-files entry is corrected to `ChoiceArraySectionCard.vue`, and the docs example gives the `-choice-array` card a real count tag wired to `usedChoiceOccurrences` so the divergence between raw items and choice-occurrence units is demonstrable (see below).
+
+**`canAddChoiceOccurrence` folds `maxOccursTotal` into the shared-budget check instead of adding a second direct comparison.** The occurrences computed's pass 2 now clamps `overrideChildMaxOccurrences` to `min(result, maxOccursTotal)` per branch before returning it; `canAddChoiceOccurrence` keeps its single `branchCount < remainingSharedBudget` check unchanged, since that value already reflects the cap once clamped. This reads as a deviation from the literal "returns false once the branch's raw item count reaches maxOccursTotal" wording, but is behaviourally identical (verified by test) and avoids a second, parallel per-branch check that pass 2 would otherwise need to stay in sync with.
+
+**Line numbers in the Proposed change / Affected files sections were not refreshed.** Nit 3 flagged them as informational; left as-is since they do not gate and the function names remain the anchor a reader actually uses.
+
+**Docs example demonstrates the units divergence, not only parity.** Per the PROPOSED edit on change 3's option (c): `ChoiceArraySectionCard.vue` gained a real count tag (`usedChoiceOccurrences` of `maxOccurs`) wired through `AdvancedFormTemplate.vue`'s `#heading-choice-array` slot, screenshotted at "3 of 5" after three CRM export adds, so `usedChoiceOccurrences` is now a genuinely observable, tested slot prop in the live docs example (not only in the illustrative code sample).
+
+**Files changed:**
+- `packages/core/src/components/DynamicFormItemChoice.vue` — sync-watch batch size, `canAddChoiceOccurrence`, `effectiveValuesCount`, new `usedChoiceOccurrences` computed, `maxOccursTotal` threaded through the `occurrences` pass 1/2, template binding for the new slot prop.
+- `packages/core/src/components/DynamicFormTemplate.vue` — `ChoiceAttributes` gains `usedChoiceOccurrences: number`.
+- `packages/core/src/types/FieldMetadata.ts` — `maxOccursTotal?: number`, added to the `ComputedPropsFieldType` omit list.
+- `packages/core/src/examples/TestFormTemplate.vue` — exposes `usedChoiceOccurrences` as a `data-testid` span in the `-choice`/`-choice-array` fixtures.
+- `packages/core/src/components/__tests__/DynamicFormItemChoice.test-helpers.ts` — `usedChoiceOccurrences(wrapper, path)` helper reading the new slot prop through the real fixture contract.
+- `packages/core/src/components/__tests__/DynamicFormItemChoice.logic.test.ts` — rewrote the per-branch-cap block into an XSD-batching block with concrete arithmetic, added `maxOccursTotal` tests (explicit and auto mode, reactive re-enable), fixed the "frees room reactively" edge case's arithmetic.
+- `packages/core/src/components/__tests__/DynamicFormItemChoice.validation.test.ts` — new choice-unit `xsd_choiceMinOccurs` tests.
+- `docs/examples/choices.md` — rewrote the "Add several, each one of several kinds" section, updated the illustrative legend snippet to `usedChoiceOccurrences`, added the `maxOccursTotal` subsection, updated the slot-prop table.
+- `docs/.vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue` — branches revert to `maxOccurs: 1` with `maxOccursTotal: 3`, description text updated.
+- `docs/.vitepress/theme/components/ChoiceArraySectionCard.vue` — new `usedChoiceOccurrences`/`maxOccurs` props driving a count tag.
+- `docs/.vitepress/theme/components/AdvancedFormTemplate.vue` — forwards `usedChoiceOccurrences`/`fieldMetadata.maxOccurs` to `ChoiceArraySectionCard`.
+- `.changeset/tame-carrots-repeatable-choice.md` — amended to describe the final XSD-batching behaviour and `maxOccursTotal` from the start; bump stays minor.
+- `specs/components.md` — updated `DynamicFormItemChoice`, `DynamicFormTemplate`, `FieldMetadata` entries.
