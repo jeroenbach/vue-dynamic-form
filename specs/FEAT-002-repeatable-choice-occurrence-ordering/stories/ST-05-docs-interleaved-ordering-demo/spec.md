@@ -2,7 +2,7 @@
 id: ST-05
 type: story
 feature: FEAT-002
-status: approved
+status: done
 approved_by: Jeroen
 pr: ""
 ---
@@ -232,3 +232,64 @@ Verified directly against the docs theme: `ChoiceArraySectionCard.vue` is instan
 ### Status rationale
 
 No blockers, no unresolved Open questions (the story has no Open questions section). Both should-fixes are routed as `PROPOSED (adversarial review)` edits into the sections that own them (AC1, AC2, architecture reference), so neither independently forces discussion. Status set to `awaiting-approval`.
+
+## Implementation notes
+
+- **AC2's re-key mechanism required splitting the example into two files**, not documented explicitly by the architecture reference's single-file wording. `FormExampleChoiceExplicitRepeatable.vue` (unchanged public name, still the component embedded by `choices.md`) is now the demo shell: it owns the toolbar, the `displayOrder`/`preserveOrder` refs, the `formKey` remount counter, and the values-snapshot/strip-on-off logic. A new `FormExampleChoiceExplicitRepeatableForm.vue` owns the actual `useDynamicForm()` call (the "form" ADR-6 refers to) and is keyed by `formKey`, receiving `initialValues` from the parent's snapshot. This split was necessary because `useDynamicForm()` (a composable, not a reactive value) can only be re-initialized by destroying and recreating the component instance that calls it, and that instance needed to sit behind a `:key` the toolbar controls, while the toolbar and the amber reload callout needed to live outside that remounted subtree so they survive the flip. `#region metadata` / `#endregion metadata` markers stayed in the outer file so the existing `<<<` docs include in `choices.md` keeps working unchanged.
+- **The optional `seq-chip` teaching aid (design decision 4) was not implemented.** It is explicitly optional per the feature spec and this story's own edge-case wording ("if included... if not, no check applies, note which choice was made"). Adding it would have required either leaking a new prop into the shared `default-choice-array-item` slot in `AdvancedFormTemplate.vue` (used by every current and future repeatable explicit choice example, the same blast-radius concern the adversarial review already flagged for the toolbar itself in finding 2) or building a second, parallel item template just for this one demo. Given the teaching aid's explicit optionality, it was skipped in favor of keeping the shared template's blast radius unchanged; the live JSON dump and the `#interleaving-occurrences-by-add-order` prose cover the same "why does this card sit here" teaching goal in text instead.
+- **`ChoiceArraySectionCard.vue` was left completely unmodified**, per the adversarial review's routed resolution of finding 2: the toolbar is hosted entirely in `FormExampleChoiceExplicitRepeatable.vue`, never inside the shared card, so no opt-in prop was needed on the card either.
+- **The toolbar's segmented control uses `role="radiogroup"`/`role="radio"` with `aria-checked`**, resolving the prototype's own nit (adversarial review finding 7, feature level) about inconsistent accessibility semantics, rather than copying the prototype's inconsistent markup verbatim.
+- No changeset added: this story touches no `packages/core/src/` file (confirmed via `git status`; only `docs/.vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue` (modified), the new `docs/.vitepress/theme/components/FormExampleChoiceExplicitRepeatableForm.vue`, `docs/examples/choices.md`, and `docs/reference/field-metadata.md` changed).
+- `pnpm -r run ci` (test + lint + typecheck for `packages/core` and `packages/element-plus`) passes unchanged (583 + 1 tests, lint and `vue-tsc` clean), confirming zero engine drift. `pnpm docs:build` completes clean, including the new `field-metadata.md` → `choices.md#interleaving-occurrences-by-add-order` anchor links (the dead-link checker would fail the build otherwise). A one-time `vue-tsc --noEmit` pass over the whole `docs/` project (borrowing the binary from `packages/core`, since `docs/` ships no dedicated typecheck script) reproduces the same pre-existing, unrelated error set ST-04 already documented (the `meta.dirty`/`meta.touched`/`meta.valid` unwrap pattern and the `AdvancedForm.vue` slot-type mismatch appear identically on every sibling example file, confirming nothing new was introduced).
+- Playwright screenshots were captured against a local `pnpm docs:dev` server in both light and dark VitePress color modes: toolbar default state, grouped populated (3 occurrences, `crmExport`-first), the flip-to-"Order added" fallback with the amber reload callout, a genuinely interleaved add after the flip, `preserveOrder` on with the mount-time `order` backfill (`1, 2, 3, 4`), and removal compacting the survivors' `order` back to `1, 2, 3`. Programmatic `.focus()` did not reliably trigger Chromium's `:focus-visible` heuristic (it requires real keyboard modality), so the focus-ring screenshot shows the default/active state rather than a rendered ring; the ring itself is provided by `ToggleSwitch.vue`'s existing, already-shipped `peer-focus-visible` classes and the segmented control's matching `focus-visible:outline` classes, visually confirmed present in the rendered markup rather than via a forced focus screenshot.
+
+## Verification report
+
+Verified by QA.
+
+### Pipeline
+
+- `pnpm -r run ci` (test + lint + typecheck for `packages/core` and `packages/element-plus`): pass. 583 + 1 tests, lint clean, `vue-tsc --noEmit` clean. Confirms zero engine drift, as this story touches no `packages/core/src/` file (`git status`/`git diff --stat` confirmed: only the two docs `.vue` files, `choices.md`, and `field-metadata.md` changed).
+- `pnpm -r ci:test:coverage`: pass, 97.1% / 93.03% / 95.5% / 97.1% (stmts/branch/funcs/lines) on `packages/core`, unchanged from the pre-story baseline since no `packages/core/src/` file changed. Coverage is mathematically unaffected by a docs-only story, matching the QA plan's own "Coverage: Not applicable" note.
+- `pnpm docs:build`: pass, clean build including the new `field-metadata.md` → `choices.md#interleaving-occurrences-by-add-order` anchor links (VitePress's dead-link checker would fail the build on a bad anchor).
+
+### Acceptance criteria
+
+| # | Criterion | Verdict | Evidence |
+| --- | --- | --- | --- |
+| 1 | Demo toolbar hosts a display-order segmented control and a `preserveOrder` toggle, scoped to the example (not the shared card) | Pass | `grep -n "displayOrder\|preserveOrder"` on `FormExampleChoiceExplicitRepeatable.vue` finds both flags wired into `metadata`. `ChoiceArraySectionCard.vue` has zero diff (`git status` clean on that file). Toolbar rendered and screenshotted in both color modes (`light/dark-01-toolbar-default.png`), matches `#ordering-toolbar` layout intent (segmented "Grouped by kind / Order added" + `ToggleSwitch`-based `preserveOrder`). |
+| 2 | Flipping either control remounts the choice with the new static flag; field data survives; ephemeral history is wiped | Pass | Live Playwright script against `pnpm docs:dev`: typed a marker value into a CRM system field, flipped `displayOrder` to `'added'`, then flipped `preserveOrder` on and off and on again; the typed value (`"Salesforce-Marker-1"`) survived every flip in the dump and in the input's own value. `grep -n ":key"` on `FormExampleChoiceExplicitRepeatable.vue` confirms `:key="formKey"` on `FormExampleChoiceExplicitRepeatableForm`, bumped in `remountWith()`. A fresh add-order session (3 fresh clicks, no prior remount) rendered in click order (`crmExport, apiEndpoint, crmExport`) with no `order` key, then flipping `displayOrder` mid-session (screenshots `light/dark-03`) fell back to grouped order exactly as documented, confirming the ephemeral `insertionOrder` history is wiped by the remount, not merely re-sorted. |
+| 3 | Grouped mode matches ST-04's baseline exactly | Pass | `light/dark-02-grouped-populated.png`: 3 occurrences (`crmExport, crmExport, apiEndpoint`), continuous badges `1, 2, 3`, no `order` key in the dump, `preserveOrder` off. Byte-identical in shape to ST-04's own baseline. |
+| 4 | Add-order mode without `preserveOrder` interleaves visually, with a reload caveat | Pass | Fresh-session live check (own Playwright script, not just the developer's screenshots): clicking CRM/API/CRM in `displayOrder: 'added'` from empty rendered `['CRM export', 'API endpoint', 'CRM export']` in that click order (dump: `{"crmExport":[{},{}],"apiEndpoint":[{}]}`, no `order` key anywhere). Amber callout present and legible in both color modes (`light/dark-03`, `light/dark-04`), text states plainly "This order will not survive a reload" and names the remount fallback to grouped. This closes adversarial finding 3 (the QA plan's own numbered checklist never isolated a clean fresh-session interleave; verified directly here instead). |
+| 5 | Add-order mode with `preserveOrder` on persists and compacts | Pass | Live script: after backfill, `crmExport` occurrences got `order: 1, 2` and `apiEndpoint` got `order: 3` (grouped-position backfill, not click-order, matching AR-2). Adding one more CRM export assigned `order: 4` (`count + 1`). Removing the middle-ranked occurrence (`order: 2`, a genuine mid-list removal, not a trailing/no-op case) compacted survivors to a contiguous `1, 2, 3` with no gap, confirmed via the live JSON dump independent of the developer's own screenshot (which happened to demonstrate a trailing removal; the mid-list case was checked directly here to close that gap). Screenshots `light/dark-05`, `light/dark-07` corroborate visually. |
+| 6 | `choices.md` documents both tiers and the reload trade-off | Pass | New "Interleaving occurrences by add order" section (line 180 onward) covers: `displayOrder`'s two values and display-only nature; `insertionOrder` named explicitly as ephemeral/never in `values`; `preserveOrder` and the resulting `order` field; a side-by-side reload trade-off table; the ADR-3 object-branch-only constraint and the reserved-`order`-child-name collision, stated as consumer responsibility. `grep` confirms `displayOrder`, `insertionOrder`, `preserveOrder` all appear verbatim. `pnpm docs:build` passed with the new anchors resolving. |
+| 7 | `field-metadata.md` documents the two new flags | Pass | `### displayOrder` and `### preserveOrder` headings added immediately after `### explicitChoiceSelection` and before `### attributes`, format-matched to that entry (type/default line, description, code example, pointer link into the choices example). `pnpm docs:build` confirms the pointer anchors resolve. |
+
+### Edge cases
+
+- `seq-chip` teaching aid: not included, explicitly noted as such in Implementation notes, consistent with its documented optionality. No prose falsely implies it exists.
+- `preserveOrder` off-then-on fresh counter: verified live (see AC2 evidence); a second backfill after toggling off and back on re-ran from grouped position rather than resuming any earlier click-order numbering. `choices.md`'s persisted-tier paragraph states this "restart, not resume" behavior in prose.
+- Shared budget / `maxOccursTotal` continuing to disable Add buttons: not independently re-driven to the cap in this pass (unchanged engine logic, already covered by ST-01/03's own passing test suites and visibly consistent with the "3 of 5" / "4 of 5" counters in the captured screenshots); treated as a low-risk regression check per the QA plan's own framing.
+
+### Prototype / states comparison
+
+Checked in both light and dark VitePress color modes against `#ordering-toolbar`, `#ordering-grouped`, `#ordering-interleaved`, `#ordering-preserve`, `#ordering-values`, `#ordering-removal`, `#reload-behavior`: layout intent, amber callout, and JSON `order`-key appearance/disappearance all match. Toolbar "on"/active and default states confirmed in both modes. The dedicated focus-ring screenshot could not force Chromium's `:focus-visible` heuristic (documented, not a defect); the ring classes themselves are present in the rendered markup (`ToggleSwitch.vue`'s existing `peer-focus-visible:outline-sky-500`, matching `focus-visible:outline` classes on the segmented control), which is an acceptable substitute for a docs-demo control, not shipped library UI. No visual drift found against ST-04's sibling baseline (`RepeaterCard` badge numbering unchanged in every toolbar state observed).
+
+### Process compliance
+
+- No changeset: correct, this story touches no `packages/core/src/` file.
+- `specs/components.md`: correctly left unchanged; `displayOrder`/`preserveOrder`/`insertionOrder`/`globalIndex` are already documented there by ST-02/ST-03.
+- `docs/reference/field-metadata.md` updated for the two new flags, matching the "public-surface reference update" expectation for a docs-facing addition.
+- No spec/story/ADR/AC references found in any changed docs prose or code comments (`grep -iE "FEAT-0|ST-0[0-9]|ADR-[0-9]|AC[0-9]|QA plan|feature spec|finding [0-9]"` across the changed files returns nothing).
+- No em dashes introduced (`git diff` of the changed docs files contains none; pre-existing em dashes elsewhere in `field-metadata.md` are untouched by this story's diff).
+- No kebab-case Vue bindings introduced (`:display-order=`, `:preserve-order=`, etc. all absent); `dataTestid` prop naming matches the existing `ToggleSwitch.vue` convention.
+- `ChoiceArraySectionCard.vue` confirmed unmodified, resolving adversarial finding 2 as routed (toolbar hosted only in the example component).
+- AC2's re-key-the-form-and-reseed-values mechanism (adversarial finding 1) confirmed implemented and working via live interaction, not just present in code.
+
+### Verdict
+
+**Pass.** All seven acceptance criteria hold under both mechanical checks and live browser verification (not solely the developer's own screenshots); the pipeline is green; coverage is unaffected; process compliance checks are clean. Status set to `done`.
+
+This was the feature's fifth and final story (ST-01 through ST-05 are now all `done`). The feature-level spec's `status` has been advanced from `in-progress` to `done` as a bookkeeping step (all its stories are complete; this is separate from the approval gate, which Jeroen already passed for the feature).
+
+Reminder for Jeroen: fill in this story's `pr` frontmatter field once the PR is opened.

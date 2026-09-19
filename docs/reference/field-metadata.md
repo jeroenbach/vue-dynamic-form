@@ -239,6 +239,39 @@ Opts a `choice` field into selection-first rendering: no branch renders until th
 }
 ```
 
+### `displayOrder`
+
+Type: `'grouped' | 'added'` | Default: `'grouped'` (absent)
+
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Selects the render order of its occurrences: `'grouped'` is the default (grouped by branch declaration order, same as `activeChoiceOccurrences`), `'added'` interleaves occurrences by the order their `addChoiceOccurrence` press happened. Static metadata, read once when the choice mounts. Display only, never written to `values`. See [Interleaving occurrences by add order](/examples/choices#interleaving-occurrences-by-add-order) in the Choice Fields example.
+
+```ts
+{
+  name: 'integrations',
+  maxOccurs: 5,
+  explicitChoiceSelection: true,
+  displayOrder: 'added',
+  choice: [/* ... */],
+}
+```
+
+### `preserveOrder`
+
+Type: `boolean` | Default: `false` (absent)
+
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). Removing an occurrence compacts the survivors' `order` back to a contiguous `1..N`. Requires the branch's occurrences to be objects (a branch with `children`); a no-op with a development warning otherwise. See [Interleaving occurrences by add order](/examples/choices#interleaving-occurrences-by-add-order) in the Choice Fields example.
+
+```ts
+{
+  name: 'integrations',
+  maxOccurs: 5,
+  explicitChoiceSelection: true,
+  displayOrder: 'added',
+  preserveOrder: true,
+  choice: [/* ... */],
+}
+```
+
 ### `attributes`
 
 Type: `FieldMetadata[]`

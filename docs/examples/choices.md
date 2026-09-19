@@ -177,6 +177,31 @@ And here is the repeatable flow running. The docs template renders the per-branc
 
 <<< @/.vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue#metadata{ts} [FormExampleChoiceExplicitRepeatable.vue]
 
+### Interleaving occurrences by add order
+
+`activeChoiceOccurrences` (and the `globalIndex` badge above) always groups by branch declaration order, never by the order the add buttons were actually clicked. Some UIs want the opposite: show occurrences in the order they were added, interleaving branches. Two independent, opt-in mechanisms cover this, both static per-choice `FieldMetadata` flags next to `explicitChoiceSelection`:
+
+| Flag | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `displayOrder` | `'grouped' \| 'added'` | `'grouped'` | Selects what render order the choice's occurrences appear in. `'grouped'` is today's behaviour (`activeChoiceOccurrences` order). `'added'` interleaves them by add-press order. Display only; it never writes to `values`. |
+| `preserveOrder` | `boolean` | `false` (absent) | Writes an `order` field into each occurrence's own values as it is added, so add-press order survives a page reload or loaded saved data. Real submitted data, not stripped by `removeNullValues`. |
+
+The toolbar above the live example flips both: "Grouped by kind" / "Order added" drives `displayOrder`, and the `preserveOrder` toggle drives the second flag. Try it: switch to "Order added" with `preserveOrder` off, add a CRM export, an API endpoint, then a second CRM export, and the cards render in that click order rather than grouped by kind.
+
+**The ephemeral tier (`displayOrder: 'added'`, `preserveOrder` off).** While `preserveOrder` is off, add-order comes from `insertionOrder`, an extra slot prop on `-choice-array-item` (`ChoiceArrayItemAttributes`) alongside `globalIndex`. It is instance-local engine state keyed by the occurrence's stable field-array key, assigned the moment an occurrence is added, and it is never written to `values`. This is the whole reason it is called ephemeral: reload the page, or remount the form the way the toolbar's own flip does, and the counter is gone, so the display silently falls back to grouped order. The toolbar demo makes this concrete without needing an actual page reload: flipping either control remounts the choice (both flags are read once at setup, not reactively), which wipes whatever click history the session had built up, so a still-showing "Order added" view falls straight back to grouped immediately after the flip.
+
+**The persisted tier (`preserveOrder: true`).** Turning `preserveOrder` on makes the engine write a real `order` number into each occurrence's own values object as it is added (`1, 2, 3...` in add-press order across all branches), and `displayOrder: 'added'` then sorts by that stored `order` instead of the ephemeral counter. Because it lives in `values`, it survives a reload and loaded saved data exactly, at the price of an extra field sitting next to the occurrence's own declared fields. Removing an occurrence compacts the survivors' `order` back to a contiguous `1..N`, so the next added occurrence always gets `count + 1`, never a gap. Toggling `preserveOrder` off after adding occurrences with it on drops `order` from every occurrence's values entirely (the persisted data is gone once you opt out); toggling it back on later runs a fresh backfill from the current grouped position, so the new `order` sequence starts at `1` again rather than resuming the sequence from before the toggle.
+
+**Reload trade-off, side by side:**
+
+| | Ephemeral (`preserveOrder` off) | Persisted (`preserveOrder` on) |
+| --- | --- | --- |
+| Where it lives | Instance-local engine state | `order` field in each occurrence's own values |
+| Survives reload / loaded data | No, falls back to grouped order | Yes, reconstructs the exact add order |
+| Footprint in `values` | None | One extra number per occurrence |
+
+**Constraints.** `preserveOrder` only has somewhere to write `order` when a branch's occurrences are objects (a branch with `children`, like both branches in the example above); a branch whose occurrences are a bare scalar leaf has no object to attach a field to, so `preserveOrder` is a no-op for that branch (with a development-mode console warning naming it). And because `order` is a plain sibling field inside the occurrence's own object, a branch that already declares a child literally named `order` collides with it: avoiding that name, or not opting into `preserveOrder` for that branch, is the consumer's responsibility.
+
 ### Capping a branch's total count (`maxOccursTotal`)
 
 XSD batching alone has no concept of "at most 3 of this kind": a branch's `maxOccurs` only sets the batch size, not a ceiling on how many batches it may consume. When a per-kind limit like that is a real requirement, set `maxOccursTotal` on the branch. It is an opt-in, non-XSD property with no `<xs:choice>` equivalent, a hard cap on that branch's own raw item count across the whole choice, independent of the batching above:
