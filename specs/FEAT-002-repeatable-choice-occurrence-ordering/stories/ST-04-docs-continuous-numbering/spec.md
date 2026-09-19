@@ -5,7 +5,7 @@ feature: FEAT-002
 status: done
 created: 2026-09-17
 approved_by: Jeroen
-pr: ""
+pr: "https://github.com/jeroenbach/vue-dynamic-form/pull/44"
 ---
 
 # Story: Docs — continuous numbering for the "Add several" example
