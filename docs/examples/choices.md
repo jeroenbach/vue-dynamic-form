@@ -130,7 +130,9 @@ const metadata = [
 ];
 ```
 
-A repeatable choice renders through the `-choice-array` slot (here using its `default-choice-array` fallback), which renders the per-branch "Add" buttons and a count; each active occurrence's own fields render automatically through the `-choice-array-item` slot (here using its `default-choice-array-item` fallback), which also receives `branchKey` and a `removeItem` wired to `removeChoiceOccurrence`:
+A repeatable choice renders through the `-choice-array` slot (here using its `default-choice-array` fallback), which renders the per-branch "Add" buttons and a count; each active occurrence's own fields render automatically through the `-choice-array-item` slot (here using its `default-choice-array-item` fallback), which also receives `branchKey` and a `removeItem` wired to `removeChoiceOccurrence`.
+
+Each occurrence's own `index` (used above only for `removeItem`/keying) is its position within its own branch, so it resets per branch: a second "CRM export" is `index: 1` no matter how many "API endpoint" occurrences exist. To show a single continuous count across every branch instead, the same slot also receives `globalIndex`, the occurrence's zero-based position across all active occurrences combined, in the same grouped order `activeChoiceOccurrences` reports them. `globalIndex` is live-derived (never written to `values`) and renumbers automatically whenever an occurrence anywhere in the choice is removed, so a "1, 2, 3..." badge never leaves a gap:
 
 ```vue
 <template #default-choice-array="{ fieldMetadata, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences, fieldContext: { errorMessage } }">
@@ -153,8 +155,9 @@ A repeatable choice renders through the `-choice-array` slot (here using its `de
   </fieldset>
 </template>
 
-<template #default-choice-array-item="{ branchKey, removeItem }">
+<template #default-choice-array-item="{ branchKey, globalIndex, removeItem }">
   <div>
+    <span class="num-badge">{{ globalIndex + 1 }}</span>
     <span class="kind-badge">{{ branchKey }}</span>
     <slot />
     <button type="button" @click="removeItem">
@@ -164,11 +167,11 @@ A repeatable choice renders through the `-choice-array` slot (here using its `de
 </template>
 ```
 
-`activeChoiceOccurrences` is grouped by branch declaration order, then by index within the branch, derived purely from the value tree; it is never global insertion order. Adding a "CRM export", then an "API endpoint", then a second "CRM export" always yields `[{ branchKey: 'crmExport', index: 0 }, { branchKey: 'crmExport', index: 1 }, { branchKey: 'apiEndpoint', index: 0 }]`, in that order, regardless of the order the add buttons were clicked. Treat the list as either order-agnostic or reflecting that grouped order; do not build UI that assumes it mirrors click order.
+`activeChoiceOccurrences` is grouped by branch declaration order, then by index within the branch, derived purely from the value tree; it is never global insertion order. Adding a "CRM export", then an "API endpoint", then a second "CRM export" always yields `[{ branchKey: 'crmExport', index: 0 }, { branchKey: 'crmExport', index: 1 }, { branchKey: 'apiEndpoint', index: 0 }]`, in that order, regardless of the order the add buttons were clicked. Treat the list as either order-agnostic or reflecting that grouped order; do not build UI that assumes it mirrors click order. `globalIndex` walks that same grouped list, so with the above additions the badges read `1, 2, 3` (CRM export, CRM export, API endpoint), not a per-branch-reset `1, 1, 2`.
 
 Adding an occurrence satisfies `xsd_choiceMinOccurs` immediately, the same way selecting a branch does for `maxOccurs: 1`: the act of adding is what counts, and the occurrence's own required fields enforce their own content separately. `xsd_choiceMinOccurs` counts in choice-occurrence units, not raw items: adding a second item of a `maxOccurs: 2` branch does not add a second occurrence toward the minimum, since both items together still consume only one shared slot.
 
-And here is the repeatable flow running. The docs template renders the per-branch Add buttons through `ChoiceArraySectionCard` (its `-choice-array` counterpart to `ChoiceSectionCard`) and wraps each active occurrence in a removable card via its `default-choice-array-item` slot. Each branch here is capped at 3 in total through `maxOccursTotal` (a non-XSD opt-in, see below), while the choice's shared XSD budget is 5, so an Add button disables at 3 of that kind or 5 in total, whichever comes first:
+And here is the repeatable flow running. The docs template renders the per-branch Add buttons through `ChoiceArraySectionCard` (its `-choice-array` counterpart to `ChoiceSectionCard`) and wraps each active occurrence in a removable card via its `default-choice-array-item` slot, with `RepeaterCard`'s existing numbered badge bound to `globalIndex` so the cards show a continuous 1, 2, 3 down the page instead of resetting per branch. Removing a card renumbers the survivors immediately, with no gap, since the badge is never stored. Each branch here is capped at 3 in total through `maxOccursTotal` (a non-XSD opt-in, see below), while the choice's shared XSD budget is 5, so an Add button disables at 3 of that kind or 5 in total, whichever comes first:
 
 <FormExampleChoiceExplicitRepeatable />
 
