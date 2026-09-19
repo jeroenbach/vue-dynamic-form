@@ -185,3 +185,33 @@ export function enableDisplayOrder<T>(metadata: T[], choicePath: string, mode: '
   visit(metadata as any[], segments);
   return metadata;
 }
+
+/**
+ * Patches fixture metadata to enable `preserveOrder` on the choice at `choicePath` (the choice's
+ * own `name`, e.g. `'pick'`). Centralises the flag surface (the `FieldMetadata` boolean
+ * `preserveOrder`) so tests do not hardcode a property name directly, mirroring
+ * `enablePreserveOnSwitch`/`enableDisplayOrder` field-for-field.
+ */
+export function enablePreserveOrder<T>(metadata: T[], choicePath: string, enabled: boolean = true): T[] {
+  const segments = choicePath.split('.');
+
+  function visit(nodes: any[] | undefined, remaining: string[]): void {
+    if (!nodes)
+      return;
+
+    const [head, ...rest] = remaining;
+    const node = nodes.find(n => n.name === head);
+    if (!node)
+      return;
+
+    if (rest.length === 0) {
+      node.preserveOrder = enabled;
+      return;
+    }
+
+    visit(node.children, rest);
+  }
+
+  visit(metadata as any[], segments);
+  return metadata;
+}

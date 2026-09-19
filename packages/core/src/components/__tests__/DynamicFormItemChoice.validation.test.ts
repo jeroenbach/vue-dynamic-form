@@ -3,7 +3,7 @@ import { configure } from 'vee-validate';
 import { afterEach, describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { setupState } from './DynamicFormItem.test-helpers';
-import { enablePreserveOnSwitch } from './DynamicFormItemChoice.test-helpers';
+import { canAddChoiceOccurrence, enablePreserveOnSwitch, enablePreserveOrder } from './DynamicFormItemChoice.test-helpers';
 
 describe('component DynamicFormItemChoice', () => {
   afterEach(() => {
@@ -746,6 +746,154 @@ describe('component DynamicFormItemChoice', () => {
         // ...but the occurrence's own required field still enforces its own content, once touched.
         expect(wrapper.find('[data-testid="pick.apiEndpoint[0].url-error-message"]').exists()).toBe(true);
         expect(wrapper.find('[data-testid="pick.apiEndpoint[0].token-error-message"]').exists()).toBe(false);
+      });
+
+      describe('preserveOrder', () => {
+        function objectBranchesMetadata() {
+          return [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            maxOccurs: 3,
+            fieldOptions: { label: 'Pick Several' },
+            choice: [
+              {
+                name: 'apiEndpoint',
+                maxOccurs: 2,
+                fieldOptions: { label: 'Api Endpoint' },
+                children: [
+                  { name: 'url', fieldOptions: { label: 'Url' } },
+                  { name: 'token', fieldOptions: { label: 'Token' } },
+                ],
+              },
+              {
+                name: 'crmExport',
+                maxOccurs: 2,
+                fieldOptions: { label: 'Crm Export' },
+                children: [{ name: 'system', fieldOptions: { label: 'System' } }],
+              },
+            ],
+          }];
+        }
+
+        it('the occurrence\'s own required field still validates independently once order is written into it', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: enablePreserveOrder(objectBranchesMetadata(), 'pick'),
+              settings: { messages: { choiceMinOccurs: 'Choice required' } },
+            },
+          });
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[id="pick.apiEndpoint[0].token"]').setValue('secret');
+          await wrapper.find('[data-testid="submit"]').trigger('click');
+          await flushPromises();
+
+          // Adding the order-bearing occurrence alone satisfies the choice-level minimum,
+          // exactly as it does without preserveOrder...
+          expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+          // ...but the occurrence's own required field still enforces its own content.
+          expect(wrapper.find('[data-testid="pick.apiEndpoint[0].url-error-message"]').exists()).toBe(true);
+          expect(wrapper.find('[data-testid="pick.apiEndpoint[0].token-error-message"]').exists()).toBe(false);
+        });
+
+        it('leaves canAddChoiceOccurrence and the choice-level error identical across an identical add/remove sequence, preserveOrder on vs off', async () => {
+          function metadata(preserveOrderOn: boolean) {
+            const base = objectBranchesMetadata();
+            return preserveOrderOn ? enablePreserveOrder(base, 'pick') : base;
+          }
+
+          async function runSequence(wrapper: ReturnType<typeof mount>) {
+            const observed: { canAdd: boolean, hasError: boolean }[] = [];
+            async function record() {
+              await wrapper.find('[data-testid="submit"]').trigger('click');
+              await flushPromises();
+              observed.push({
+                canAdd: canAddChoiceOccurrence(wrapper, 'pick', 'apiEndpoint'),
+                hasError: wrapper.find('[data-testid="pick-error-message"]').exists(),
+              });
+            }
+
+            await record();
+            await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await record();
+            await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await record();
+            await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+            await flushPromises();
+            await record();
+            return observed;
+          }
+
+          const withPreserveOrder = mount(TestForm, { attachTo: document.body, props: { metadata: metadata(true) } });
+          const withoutPreserveOrder = mount(TestForm, { attachTo: document.body, props: { metadata: metadata(false) } });
+          await flushPromises();
+
+          const withResults = await runSequence(withPreserveOrder);
+          const withoutResults = await runSequence(withoutPreserveOrder);
+
+          expect(withResults).toEqual(withoutResults);
+        });
+
+        it('marks the occurrence\'s own not-yet-filled required fields as required immediately, since writing order already satisfies checkTreeHasValue', async () => {
+          // Not byte-identical to the off case: writing `order` on push already makes the
+          // occurrence "have a value" for checkTreeHasValue, the same signal the validation
+          // semantics analysis already accepts flips valuesCount from 0 to 1 (Validation
+          // semantics of the persisted order field). That same signal also lifts the plain
+          // array-item relaxation that otherwise keeps an empty occurrence's own children
+          // optional until touched, so its required indicator appears one step earlier than
+          // without preserveOrder. This is not a defect; order is real submitted data by
+          // design, and xsd_choiceMinOccurs, the shared budget, and submit-time validation
+          // itself stay unaffected (see the tests above).
+          const withPreserveOrder = mount(TestForm, { attachTo: document.body, props: { metadata: enablePreserveOrder(objectBranchesMetadata(), 'pick') } });
+          const withoutPreserveOrder = mount(TestForm, { attachTo: document.body, props: { metadata: objectBranchesMetadata() } });
+          await flushPromises();
+
+          await withPreserveOrder.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await withoutPreserveOrder.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(withPreserveOrder.find('label[for="pick.apiEndpoint[0].url"]').text()).toContain('*');
+          expect(withoutPreserveOrder.find('label[for="pick.apiEndpoint[0].url"]').text()).not.toContain('*');
+        });
+
+        it('renders identical DOM (aside from render-count telemetry) to the preserveOrder-off case once each occurrence\'s own fields hold real data', async () => {
+          // Once a field is actually filled in, checkTreeHasValue is already true regardless of
+          // preserveOrder, so the required-indicator timing difference above cannot arise. The
+          // extra render each field took earlier (optional -> required, then filled) still shows
+          // up in the hidden analytics render-count telemetry, so that alone is stripped out
+          // before comparing; every other node, attribute and label is byte-identical, since
+          // order carries no slot prop and no DOM footprint of its own.
+          function withoutRenderCountTelemetry(html: string) {
+            return html.replace(/(data-testid="[^"]*-analytics-render-count">)\d+</g, '$1<');
+          }
+
+          async function runSequence(wrapper: ReturnType<typeof mount>) {
+            await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await wrapper.find('[id="pick.apiEndpoint[0].url"]').setValue('https://example.com');
+            await flushPromises();
+            await wrapper.find('[id="pick.apiEndpoint[0].token"]').setValue('secret');
+            await flushPromises();
+            await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await wrapper.find('[id="pick.crmExport[0].system"]').setValue('salesforce');
+            await flushPromises();
+          }
+
+          const withPreserveOrder = mount(TestForm, { attachTo: document.body, props: { metadata: enablePreserveOrder(objectBranchesMetadata(), 'pick') } });
+          const withoutPreserveOrder = mount(TestForm, { attachTo: document.body, props: { metadata: objectBranchesMetadata() } });
+          await flushPromises();
+
+          await runSequence(withPreserveOrder);
+          await runSequence(withoutPreserveOrder);
+
+          expect(withoutRenderCountTelemetry(withPreserveOrder.html())).toBe(withoutRenderCountTelemetry(withoutPreserveOrder.html()));
+        });
       });
     });
   });

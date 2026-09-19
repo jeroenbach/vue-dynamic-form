@@ -84,6 +84,12 @@ const preserveOnSwitch = props.fieldMetadata?.preserveOnSwitch === true;
 // renderedChoiceOccurrences below.
 const displayOrder = props.fieldMetadata?.displayOrder === 'added';
 
+// `preserveOrder` is likewise static metadata, captured once at setup for the same reason as
+// its siblings above: it is excluded from `ComputedPropsFieldType`, so this is defence in depth
+// against an `as any` cast, not a reachable runtime mutation. Flipping it mid-form would leave
+// existing occurrences with a stale or missing `order`.
+const preserveOrder = props.fieldMetadata?.preserveOrder === true;
+
 // vee-validate form context, used to clear a deselected branch's data on switch.
 // `DynamicFormItemChoice` is always a descendant of the `useForm()` call in `useDynamicForm`,
 // so a plain `useFormContext()` resolves it here (unlike the same-instance quirk
@@ -334,28 +340,36 @@ const activeChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
 
 // The list the `-choice-array-item` v-for actually renders. Equal to activeChoiceOccurrences
 // (same membership, same order) whenever displayOrder is not 'added': the falsy branch returns
-// early without reading insertionOrders, so it introduces no extra reactive dependency and stays
-// byte-identical to the pre-existing behaviour. When displayOrder is 'added', occurrences with no
-// insertionOrder entry (loaded, pre-existing data) sort first, in their grouped order, followed by
-// occurrences that do have one, ascending by that value: a deterministic two-key comparator that
-// never compares undefined numerically, so no NaN/implementation-defined ordering can occur for a
-// mixed loaded-and-added set.
+// early without reading insertionOrders/values, so it introduces no extra reactive dependency
+// and stays byte-identical to the pre-existing behaviour. When displayOrder is 'added',
+// occurrences with no sort key (loaded, pre-existing data with nothing to sort by) sort first, in
+// their grouped order, followed by occurrences that do have one, ascending by that value: a
+// deterministic two-key comparator that never compares undefined numerically, so no
+// NaN/implementation-defined ordering can occur for a mixed loaded-and-added set. The sort key
+// itself is tier-dependent: the persisted `order` value when preserveOrder is on (it lives in
+// `values` and survives a remount), the ephemeral `insertionOrder` otherwise.
 const renderedChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
   _analytics_renderedChoiceOccurrencesCalculatedCount++;
 
   if (!displayOrder)
     return activeChoiceOccurrences.value;
 
+  function sortKeyFor(occurrence: ChoiceOccurrence): number | undefined {
+    if (preserveOrder)
+      return (occurrenceValue(occurrence) as { order?: number } | null)?.order;
+    return insertionOrders.value.get(occurrenceKey(occurrence));
+  }
+
   return activeChoiceOccurrences.value
-    .map(occurrence => ({ occurrence, insertionOrder: insertionOrders.value.get(occurrenceKey(occurrence)) }))
+    .map(occurrence => ({ occurrence, sortKey: sortKeyFor(occurrence) }))
     .sort((a, b) => {
-      const aAdded = a.insertionOrder !== undefined;
-      const bAdded = b.insertionOrder !== undefined;
+      const aAdded = a.sortKey !== undefined;
+      const bAdded = b.sortKey !== undefined;
       if (aAdded !== bAdded)
         return aAdded ? 1 : -1;
       if (!aAdded)
-        return 0; // both loaded: keep grouped (activeChoiceOccurrences) order, sort is stable
-      return a.insertionOrder! - b.insertionOrder!;
+        return 0; // both loaded/no key: keep grouped (activeChoiceOccurrences) order, sort is stable
+      return a.sortKey! - b.sortKey!;
     })
     .map(entry => entry.occurrence);
 });
@@ -601,7 +615,24 @@ function addChoiceOccurrence(branchKey: string) {
     // than lazily while iterating the grouped activeChoiceOccurrences list: that list is grouped
     // by branch, so a lazy assignment would encode grouped order, not press order.
     const newOccurrenceIndex = branchFieldArrays[index]?.fields.value.length ?? 0;
-    branchFieldArrays[index]?.push(null); // empty placeholder
+
+    // The shared, cross-branch count before this push: every existing occurrence (any branch,
+    // any shape) already counts structurally, so a scalar-leaf placeholder pushed earlier still
+    // consumes a number even though it never receives an `order` field itself.
+    const activeCountBeforePush = activeChoiceOccurrences.value.length;
+
+    if (preserveOrder && branchHasObjectOccurrences(branchKey)) {
+      // Seeded directly in the push, not a separate write afterward: the field-array entry is
+      // born already holding `order`, so there is no null-to-object transition to observe.
+      branchFieldArrays[index]?.push({ order: activeCountBeforePush + 1 });
+    }
+    else {
+      if (preserveOrder && import.meta.env.DEV) {
+        console.warn(`[vue-dynamic-form] preserveOrder has no effect on choice branch "${branchKey}": its occurrences have no children, so there is nowhere to attach an "order" field. Add "children" to this branch to opt it into preserveOrder.`);
+      }
+      branchFieldArrays[index]?.push(null); // empty placeholder
+    }
+
     insertionOrders.value.set(occurrenceKey({ branchKey, index: newOccurrenceIndex }), ++insertionCounter);
     return;
   }
@@ -637,6 +668,10 @@ function removeChoiceOccurrence(branchKey: string, index?: number) {
       return; // out-of-range: no-op, no throw
 
     branchFieldArrays[branchIdx]?.remove(index);
+
+    if (preserveOrder)
+      compactOrder();
+
     return;
   }
 
@@ -718,6 +753,72 @@ function occurrencePathOverride(occurrence: ChoiceOccurrence): string {
   return `${branchPaths[branchIndexOf(occurrence.branchKey)].value}[${occurrence.index}]`;
 }
 
+/**
+ * Whether a branch's own occurrences are object-shaped (the branch declares `children`), the
+ * only shape `preserveOrder` can attach an `order` field to. A scalar-leaf branch (e.g.
+ * `type: 'text'`) has no home for it. Only ever called with a branchKey already known to exist
+ * (validated by the caller, exactly like `rawOccurrenceKey` below), so `branchByKey` is trusted
+ * to resolve.
+ */
+function branchHasObjectOccurrences(branchKey: string): boolean {
+  return (branchByKey(branchKey)!.children?.length ?? 0) > 0;
+}
+
+/** The occurrence's own current value, read directly off its branch's field array. */
+function occurrenceValue(occurrence: ChoiceOccurrence): unknown {
+  return branchFieldArrayFor(occurrence.branchKey).fields.value[occurrence.index].value;
+}
+
+/**
+ * Re-ranks every surviving object-shaped occurrence's `order` to a contiguous 1..N sequence
+ * after a removal. Ranked by each survivor's own *current* `order` value, not by its
+ * grouped position, so a legacy set with gaps or duplicates still produces a deterministic
+ * result and self-heals to contiguous 1..N here. Only a survivor whose rank actually changed is
+ * written, keeping the write count bounded by how many occurrences really moved (worst case
+ * N-1). Scalar-leaf occurrences are excluded from both the ranking and the write, for the same
+ * reason `addChoiceOccurrence` skips them: writing `order` onto a scalar value would silently
+ * turn it into an object. Every remaining, object-shaped occurrence is guaranteed a numeric
+ * `order` by this point (written on push or by the mount-time backfill below), so no missing-
+ * value fallback is needed in the sort.
+ */
+function compactOrder() {
+  const survivors = activeChoiceOccurrences.value
+    .filter(occurrence => branchHasObjectOccurrences(occurrence.branchKey))
+    .map(occurrence => ({ occurrence, order: (occurrenceValue(occurrence) as { order: number }).order }))
+    .sort((a, b) => a.order - b.order);
+
+  survivors.forEach(({ occurrence, order }, position) => {
+    const newRank = position + 1;
+    if (order === newRank)
+      return;
+
+    formContext?.setFieldValue(`${occurrencePathOverride(occurrence)}.order` as any, newRank, false);
+  });
+}
+
+/**
+ * One-time migration for occurrences already present when the form mounts (loaded or
+ * previously saved data): any object-shaped occurrence missing `order` is backfilled from its
+ * current grouped position, so the add-time counter and the 'added' sort always see a
+ * contiguous 1..N sequence, even for data that predates this feature. An occurrence that
+ * already carries a numeric `order` is trusted as-is and never touched here, even if that value
+ * is non-contiguous or duplicated; such a set is only sorted, and self-heals to contiguous 1..N
+ * on the next removal via compactOrder above. Scalar-leaf occurrences are skipped, for the same
+ * reason addChoiceOccurrence/compactOrder skip them.
+ */
+function backfillMissingOrder() {
+  activeChoiceOccurrences.value.forEach((occurrence, position) => {
+    if (!branchHasObjectOccurrences(occurrence.branchKey))
+      return;
+
+    const currentOrder = (occurrenceValue(occurrence) as { order?: number } | null)?.order;
+    if (currentOrder !== undefined)
+      return;
+
+    formContext?.setFieldValue(`${occurrencePathOverride(occurrence)}.order` as any, position + 1, false);
+  });
+}
+
 // Memoized per-occurrence remove-item handlers, keyed by the same namespaced key used for
 // the Vue :key (occurrenceKey). Vue's v-for regenerates every item's inline bindings whenever the
 // list itself changes (an occurrence is added/removed anywhere in the choice), so a plain inline
@@ -745,6 +846,11 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
   occurrenceRemoveHandlers.set(mapKey, handler);
   return handler;
 }
+
+// Runs once, synchronously during setup: before the template mounts and any add-press this
+// session can occur, so the backfill always sees only mount-time (loaded) data.
+if (preserveOrder && explicitChoiceSelection && maxOccurs.value > 1)
+  backfillMissingOrder();
 
 // #endregion
 </script>

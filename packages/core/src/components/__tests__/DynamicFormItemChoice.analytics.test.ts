@@ -1,8 +1,9 @@
+import type { Metadata } from '@/examples/TestFormTemplate.vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
-import { renderCount } from './DynamicFormItem.test-helpers';
-import { enableDisplayOrder, enablePreserveOnSwitch, occurrenceGlobalIndex, setupState } from './DynamicFormItemChoice.test-helpers';
+import { formValues, renderCount } from './DynamicFormItem.test-helpers';
+import { enableDisplayOrder, enablePreserveOnSwitch, enablePreserveOrder, occurrenceGlobalIndex, setupState } from './DynamicFormItemChoice.test-helpers';
 
 function mountExplicitChoiceWithSibling() {
   return mount(TestForm, {
@@ -445,6 +446,248 @@ describe('component DynamicFormItemChoice - analytics', () => {
         await flushPromises();
 
         expect(setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount).toBe(countBeforeSibling);
+      });
+    });
+
+    describe('preserveOrder — render counts', () => {
+      function objectBranchesMetadata(): Metadata[] {
+        return [
+          { name: 'sibling', fieldOptions: { label: 'Sibling' } },
+          {
+            name: 'pick',
+            explicitChoiceSelection: true,
+            maxOccurs: 5,
+            fieldOptions: { label: 'Pick Several' },
+            choice: [
+              {
+                name: 'apiEndpoint',
+                maxOccurs: 3,
+                fieldOptions: { label: 'Api Endpoint' },
+                children: [{ name: 'url', type: 'text', fieldOptions: { label: 'URL' } }],
+              },
+              {
+                name: 'crmExport',
+                maxOccurs: 3,
+                fieldOptions: { label: 'Crm Export' },
+                children: [{ name: 'system', type: 'text', fieldOptions: { label: 'System' } }],
+              },
+            ],
+          },
+        ];
+      }
+
+      function mountPreserveOrderRepeatableChoiceWithSibling(extraProps: Record<string, any> = {}) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: enablePreserveOrder(objectBranchesMetadata(), 'pick'),
+            ...extraProps,
+          },
+        });
+      }
+
+      it('settles the add-time order write in the occurrence\'s own first render, for both branches and a later occurrence', async () => {
+        const wrapper = mountPreserveOrderRepeatableChoiceWithSibling();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(renderCount(wrapper, 'pick.apiEndpoint[0]')).toBe(1);
+        // No further interaction: the written value is stable, not corrected on a later tick.
+        await flushPromises();
+        expect(renderCount(wrapper, 'pick.apiEndpoint[0]')).toBe(1);
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(renderCount(wrapper, 'pick.crmExport[0]')).toBe(1);
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(renderCount(wrapper, 'pick.apiEndpoint[1]')).toBe(1);
+      });
+
+      it('adds no render overhead of its own on removal: every survivor\'s render-count delta matches the preserveOrder-off baseline exactly', async () => {
+        // The choice already re-renders every surviving occurrence by a bounded amount on any
+        // removal (globalIndex/slotProps recompute), independent of preserveOrder. The claim
+        // this pins is narrower and stronger than "bounded": compacting order rides along on
+        // that existing re-render for free, adding zero renders of its own, for every survivor,
+        // including the one whose own order and path are both untouched by the removal.
+        async function addFour(wrapper: ReturnType<typeof mount>) {
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+        }
+
+        function survivorCounts(wrapper: ReturnType<typeof mount>) {
+          return {
+            apiEndpoint0: renderCount(wrapper, 'pick.apiEndpoint[0]'),
+            apiEndpoint1: renderCount(wrapper, 'pick.apiEndpoint[1]'),
+            crmExport1: renderCount(wrapper, 'pick.crmExport[1]'),
+          };
+        }
+
+        const withPreserveOrder = mountPreserveOrderRepeatableChoiceWithSibling();
+        const withoutPreserveOrder = mount(TestForm, { attachTo: document.body, props: { metadata: objectBranchesMetadata() } });
+        await flushPromises();
+
+        await addFour(withPreserveOrder);
+        await addFour(withoutPreserveOrder);
+
+        // apiEndpoint[0]=order 1 (unaffected rank), apiEndpoint[1]=order 3 -> 2, crmExport[1]=order
+        // 4 -> 3 (reindexes to crmExport[0] once crmExport[0]=order 2 is removed).
+        const beforeOn = survivorCounts(withPreserveOrder);
+        const beforeOff = survivorCounts(withoutPreserveOrder);
+        const survivorElementOn = withPreserveOrder.find('[data-testid="pick.crmExport[1]-kind-badge"]').element;
+
+        await withPreserveOrder.find('[data-testid="pick.crmExport[0]-remove-choice-button"]').trigger('click');
+        await withoutPreserveOrder.find('[data-testid="pick.crmExport[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        const afterOn = {
+          apiEndpoint0: renderCount(withPreserveOrder, 'pick.apiEndpoint[0]'),
+          apiEndpoint1: renderCount(withPreserveOrder, 'pick.apiEndpoint[1]'),
+          crmExport0: renderCount(withPreserveOrder, 'pick.crmExport[0]'),
+        };
+        const afterOff = {
+          apiEndpoint0: renderCount(withoutPreserveOrder, 'pick.apiEndpoint[0]'),
+          apiEndpoint1: renderCount(withoutPreserveOrder, 'pick.apiEndpoint[1]'),
+          crmExport0: renderCount(withoutPreserveOrder, 'pick.crmExport[0]'),
+        };
+
+        expect(afterOn.apiEndpoint0 - beforeOn.apiEndpoint0).toBe(afterOff.apiEndpoint0 - beforeOff.apiEndpoint0);
+        expect(afterOn.apiEndpoint1 - beforeOn.apiEndpoint1).toBe(afterOff.apiEndpoint1 - beforeOff.apiEndpoint1);
+        expect(afterOn.crmExport0 - beforeOn.crmExport1).toBe(afterOff.crmExport0 - beforeOff.crmExport1);
+        // The reindexed occurrence (crmExport[1] -> crmExport[0]) is not remounted despite both
+        // the path reindex and the order-compaction write landing on it in the same operation.
+        expect(withPreserveOrder.find('[data-testid="pick.crmExport[0]-kind-badge"]').element).toBe(survivorElementOn);
+
+        expect(formValues(withPreserveOrder).pick.apiEndpoint[0].order).toBe(1);
+        expect(formValues(withPreserveOrder).pick.apiEndpoint[1].order).toBe(2);
+        expect(formValues(withPreserveOrder).pick.crmExport[0].order).toBe(3);
+      });
+
+      it('adds no render overhead of its own when the removal reindexes the changed occurrence itself (worst case: every survivor\'s order changes)', async () => {
+        const withPreserveOrder = mountPreserveOrderRepeatableChoiceWithSibling();
+        const withoutPreserveOrder = mount(TestForm, { attachTo: document.body, props: { metadata: objectBranchesMetadata() } });
+        await flushPromises();
+
+        async function addFour(wrapper: ReturnType<typeof mount>) {
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+        }
+
+        await addFour(withPreserveOrder);
+        await addFour(withoutPreserveOrder);
+
+        // Removing apiEndpoint[0] (order 1) shifts every survivor's rank: crmExport[0]
+        // (order 2 -> 1), apiEndpoint[1] -> apiEndpoint[0] (order 3 -> 2), crmExport[1]
+        // (order 4 -> 3). The worst case named in the architecture's Data flow section.
+        const beforeOn = {
+          crmExport0: renderCount(withPreserveOrder, 'pick.crmExport[0]'),
+          apiEndpoint1: renderCount(withPreserveOrder, 'pick.apiEndpoint[1]'),
+          crmExport1: renderCount(withPreserveOrder, 'pick.crmExport[1]'),
+        };
+        const beforeOff = {
+          crmExport0: renderCount(withoutPreserveOrder, 'pick.crmExport[0]'),
+          apiEndpoint1: renderCount(withoutPreserveOrder, 'pick.apiEndpoint[1]'),
+          crmExport1: renderCount(withoutPreserveOrder, 'pick.crmExport[1]'),
+        };
+        const survivorElementOn = withPreserveOrder.find('[data-testid="pick.apiEndpoint[1]-kind-badge"]').element;
+
+        await withPreserveOrder.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await withoutPreserveOrder.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        const afterOn = {
+          crmExport0: renderCount(withPreserveOrder, 'pick.crmExport[0]'),
+          apiEndpoint0: renderCount(withPreserveOrder, 'pick.apiEndpoint[0]'),
+          crmExport1: renderCount(withPreserveOrder, 'pick.crmExport[1]'),
+        };
+        const afterOff = {
+          crmExport0: renderCount(withoutPreserveOrder, 'pick.crmExport[0]'),
+          apiEndpoint0: renderCount(withoutPreserveOrder, 'pick.apiEndpoint[0]'),
+          crmExport1: renderCount(withoutPreserveOrder, 'pick.crmExport[1]'),
+        };
+
+        expect(afterOn.crmExport0 - beforeOn.crmExport0).toBe(afterOff.crmExport0 - beforeOff.crmExport0);
+        expect(afterOn.apiEndpoint0 - beforeOn.apiEndpoint1).toBe(afterOff.apiEndpoint0 - beforeOff.apiEndpoint1);
+        expect(afterOn.crmExport1 - beforeOn.crmExport1).toBe(afterOff.crmExport1 - beforeOff.crmExport1);
+        expect(withPreserveOrder.find('[data-testid="pick.apiEndpoint[0]-kind-badge"]').element).toBe(survivorElementOn);
+
+        expect(formValues(withPreserveOrder).pick.crmExport[0].order).toBe(1);
+        expect(formValues(withPreserveOrder).pick.apiEndpoint[0].order).toBe(2);
+        expect(formValues(withPreserveOrder).pick.crmExport[1].order).toBe(3);
+      });
+
+      it('the mount-time backfill adds no extra render: every occurrence mounts at its normal baseline count whether it was already carrying order or was backfilled', async () => {
+        const wrapper = mountPreserveOrderRepeatableChoiceWithSibling({
+          initialValues: {
+            pick: {
+              apiEndpoint: [{ url: 'a', order: 1 }, { url: 'b' }],
+              crmExport: [{ system: 'c' }],
+            },
+          },
+        });
+        await flushPromises();
+
+        expect(renderCount(wrapper, 'pick.apiEndpoint[0]')).toBe(1);
+        expect(renderCount(wrapper, 'pick.apiEndpoint[1]')).toBe(1);
+        expect(renderCount(wrapper, 'pick.crmExport[0]')).toBe(1);
+
+        expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(2);
+        expect(formValues(wrapper).pick.crmExport[0].order).toBe(3);
+      });
+
+      it('does not re-render a sibling field outside the choice from an order write, compaction, or backfill', async () => {
+        const wrapper = mountPreserveOrderRepeatableChoiceWithSibling({
+          initialValues: {
+            pick: {
+              apiEndpoint: [{ url: 'a' }],
+            },
+          },
+        });
+        await flushPromises();
+        const siblingCountBefore = renderCount(wrapper, 'sibling');
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(renderCount(wrapper, 'sibling')).toBe(siblingCountBefore);
+      });
+
+      it('leaves the existing activeChoiceOccurrences/occurrences/renderedChoiceOccurrences recompute contracts unchanged', async () => {
+        const wrapper = mountPreserveOrderRepeatableChoiceWithSibling();
+        await flushPromises();
+
+        const activeBefore = setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount;
+        const renderedBefore = setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount;
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount).toBe(activeBefore + 1);
+        expect(setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount).toBe(renderedBefore + 1);
+
+        const activeAfterAdd = setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount;
+        const renderedAfterAdd = setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount;
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount).toBe(activeAfterAdd + 1);
+        expect(setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount).toBe(renderedAfterAdd + 1);
       });
     });
   });

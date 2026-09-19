@@ -2,7 +2,7 @@
 id: ST-03
 type: story
 feature: FEAT-002
-status: approved
+status: done
 created: 2026-09-17
 approved_by: Jeroen
 pr: ""
@@ -243,3 +243,127 @@ Verification done against the actual code, not only the prose: `DynamicFormItemC
 ### Status rationale
 
 No blockers, no Open questions of its own. Every acceptance criterion is testable and maps to a concrete assertion against helpers/fixtures that exist or are additively extended, and the load-bearing arithmetic (cross-branch add-counter, compaction ranks, order-only-placeholder validation neutrality) checks out against the code and against `removeNullValues`. Nothing contradicts the approved feature's DECIDED entries (Q4, Q6, AR-2, AR-4, ADR-3) or its slicing; the one genuine gap (legacy non-contiguous/duplicate `order`) is an under-specification outside the decided scope, resolved with a routed `PROPOSED` edit that stays inside feature finding 2's scope and names the feature-amending alternative for Jeroen. Both should-fixes are routed as `PROPOSED (adversarial review)` edits, so neither independently forces discussion. Per `specs/README.md` this lands in `awaiting-approval`.
+
+## Implementation notes
+
+Implemented as specified in the architecture reference, including both routed `PROPOSED (adversarial review)` edits (the legacy non-contiguous/duplicate `order` edge case, and the "every add-press warns, no dedup" reading of AC8):
+
+- `FieldMetadata.preserveOrder?: boolean` added next to `displayOrder`, and added to the `ComputedPropsFieldType` `Omit` list alongside its siblings.
+- `DynamicFormItemChoice.vue`: a static `const preserveOrder = props.fieldMetadata?.preserveOrder === true` capture. `addChoiceOccurrence`'s `maxOccurs > 1` branch now snapshots `activeChoiceOccurrences.value.length` before `push`, and when `preserveOrder` is on and the target branch is object-shaped (declares `children`), pushes `{ order: activeCountBeforePush + 1 }` directly (no separate write after push); a scalar-leaf branch instead pushes the plain `null` placeholder unchanged and logs a dev-mode `console.warn` naming the branch (`import.meta.env.DEV`-gated, so it compiles away in a production build). `removeChoiceOccurrence`'s `maxOccurs > 1` branch calls a new `compactOrder()` after `remove(index)` when `preserveOrder` is on: it collects every surviving *object-shaped* occurrence (scalar-leaf survivors excluded, so a scalar placeholder is never coerced into an object), ranks them by their own current `order`, and rewrites only the ones whose rank actually changed via `setFieldValue(path.order, n, false)`. A new `backfillMissingOrder()` runs once, synchronously, at the end of setup (gated on `preserveOrder && explicitChoiceSelection && maxOccurs.value > 1`, before the template's first render and therefore before any add-press can occur): for every occurrence in `activeChoiceOccurrences` missing `order`, it backfills from that occurrence's grouped position; an occurrence that already carries a numeric `order` is left untouched, even if non-contiguous or duplicated. `renderedChoiceOccurrences` (ST-02) now computes its sort key via a `sortKeyFor()` closure: the occurrence's own `order` value when `preserveOrder` is on, the ephemeral `insertionOrders` map otherwise; the two-key missing-first comparator itself is unchanged. Two small helpers, `branchHasObjectOccurrences(branchKey)` and `occurrenceValue(occurrence)`, back all three call sites; both are written unguarded (non-null assertions, no defensive `?.` fallback) mirroring the file's own `rawOccurrenceKey`/`occurrenceKey` precedent ("only ever called with a real occurrence ... no defensive fallback needed"), since every call site already validates its `branchKey`/`occurrence` before calling. `compactOrder`'s sort compares `order` directly (no `?? Infinity` fallback) since every object-shaped survivor is guaranteed a numeric `order` by that point.
+- No `DynamicFormTemplate.vue`, `DynamicFormItemProps.ts`, or slot-prop change: `order` is a plain field inside the occurrence's own value object, read like any other declared child field, per the architecture's "no new slot prop" decision.
+
+Test harness: `DynamicFormItemChoice.test-helpers.ts` gained `enablePreserveOrder`, mirroring `enablePreserveOnSwitch`/`enableDisplayOrder` field-for-field. No `TestFormTemplate.vue` change, per the QA plan. Three new `describe` blocks were added: `'preserveOrder'` in `DynamicFormItemChoice.logic.test.ts` (16 tests, including nested backfill/scalar-branch/static-capture/edge-case groups), `'preserveOrder'` in `DynamicFormItemChoice.validation.test.ts` (5 tests), and `'preserveOrder — render counts'` in `DynamicFormItemChoice.analytics.test.ts` (6 tests). Per the task's naming rule, no test/describe name references a story, feature, or finding ID; the story's own AC numbers are only used in this notes section, never in code or test names.
+
+Deviations from the QA plan, recorded here per CLAUDE.md:
+
+1. **DECIDED (research, 2026-09-19): the AC7 companion's "byte-identical HTML whether `preserveOrder` is on or off" claim does not hold for an object-shaped branch's own not-yet-filled fields, and the shipped test suite corrects it rather than transcribing it.** Writing `order` on push makes `checkTreeHasValue` true for the occurrence immediately (the same signal the feature's own Validation semantics section already accepts flips `valuesCount` from 0 to 1). `DynamicFormItem.vue`'s pre-existing array-item relaxation (`_minOccursOverride`, lines 235-250) uses that identical signal to decide whether an occurrence's own declared children are still optional: with `preserveOrder` on, an occurrence's children are marked required (and, once touched/submitted, validated) one step earlier than without it, because the occurrence already "has a value" via `order` alone. This is an accepted, natural consequence of Q4's "order is real submitted data," not a defect, and the feature's own reasoning already implies it; the QA plan's specific "byte-identical html" phrasing was the one artifact that hadn't traced this second consumer of `checkTreeHasValue`. Resolved on ladder rung 1 (the approved feature spec's own Validation semantics section), not something needing Jeroen: it changes no validation outcome, no occurrence-budget outcome, and no public API. Shipped instead: a dedicated test (`'marks the occurrence's own not-yet-filled required fields as required immediately...'` in `.validation.test.ts`) that documents and directly asserts the real difference, plus a corrected DOM-identity test that strips the (also legitimately different, for the same reason) hidden analytics render-count telemetry before comparing, since that is the only other place the timing difference is observable. `xsd_choiceMinOccurs`, the shared occurrence budget, and submit-time validation outcomes remain byte-identical on vs off, per the AC7 parity test.
+2. **The `.analytics.test.ts` compaction/backfill tests pin stronger, measured claims instead of the QA plan's predicted "+1 bounded render for a changed/backfilled occurrence, 0 for an unchanged one."** Empirically verified (by direct instrumentation before writing the assertions): every occurrence in a repeatable choice already re-renders by the same small, pre-existing bounded amount on any add or remove regardless of `preserveOrder` (an existing characteristic of `globalIndex`/`slotProps` forwarding to every sibling, true before this story), so an *unaffected* survivor's render count is not literally unchanged, it moves in lockstep with the `preserveOrder`-off baseline. Separately, `backfillMissingOrder()` runs inside `DynamicFormItemChoice`'s own `setup()`, before any occurrence's `DynamicFormItem` is created, so every occurrence (whether backfilled or already carrying `order`) mounts at its plain baseline render count with zero extra render, not a bounded `+1`. The shipped tests instead assert the true, stronger properties directly: compacting `order` on removal adds zero render overhead of its own beyond the existing `preserveOrder`-off baseline (an exact on/off parity comparison, covering both "not every survivor's rank changes" and the worst-case "every survivor's rank changes" scenarios, both with DOM-identity checks), and the mount-time backfill adds zero extra render for every occurrence. Both are strictly stronger than what the QA plan predicted, not a weaker substitute.
+3. **A "backfill skips a scalar-leaf occurrence already present at mount" test was added beyond the QA plan's explicit list**, to exercise `backfillMissingOrder`'s own scalar-skip branch directly (a mixed-branch choice with one scalar occurrence and one missing-`order` object occurrence already in `initialValues`), rather than relying only on the AC8/edge-case scalar coverage, which never mounts with pre-existing scalar occurrences under `preserveOrder`. Found while confirming coverage did not regress; the extra test doubles as the direct proof that a legacy scalar occurrence is left completely untouched by backfill, not merely by the add-time write path.
+
+Coverage: `pnpm -r run ci:test:coverage` (from the repo root) after this story: `packages/core` at 97.1% stmts / 93.03% branch / 95.5% funcs / 97.1% lines, all files. Baseline (ST-02's committed state): 97.03% stmts / 92.91% branch / 95.23% funcs / 97.03% lines. Every metric is at or above baseline. `DynamicFormItemChoice.vue` itself moved from 100/90.52/100/100 to 100/91.25/100/100 (branch coverage improved, others held at 100%). `packages/core` test count: 557 -> 583 (+26: 105 -> 121 in `.logic.test.ts`, 40 -> 44 in `.validation.test.ts`, 22 -> 28 in `.analytics.test.ts`). `pnpm -r run ci` (test + lint + typecheck) is green for both `packages/core` and `packages/element-plus`. No `docs/` change in this slice (engine-only, per the story's own "Design reference"/"Out of scope" notes: the docs/toolbar slice is ST-05), so `pnpm docs:build` was not required, and no screenshots were taken (no visual/UI change; the manual verification checklist requires none beyond the one-time production build spot-check below).
+
+Manual verification checklist: ran `pnpm build` and grepped the emitted `packages/core/dist/vue-dynamic-form.es.js` for the `console.warn` string; it is absent from the production bundle, confirming the `import.meta.env.DEV` guard compiles away as intended.
+
+Changeset: `.changeset/orange-pumas-preserve-order.md`, `minor`, this story's own entry per the architecture reference.
+
+`specs/components.md` updated: the `DynamicFormItemChoice` row now documents `preserveOrder`'s write/compaction/backfill/scalar-no-op behaviour and the tier-dependent `renderedChoiceOccurrences` sort key; a new `FieldMetadata.preserveOrder` paragraph was added next to `displayOrder`.
+
+Verification: run `pnpm -r run ci` and `pnpm -r run ci:test:coverage` from the repo root, or scoped to this story with `cd packages/core && npx vitest run src/components/__tests__/DynamicFormItemChoice.logic.test.ts src/components/__tests__/DynamicFormItemChoice.validation.test.ts src/components/__tests__/DynamicFormItemChoice.analytics.test.ts`.
+
+## Verification report
+
+Filled by qa-verifier (2026-09-19).
+
+### Pipeline
+
+- `pnpm -r run ci` (test + lint + typecheck, both `packages/core` and `packages/element-plus`): green once `packages/core/dist` was rebuilt (`pnpm --filter @bach.software/vue-dynamic-form run build`). The sandbox's `packages/core/dist` was stale relative to `src/` when this pass started, which made `packages/element-plus`'s `vue-tsc --noEmit` fail with `TS7016: Could not find a declaration file`; confirmed via `git stash` that the identical failure reproduces against the pre-story commit too, so this is a pre-existing environment/staleness issue, not a regression introduced by this story. After rebuilding, both packages are clean: `packages/core` 23 test files / 583 tests passed, eslint clean, `vue-tsc --noEmit` clean (exercises AC9's `@ts-expect-error` type-level check); `packages/element-plus` 1 test passed, lint and typecheck clean.
+- `pnpm -r run ci:test:coverage`: `packages/core` at 97.1% stmts / 93.04% branch / 95.5% funcs / 97.1% lines. Baseline (ST-02's committed state, `5dea998`): 97.03% stmts / 92.91% branch / 95.23% funcs / 97.03% lines. Every metric is at or above baseline; no drop.
+- No `docs/` files changed in this diff (`git diff --stat` confirmed no `docs/` entries), so `pnpm docs:build` was correctly not run.
+
+### Acceptance criteria
+
+| # | Criterion | Verdict | Evidence |
+| --- | --- | --- | --- |
+| 1 | `preserveOrder: true` writes `order` on add, `push({order})` not a separate write | Pass | `.logic.test.ts`, `'writes order on add, seeded directly in the push and counted across the whole choice'`: cross-branch counter proven (`apiEndpoint[0]=1, crmExport[0]=2, apiEndpoint[1]=3`), value stable across a second `flushPromises()`. Mechanism-level claim tested at outcome level only, as the story's own Flags for reviewer accepts |
+| 2 | Compaction on removal keeps `order` contiguous (Q6) | Pass | `'compacts survivors to a contiguous order on removal, and the next add continues from the survivor count'`: 4 occurrences `1,2,3,4`, remove `order:2`, survivors compact to `1,2,3`, next add gets `4`; `shouldValidate:false` asserted indirectly via the still-empty survivor's own error message staying absent |
+| 3 | Mount-time backfill for occurrences loaded without `order` (AR-2) | Pass | `describe('mount-time backfill for legacy data missing order')`, all three variants (all-missing, selectively-missing, zero-missing) plus a scalar-skip-at-mount test and the routed non-contiguous/duplicate-legacy edge case, all passing with matching values |
+| 4 | Render sort uses `order` (not `insertionOrder`) when `preserveOrder` is on, survives remount | Pass | `'sorts the render list by order, not insertionOrder, and the sort survives a remount'`: interleaved sequence reproduced on a fresh instance with no add-press (`insertionOrder` would be `undefined` there) |
+| 5 | Persistence orthogonal to display | Pass | `'writes and compacts order even when display stays grouped, proving persistence and display are independent'`: `order` written in press order while `renderedChoiceOccurrences` stays grouped |
+| 6 | `order` is real submitted data (Q4), kept by `removeNullValues` | Pass | `'is real submitted data: present alongside declared fields, kept by removeNullValues, and present after submit'` |
+| 7 | `xsd_choiceMinOccurs`/shared budget unaffected by `order`, byte-identical on vs off | Pass | `.validation.test.ts`: own-field-still-validates test, plus the `canAddChoiceOccurrence`/error-presence byte-identical on/off sequence comparison. Confirmed directly against `DynamicFormItemChoice.vue`: `effectiveValuesCount = Math.max(valuesCount, usedChoiceOccurrences)` and `activeChoiceOccurrences` counts every field-array entry structurally regardless of `order`, so an order-only placeholder cannot satisfy `minOccurs` on its own beyond what a plain empty placeholder already does |
+| 8 | Scalar-leaf branch no-op + dev warn, no dedup | Pass | `describe('scalar-leaf branch is a no-op with a dev warning')` and the scalar-only-choice edge case (3 add-presses, `warn` called exactly 3 times, no dedup) |
+| 9 | `preserveOrder` static, read once at setup | Pass | Runtime `computedProps` mutation test plus `@ts-expect-error` type-level test, both passing; `ComputedPropsFieldType` `Omit` list includes `'preserveOrder'` |
+
+Edge cases: no-op removal does not run compaction (pass); scalar-only choice never shows an `order` key anywhere and warns every add-press (pass); `maxOccurs:1` no-op confirmed byte-identical HTML with flag on vs off (pass).
+
+### Prototype / design comparison
+
+Engine-only story, no DOM/slot-prop change of its own (confirmed: no `DynamicFormTemplate.vue`/`DynamicFormItemProps.ts` diff). States policy correctly claims no new rendered states beyond the "misconfigured" scalar-leaf `console.warn` path, which has no visual form. No screenshots required; none taken. No `docs/` change, so no VitePress color-mode/responsive check applies. Reload/values-JSON/toolbar anchors (`#ordering-preserve`, `#ordering-values`, `#ordering-removal`, `#reload-behavior`) are correctly deferred to ST-05.
+
+### Process compliance
+
+- `specs/components.md`: updated correctly. `DynamicFormItemChoice` row documents the write/compaction/backfill/scalar-no-op behaviour and the tier-dependent sort key; a new `FieldMetadata.preserveOrder` paragraph was added next to `displayOrder`. Matches what shipped.
+- Changeset: `.changeset/orange-pumas-preserve-order.md` present, `minor`, matching the architecture's semver analysis (additive optional `FieldMetadata.preserveOrder`, no removed/renamed/re-signatured export).
+- Library API rules: `preserveOrder` is camelCase, added through the existing `FieldMetadata`/`ComputedPropsFieldType`-exclusion channel; no new slot prop, no new `DynamicFormSettings` surface, no new export in `packages/core/src/index.ts` (confirmed empty diff there). Compliant.
+- Architecture fidelity: matches the architecture reference and both accepted routed `PROPOSED (adversarial review)` edits (legacy non-contiguous/duplicate `order` trusted-and-sorted behaviour; "every add-press warns, no dedup"). Compaction correctly excludes scalar-leaf survivors (adversarial finding 3/nit).
+- **FAIL — CLAUDE.md "Code Comments" rule violated: three process-artifact IDs leaked into shipped code/test comments.** This is the exact rule ST-02's own verification report flagged as "the exact rule ST-01's first verification pass failed on" and confirmed clean for ST-02; ST-03 regresses on it:
+  - `packages/core/src/components/DynamicFormItemChoice.vue:774`: `compactOrder()`'s doc comment reads "after a removal (Q6)." — `Q6` is the feature spec's open-question ID.
+  - `packages/core/src/components/DynamicFormItemChoice.vue:803`: `backfillMissingOrder()`'s doc comment reads "even for data that predates this feature (AR-2)." — `AR-2` is the feature spec's adversarial-review finding ID.
+  - `packages/core/src/components/__tests__/DynamicFormItemChoice.validation.test.ts:850`: a test-body comment reads "not a defect (Q4)" (in the `'marks the occurrence's own not-yet-filled required fields as required immediately...'` test).
+  - CLAUDE.md is explicit: "Never reference specs, features, stories, or process artifacts in code comments or test names: no FEAT-001, ST-05, AC4, ADR-2, ... Specs are process artifacts; the code must stand on its own for a reader who has never seen them." `Q6`, `AR-2`, and `Q4` are exactly this class of reference (feature-level open-question and adversarial-review IDs), and none of the three comments needs the ID to make its point: each already explains the actual rationale in prose and the ID is a bare, removable parenthetical.
+  - Test/describe-block names themselves are clean: no occurrence of `ST-03`, `ST03`, `FEAT-002`, `AC[0-9]`, `QA flag`, or `finding [0-9]` anywhere in the touched files (checked directly). The violation is confined to the three comment bodies above.
+- No other silent overrides of feature-level decisions found; the one deliberate, disclosed deviation (occurrence's own required fields become required one step earlier once `order` is written, per Implementation notes item 1) is correctly reasoned from the approved feature's own Validation semantics section and does not change any validation outcome, budget outcome, or public API, so it does not need to go back to Jeroen.
+
+### Overall verdict: fail
+
+Every acceptance criterion passes with solid evidence, the pipeline is green, coverage is above baseline, and the architecture/deviation handling is sound. The sole reason for a fail verdict is the process-compliance violation above: three code/test comments embed feature-spec process-artifact IDs (`Q6`, `AR-2`, `Q4`), which CLAUDE.md's Code Comments rule forbids outright, and which this same feature's ST-02 verification pass explicitly confirmed clean (having learned from ST-01's own earlier failure on this exact rule). Status set back to `implementing`.
+
+**Required fix before re-verification:**
+1. `DynamicFormItemChoice.vue:774` — remove `(Q6)` from `compactOrder()`'s doc comment; the sentence already stands without it ("Re-ranks every surviving object-shaped occurrence's `order` to a contiguous 1..N sequence after a removal.").
+2. `DynamicFormItemChoice.vue:803` — remove `(AR-2)` from `backfillMissingOrder()`'s doc comment; the sentence already stands without it.
+3. `DynamicFormItemChoice.validation.test.ts:850` — remove `(Q4)` from the test-body comment; rephrase to state the rationale (order is real submitted data) without the ID, e.g. "...not a defect; order is real submitted data by design, and xsd_choiceMinOccurs...".
+4. Re-grep the full diff for `\bQ[0-9]\b`, `\bAR-[0-9]\b`, `\bADR-[0-9]\b`, `ST-0`, `FEAT-0`, `AC[0-9]`, `finding`, `adversarial`, `DECIDED`, `PROPOSED` across every touched file before resubmitting, mirroring the check ST-02's verification report ran.
+No other changes are needed: do not touch the passing acceptance-criteria tests, the architecture, the changeset, or `specs/components.md` beyond this comment wording.
+
+## Verification report (attempt 2)
+
+Filled by qa-verifier (2026-09-19), re-verification after the fix-the-findings pass.
+
+### Fix confirmation
+
+All three flagged comments were fixed exactly as required, and no new ID-like token was introduced anywhere in the diff:
+
+1. `DynamicFormItemChoice.vue`'s `compactOrder()` doc comment no longer contains `(Q6)`; it now reads as a self-contained rationale ending "...so a legacy set with gaps or duplicates still produces a deterministic result and self-heals to contiguous 1..N here."
+2. `DynamicFormItemChoice.vue`'s `backfillMissingOrder()` doc comment no longer contains `(AR-2)`; it now ends "...even for data that predates this feature." with no parenthetical ID.
+3. `DynamicFormItemChoice.validation.test.ts`'s test-body comment no longer contains `(Q4)`; it was rephrased to "This is not a defect; order is real submitted data by design, and xsd_choiceMinOccurs, the shared budget, and submit-time validation itself stay unaffected (see the tests above)."
+
+Re-grepped every touched file (`DynamicFormItemChoice.vue`, `DynamicFormItemChoice.analytics.test.ts`, `DynamicFormItemChoice.logic.test.ts`, `DynamicFormItemChoice.test-helpers.ts`, `DynamicFormItemChoice.validation.test.ts`, `FieldMetadata.ts`) for `\bQ[0-9]+\b`, `\bAR-[0-9]+\b`, `\bADR-[0-9]+\b`, `ST-0`, `FEAT-0`, `\bAC[0-9]+\b`, `QA flag`, `finding [0-9]`, `DECIDED`, `PROPOSED`, `adversarial`: zero matches. Test/describe names remain clean (already confirmed clean in attempt 1). No other diff crept in beyond the three comment edits: `git diff --stat` shows the same file set and the same shape of changes as attempt 1's implementation, no accidental touch of the passing tests, architecture, changeset, or `specs/components.md`.
+
+### Pipeline
+
+- `pnpm --filter @bach.software/vue-dynamic-form run build`: clean, run first per the environment note since `packages/core/dist` was stale relative to `src/` at the start of this session.
+- `pnpm -r run ci` (test + lint + typecheck, both `packages/core` and `packages/element-plus`): green. `packages/core`: 23 test files / 583 tests passed, eslint clean, `vue-tsc --noEmit` clean. `packages/element-plus`: 1 test passed, lint and typecheck clean.
+- `pnpm -r run ci:test:coverage`: `packages/core` at 97.1% stmts / 93.03% branch / 95.5% funcs / 97.1% lines, identical to the numbers recorded after attempt 1 (comment-only changes do not affect coverage). Baseline (ST-02's committed state) was 97.03% stmts / 92.91% branch / 95.23% funcs / 97.03% lines. Every metric is at or above baseline; no drop.
+- No `docs/` files changed in this diff (`git diff --stat` confirmed), so `pnpm docs:build` was correctly not run.
+
+### Acceptance criteria
+
+Re-walked all 9 criteria plus the edge cases against the current test run; verdicts are unchanged from attempt 1 (the fix was comment-only, no test or runtime-logic edits). All 9 acceptance criteria: pass. Edge cases (no-op removal skips compaction, scalar-only choice never shows `order` and warns every add-press, `maxOccurs:1` no-op byte-identical HTML): pass. See attempt 1's table above for the full per-criterion evidence; still accurate against the current code (only the two `.vue` doc comments and one test comment changed, none of which touch test assertions or runtime behavior).
+
+### Prototype / design comparison
+
+Unchanged from attempt 1: engine-only story, no DOM/slot-prop change, no screenshots or `docs:build` required, reload/values-JSON/toolbar anchors correctly deferred to ST-05.
+
+### Process compliance
+
+- CLAUDE.md Code Comments rule: now clean. The three process-artifact IDs are removed; each comment already carries its rationale in prose, so no explanatory value was lost.
+- `specs/components.md`: still correctly updated (unchanged since attempt 1, re-confirmed by reading the diff directly), matching the shipped `DynamicFormItemChoice` behaviour and the new `FieldMetadata.preserveOrder` paragraph.
+- Changeset: `.changeset/orange-pumas-preserve-order.md` present, `minor`, matching the architecture's semver analysis. Content re-read and confirmed accurate to what shipped.
+- Library API rules: `preserveOrder` is camelCase, additive, added through the `FieldMetadata`/`ComputedPropsFieldType`-exclusion channel; `packages/core/src/index.ts` has an empty diff, confirming no new export. Compliant.
+- No other silent overrides of feature-level decisions found; the disclosed deviation from attempt 1 (occurrence's own required fields become required one step earlier once `order` is written) is unchanged and still correctly reasoned from the approved feature's own Validation semantics section.
+
+### Overall verdict: pass
+
+Every acceptance criterion passes, the pipeline is green, coverage is at or above baseline, and the sole blocker from attempt 1 (three process-artifact IDs embedded in code/test comments) is confirmed fixed with no regression elsewhere. Status set to `done`.
+
+This is the last story of FEAT-002 (ST-01 through ST-05 per the feature's Stories table); ST-04 and ST-05 are still open (docs slices), so the feature itself should not move to `done` yet. Reminder to Jeroen: link this story's PR in the frontmatter (`pr: ""` is still empty).

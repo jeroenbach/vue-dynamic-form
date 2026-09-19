@@ -197,6 +197,31 @@ export type FieldMetadata<
   displayOrder?: 'grouped' | 'added'
 
   /**
+   * Opt into persisting a repeatable explicit choice's add-order into the submitted values
+   * themselves (only meaningful together with `explicitChoiceSelection: true` and
+   * `maxOccurs > 1`; a no-op everywhere else). When true, `addChoiceOccurrence` writes a numeric
+   * `order` field into the new occurrence's own values (1-based, counted across every branch of
+   * the choice), and removing an occurrence compacts the survivors' `order` values back to a
+   * contiguous 1..N sequence. Occurrences already present when the form mounts (loaded or
+   * previously saved data) that lack `order` are backfilled once, from their current grouped
+   * position, before any add-press can occur.
+   *
+   * Unlike `displayOrder`'s ephemeral `insertionOrder`, `order` is real submitted data: it
+   * survives a page reload and loaded saved data, at the price of appearing in `values` next to
+   * the occurrence's own declared fields. `removeNullValues` keeps it, since it is never
+   * null/undefined.
+   *
+   * Only applies to a branch whose occurrence is an object (the branch declares `children`); a
+   * scalar-leaf branch (e.g. `type: 'text'`, no `children`) has nowhere to attach `order`, so
+   * enabling this on such a branch is a no-op for that branch and logs a `console.warn` in
+   * development.
+   *
+   * Static metadata only: it is excluded from `ComputedPropsFieldType`, so a `computedProps`
+   * function cannot flip it at runtime.
+   */
+  preserveOrder?: boolean
+
+  /**
    * Attributes are additional metadata that can be attached to a field.
    * These attributes can be used to provide extra information about the field,
    * such as for example whether the data is verified.
@@ -300,6 +325,9 @@ export type ComputedPropsFieldType<
       // Static metadata only, for the same reason as its siblings above: flipping the render
       // order mid-form would cause an already-rendered occurrence to visibly jump position.
       | 'displayOrder'
+      // Static metadata only, for the same reason as its siblings above: flipping this mid-form
+      // would require backfilling or stripping `order` from occurrences that already exist.
+      | 'preserveOrder'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string
