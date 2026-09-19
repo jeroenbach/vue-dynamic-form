@@ -222,6 +222,56 @@ Makes this field a choice container. Only one branch from the array should be fi
 Combine `choice` with `maxOccurs > 1` to allow multiple independent choices (each picks its own branch).
 Combine `choice` with group branches (using `children`) for complex branching forms.
 
+### `explicitChoiceSelection`
+
+Type: `boolean` | Default: `false` (absent)
+
+Opts a `choice` field into selection-first rendering: no branch renders until the template calls `addChoiceOccurrence(branchKey)`, instead of the default automatic mode where every branch renders and siblings disable once one holds a value. Works for both `maxOccurs: 1` (pick exactly one branch) and `maxOccurs > 1` (add several occurrences, each one of several branches). See [Select first, then fill in](/examples/choices#select-first-then-fill-in) in the Choice Fields example for the full pattern, the four slot props it adds to the `-choice` (`maxOccurs: 1`) and `-choice-array` (`maxOccurs > 1`) slots, and the clear-on-switch contract.
+
+```ts
+{
+  name: 'launchApproach',
+  explicitChoiceSelection: true,
+  choice: [
+    { name: 'selfServe', fieldOptions: { label: 'Self-serve launch' } },
+    { name: 'guidedRollout', fieldOptions: { label: 'Guided rollout' } },
+  ],
+}
+```
+
+### `displayOrder`
+
+Type: `'grouped' | 'added'` | Default: `'grouped'` (absent)
+
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Selects the render order of its occurrences: `'grouped'` is the default (grouped by branch declaration order, same as `activeChoiceOccurrences`), `'added'` interleaves occurrences by the order their `addChoiceOccurrence` press happened. Static metadata, read once when the choice mounts. Display only, never written to `values`. See [Interleaving occurrences by add order](/examples/choices#interleaving-occurrences-by-add-order) in the Choice Fields example.
+
+```ts
+{
+  name: 'integrations',
+  maxOccurs: 5,
+  explicitChoiceSelection: true,
+  displayOrder: 'added',
+  choice: [/* ... */],
+}
+```
+
+### `preserveOrder`
+
+Type: `boolean` | Default: `false` (absent)
+
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). Removing an occurrence compacts the survivors' `order` back to a contiguous `1..N`. Requires the branch's occurrences to be objects (a branch with `children`); a no-op with a development warning otherwise. See [Interleaving occurrences by add order](/examples/choices#interleaving-occurrences-by-add-order) in the Choice Fields example.
+
+```ts
+{
+  name: 'integrations',
+  maxOccurs: 5,
+  explicitChoiceSelection: true,
+  displayOrder: 'added',
+  preserveOrder: true,
+  choice: [/* ... */],
+}
+```
+
 ### `attributes`
 
 Type: `FieldMetadata[]`

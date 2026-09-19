@@ -5,6 +5,8 @@ import AppIcon from './AppIcon.vue';
 
 interface Props {
   index: number
+  /** Overrides the badge/aria-label number; falls back to `index + 1` when omitted. */
+  displayNumber?: number
   title?: MaybeRefOrGetter<string | undefined>
   placeholderTitle?: string
   canRemove?: boolean
@@ -29,7 +31,7 @@ defineEmits<{
         <span
           class="grid h-7 w-7 place-items-center rounded-full bg-indigo-50 text-xs font-semibold text-indigo-700"
         >
-          {{ index + 1 }}
+          {{ displayNumber ?? index + 1 }}
         </span>
         <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">
           {{ title || placeholderTitle }}
@@ -39,7 +41,7 @@ defineEmits<{
         variant="danger-light"
         :disabled="!canRemove"
         :dataTestid="dataTestid ? `${dataTestid}-remove-button` : undefined"
-        :aria-label="`Remove item ${index + 1}`"
+        :aria-label="`Remove item ${displayNumber ?? index + 1}`"
         @click="$emit('remove')"
       >
         <AppIcon name="bin" />
