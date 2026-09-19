@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { renderCount } from './DynamicFormItem.test-helpers';
-import { enablePreserveOnSwitch, occurrenceGlobalIndex, setupState } from './DynamicFormItemChoice.test-helpers';
+import { enableDisplayOrder, enablePreserveOnSwitch, occurrenceGlobalIndex, setupState } from './DynamicFormItemChoice.test-helpers';
 
 function mountExplicitChoiceWithSibling() {
   return mount(TestForm, {
@@ -314,6 +314,137 @@ describe('component DynamicFormItemChoice - analytics', () => {
         await flushPromises();
 
         expect(setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount).toBe(countAfterAdd + 1);
+      });
+    });
+
+    describe('insertionOrder / displayOrder: render counts', () => {
+      function mountInterleavedRepeatableChoiceWithSibling(extraProps: Record<string, any> = {}) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: enableDisplayOrder([
+              { name: 'sibling', fieldOptions: { label: 'Sibling' } },
+              {
+                name: 'pick',
+                explicitChoiceSelection: true,
+                maxOccurs: 3,
+                fieldOptions: { label: 'Pick Several' },
+                choice: [
+                  { name: 'apiEndpoint', maxOccurs: 2, fieldOptions: { label: 'Api Endpoint' } },
+                  { name: 'crmExport', maxOccurs: 2, fieldOptions: { label: 'Crm Export' } },
+                ],
+              },
+            ], 'pick', 'added'),
+            ...extraProps,
+          },
+        });
+      }
+
+      it('displayOrder absent reproduces the same render-count bounds as before this story\'s source-list swap', async () => {
+        const wrapper = mountExplicitRepeatableChoiceWithSibling();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        const survivorCountBefore = renderCount(wrapper, 'pick.apiEndpoint[0]');
+        const survivorElementBefore = wrapper.find('[id="pick.apiEndpoint[0]"]').element;
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[id="pick.apiEndpoint[0]"]').element).toBe(survivorElementBefore);
+        expect(renderCount(wrapper, 'pick.apiEndpoint[0]')).toBeGreaterThanOrEqual(survivorCountBefore);
+        expect(renderCount(wrapper, 'pick.apiEndpoint[0]')).toBeLessThanOrEqual(survivorCountBefore + 1);
+      });
+
+      it('an add or remove that changes renderedChoiceOccurrences\'s composition does not remount a surviving occurrence and preserves its entered value', async () => {
+        const wrapper = mountInterleavedRepeatableChoiceWithSibling({
+          initialValues: { pick: { apiEndpoint: [null], crmExport: [null, null] } },
+        });
+        await flushPromises();
+        await wrapper.find('[id="pick.crmExport[0]"]').setValue('salesforce');
+        await flushPromises();
+
+        const survivorElementBefore = wrapper.find('[id="pick.crmExport[0]"]').element;
+        const survivorCountBeforeAdd = renderCount(wrapper, 'pick.crmExport[0]');
+
+        // Appends a new occurrence at the end of the displayed sequence: a composition change
+        // that leaves every already-rendered occurrence's relative position untouched.
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[id="pick.crmExport[0]"]').element).toBe(survivorElementBefore);
+        expect(renderCount(wrapper, 'pick.crmExport[0]')).toBeGreaterThanOrEqual(survivorCountBeforeAdd);
+        expect(renderCount(wrapper, 'pick.crmExport[0]')).toBeLessThanOrEqual(survivorCountBeforeAdd + 1);
+        expect((wrapper.find('[id="pick.crmExport[0]"]').element as HTMLInputElement).value).toBe('salesforce');
+
+        // Removal is the other composition-changing operation.
+        const survivorCountBeforeRemove = renderCount(wrapper, 'pick.crmExport[0]');
+        await wrapper.find('[data-testid="pick.crmExport[1]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[id="pick.crmExport[0]"]').element).toBe(survivorElementBefore);
+        expect(renderCount(wrapper, 'pick.crmExport[0]')).toBeGreaterThanOrEqual(survivorCountBeforeRemove);
+        expect(renderCount(wrapper, 'pick.crmExport[0]')).toBeLessThanOrEqual(survivorCountBeforeRemove + 1);
+        expect((wrapper.find('[id="pick.crmExport[0]"]').element as HTMLInputElement).value).toBe('salesforce');
+      });
+
+      it('does not re-render a sibling field outside the choice when insertionOrder is assigned or renderedChoiceOccurrences recomputes', async () => {
+        const wrapper = mountInterleavedRepeatableChoiceWithSibling();
+        await flushPromises();
+        const siblingCountBefore = renderCount(wrapper, 'sibling');
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(renderCount(wrapper, 'sibling')).toBe(siblingCountBefore);
+      });
+
+      it('leaves the existing activeChoiceOccurrences/occurrences recompute contracts unchanged', async () => {
+        const wrapper = mountInterleavedRepeatableChoiceWithSibling();
+        await flushPromises();
+
+        const countBefore = setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount;
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount).toBe(countBefore + 1);
+
+        const countAfterAdd = setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount;
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount).toBe(countAfterAdd + 1);
+      });
+
+      it('recomputes _analytics_renderedChoiceOccurrencesCalculatedCount a bounded number of times per add/remove call, and not on an unrelated sibling change', async () => {
+        const wrapper = mountInterleavedRepeatableChoiceWithSibling();
+        await flushPromises();
+
+        const countBefore = setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount;
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        const countAfterAdd = setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount;
+        expect(countAfterAdd).toBe(countBefore + 1);
+
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        const countAfterRemove = setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount;
+        expect(countAfterRemove).toBe(countAfterAdd + 1);
+
+        const countBeforeSibling = setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount;
+        await wrapper.find('[id="sibling"]').setValue('unrelated');
+        await flushPromises();
+
+        expect(setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount).toBe(countBeforeSibling);
       });
     });
   });

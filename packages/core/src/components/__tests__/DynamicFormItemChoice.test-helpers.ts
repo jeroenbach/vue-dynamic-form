@@ -128,3 +128,60 @@ export function usedChoiceOccurrences(wrapper: ReturnType<typeof mount>, choiceP
   const span = wrapper.find(`[data-testid="${choicePath}-used-choice-occurrences"]`);
   return span.exists() ? Number(span.text()) : undefined;
 }
+
+/**
+ * Reads the `-insertion-order` testid at `occurrencePath` (e.g. `pick.apiEndpoint[0]`), asserting
+ * the `*-choice-array-item`/`default-choice-array-item` slot actually received `insertionOrder` as
+ * a real slot prop. Unlike `occurrenceGlobalIndex`, the testid is conditionally rendered (the
+ * fixture's `v-if`), so its absence (an occurrence never added this session) reads back as
+ * `undefined` rather than a rendered "undefined" string.
+ */
+export function occurrenceInsertionOrder(wrapper: ReturnType<typeof mount>, occurrencePath: string): number | undefined {
+  const badge = wrapper.find(`[data-testid="${occurrencePath}-insertion-order"]`);
+  return badge.exists() ? Number(badge.text()) : undefined;
+}
+
+/** Reads the internal `renderedChoiceOccurrences` computed for the choice at `path`. Returns undefined if the choice is not found. */
+export function renderedChoiceOccurrences(wrapper: ReturnType<typeof mount>, path: string): { branchKey: string, index: number }[] | undefined {
+  return setupState(wrapper, path)?.renderedChoiceOccurrences;
+}
+
+/**
+ * Reads the ephemeral `insertionOrders` map for the choice at `path`. Returns undefined if the
+ * choice is not found. Best-effort internal-state reader, mirroring `stashedBranchValues`'s
+ * rationale: it names the store directly so a test can assert it is instance-local (a plain `Map`,
+ * never anything reachable through form `values`), a stronger check than the observable slot-prop
+ * values alone.
+ */
+export function insertionOrdersMap(wrapper: ReturnType<typeof mount>, path: string): Map<string, number> | undefined {
+  return setupState(wrapper, path)?.insertionOrders;
+}
+
+/**
+ * Patches fixture metadata to set `displayOrder` on the choice at `choicePath` (the choice's own
+ * `name`, e.g. `'pick'`). Centralises the flag surface (the `FieldMetadata` property
+ * `displayOrder`) so tests do not hardcode the property name, mirroring `enablePreserveOnSwitch`.
+ */
+export function enableDisplayOrder<T>(metadata: T[], choicePath: string, mode: 'grouped' | 'added' = 'added'): T[] {
+  const segments = choicePath.split('.');
+
+  function visit(nodes: any[] | undefined, remaining: string[]): void {
+    if (!nodes)
+      return;
+
+    const [head, ...rest] = remaining;
+    const node = nodes.find(n => n.name === head);
+    if (!node)
+      return;
+
+    if (rest.length === 0) {
+      node.displayOrder = mode;
+      return;
+    }
+
+    visit(node.children, rest);
+  }
+
+  visit(metadata as any[], segments);
+  return metadata;
+}
