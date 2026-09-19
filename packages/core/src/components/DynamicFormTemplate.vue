@@ -46,7 +46,7 @@ export interface LimitedFieldContext<TValue = unknown> {
 export interface Attributes<
   TMetadataConfiguration extends MetadataConfiguration,
 > {
-  type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'default-array' | 'default-array-item' | 'default-choice'
+  type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'default-array' | 'default-array-item' | 'default-choice' | 'default-choice-array' | 'default-choice-array-item'
   /** The metadata you configured for this field. */
   fieldMetadata: ReadOnlyFieldType<
     TMetadataConfiguration['fieldTypes'][number],
@@ -102,9 +102,53 @@ export interface ArrayChoiceAttributes<
   fieldContext: LimitedFieldContext<unknown[]>
 }
 
+/** An active branch occurrence, as reported by `activeChoiceOccurrences`. */
+export interface ChoiceOccurrence {
+  /** The choice branch's `name` (e.g. 'selfServe', 'apiEndpoint'). */
+  branchKey: string
+  /** 0 for maxOccurs:1; the occurrence's index within its branch for maxOccurs > 1. */
+  index: number
+}
+
+export interface ChoiceAttributes<
+  TMetadataConfiguration extends MetadataConfiguration,
+> extends ArrayChoiceAttributes<TMetadataConfiguration> {
+  /** Mark a branch active (maxOccurs:1) or add one occurrence of it (maxOccurs > 1). No-op when canAddChoiceOccurrence is false. */
+  addChoiceOccurrence: (branchKey: string) => void
+  /** Remove a previously added occurrence. index is required in maxOccurs > 1; ignored (optional) in maxOccurs:1 where it deselects the active branch. */
+  removeChoiceOccurrence: (branchKey: string, index?: number) => void
+  /** Per-branch guard: false when this branch's own maxOccurs or the choice's shared occurrence budget is exhausted, or when the choice is disabled. */
+  canAddChoiceOccurrence: (branchKey: string) => boolean
+  /** The currently active occurrences the template iterates for counts/selector state. */
+  activeChoiceOccurrences: ChoiceOccurrence[]
+  /**
+   * Choice slots currently consumed, in choice-occurrence units rather than raw item count.
+   * For a repeatable branch (its own `maxOccurs > 1`), every group of up to that many items
+   * counts as one slot, the same unit `maxOccurs` on the choice itself is measured in, so a
+   * template can show an accurate "N of maxOccurs" without re-deriving the batching math.
+   */
+  usedChoiceOccurrences: number
+}
+
+/**
+ * Slot props for a single occurrence of a repeatable explicit choice (`maxOccurs > 1`), rendered
+ * through the `*-choice-array-item` / `default-choice-array-item` slot. Mirrors `ItemAttributes`
+ * (the same shape `*-array-item` receives) plus `branchKey`, the occurrence's branch name (drives
+ * a "kind" badge in the template).
+ */
+export interface ChoiceArrayItemAttributes<
+  TMetadataConfiguration extends MetadataConfiguration,
+  FieldType extends string = string,
+> extends ItemAttributes<TMetadataConfiguration, FieldType> {
+  /** The choice branch this occurrence belongs to (the child's `name`). Drives the "kind" badge. */
+  branchKey: string
+}
+
 type Props = DynamicFormConfigurationProps<TMetadataConfiguration>;
 type SlotProps<FieldType extends string = string> = ItemAttributes<TMetadataConfiguration, FieldType>;
 type ArrayChoiceSlotProps = ArrayChoiceAttributes<TMetadataConfiguration>;
+type ChoiceSlotProps = ChoiceAttributes<TMetadataConfiguration>;
+type ChoiceArrayItemSlotProps<FieldType extends string = string> = ChoiceArrayItemAttributes<TMetadataConfiguration, FieldType>;
 
 type SlotsFromMetadata = {
   // Fallback slot for field types that don't have a dedicated slot.
@@ -119,8 +163,14 @@ type SlotsFromMetadata = {
   // Fallback slot for components that are array items but don't have a dedicated slot.
   'default-array-item': (props: SlotProps) => any
 } & {
-  // Fallback slot for components that are choice fields but don't have a dedicated slot.
-  'default-choice': (props: ArrayChoiceSlotProps) => any
+  // Fallback slot for components that are single (maxOccurs: 1) choice fields but don't have a dedicated slot.
+  'default-choice': (props: ChoiceSlotProps) => any
+} & {
+  // Fallback slot for components that are repeatable (maxOccurs > 1) choice fields but don't have a dedicated slot.
+  'default-choice-array': (props: ChoiceSlotProps) => any
+} & {
+  // Fallback slot for components that are repeatable-choice occurrence items but don't have a dedicated slot.
+  'default-choice-array-item': (props: ChoiceArrayItemSlotProps) => any
 } & {
   // One slot per field type defined in the metadata configuration.
   [K in TMetadataConfiguration['fieldTypes'][number]]: (props: SlotProps<K>) => any;
@@ -134,8 +184,14 @@ type SlotsFromMetadata = {
   // One array item slot per field type (e.g. "text-array-item") for defining how to render the type when it is an array item.
   [K in `${TMetadataConfiguration['fieldTypes'][number]}-array-item`]: (props: SlotProps<K extends `${infer FieldType}-input` ? FieldType : never>) => any;
 } & {
-  // One choice slot per field type (e.g. "text-choice") for defining how to render the type when it is a choice.
-  [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice`]: (props: ArrayChoiceSlotProps) => any;
+  // One choice slot per field type (e.g. "text-choice") for defining how to render the type when it is a single (maxOccurs: 1) choice.
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice`]: (props: ChoiceSlotProps) => any;
+} & {
+  // One choice-array slot per field type (e.g. "text-choice-array") for defining how to render the type when it is a repeatable (maxOccurs > 1) choice.
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice-array`]: (props: ChoiceSlotProps) => any;
+} & {
+  // One choice-array-item slot per field type (e.g. "text-choice-array-item") for rendering a single occurrence of a repeatable explicit choice branch.
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice-array-item`]: (props: ChoiceArrayItemSlotProps<K extends `${infer FieldType}-choice-array-item` ? FieldType : never>) => any;
 };
 
 // #endregion
@@ -169,6 +225,15 @@ const typeWithFallback = computed((): RegularSlotName => {
   if (type?.endsWith('-input')) {
     return slots['default-input'] ? 'default-input' : 'default';
   }
+  // The -choice-array families must be checked before the plain -array families: a
+  // "text-choice-array" also ends with "-array" (and "text-choice-array-item" with "-array-item"),
+  // so the reversed order would wrongly resolve them to the array fallbacks.
+  if (type?.endsWith('-choice-array-item')) {
+    return slots['default-choice-array-item'] ? 'default-choice-array-item' : 'default';
+  }
+  if (type?.endsWith('-choice-array')) {
+    return slots['default-choice-array'] ? 'default-choice-array' : 'default';
+  }
   if (type?.endsWith('-array')) {
     return slots['default-array'] ? 'default-array' : 'default';
   }
@@ -186,8 +251,9 @@ const typeWithFallback = computed((): RegularSlotName => {
 
 <template>
   <template v-if="attrs.fieldMetadata">
-    <slot v-if="attrs.type?.endsWith('-array')" :name="typeWithFallback" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
-    <slot v-else-if="attrs.type?.endsWith('-choice')" :name="typeWithFallback" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
+    <slot v-if="attrs.type?.endsWith('-choice-array')" :name="typeWithFallback" v-bind="(attrs as unknown as ChoiceSlotProps)" />
+    <slot v-else-if="attrs.type?.endsWith('-array')" :name="typeWithFallback" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
+    <slot v-else-if="attrs.type?.endsWith('-choice')" :name="typeWithFallback" v-bind="(attrs as unknown as ChoiceSlotProps)" />
     <slot v-else :name="typeWithFallback" v-bind="attrs" />
   </template>
 </template>

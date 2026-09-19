@@ -73,3 +73,5 @@ The core package has its own detailed README at [`packages/core/README.md`](pack
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local development setup, the dev workflow, testing, and the release process.
+
+Larger changes are planned and tracked through the spec-driven workflow in [`specs/`](specs/README.md): features are designed and architected as a whole, reviewed adversarially, approved, and then implemented as small story slices. The `/spec:*` Claude Code commands in [`.claude/commands/spec/`](.claude/commands/spec) drive that workflow, and [`specs/components.md`](specs/components.md) is the living inventory of the library's public surface.

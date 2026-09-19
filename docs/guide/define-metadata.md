@@ -130,7 +130,9 @@ Avoid using these names as field type keys because they clash with the built-in 
 | `default-input` | Fallback slot for input variants |
 | `default-array` | Fallback slot for the outer array container |
 | `default-array-item` | Fallback slot for each array occurrence |
-| `default-choice` | Fallback slot for the outer choice container |
+| `default-choice` | Fallback slot for the outer container of a single choice |
+| `default-choice-array` | Fallback slot for the outer container of a repeatable choice |
+| `default-choice-array-item` | Fallback slot for each repeatable-choice occurrence |
 
 ---
 
