@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FEAT-002 Repeatable choice occurrence ordering — prototype</title>
+<style>
+  /* ------------------------------------------------------------------
+     Palette mirrors the docs demos and FEAT-001's prototype
+     (Tailwind slate / indigo / sky / rose). Dark mode is driven by a
+     `.dark` class on <html>, exactly like VitePress; every color flips
+     in the `.dark` block so both modes come for free.
+  ------------------------------------------------------------------ */
+  :root {
+    --page-bg: #f1f5f9;
+    --card-bg: #ffffff;
+    --card-border: #e2e8f0;
+    --heading: #0f172a;
+    --text-strong: #0f172a;
+    --text-muted: #475569;
+    --text-faint: #64748b;
+    --tag-bg: #eef2ff;
+    --tag-text: #4338ca;
+    --accent: #4f46e5;
+    --accent-soft-top: #eef2ff;
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --input-bg: #ffffff;
+    --input-border: #e5e7eb;
+    --input-text: #0f172a;
+    --dashed-border: #cbd5e1;
+    --dashed-bg: #f8fafc;
+    --error: #ef4444;
+    --error-text: #b91c1c;
+    --error-bg: #fef2f2;
+    --error-border: #fecaca;
+    --success-text: #065f46;
+    --success-bg: #ecfdf5;
+    --success-border: #a7f3d0;
+    --btn-border: #cbd5e1;
+    --btn-bg: #ffffff;
+    --btn-text: #334155;
+    --anno: #64748b;
+    --anno-bg: #ffffff;
+    --divider: #cbd5e1;
+    --num-bg: #eef2ff;
+    --num-text: #4338ca;
+    --danger-text: #b91c1c;
+    --json-bg: #f1f5f9;
+    --amber-bg: #fffbeb;
+    --amber-border: #fde68a;
+    --amber-text: #92400e;
+  }
+  html.dark {
+    --page-bg: #161618;
+    --card-bg: #0f172a;
+    --card-border: #334155;
+    --heading: #f1f5f9;
+    --text-strong: #f1f5f9;
+    --text-muted: #94a3b8;
+    --text-faint: #94a3b8;
+    --tag-bg: #1e1b4b;
+    --tag-text: #a5b4fc;
+    --accent: #818cf8;
+    --accent-soft-top: #1e1b4b;
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --input-bg: #0f172a;
+    --input-border: #334155;
+    --input-text: #f1f5f9;
+    --dashed-border: #475569;
+    --dashed-bg: #1e293b;
+    --error: #e11d48;
+    --error-text: #fb7185;
+    --error-bg: #4c0519;
+    --error-border: #9f1239;
+    --success-text: #6ee7b7;
+    --success-bg: #052e2b;
+    --success-border: #065f46;
+    --btn-border: #475569;
+    --btn-bg: #0f172a;
+    --btn-text: #cbd5e1;
+    --anno: #94a3b8;
+    --anno-bg: #1e293b;
+    --divider: #334155;
+    --num-bg: #312e81;
+    --num-text: #c7d2fe;
+    --danger-text: #fb7185;
+    --json-bg: #1e293b;
+    --amber-bg: #422006;
+    --amber-border: #854d0e;
+    --amber-text: #fcd34d;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--page-bg);
+    color: var(--text-strong);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 940px; margin: 0 auto; padding: 32px 20px 120px; }
+
+  /* Page intro */
+  .page-head { margin-bottom: 8px; }
+  .page-head h1 { font-size: 26px; margin: 0 0 6px; color: var(--heading); }
+  .page-head p { margin: 0 0 8px; color: var(--text-muted); font-size: 14px; max-width: 74ch; }
+
+  /* Section dividers */
+  .divider { display: flex; align-items: center; gap: 12px; margin: 48px 0 20px; }
+  .divider::before, .divider::after { content: ""; height: 1px; background: var(--divider); flex: 1; }
+  .divider span {
+    font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-faint); white-space: nowrap;
+  }
+  .lede { color: var(--text-muted); font-size: 14px; margin: -6px 0 20px; max-width: 78ch; }
+
+  .panel-label {
+    font-size: 12px; font-weight: 600; color: var(--text-faint);
+    margin: 22px 0 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .panel-label .pill {
+    font-size: 11px; font-weight: 700; border-radius: 999px;
+    padding: 1px 8px; background: var(--tag-bg); color: var(--tag-text);
+  }
+
+  /* Annotation labels */
+  .anno { font-size: 12px; color: var(--anno); font-style: italic; margin: 8px 2px 0; display: block; }
+  .anno::before { content: "\21B3  "; font-style: normal; }
+  .anno.code { font-style: normal; }
+  .anno code, .inline-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px; background: var(--anno-bg); border: 1px solid var(--card-border);
+    border-radius: 4px; padding: 1px 5px; color: var(--text-muted); font-style: normal;
+  }
+
+  /* Section card (reuse of SectionCard.vue) */
+  .section-card {
+    border: 1px solid var(--card-border); background: var(--card-bg);
+    border-radius: 12px; padding: 24px; box-shadow: 0 1px 2px rgba(15,23,42,.06);
+  }
+  .sc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
+  .sc-head h2 { font-size: 18px; font-weight: 600; color: var(--heading); margin: 0; }
+  .sc-head p { font-size: 14px; color: var(--text-muted); margin: 2px 0 0; max-width: 60ch; }
+  .tag {
+    display: inline-flex; align-items: center; white-space: nowrap;
+    border-radius: 999px; background: var(--tag-bg); color: var(--tag-text);
+    padding: 2px 10px; font-size: 12px; font-weight: 600;
+  }
+  .err-text { color: var(--error-text); font-size: 14px; display: block; margin-top: 6px; }
+
+  /* Field grid */
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .field.col2 { grid-column: 1 / -1; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--text-strong); margin-bottom: 6px; }
+  .field .desc { font-size: 12px; color: var(--text-faint); margin: 6px 0 0; }
+  .input, .select {
+    height: 40px; width: 100%; border-radius: 8px; padding: 8px 12px; font-size: 14px;
+    background: var(--input-bg); color: var(--input-text);
+    border: 1px solid var(--input-border); transition: border-color .15s, box-shadow .15s;
+  }
+  .input::placeholder { color: var(--text-faint); }
+  .input:focus, .select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(2,132,199,.25); }
+
+  /* Buttons (reuse of AppButton variants) */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; border-radius: 6px;
+    padding: 8px 12px; font-size: 14px; font-weight: 500; cursor: pointer;
+    border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--btn-text);
+    transition: background .15s, border-color .15s;
+  }
+  .btn:hover { border-color: var(--text-faint); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.danger-light { border-color: transparent; background: transparent; color: var(--danger-text); }
+  .btn.danger-light:hover { background: var(--error-bg); border-color: transparent; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+  /* Empty / dashed prompt (reuse of ArraySectionCard empty state) */
+  .empty {
+    border: 1px dashed var(--dashed-border); background: var(--dashed-bg);
+    border-radius: 12px; padding: 28px; text-align: center; margin-top: 16px;
+  }
+  .empty p.t { font-size: 14px; font-weight: 600; color: var(--text-strong); margin: 0; }
+  .empty p.s { font-size: 12px; color: var(--text-faint); margin: 4px 0 0; }
+
+  /* Occurrence / repeater card (reuse of RepeaterCard.vue) */
+  .repeater {
+    border: 1px solid var(--card-border); background: var(--card-bg); border-radius: 12px;
+    padding: 16px; margin-top: 12px; transition: box-shadow .15s;
+  }
+  .repeater.moved { box-shadow: 0 0 0 1px var(--accent); }
+  .rp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+  .rp-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  /* The continuous 1..N badge. This is the visual home of `globalIndex`. */
+  .rp-num {
+    height: 28px; min-width: 28px; padding: 0 6px; border-radius: 999px;
+    background: var(--num-bg); color: var(--num-text);
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  }
+  .rp-title p { font-size: 14px; font-weight: 600; color: var(--text-strong); margin: 0; }
+  .kind-badge {
+    display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+    background: var(--tag-bg); color: var(--tag-text); padding: 2px 9px; font-size: 11px; font-weight: 700;
+  }
+  /* Teaching chip: reveals the underlying sort key so a reader sees WHY a card sits where it does. */
+  .seq-chip {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+    background: var(--anno-bg); border: 1px solid var(--card-border); color: var(--text-muted);
+    border-radius: 999px; padding: 1px 8px; white-space: nowrap;
+  }
+
+  /* Demo toolbar (docs-demo chrome, not a shipped widget) */
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 18px 24px;
+    padding: 14px 16px; border: 1px solid var(--card-border); background: var(--card-bg);
+    border-radius: 12px; margin-bottom: 4px;
+  }
+  .tb-group { display: flex; align-items: center; gap: 10px; }
+  .tb-label { font-size: 12px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: .05em; }
+  .segmented { display: inline-flex; border: 1px solid var(--btn-border); border-radius: 8px; overflow: hidden; }
+  .seg-btn { border: 0; background: var(--btn-bg); color: var(--btn-text); font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; cursor: pointer; }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--btn-border); }
+  .seg-btn.active { background: var(--accent); color: #fff; }
+  .seg-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .seg-btn.focus, .seg-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+  /* Toggle switch (reuse of ToggleSwitch) */
+  .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+  .switch .track { width: 44px; height: 24px; border-radius: 999px; background: var(--input-border); position: relative; transition: background .15s; }
+  .switch.on .track { background: var(--primary); }
+  .switch .knob { position: absolute; top: 2px; left: 2px; height: 20px; width: 20px; border-radius: 999px; background: #fff; transition: left .15s; }
+  .switch.on .knob { left: 22px; }
+  .switch .lbl { font-size: 13px; color: var(--text-strong); }
+  .switch.disabled { opacity: .45; cursor: not-allowed; }
+
+  /* JSON values panel (reuse of the example's <pre> dump) */
+  .json-panel {
+    background: var(--json-bg); border: 1px solid var(--card-border); border-radius: 12px;
+    padding: 16px; margin-top: 14px; overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    color: var(--input-text); white-space: pre; line-height: 1.7;
+  }
+  .json-panel .hl { background: var(--num-bg); color: var(--num-text); border-radius: 4px; padding: 0 5px; font-weight: 700; }
+  .json-panel .cmt { color: var(--text-faint); }
+
+  /* Before / after two-column compare */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .compare .col > h3 { font-size: 13px; font-weight: 700; margin: 0 0 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; }
+  .note-list { margin: 12px 0 0; padding: 0; list-style: none; }
+  .note-list li { font-size: 12px; color: var(--text-muted); padding: 6px 0 6px 20px; position: relative; border-top: 1px solid var(--card-border); }
+  .note-list li:first-child { border-top: 0; }
+  .note-list.bad li::before { content: "\2717"; color: var(--error-text); position: absolute; left: 0; font-weight: 700; }
+  .note-list.good li::before { content: "\2713"; color: var(--success-text); position: absolute; left: 0; font-weight: 700; }
+  .note-list code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+
+  .callout {
+    margin-top: 18px; border-radius: 12px; padding: 14px 16px;
+    background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success-text); font-size: 13px;
+  }
+  .callout.warn { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber-text); }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 6px; }
+  .callout code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+
+  /* Reload flow arrow */
+  .flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; }
+  .flow .arrow { text-align: center; color: var(--text-faint); font-size: 12px; }
+  .flow .arrow b { display: block; font-size: 22px; line-height: 1; color: var(--accent); }
+
+  /* Theme toggle button (drives .dark on <html>, like VitePress) */
+  .theme-toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 50;
+    border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--btn-text);
+    border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(15,23,42,.12); display: inline-flex; gap: 8px; align-items: center;
+  }
+
+  @media (max-width: 720px) {
+    .fields, .compare, .flow { grid-template-columns: 1fr; }
+    .flow .arrow b { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+  <span id="themeIcon">&#9789;</span><span id="themeLabel">Dark</span>
+</button>
+
+<div class="wrap">
+  <header class="page-head" id="overview">
+    <h1>Repeatable choice occurrence ordering</h1>
+    <p>
+      Design surface for FEAT-002, an additive layer on top of FEAT-001's repeatable explicit choice
+      (<code>explicitChoiceSelection: true</code> with <code>maxOccurs &gt; 1</code>). It grows the docs example
+      <code>docs/examples/choices.md</code> &rarr; "Add several, each one of several kinds" and its template components
+      (<code>RepeaterCard.vue</code>, <code>AdvancedFormTemplate.vue</code>'s <code>default-choice-array-item</code> slot,
+      <code>ChoiceArraySectionCard.vue</code>) to demonstrate two things: a continuous cross-branch numbering badge, and an
+      optional add-order (interleaved) display. Flip the toggle top-right to review every section in dark.
+    </p>
+    <p>
+      Domain data throughout is the live example's <em>Integrations to add</em> choice: two branches,
+      <em>CRM export</em> and <em>API endpoint</em>. Shared budget is 5; each branch's own <code>maxOccurs</code> is 3.
+    </p>
+    <span class="anno code">Provisional API names used in annotations (final names are the architect's call). Decided:
+      <code>globalIndex</code> (new <code>-choice-array-item</code> slot prop). Provisional: an ephemeral per-occurrence
+      insertion counter shown here as <code>insertionOrder</code>, and an opt-in metadata flag shown here as
+      <code>preserveOrder: true</code> that writes an <code>order</code> field into each occurrence's values.</span>
+  </header>
+
+  <!-- =================================================================
+       SECTION 1  Continuous cross-branch numbering (ask 1, globalIndex)
+  ================================================================== -->
+  <div class="divider"><span>1 &middot; Continuous numbering (globalIndex)</span></div>
+  <p class="lede">
+    Today each occurrence's badge is <code>index + 1</code>, its position <em>inside its own branch</em>. Mixing
+    branches makes the numbers restart per kind (1, 2, 1, 2), which reads as a bug to a form filler. The new
+    <code>globalIndex</code> slot prop is the loop index over the engine's existing <code>activeChoiceOccurrences</code>,
+    so the template can show a single continuous 1..N sequence across all branches. It is always live-derived, never
+    stored; removing an occurrence renumbers the survivors.
+  </p>
+
+  <!-- 1a before / after -->
+  <section id="numbering-before-after">
+    <div class="panel-label"><span class="pill">before / after</span> Per-branch index vs continuous globalIndex</div>
+    <p class="lede" style="margin-top:0">
+      Same three occurrences, added in the order: API endpoint, then CRM export, then a second API endpoint. Both
+      columns keep the engine's default grouped-by-branch render order (CRM before API); only the badge number changes.
+    </p>
+    <div class="compare">
+      <div class="col">
+        <h3>Today &middot; index + 1 (per branch)</h3>
+        <div class="repeater">
+          <div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div><button class="btn danger-light">&#128465; Remove</button></div>
+        </div>
+        <div class="repeater">
+          <div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><button class="btn danger-light">&#128465; Remove</button></div>
+        </div>
+        <div class="repeater">
+          <div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div><button class="btn danger-light">&#128465; Remove</button></div>
+        </div>
+        <ul class="note-list bad">
+          <li>Badge restarts at 1 for each kind, so two cards read as "1"</li>
+          <li>No way to say "item 3 of 3" across the whole choice</li>
+          <li><code>RepeaterCard :index</code> is the per-branch field-array position</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>After &middot; globalIndex + 1 (across branches)</h3>
+        <div class="repeater">
+          <div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div><button class="btn danger-light">&#128465; Remove</button></div>
+        </div>
+        <div class="repeater">
+          <div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><button class="btn danger-light">&#128465; Remove</button></div>
+        </div>
+        <div class="repeater">
+          <div class="rp-head"><div class="rp-title"><span class="rp-num">3</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div><button class="btn danger-light">&#128465; Remove</button></div>
+        </div>
+        <ul class="note-list good">
+          <li>One continuous 1..N sequence, kind still named by its badge</li>
+          <li>"3 of 3" is now expressible: <code>globalIndex + 1</code> of <code>activeChoiceOccurrences.length</code></li>
+          <li>Storage stays per-branch; only the displayed number changes</li>
+        </ul>
+      </div>
+    </div>
+    <span class="anno code">Badge markup is unchanged (<code>RepeaterCard</code>'s existing <code>.rp-num</code> pill);
+      only its bound value moves from <code>index + 1</code> to <code>globalIndex + 1</code>. The kind badge stays so the
+      continuous number never hides <em>which</em> branch an occurrence belongs to.</span>
+    <span class="anno">This before/after is the natural teaching visual for the docs page; both columns use the same
+      grouped render order so the comparison isolates the numbering change from the ordering change in section 2.</span>
+  </section>
+
+  <!-- 1b populated single card anatomy -->
+  <section id="numbering-populated">
+    <div class="panel-label"><span class="pill">state</span> Populated occurrence card (default)</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Integrations to add</h2>
+          <p>Add up to 5 integrations in any mix. Each kind has its own limit of 3.</p>
+        </div>
+        <span class="tag">3 of 5</span>
+      </div>
+
+      <div class="repeater">
+        <div class="rp-head">
+          <div class="rp-title"><span class="rp-num" title="globalIndex + 1">1</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div>
+          <button class="btn danger-light">&#128465; Remove</button>
+        </div>
+        <div class="fields">
+          <div class="field"><label>CRM system</label><input class="input" value="Salesforce" /></div>
+          <div class="field"><label>Export schedule</label><input class="input" value="nightly" /></div>
+        </div>
+      </div>
+
+      <div class="repeater">
+        <div class="rp-head">
+          <div class="rp-title"><span class="rp-num" title="globalIndex + 1">2</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div>
+          <button class="btn danger-light">&#128465; Remove</button>
+        </div>
+        <div class="fields">
+          <div class="field"><label>Endpoint URL</label><input class="input" value="https://api.acme.test/billing" /></div>
+          <div class="field"><label>API key</label><input class="input" value="sk_live_9f2a..." /></div>
+        </div>
+      </div>
+
+      <div class="repeater">
+        <div class="rp-head">
+          <div class="rp-title"><span class="rp-num" title="globalIndex + 1">3</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div>
+          <button class="btn danger-light">&#128465; Remove</button>
+        </div>
+        <div class="fields">
+          <div class="field"><label>Endpoint URL</label><input class="input" value="https://api.acme.test/shipping" /></div>
+          <div class="field"><label>API key</label><input class="input" value="sk_live_71b0..." /></div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn"><span>&#43;</span> Add CRM export</button>
+        <button class="btn"><span>&#43;</span> Add API endpoint</button>
+      </div>
+    </div>
+    <span class="anno code">Occurrence cards render through the <code>default-choice-array-item</code> slot; the slot now also
+      receives <code>globalIndex</code> next to the existing per-branch <code>index</code>, <code>branchKey</code>,
+      <code>removeItem</code>, and <code>canRemoveItems</code>. Add buttons and the "N of 5" tag are unchanged from
+      FEAT-001.</span>
+    <span class="anno">Card focus/hover states are inherited from the existing <code>RepeaterCard</code> and
+      <code>AppButton</code>; unchanged by this feature, so not separately re-demonstrated here.</span>
+  </section>
+
+  <!-- 1c removal renumber -->
+  <section id="numbering-removal">
+    <div class="panel-label"><span class="pill">behavior</span> Removal renumbers survivors (live-derived)</div>
+    <div class="flow">
+      <div class="section-card">
+        <div class="sc-head"><div><h2>Integrations to add</h2></div><span class="tag">4 of 5</span></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div></div></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128202; CRM export</span><p>HubSpot weekly</p></div></div></div>
+        <div class="repeater moved"><div class="rp-head"><div class="rp-title"><span class="rp-num">3</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><button class="btn danger-light">&#128465; Remove</button></div></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">4</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div></div></div>
+      </div>
+      <div class="arrow"><b>&rarr;</b>remove<br />item 3</div>
+      <div class="section-card">
+        <div class="sc-head"><div><h2>Integrations to add</h2></div><span class="tag">3 of 5</span></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div></div></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128202; CRM export</span><p>HubSpot weekly</p></div></div></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">3</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div></div></div>
+      </div>
+    </div>
+    <span class="anno code">Removing item 3 (Billing webhook) calls <code>removeChoiceOccurrence('apiEndpoint', 0)</code>.
+      Because <code>globalIndex</code> is the loop index over the current <code>activeChoiceOccurrences</code>, the badges
+      recompute to 1, 2, 3 with no stored number to reconcile. Decided (Jeroen, Q5): renumber survivors.</span>
+    <span class="anno">This matches how the existing per-branch <code>RepeaterCard</code> badge already renumbers on
+      removal today, so the behavior is consistent with what array items already do.</span>
+  </section>
+
+  <!-- 1d empty -->
+  <section id="numbering-empty">
+    <div class="panel-label"><span class="pill">state</span> Empty (no occurrences yet)</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div><h2>Integrations to add</h2><p>Add up to 5 integrations in any mix.</p></div>
+        <span class="tag">0 of 5</span>
+      </div>
+      <div class="empty">
+        <p class="t">No integrations added yet</p>
+        <p class="s">Add a CRM export or API endpoint below to get started.</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn"><span>&#43;</span> Add CRM export</button>
+        <button class="btn"><span>&#43;</span> Add API endpoint</button>
+      </div>
+    </div>
+    <span class="anno code">With <code>activeChoiceOccurrences.length === 0</code> there is nothing to number; the empty
+      dashed prompt is the existing FEAT-001 state, unchanged. <code>globalIndex</code> only exists inside the
+      <code>-choice-array-item</code> loop, which does not run when the list is empty.</span>
+  </section>
+
+  <!-- =================================================================
+       SECTION 2  Ordering modes (ask 2): grouped vs interleaved
+  ================================================================== -->
+  <div class="divider"><span>2 &middot; Ordering modes (grouped vs add-order)</span></div>
+  <p class="lede">
+    The engine's <code>activeChoiceOccurrences</code> stays grouped by branch (FEAT-001's Q8 guarantee), and that grouped
+    order is the untouched default. A template can <em>opt in</em> to displaying occurrences in the order their Add
+    buttons were pressed (interleaved) using a per-occurrence add-order value. Two tiers supply that value: a default
+    ephemeral engine counter (resets on reload), and an opt-in <code>preserveOrder</code> metadata flag that persists an
+    <code>order</code> field into the submitted values. The demo toolbar below lets a docs reader flip between them and
+    watch both the cards and the submitted JSON react.
+  </p>
+
+  <!-- 2a toolbar states -->
+  <section id="ordering-toolbar">
+    <div class="panel-label"><span class="pill">component</span> Demo toolbar (docs-demo chrome, not a shipped widget)</div>
+    <div class="toolbar">
+      <div class="tb-group">
+        <span class="tb-label">Display order</span>
+        <div class="segmented" role="group" aria-label="Display order">
+          <button class="seg-btn active">Grouped by kind</button>
+          <button class="seg-btn">Order added</button>
+        </div>
+      </div>
+      <div class="tb-group">
+        <span class="tb-label">Persist to values</span>
+        <div class="switch" role="switch" aria-checked="false"><span class="track"><span class="knob"></span></span><span class="lbl">preserveOrder</span></div>
+      </div>
+    </div>
+    <span class="anno">Default state: <em>Grouped by kind</em> selected, <em>preserveOrder</em> off. This is exactly
+      today's FEAT-001 behavior, so a reader who touches nothing sees no change.</span>
+
+    <div class="panel-label"><span class="pill">state</span> Focus &amp; alternate selection</div>
+    <div class="toolbar">
+      <div class="tb-group">
+        <span class="tb-label">Display order</span>
+        <div class="segmented" role="group" aria-label="Display order">
+          <button class="seg-btn">Grouped by kind</button>
+          <button class="seg-btn active focus">Order added</button>
+        </div>
+      </div>
+      <div class="tb-group">
+        <span class="tb-label">Persist to values</span>
+        <div class="switch on" role="switch" aria-checked="true"><span class="track"><span class="knob"></span></span><span class="lbl">preserveOrder</span></div>
+      </div>
+    </div>
+    <span class="anno code">The segmented control is a radio-style single-select (<code>role="group"</code> of two
+      buttons, <code>aria-pressed</code> on each). Keyboard focus shows a 2px sky focus ring, drawn here on the
+      "Order added" segment. The toggle reuses <code>ToggleSwitch</code> (sky <code>peer-checked</code> track).</span>
+    <span class="anno">Toolbar layout: horizontal groups with a 24px gap that wrap to stacked rows under 720px. The
+      two controls are independent; "Order added" changes what you see, <code>preserveOrder</code> changes what gets
+      submitted and whether the order survives a reload.</span>
+  </section>
+
+  <!-- 2b grouped display -->
+  <section id="ordering-grouped">
+    <div class="panel-label"><span class="pill">state</span> Grouped by kind (default) &middot; preserveOrder off</div>
+    <div class="toolbar">
+      <div class="tb-group"><span class="tb-label">Display order</span><div class="segmented"><button class="seg-btn active">Grouped by kind</button><button class="seg-btn">Order added</button></div></div>
+      <div class="tb-group"><span class="tb-label">Persist to values</span><div class="switch"><span class="track"><span class="knob"></span></span><span class="lbl">preserveOrder</span></div></div>
+    </div>
+    <div class="section-card" style="margin-top:12px">
+      <div class="sc-head"><div><h2>Integrations to add</h2></div><span class="tag">3 of 5</span></div>
+      <div class="repeater">
+        <div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div><span class="seq-chip">insertionOrder: 2</span></div>
+      </div>
+      <div class="repeater">
+        <div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><span class="seq-chip">insertionOrder: 1</span></div>
+      </div>
+      <div class="repeater">
+        <div class="rp-head"><div class="rp-title"><span class="rp-num">3</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div><span class="seq-chip">insertionOrder: 3</span></div>
+      </div>
+    </div>
+    <span class="anno code">Render order is the engine's <code>activeChoiceOccurrences</code>: all CRM exports, then all
+      API endpoints, each in field-array order. The <code>insertionOrder</code> chip (a teaching aid only, not shipped
+      UI) shows the press order underneath: Billing webhook was actually added first, yet grouped mode lists it second.
+      This is the divergence the "Order added" mode resolves.</span>
+    <span class="anno">The badge is <code>globalIndex + 1</code>, reading 1, 2, 3 top-to-bottom because the display
+      order equals <code>activeChoiceOccurrences</code> order in grouped mode.</span>
+  </section>
+
+  <!-- 2c interleaved display -->
+  <section id="ordering-interleaved">
+    <div class="panel-label"><span class="pill">state</span> Order added (interleaved) &middot; ephemeral tier, preserveOrder off</div>
+    <div class="toolbar">
+      <div class="tb-group"><span class="tb-label">Display order</span><div class="segmented"><button class="seg-btn">Grouped by kind</button><button class="seg-btn active">Order added</button></div></div>
+      <div class="tb-group"><span class="tb-label">Persist to values</span><div class="switch"><span class="track"><span class="knob"></span></span><span class="lbl">preserveOrder</span></div></div>
+    </div>
+    <div class="section-card" style="margin-top:12px">
+      <div class="sc-head"><div><h2>Integrations to add</h2></div><span class="tag">3 of 5</span></div>
+      <div class="repeater">
+        <div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><span class="seq-chip">insertionOrder: 1</span></div>
+      </div>
+      <div class="repeater">
+        <div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div><span class="seq-chip">insertionOrder: 2</span></div>
+      </div>
+      <div class="repeater">
+        <div class="rp-head"><div class="rp-title"><span class="rp-num">3</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div><span class="seq-chip">insertionOrder: 3</span></div>
+      </div>
+    </div>
+    <span class="anno code">The template sorts its rendered occurrences by the ephemeral engine
+      <code>insertionOrder</code> before rendering: Billing webhook (added 1st) now leads, the CRM export (added 2nd)
+      follows. The badge here is the occurrence's position in the sorted list (1, 2, 3 top-to-bottom), which the reader
+      reads as the same continuous number. The engine's <code>activeChoiceOccurrences</code> array itself is untouched.</span>
+    <div class="callout warn">
+      <p><strong>Ephemeral tier caveat (documented).</strong> <code>insertionOrder</code> is instance-local engine
+        state keyed by the stable occurrence key; it is never written to <code>values</code>. On page reload or when
+        loading previously saved data the counter is gone, so this mode silently falls back to grouped order. To make
+        add-order survive a reload, turn on <code>preserveOrder</code> (next section).</p>
+    </div>
+    <span class="anno">DOM order now equals visual order (the template physically reorders the cards, not a CSS
+      <code>order</code> trick), so keyboard Tab traversal and screen-reader order follow the interleaved sequence. The
+      CSS-only approach that would have split DOM and visual order was rejected (Q2 research finding).</span>
+  </section>
+
+  <!-- 2d preserveOrder on: order in values -->
+  <section id="ordering-preserve">
+    <div class="panel-label"><span class="pill">state</span> Order added &middot; preserveOrder ON (persisted tier)</div>
+    <div class="toolbar">
+      <div class="tb-group"><span class="tb-label">Display order</span><div class="segmented"><button class="seg-btn">Grouped by kind</button><button class="seg-btn active">Order added</button></div></div>
+      <div class="tb-group"><span class="tb-label">Persist to values</span><div class="switch on"><span class="track"><span class="knob"></span></span><span class="lbl">preserveOrder</span></div></div>
+    </div>
+    <div class="section-card" style="margin-top:12px">
+      <div class="sc-head"><div><h2>Integrations to add</h2></div><span class="tag">3 of 5</span></div>
+      <div class="repeater">
+        <div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><span class="seq-chip">order: 1</span></div>
+        <div class="fields"><div class="field"><label>Endpoint URL</label><input class="input" value="https://api.acme.test/billing" /></div><div class="field"><label>API key</label><input class="input" value="sk_live_9f2a..." /></div></div>
+      </div>
+      <div class="repeater">
+        <div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div><span class="seq-chip">order: 2</span></div>
+        <div class="fields"><div class="field"><label>CRM system</label><input class="input" value="Salesforce" /></div><div class="field"><label>Export schedule</label><input class="input" value="nightly" /></div></div>
+      </div>
+      <div class="repeater">
+        <div class="rp-head"><div class="rp-title"><span class="rp-num">3</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div><span class="seq-chip">order: 3</span></div>
+        <div class="fields"><div class="field"><label>Endpoint URL</label><input class="input" value="https://api.acme.test/shipping" /></div><div class="field"><label>API key</label><input class="input" value="sk_live_71b0..." /></div></div>
+      </div>
+    </div>
+    <span class="anno code">With <code>preserveOrder: true</code> the engine writes an <code>order</code> field into each
+      occurrence's own values as it is added. Interleaved display now sorts by that stored <code>order</code> instead of
+      the ephemeral counter, so it survives reload and loaded saved data. Decided (Jeroen, Q4): the
+      <code>order</code> field is real submitted data, the accepted price of opting in; no special stripping in
+      <code>removeNullValues</code>.</span>
+  </section>
+
+  <!-- 2e values JSON compare -->
+  <section id="ordering-values">
+    <div class="panel-label"><span class="pill">data</span> Submitted values: preserveOrder off vs on</div>
+    <div class="compare">
+      <div class="col">
+        <h3>preserveOrder off (default)</h3>
+        <pre class="json-panel"><span class="cmt">// grouped or add-order display, but values carry no order</span>
+{
+  "integrations": {
+    "crmExport": [
+      { "crmSystem": "Salesforce", "exportSchedule": "nightly" }
+    ],
+    "apiEndpoint": [
+      { "url": "https://api.acme.test/billing", "apiKey": "sk_live_9f2a..." },
+      { "url": "https://api.acme.test/shipping", "apiKey": "sk_live_71b0..." }
+    ]
+  }
+}</pre>
+      </div>
+      <div class="col">
+        <h3>preserveOrder on</h3>
+        <pre class="json-panel"><span class="cmt">// each occurrence gains an order field (1..N across branches)</span>
+{
+  "integrations": {
+    "crmExport": [
+      { "crmSystem": "Salesforce", "exportSchedule": "nightly", <span class="hl">"order": 2</span> }
+    ],
+    "apiEndpoint": [
+      { "url": "https://api.acme.test/billing", "apiKey": "sk_live_9f2a...", <span class="hl">"order": 1</span> },
+      { "url": "https://api.acme.test/shipping", "apiKey": "sk_live_71b0...", <span class="hl">"order": 3</span> }
+    ]
+  }
+}</pre>
+      </div>
+    </div>
+    <span class="anno code">Storage stays per-branch (the value tree shape is FEAT-001's, unchanged). The
+      <code>order</code> numbers are the cross-branch press order: Billing webhook (1), Salesforce (2), Shipping (3). A
+      template reconstructs interleaved display by flattening all branches and sorting on <code>order</code>. The panel
+      reuses the example's existing <code>&lt;pre&gt;</code> JSON dump styling.</span>
+    <span class="anno">The docs example keeps its live JSON dump so a reader watches the <code>order</code> key appear
+      and disappear as they flip <code>preserveOrder</code>, making the "real submitted data" trade-off concrete.</span>
+  </section>
+
+  <!-- 2f removal compaction with order -->
+  <section id="ordering-removal">
+    <div class="panel-label"><span class="pill">behavior</span> Removal compacts order to 1..N (persisted tier)</div>
+    <div class="flow">
+      <div class="section-card">
+        <div class="sc-head"><div><h2>Integrations to add</h2></div><span class="tag">4 of 5</span></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><span class="seq-chip">order: 1</span></div></div>
+        <div class="repeater moved"><div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div><button class="btn danger-light">&#128465; Remove</button></div></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">3</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div><span class="seq-chip">order: 3</span></div></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">4</span><span class="kind-badge">&#128202; CRM export</span><p>HubSpot weekly</p></div><span class="seq-chip">order: 4</span></div></div>
+      </div>
+      <div class="arrow"><b>&rarr;</b>remove<br />order 2</div>
+      <div class="section-card">
+        <div class="sc-head"><div><h2>Integrations to add</h2></div><span class="tag">3 of 5</span></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><span class="seq-chip">order: 1</span></div></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128225; API endpoint</span><p>Shipping events</p></div><span class="seq-chip">order: 2</span></div></div>
+        <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">3</span><span class="kind-badge">&#128202; CRM export</span><p>HubSpot weekly</p></div><span class="seq-chip">order: 3</span></div></div>
+      </div>
+    </div>
+    <span class="anno code">Decided (Jeroen, Q6): compact to 1..N. Removing the occurrence with
+      <code>order: 2</code> renumbers survivors 3 &rarr; 2 and 4 &rarr; 3, so the submitted sequence stays contiguous and
+      the next added occurrence gets <code>count + 1</code>. The re-write touches the surviving occurrences' values
+      (a dirty-state / re-render cost the architecture phase must account for).</span>
+    <span class="anno">The ephemeral tier (preserveOrder off) does not need this UI: its counter is display-only and
+      the template re-derives ranks from the surviving set on each render, so no stored value is rewritten.</span>
+  </section>
+
+  <!-- =================================================================
+       SECTION 3  Persistence / reload behavior
+  ================================================================== -->
+  <div class="divider"><span>3 &middot; Persistence across reload</span></div>
+  <p class="lede">
+    The two tiers differ only in what survives a page reload or a load of previously saved data. This is the single most
+    important thing for a template author to understand before choosing a tier, so the docs make it explicit.
+  </p>
+
+  <section id="reload-behavior">
+    <div class="compare">
+      <div class="col">
+        <h3>Ephemeral tier &middot; preserveOrder off</h3>
+        <div class="flow" style="grid-template-columns:1fr">
+          <div class="section-card">
+            <div class="panel-label" style="margin-top:0"><span class="pill">before reload</span> Order added</div>
+            <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div></div></div>
+            <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div></div></div>
+          </div>
+          <div class="arrow"><b>&darr;</b>reload</div>
+          <div class="section-card">
+            <div class="panel-label" style="margin-top:0"><span class="pill">after reload</span> Falls back to grouped</div>
+            <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div></div></div>
+            <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div></div></div>
+          </div>
+        </div>
+        <ul class="note-list bad">
+          <li>Counter is instance-local, gone on remount</li>
+          <li>Add-order silently reverts to grouped order</li>
+          <li>Zero footprint in <code>values</code></li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Persisted tier &middot; preserveOrder on</h3>
+        <div class="flow" style="grid-template-columns:1fr">
+          <div class="section-card">
+            <div class="panel-label" style="margin-top:0"><span class="pill">before reload</span> Order added</div>
+            <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><span class="seq-chip">order: 1</span></div></div>
+            <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div><span class="seq-chip">order: 2</span></div></div>
+          </div>
+          <div class="arrow"><b>&darr;</b>reload</div>
+          <div class="section-card">
+            <div class="panel-label" style="margin-top:0"><span class="pill">after reload</span> Restored from order</div>
+            <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">1</span><span class="kind-badge">&#128225; API endpoint</span><p>Billing webhook</p></div><span class="seq-chip">order: 1</span></div></div>
+            <div class="repeater"><div class="rp-head"><div class="rp-title"><span class="rp-num">2</span><span class="kind-badge">&#128202; CRM export</span><p>Salesforce nightly</p></div><span class="seq-chip">order: 2</span></div></div>
+          </div>
+        </div>
+        <ul class="note-list good">
+          <li><code>order</code> is part of loaded/saved values</li>
+          <li>Interleaved display reconstructs exactly</li>
+          <li>Price: <code>order</code> lives in the submitted shape</li>
+        </ul>
+      </div>
+    </div>
+    <span class="anno">The ephemeral tier mirrors FEAT-001's <code>preserveOnSwitch</code> stash: instance-local, never
+      in <code>values</code>, gone on remount. Naming the two tiers side by side is the clearest way to show the reader
+      the reload trade-off is the whole reason the persisted tier exists.</span>
+  </section>
+
+  <!-- =================================================================
+       SECTION 4  Shared states: error and limits
+  ================================================================== -->
+  <div class="divider"><span>4 &middot; Error &amp; limit states</span></div>
+  <p class="lede">
+    These states are inherited unchanged from FEAT-001; shown here to confirm the new numbering and ordering layer does
+    not disturb them. Choice-level has no loading state (the selector is synchronous); any async lives on individual
+    fields inside an occurrence.
+  </p>
+
+  <section id="states-error">
+    <div class="panel-label"><span class="pill">state</span> Required but empty (xsd_choiceMinOccurs)</div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div>
+          <h2>Integrations to add</h2>
+          <p>Add at least one integration.</p>
+          <span class="err-text">Please add at least one integration.</span>
+        </div>
+        <span class="tag">0 of 5</span>
+      </div>
+      <div class="empty">
+        <p class="t">No integrations added yet</p>
+        <p class="s">Add a CRM export or API endpoint below.</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn"><span>&#43;</span> Add CRM export</button>
+        <button class="btn"><span>&#43;</span> Add API endpoint</button>
+      </div>
+    </div>
+    <span class="anno code">Error copy comes from the existing <code>xsd_choiceMinOccurs</code> rule (semantics
+      unchanged, out of scope for this feature). It anchors to the section header exactly as in FEAT-001.</span>
+  </section>
+
+  <section id="states-limits">
+    <div class="panel-label"><span class="pill">state</span> Add buttons disabled (branch max &amp; shared budget)</div>
+    <div class="section-card" style="margin-bottom:16px">
+      <div class="sc-head">
+        <div><h2>Integrations to add</h2><p>API endpoint has reached its own maxOccurs of 3; the shared budget (1 of 5 left) still allows CRM export.</p></div>
+        <span class="tag">4 of 5</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn"><span>&#43;</span> Add CRM export</button>
+        <button class="btn" disabled title="This kind's own maxOccurs is reached"><span>&#43;</span> Add API endpoint</button>
+      </div>
+      <span class="anno code" style="margin-top:14px"><code>canAddChoiceOccurrence('apiEndpoint')</code> is false (branch
+        max 3 reached), so only that button disables; CRM export stays enabled because shared budget remains.</span>
+    </div>
+    <div class="section-card">
+      <div class="sc-head">
+        <div><h2>Integrations to add</h2><p>All 5 shared occurrences used; every Add button disables regardless of branch.</p></div>
+        <span class="tag">5 of 5</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn" disabled><span>&#43;</span> Add CRM export</button>
+        <button class="btn" disabled><span>&#43;</span> Add API endpoint</button>
+      </div>
+      <span class="anno code" style="margin-top:14px">Shared budget exhausted: <code>canAddChoiceOccurrence(k)</code> is
+        false for every branch. Disabled button: 40% opacity, not-allowed cursor (existing <code>AppButton</code>
+        disabled style). Numbering and ordering are unaffected by the disabled affordances.</span>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       SECTION 5  Docs impact
+  ================================================================== -->
+  <div class="divider"><span>5 &middot; Docs &amp; component impact</span></div>
+  <section id="docs-impact">
+    <div class="callout">
+      <p><strong>Docs example (<code>docs/examples/choices.md</code>, "Add several, each one of several kinds"):</strong>
+        add the continuous-numbering before/after explanation, replace the flat "grouped, never click order" warning with
+        the two-tier ordering explanation (grouped default, ephemeral add-order, persisted <code>preserveOrder</code>),
+        and keep the live JSON dump so the <code>order</code> field is visible when persisted. The existing grouped-order
+        guarantee statement stays, reframed as "the default, which the ordering layer sits on top of".</p>
+      <p><strong>Template components:</strong> <code>AdvancedFormTemplate.vue</code>'s <code>default-choice-array-item</code>
+        slot binds the new <code>globalIndex</code> to <code>RepeaterCard</code>'s badge (replacing
+        <code>:index</code> for the badge value; <code>index</code> stays available for keys and remove wiring).
+        <code>ChoiceArraySectionCard.vue</code> and the <code>heading-choice-array</code> slot gain the toolbar controls
+        (display-order segmented control and the <code>preserveOrder</code> toggle) that
+        <code>FormExampleChoiceExplicitRepeatable.vue</code> drives.</p>
+      <p><strong>New metadata / slot surface (for <code>specs/components.md</code>, architect finalizes names):</strong>
+        <code>globalIndex</code> on the <code>-choice-array-item</code> slot; a per-occurrence ephemeral insertion counter on
+        the choice slot props; a <code>preserveOrder</code> metadata flag writing an <code>order</code> field into
+        occurrence values. All additive and off by default: a FEAT-001 consumer who ignores them is byte-for-byte
+        unaffected.</p>
+    </div>
+    <span class="anno">Live site check: vue-dynamic-form.bach.software still shows the pre-FEAT-001 choices
+      page (no "Add several" section deployed yet). The repo <code>docs/</code> source is the authoritative target for
+      these deltas; the deployed content will catch up on the next merge to main.</span>
+  </section>
+</div>
+
+<script>
+  // Drive the .dark class on <html> exactly like the VitePress theme switcher.
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('themeToggle');
+    var icon = document.getElementById('themeIcon');
+    var label = document.getElementById('themeLabel');
+    function apply(isDark) {
+      root.classList.toggle('dark', isDark);
+      icon.innerHTML = isDark ? '&#9728;' : '&#9789;';
+      label.textContent = isDark ? 'Light' : 'Dark';
+    }
+    // Respect the OS preference on first load.
+    apply(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    btn.addEventListener('click', function () {
+      apply(!root.classList.contains('dark'));
+    });
+  })();
+</script>
+</body>
+</html>

@@ -38,6 +38,8 @@ Process:
    - The public API changes exactly as the approved architecture says: nothing extra exported from `packages/core/src/index.ts`, no signature drift.
    - New capability reaches templates only through the established channels: `FieldMetadata` extension via `defineMetadata`, `DynamicFormSettings`, or the slot contract with its documented fallback priority.
    - Vue code in camelCase, never kebab-case (component names, props, event names); semicolons required; `@antfu/eslint-config` rules apply.
+   - Code comments and test names never reference specs or process artifacts: no feature or story documents, no FEAT-xxx, ST-xx, AC, ADR, QA-plan, "decision N" or "finding N". The code must stand on its own for a reader who has never seen the specs.
+   - Comment only when it adds value the code cannot carry itself: a constraint or a rationale. Let function and variable names do the explaining; never narrate what the next line does or why the change is correct.
 5. Implement the QA plan's automated tests alongside the code, following the naming conventions (`*.test.ts`, `*.logic.test.ts`, `*.validation.test.ts`, `*.analytics.test.ts`) in `__tests__/` directories next to the source. Run time-sensitive tests with `TZ=Europe/Amsterdam`.
 6. Update `specs/components.md` for every change to the public surface. This is part of done, not optional.
    - When `packages/core/src/` changed, add a changeset (`pnpm changeset`) with the bump type from the feature architecture (patch/minor/major per CLAUDE.md) and commit the generated `.changeset/*.md` with the story. Changes only touching `docs/`, `playgrounds/`, `packages/element-plus/`, root config, or CI need no changeset.
