@@ -98,7 +98,7 @@ Pass it to `DynamicFormTemplate` via `:metadata-configuration`.
 
 ## Built-in Type
 
-`default` is always included as a field type — you never need to declare it in `FieldValueTypes`. Like every declared type, it generates five slots that act as the final fallback for any field whose `type` has no matching named slot:
+`default` is always included as a field type — you never need to declare it in `FieldValueTypes`. Like every declared type, it generates seven slots that act as the final fallback for any field whose `type` has no matching named slot:
 
 | Slot | Fallback for |
 |------|-------------|
@@ -107,9 +107,11 @@ Pass it to `DynamicFormTemplate` via `:metadata-configuration`.
 | `#default-array` | Any `#T-array` slot that is not defined |
 | `#default-array-item` | Any `#T-array-item` slot that is not defined |
 | `#default-choice` | Any `#T-choice` slot that is not defined |
+| `#default-choice-array` | Any `#T-choice-array` slot that is not defined |
+| `#default-choice-array-item` | Any `#T-choice-array-item` slot that is not defined |
 
 ::: tip Naming advice
-Avoid names ending in `-input`, `-array`, `-array-item`, or `-choice` — they are valid but will generate ambiguous slot names. For example, declaring `my-array` as a type produces `#my-array` (wrapper) and `#my-array-array` (array container), which is hard to distinguish from the generated slots.
+Avoid names ending in `-input`, `-array`, `-array-item`, `-choice`, `-choice-array`, or `-choice-array-item` — they are valid but will generate ambiguous slot names. For example, declaring `my-array` as a type produces `#my-array` (wrapper) and `#my-array-array` (array container), which is hard to distinguish from the generated slots.
 :::
 
 ## GetDynamicFormSettingsType

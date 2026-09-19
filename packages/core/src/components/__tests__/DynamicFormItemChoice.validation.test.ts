@@ -551,9 +551,9 @@ describe('component DynamicFormItemChoice', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 9. Explicit selection — xsd_choiceMinOccurs parity (AC6, ST-01)
+  // 9. Explicit selection — xsd_choiceMinOccurs parity
   // ─────────────────────────────────────────────────────────────────────────
-  describe('explicit selection — xsd_choiceMinOccurs parity (AC6)', () => {
+  describe('explicit selection — xsd_choiceMinOccurs parity', () => {
     function mountExplicitRequiredChoice() {
       return mount(TestForm, {
         attachTo: document.body,
@@ -643,11 +643,10 @@ describe('component DynamicFormItemChoice', () => {
     });
 
     // ───────────────────────────────────────────────────────────────────────
-    // maxOccurs > 1 (ST-02, AC5) — placed beside the maxOccurs:1 cases above so both
-    // cardinalities are visible side by side in one diff/review, per the DECIDED parity
-    // requirement (feature spec, finding 2).
+    // maxOccurs > 1, placed beside the maxOccurs:1 cases above so both
+    // cardinalities are visible side by side.
     // ───────────────────────────────────────────────────────────────────────
-    describe('maxOccurs > 1 (ST-02, AC5)', () => {
+    describe('maxOccurs > 1', () => {
       function mountExplicitRequiredRepeatableChoice() {
         return mount(TestForm, {
           attachTo: document.body,
@@ -752,9 +751,9 @@ describe('component DynamicFormItemChoice', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 10. Explicit selection — single-branch degenerate case (AC8, ST-01)
+  // 10. Explicit selection — single-branch degenerate case
   // ─────────────────────────────────────────────────────────────────────────
-  describe('explicit selection — single-branch degenerate case (AC8)', () => {
+  describe('explicit selection — single-branch degenerate case', () => {
     it('shows the choice-level required error before selection, then validates the branch\'s own field after selection', async () => {
       const wrapper = mount(TestForm, {
         attachTo: document.body,
@@ -785,9 +784,9 @@ describe('component DynamicFormItemChoice', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 11. Preserve-on-switch — touched/validation reset (AC4, ST-05)
+  // 11. Preserve-on-switch — touched/validation reset
   // ─────────────────────────────────────────────────────────────────────────
-  describe('preserve-on-switch — touched/validation reset (AC4)', () => {
+  describe('preserve-on-switch — touched/validation reset', () => {
     function mountPreserveOnSwitchRequiredChoice() {
       const metadata = enablePreserveOnSwitch([{
         name: 'pick',

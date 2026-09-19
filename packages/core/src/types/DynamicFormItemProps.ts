@@ -60,7 +60,7 @@ export interface DynamicFormItemProps<
   /**
    * In case this item is a single occurrence of a repeatable explicit choice branch
    * (`DynamicFormItemChoice`, `maxOccurs > 1`), the branch (choice child) `name` it belongs to.
-   * When set, it drives the `-choice-item` slot type suffix (mirroring `partOfArrayField`'s
+   * When set, it drives the `-choice-array-item` slot type suffix (mirroring `partOfArrayField`'s
    * `-array-item` suffix) and is forwarded to the slot as `branchKey`.
    */
   branchKey?: string

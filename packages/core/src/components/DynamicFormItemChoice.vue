@@ -16,6 +16,7 @@ import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
+import { deepCloneValue } from '@/utils/deepCloneValue';
 import { normalizePath } from '@/utils/normalizePath';
 import { overridePath } from '@/utils/overridePath';
 
@@ -63,55 +64,51 @@ const closestPath = computed(() =>
 
 const normalizedPath = computed(() => normalizePath(closestPath.value));
 
-// `explicitChoiceSelection` is static metadata (ADR-2, DECIDED finding 4): captured once at
-// setup rather than read reactively from `field`. `field` is the parent's `computedField`, so a
-// `computedProps` mutation of `thisField.explicitChoiceSelection` (only possible via an `as any`
-// cast, since the property is excluded from `ComputedPropsFieldType`) would otherwise still be
-// visible here and could flip the render mode mid-form, causing the exact initial-flash /
-// mount-unmount storm ADR-2 exists to prevent.
+// `explicitChoiceSelection` is static metadata: captured once at setup rather than read
+// reactively from `field`. `field` is the parent's `computedField`, so a `computedProps`
+// mutation of `thisField.explicitChoiceSelection` (only possible via an `as any` cast, since
+// the property is excluded from `ComputedPropsFieldType`) would otherwise still be visible here
+// and could flip the render mode mid-form, causing an initial flash and a mount-unmount storm.
 const explicitChoiceSelection = props.fieldMetadata?.explicitChoiceSelection === true;
 
-// `preserveOnSwitch` (ST-05) is likewise static metadata, captured once at setup for the same
+// `preserveOnSwitch` is likewise static metadata, captured once at setup for the same
 // reason as `explicitChoiceSelection` above: it is excluded from `ComputedPropsFieldType`, so
 // this is purely defence in depth against an `as any` cast, not a reachable runtime mutation.
 const preserveOnSwitch = props.fieldMetadata?.preserveOnSwitch === true;
 
-// vee-validate form context, used to clear a deselected branch's data on switch (ADR-3).
+// vee-validate form context, used to clear a deselected branch's data on switch.
 // `DynamicFormItemChoice` is always a descendant of the `useForm()` call in `useDynamicForm`,
 // so a plain `useFormContext()` resolves it here (unlike the same-instance quirk
 // `useValidatePartialForm` has to guard against).
 const formContext = useFormContext();
 
-// Ephemeral UI state for the `maxOccurs: 1` explicit-selection case (ADR-1). Never written to
+// Ephemeral UI state for the `maxOccurs: 1` explicit-selection case. Never written to
 // form `values` — selection is tracked here and folded into the existing occurrence math below.
 const explicitlySelectedBranch = ref<string | null>(null);
 
-// Ephemeral, instance-local stash for preserve-on-switch (ST-05), keyed by branchKey. Never
-// written to form `values` (decision 4), exactly like `explicitlySelectedBranch` above. Only
-// populated/read when `preserveOnSwitch` is enabled; scoped to `maxOccurs: 1` (the feature
-// architecture's preserve-on-switch verdict does not cover the repeatable case). Bounded in size
-// by the number of branches (keyed by branchKey, not appended), so no unbounded growth across
-// many switches of the same branch.
+// Ephemeral, instance-local stash for preserve-on-switch, keyed by branchKey. Never written to
+// form `values`, exactly like `explicitlySelectedBranch` above. Only populated/read when
+// `preserveOnSwitch` is enabled; scoped to `maxOccurs: 1`. Keyed (not appended), so its size
+// stays bounded by the number of branches no matter how often the user switches.
 const stashedBranchValues = ref<Record<string, unknown>>({});
 
 // Value-driven read per branch, independent of whether that branch's own DynamicFormItem is
-// currently mounted. Needed for the "loading saved data still reads as selected" guarantee
-// (decision 4): in explicit mode only active branches are mounted, so an unmounted branch could
+// currently mounted. Needed for the "loading saved data still reads as selected" guarantee:
+// in explicit mode only active branches are mounted, so an unmounted branch could
 // never self-report a pre-loaded value through childValues (which only ever hears from a branch
 // once it is mounted). Resolved through a getter (not a plain string) so it keeps tracking the
-// right path if pathOverride changes reactively (decision 6, e.g. an earlier array sibling being
+// right path if pathOverride changes reactively (e.g. an earlier array sibling being
 // removed re-indexes this choice's own pathOverride). The branch list itself is static metadata,
 // so a fixed number of useFieldValue() calls at setup satisfies the rules of hooks.
 const branchValueRefs = (field.value?.choice ?? []).map(child =>
   useFieldValue(() => child.path ? overridePath(child.path, props.pathOverride) : ''),
 );
 
-// Per-branch reactive path + field array, used for the repeatable case (ST-02: maxOccurs > 1
-// explicit selection). Created once per branch at setup — branches are static from metadata —
-// but each over a reactive computed path (never a setup-time string), per the DECIDED binding
-// requirement on finding 3: a choice nested inside an array occurrence has a pathOverride that
-// changes (reindexes) when an earlier sibling array item is removed, and the field array must
-// keep following that change rather than staying bound to a stale path.
+// Per-branch reactive path + field array, used for the repeatable case (maxOccurs > 1 explicit
+// selection). Created once per branch at setup (branches are static metadata), but each over a
+// reactive computed path, never a setup-time string: a choice nested inside an array occurrence
+// has a pathOverride that reindexes when an earlier sibling array item is removed, and the
+// field array must keep following that change rather than staying bound to a stale path.
 const branchPaths = (field.value?.choice ?? []).map(child =>
   computed(() => child.path ? normalizePath(overridePath(child.path, props.pathOverride)) : ''));
 const branchFieldArrays = branchPaths.map(branchPath => useFieldArrayExtended(branchPath));
@@ -144,6 +141,13 @@ const _maxOccursOverride = computed(() =>
 // When the choice itself may occur more than once, its children become array fields too.
 const childrenAreArrays = computed(() => field.value?.maxOccurs > 1 ? 'array' : undefined);
 
+// A repeatable choice (declared maxOccurs > 1) renders through the -choice-array slot family;
+// a single choice (maxOccurs: 1) through -choice. Based on the declared maxOccurs (like
+// childrenAreArrays above), not the overridable budget, so a maxOccursOverride of 0 (disabled)
+// cannot flip an otherwise repeatable choice into the single slot family.
+const slotType = computed(() =>
+  `${field.value?.type}${field.value?.maxOccurs > 1 ? '-choice-array' : '-choice'}`);
+
 // --- Child value tracking ---
 
 // Each child reports its current value here so we can calculate the shared occurrence budget.
@@ -156,7 +160,7 @@ const values = computed(() => Object.values(childValues.value).map(x => x.value)
 
 // When a choice field has exactly one option there is no meaningful branching — skip
 // all occurrence math and render that one child directly.
-// Bypassed when explicitChoiceSelection is set (DECIDED finding 5): a single-branch explicit
+// Bypassed when explicitChoiceSelection is set: a single-branch explicit
 // choice behaves as an explicit "add this block / remove it" selection instead.
 const singleChild = computed(() =>
   (!explicitChoiceSelection && field.value?.choice?.length === 1) ? field.value?.choice[0] as InternalMetadata : undefined,
@@ -263,7 +267,7 @@ const valuesCount = computed(() =>
   ),
 );
 
-// --- Explicit selection (maxOccurs:1, ST-01 foundation) ---
+// --- Explicit selection (maxOccurs: 1) ---
 
 // The active branch(es), merging the value-driven view (a branch with real data, the existing
 // childValues-based logic) with the explicit view (explicitlySelectedBranch). This is what makes
@@ -275,12 +279,12 @@ const activeChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
   const active: ChoiceOccurrence[] = [];
 
   field.value?.choice?.forEach((child, index) => {
-    // Repeatable case (ST-02): every item currently in this branch's own field array is an
-    // active occurrence, whether or not it holds a value yet — an empty placeholder is a real,
-    // already-committed occurrence (ADR-1: "selected" means "a placeholder item exists"), the
-    // same way an unfilled array item is still an item. Grouped by branch declaration order
-    // (the outer forEach), then by index within the branch (the inner forEach), derived purely
-    // from the value tree with no separate ephemeral ordering list (DECIDED Q8).
+    // Repeatable case: every item currently in this branch's own field array is an active
+    // occurrence, whether or not it holds a value yet. An empty placeholder is a real,
+    // already-committed occurrence ("selected" means "a placeholder item exists"), the same
+    // way an unfilled array item is still an item. Grouped by branch declaration order, then
+    // by index within the branch, derived purely from the value tree with no separate
+    // ordering list.
     if (explicitChoiceSelection && maxOccurs.value > 1) {
       const branchFields = branchFieldArrays[index]?.fields.value ?? [];
       branchFields.forEach((_, occurrenceIndex) => {
@@ -300,10 +304,10 @@ const activeChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
   return active;
 });
 
-// In explicit mode, an explicitly selected branch (maxOccurs:1) or an added occurrence
-// (maxOccurs > 1) counts toward xsd_choiceMinOccurs even before any of its fields hold a value
-// (parity, DECIDED finding 2): the branch's own required fields then drive their own validation
-// independently. Auto mode stays value-driven, unchanged.
+// In explicit mode, an explicitly selected branch (maxOccurs: 1) or an added occurrence
+// (maxOccurs > 1) counts toward xsd_choiceMinOccurs even before any of its fields hold a value;
+// the branch's own required fields then drive their own validation independently. Auto mode
+// stays value-driven, unchanged.
 const effectiveValuesCount = computed(() => {
   if (explicitChoiceSelection && maxOccurs.value === 1)
     return Math.max(valuesCount.value, explicitlySelectedBranch.value ? 1 : 0);
@@ -356,7 +360,7 @@ watch(field, (_field) => {
   });
 }, { immediate: true });
 
-// Repeatable case (ST-02): keep childValues in sync with each branch's own field array, so the
+// Repeatable case: keep childValues in sync with each branch's own field array, so the
 // existing occurrences/valuesCount machinery (and, through it, the shared choice-level budget in
 // overrideChildMaxOccurrences) reflects reality without needing every occurrence's DynamicFormItem
 // to individually emit update:modelValue. A batch size of 1 is used here (not the branch's own
@@ -426,7 +430,7 @@ function updateChildValue(
   emits('update:modelValue', values.value);
 };
 
-// --- Explicit selection primitives (maxOccurs:1, ST-01 foundation) ---
+// --- Explicit selection primitives ---
 
 function branchIndexOf(branchKey: string): number {
   return field.value?.choice?.findIndex(child => child.name === branchKey) ?? -1;
@@ -437,19 +441,17 @@ function branchByKey(branchKey: string): InternalMetadata | undefined {
   return index >= 0 ? (field.value?.choice?.[index] as InternalMetadata) : undefined;
 }
 
-// Clears a deselected branch's data through the vee-validate form context (ADR-3), resolved via
-// the same overridePath the rest of the component uses so this is correct through array indices
-// (decision 6). The residual `undefined`-valued key that setInPath leaves behind is the accepted
+// Clears a deselected branch's data through the vee-validate form context, resolved via the
+// same overridePath the rest of the component uses so this is correct through array indices.
+// The residual `undefined`-valued key that setInPath leaves behind is the accepted
 // contract; consumers who need a byte-clean tree call the exported removeNullValues at submit time.
 // The childValues entry is also reset synchronously here (not left to the branch's own unmount),
 // so valuesCount/combinedValidation settle in one tick instead of oscillating.
 //
-// `stash` (ST-05, preserve-on-switch) is passed by the caller — only the switch-away path in
-// addChoiceOccurrence opts in — and, when true, deep-clones the branch's current values into
-// `stashedBranchValues` BEFORE the clear below, using the same value-driven read
-// (`branchValueRefs`, backed by vee-validate's `useFieldValue` at this exact branchPath) already
-// used elsewhere in this component for the value-driven active-branch view. This is the same
-// underlying read the feature architecture describes as `useFormContext().values` at branchPath.
+// `stash` is passed by the caller (only the switch-away path in addChoiceOccurrence opts in)
+// and, when true, deep-clones the branch's current values into `stashedBranchValues` BEFORE the
+// clear below, using the same value-driven read (`branchValueRefs`, backed by vee-validate's
+// `useFieldValue` at this exact branchPath) already used for the value-driven active-branch view.
 function clearBranch(branchKey: string, options: { stash?: boolean } = {}) {
   const index = branchIndexOf(branchKey);
   if (index < 0)
@@ -459,7 +461,10 @@ function clearBranch(branchKey: string, options: { stash?: boolean } = {}) {
   const branchPath = branchChild?.path ? overridePath(branchChild.path, props.pathOverride) : undefined;
 
   if (options.stash) {
-    stashedBranchValues.value[branchKey] = structuredClone(branchValueRefs[index]?.value ?? undefined);
+    // deepCloneValue, not structuredClone: a branch with children reads back as a Vue reactive
+    // Proxy here, and structuredClone throws a DataCloneError on a Proxy, which would abort the
+    // switch entirely (the previously selected branch could then never be deselected).
+    stashedBranchValues.value[branchKey] = deepCloneValue(branchValueRefs[index]?.value ?? undefined);
   }
 
   if (branchPath) {
@@ -474,14 +479,14 @@ function clearBranch(branchKey: string, options: { stash?: boolean } = {}) {
   }
 }
 
-// Restores a previously stashed branch's values (ST-05, preserve-on-switch), if a stash entry
-// exists for it. Called right before the branch is marked active again, so its DynamicFormItem
-// mounts with the restored data already present on its very first render (no oscillation — the
-// value is committed to the vee-validate values tree before the branch mounts and reads it).
-// `shouldValidate: false` mirrors clearBranch's own clear call, so a restored-but-still-empty
-// required field does not flash an error immediately after restore (AC4's pristine requirement).
+// Restores a previously stashed branch's values, if a stash entry exists for it. Called right
+// before the branch is marked active again, so its DynamicFormItem mounts with the restored
+// data already present on its very first render (no oscillation: the value is committed to the
+// vee-validate values tree before the branch mounts and reads it). `shouldValidate: false`
+// mirrors clearBranch's own clear call, so a restored-but-still-empty required field does not
+// flash an error immediately after restore.
 // A no-op, no-throw when no stash entry exists yet for this branch (e.g. its first-ever
-// selection) — checked with `in` rather than a truthiness check, since an empty branch can be
+// selection); checked with `in` rather than a truthiness check, since an empty branch can be
 // legitimately stashed as `undefined`. No defensive branchPath fallback is needed here (unlike
 // clearBranch, which is also reachable from removeChoiceOccurrence with less upstream
 // validation): restoreStashedBranch is only ever called from addChoiceOccurrence, immediately
@@ -507,25 +512,25 @@ function addChoiceOccurrence(branchKey: string) {
   const index = branchIndexOf(branchKey);
 
   if (maxOccurs.value > 1) {
-    // Repeatable case (ST-02): an occurrence is a real (possibly empty) item pushed into the
+    // Repeatable case: an occurrence is a real (possibly empty) item pushed into the
     // branch's own field array via useFieldArrayExtended, mirroring DynamicFormItemArray's own
-    // _addItem. No separate ephemeral selection ref is needed (ADR-1): the pushed item IS the
+    // _addItem. No separate ephemeral selection ref is needed: the pushed item IS the
     // selection, so activeChoiceOccurrences picks it up on the next recompute.
     branchFieldArrays[index]?.push(null); // empty placeholder
     return;
   }
 
-  // ST-01: maxOccurs:1 — mark a single branch active, clearing any previously active branch.
+  // maxOccurs: 1: mark a single branch active, clearing any previously active branch.
   if (explicitlySelectedBranch.value === branchKey)
     return; // idempotent: already selected
 
   const previousBranch = explicitlySelectedBranch.value;
   if (previousBranch && previousBranch !== branchKey) {
-    // ST-05: stash the deselected branch's values before clearing when preserveOnSwitch is on.
+    // Stash the deselected branch's values before clearing when preserveOnSwitch is on.
     clearBranch(previousBranch, { stash: preserveOnSwitch });
   }
 
-  // ST-05: restore any stash for the newly selected branch before it mounts.
+  // Restore any stash for the newly selected branch before it mounts.
   restoreStashedBranch(branchKey);
 
   explicitlySelectedBranch.value = branchKey;
@@ -549,7 +554,7 @@ function removeChoiceOccurrence(branchKey: string, index?: number) {
     return;
   }
 
-  // ST-01: maxOccurs:1 — index is ignored; deselect the active branch.
+  // maxOccurs: 1: index is ignored; deselect the active branch.
   const isActive = activeChoiceOccurrences.value.some(occurrence => occurrence.branchKey === branchKey);
   if (!isActive)
     return;
@@ -563,7 +568,7 @@ function removeChoiceOccurrence(branchKey: string, index?: number) {
 
 /**
  * Per-branch "may add" guard: false when the choice is disabled or branchKey is unknown.
- * maxOccurs:1 has no per-branch budget to exhaust (ST-01). maxOccurs > 1 (ST-02) checks two
+ * maxOccurs:1 has no per-branch budget to exhaust. maxOccurs > 1 checks two
  * independent limits: this branch's own declared maxOccurs (a hard cap, checked directly against
  * the branch's own raw item count, since the shared-budget math below only bounds the shared
  * total, not any one branch's own ceiling), and the shared choice-level budget, read from the
@@ -580,7 +585,7 @@ function canAddChoiceOccurrence(branchKey: string): boolean {
     return false;
 
   if (maxOccurs.value <= 1)
-    return true; // ST-01: no per-branch budget in the single case
+    return true; // no per-branch budget in the single case
 
   // Both indexed accesses below are safe without further guards: `index` was already validated
   // above, and `branchFieldArrays`/`field.value.choice` are built from (and stay the same length
@@ -598,7 +603,7 @@ function canAddChoiceOccurrence(branchKey: string): boolean {
 }
 
 /**
- * Looks up the per-branch field array helper (ST-02) for a given branchKey. Relies on plain
+ * Looks up the per-branch field array helper for a given branchKey. Relies on plain
  * negative-index array semantics (`branchFieldArrays[-1]` is `undefined` at runtime) rather than
  * an explicit guard, for an unknown branchKey.
  */
@@ -629,17 +634,16 @@ function occurrenceKey(occurrence: ChoiceOccurrence): string {
   return `${occurrence.branchKey}:${rawOccurrenceKey(occurrence)}`;
 }
 
-/** The resolved pathOverride for a single repeatable-choice occurrence (ST-02), e.g. `pick.apiEndpoint[0]`. */
+/** The resolved pathOverride for a single repeatable-choice occurrence, e.g. `pick.apiEndpoint[0]`. */
 function occurrencePathOverride(occurrence: ChoiceOccurrence): string {
   return `${branchPaths[branchIndexOf(occurrence.branchKey)].value}[${occurrence.index}]`;
 }
 
-// Memoized per-occurrence remove-item handlers (ST-02), keyed by the same namespaced key used for
+// Memoized per-occurrence remove-item handlers, keyed by the same namespaced key used for
 // the Vue :key (occurrenceKey). Vue's v-for regenerates every item's inline bindings whenever the
 // list itself changes (an occurrence is added/removed anywhere in the choice), so a plain inline
 // arrow function here would hand every *other*, unaffected occurrence a brand new removeItem
-// reference on every add/remove, forcing an avoidable re-render of each of them (a real prop
-// change, not a bug, but one the reactivity/analytics plan requires we avoid). Memoizing keeps the
+// reference on every add/remove, forcing an avoidable re-render of each of them. Memoizing keeps the
 // reference identical across renders for any occurrence whose own position hasn't changed. The
 // handler itself resolves the occurrence's CURRENT index within its own branch by the occurrence's
 // raw (unnamespaced) field-array key at call time (not a snapshot), so it still removes the right
@@ -670,7 +674,7 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
   <component
     :is="template"
     v-slot="slotProps"
-    :type="`${fieldMetadata.type}-choice`"
+    :type="slotType"
     :field-metadata
     :field-context
     :slot-props
@@ -701,7 +705,7 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
       @update:computed-field="emits('update:computedField', $event)"
     />
     <template v-else-if="explicitChoiceSelection && maxOccurs === 1">
-      <!-- ST-01: exactly one active branch, rendered directly (no -choice-item wrapping). -->
+      <!-- Exactly one active branch, rendered directly (no -choice-array-item wrapping). -->
       <DynamicFormItem
         v-for="occurrence in activeChoiceOccurrences"
         :key="occurrence.branchKey"
@@ -721,8 +725,8 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
     </template>
     <template v-else-if="explicitChoiceSelection">
       <!--
-        ST-02: one DynamicFormItem per active occurrence across every branch, rendered through
-        the *-choice-item / default-choice-item slot (mirrors DynamicFormItemArray's own items).
+        One DynamicFormItem per active occurrence across every branch, rendered through
+        the *-choice-array-item / default-choice-array-item slot (mirrors DynamicFormItemArray's own items).
         part-of-array-field lets DynamicFormItem's own onBeforeUnmount skip its usual "write
         undefined back to my path" cleanup, since removal already goes through the branch's
         useFieldArrayExtended remove() above (writing here too would target a since-reindexed

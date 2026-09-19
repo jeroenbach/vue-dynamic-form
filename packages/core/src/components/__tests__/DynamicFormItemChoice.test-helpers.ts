@@ -30,20 +30,19 @@ export function explicitlySelectedBranch(wrapper: ReturnType<typeof mount>, path
 }
 
 /**
- * Reads the ephemeral preserve-on-switch stash (ST-05) for the choice at `path`. Returns
- * undefined if the choice is not found. Best-effort internal-state reader, per the QA plan: no
- * test in this suite requires it, but it names the stash ref directly for tests that want a
- * stronger assertion than the observable restore behaviour alone.
+ * Reads the ephemeral preserve-on-switch stash for the choice at `path`. Returns
+ * undefined if the choice is not found. Best-effort internal-state reader: it names the stash
+ * ref directly for tests that want a stronger assertion than the observable restore
+ * behaviour alone.
  */
 export function stashedBranchValues(wrapper: ReturnType<typeof mount>, path: string): Record<string, unknown> | undefined {
   return setupState(wrapper, path)?.stashedBranchValues;
 }
 
 /**
- * Patches fixture metadata to enable preserve-on-switch (ST-05) on the choice at `branchKey`
- * (the choice's own `name`, e.g. `'pick'`). Centralises the flag surface (a `FieldMetadata`
- * boolean, `preserveOnSwitch`, per the story's architecture reference) so tests do not hardcode
- * a property name directly.
+ * Patches fixture metadata to enable preserve-on-switch on the choice at `branchKey`
+ * (the choice's own `name`, e.g. `'pick'`). Centralises the flag surface (the `FieldMetadata`
+ * boolean `preserveOnSwitch`) so tests do not hardcode a property name directly.
  */
 export function enablePreserveOnSwitch<T>(metadata: T[], choicePath: string, enabled: boolean = true): T[] {
   const segments = choicePath.split('.');
@@ -91,8 +90,8 @@ export function childValuesEntry(wrapper: ReturnType<typeof mount>, path: string
 
 /**
  * Reads the `-kind-badge` testid text at `occurrencePath` (e.g. `pick.apiEndpoint[0]`), asserting
- * the `*-choice-item`/`default-choice-item` slot actually received `branchKey` as a real slot
- * prop (ST-02), rather than the test inferring it from the path itself.
+ * the `*-choice-array-item`/`default-choice-array-item` slot actually received `branchKey` as a real slot
+ * prop, rather than the test inferring it from the path itself.
  */
 export function occurrenceBranchKey(wrapper: ReturnType<typeof mount>, occurrencePath: string): string | undefined {
   const badge = wrapper.find(`[data-testid="${occurrencePath}-kind-badge"]`);

@@ -80,9 +80,8 @@ const metadata = defineMetadata<
         </span>
         <!--
           Explicit-choice-selection test harness: exercises addChoiceOccurrence/removeChoiceOccurrence/
-          canAddChoiceOccurrence through the real public slot-prop contract (ST-01), the same way
-          addItem/removeItem are already tested through #default-array. Purely additive: existing
-          consumers of #default-choice are unaffected.
+          canAddChoiceOccurrence through the real public slot-prop contract, the same way
+          addItem/removeItem are already tested through #default-array.
         -->
         <div v-if="fieldMetadata.choice?.length" class="flex gap-2 flex-wrap">
           <button
@@ -117,9 +116,54 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #default-choice-item="{ fieldMetadata, slotProps, branchKey, removeItem }">
+    <!--
+      Same harness as #default-choice, but for repeatable (maxOccurs > 1) choices, which
+      dispatch through the -choice-array slot family. Identical markup and testids so tests
+      drive both modes through the same selectors.
+    -->
+    <template #default-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence }">
+      <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
+        <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled }">
+          {{ label }}
+          <span v-if="required && !showOptionalInsteadOfRequired" class="text-red-500 dark:text-rose-400">*</span>
+          <span v-if="!required && showOptionalInsteadOfRequired" class="text-sm text-gray-400">(optional)</span>
+        </span>
+        <div v-if="fieldMetadata.choice?.length" class="flex gap-2 flex-wrap">
+          <button
+            v-for="branch in fieldMetadata.choice"
+            :key="`${branch.name}-add`"
+            type="button"
+            :disabled="!canAddChoiceOccurrence(branch.name)"
+            :data-testid="`${fieldMetadata.path}.${branch.name}-add-choice-button`"
+            @click="addChoiceOccurrence(branch.name)"
+          >
+            Add {{ branch.name }}
+          </button>
+          <button
+            v-for="branch in fieldMetadata.choice"
+            :key="`${branch.name}-remove`"
+            type="button"
+            :data-testid="`${fieldMetadata.path}.${branch.name}-remove-choice-button`"
+            @click="removeChoiceOccurrence(branch.name)"
+          >
+            Remove {{ branch.name }}
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
+          <slot :level="(slotProps?.level ?? 0) + 1" :below-choice-field="true" />
+        </div>
+        <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
+        <span
+          v-if="errorMessage.value"
+          class="text-red-600 text-sm"
+          :data-testid="`${fieldMetadata.path}-error-message`"
+        >{{ errorMessage.value }}</span>
+      </div>
+    </template>
+
+    <template #default-choice-array-item="{ fieldMetadata, slotProps, branchKey, removeItem }">
       <!--
-        Repeatable explicit-choice occurrence test harness (ST-02): renders the branchKey slot
+        Repeatable explicit-choice occurrence test harness: renders the branchKey slot
         prop directly (as a "kind badge") so tests can assert it arrived as a real slot prop
         rather than being inferred from the path, plus a remove button wired to removeItem.
         Forwards the default slot for the occurrence's own fields, mirroring #default's own

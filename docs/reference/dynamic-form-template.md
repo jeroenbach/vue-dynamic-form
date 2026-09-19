@@ -10,7 +10,7 @@
 
 ## Slots Overview
 
-For every type name `T` you declared in `defineMetadata()`, five slots are available — each with a specific rendering role:
+For every type name `T` you declared in `defineMetadata()`, seven slots are available — each with a specific rendering role:
 
 | Slot | Role |
 |------|------|
@@ -18,16 +18,20 @@ For every type name `T` you declared in `defineMetadata()`, five slots are avail
 | `#T-input` | The raw input control inside the wrapper |
 | `#T-array` | Outer container when this field is a repeatable array |
 | `#T-array-item` | Each individual item rendered inside an array |
-| `#T-choice` | Outer container when this field is a choice |
+| `#T-choice` | Outer container when this field is a single (`maxOccurs: 1`) choice |
+| `#T-choice-array` | Outer container when this field is a repeatable (`maxOccurs > 1`) choice |
+| `#T-choice-array-item` | Each individual occurrence of a repeatable explicit choice |
 
 All slots are optional. When a slot is missing, the library walks a two-level fallback chain until it finds one you've defined:
 
 ```
-#text              ──► #default
-#text-input        ──► #default-input        ──► #default
-#text-array        ──► #default-array        ──► #default
-#text-array-item   ──► #default-array-item   ──► #default
-#text-choice       ──► #default-choice       ──► #default
+#text                   ──► #default
+#text-input             ──► #default-input             ──► #default
+#text-array             ──► #default-array             ──► #default
+#text-array-item        ──► #default-array-item        ──► #default
+#text-choice            ──► #default-choice            ──► #default
+#text-choice-array      ──► #default-choice-array      ──► #default
+#text-choice-array-item ──► #default-choice-array-item ──► #default
 ```
 
 This means you can define just `#default` and `#default-input` to handle every field type, then progressively opt into more specific slots as needed.
@@ -127,7 +131,7 @@ Extra data passed down from the parent slot via `<slot :my-prop="value" />`. Acc
 
 ## Slot Props — Array and Choice Container Slots
 
-`#default-array`, `#default-choice`, and all named `#T-array`, `#T-choice` slots receive the same props as regular slots **except** that `fieldContext` is reduced to:
+`#default-array`, `#default-choice`, `#default-choice-array`, and all named `#T-array`, `#T-choice`, `#T-choice-array` slots receive the same props as regular slots **except** that `fieldContext` is reduced to:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -139,7 +143,7 @@ Extra data passed down from the parent slot via `<slot :my-prop="value" />`. Acc
 All other props (`required`, `disabled`, `canAddItems`, `canRemoveItems`, `addItem`, `removeItem`, `slotProps`) are the same.
 
 ::: tip
-`#T-array-item` and `#default-array-item` are **not** container slots — they render each individual occurrence inside an array, so they receive the full `fieldContext` including `value`, `handleChange`, `errors`, etc.
+`#T-array-item` / `#default-array-item` and `#T-choice-array-item` / `#default-choice-array-item` are **not** container slots — they render each individual occurrence, so they receive the full `fieldContext` including `value`, `handleChange`, `errors`, etc. The choice-array-item slots additionally receive `branchKey`, the choice branch the occurrence belongs to.
 :::
 
 ## The `<slot />` Inside Your Slot Templates
@@ -149,7 +153,7 @@ Inside `#default` (or any named wrapper slot), rendering `<slot />` tells the li
 - For a **leaf field**: inserts the `#{type}-input` (or `#default-input`) slot.
 - For a **parent/group field**: inserts all child components.
 - For an **array outer slot** (`#T-array` / `#default-array`): inserts all current array occurrences, each rendered through `#T-array-item` (or `#default-array-item`).
-- For a **choice outer slot** (`#T-choice` / `#default-choice`): inserts all choice branches.
+- For a **choice outer slot** (`#T-choice` / `#default-choice`, or `#T-choice-array` / `#default-choice-array` when the choice is repeatable): inserts the choice branches — for a repeatable explicit choice, its active occurrences, each rendered through `#T-choice-array-item` (or `#default-choice-array-item`).
 
 ## Passing Data to Child Slots
 

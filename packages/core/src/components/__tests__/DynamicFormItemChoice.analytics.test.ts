@@ -25,7 +25,7 @@ function mountExplicitChoiceWithSibling() {
 }
 
 describe('component DynamicFormItemChoice - analytics', () => {
-  describe('explicit selection — maxOccurs:1 (ST-01)', () => {
+  describe('explicit selection — maxOccurs:1', () => {
     it('selecting a branch mounts its DynamicFormItem exactly once', async () => {
       const wrapper = mountExplicitChoiceWithSibling();
       await flushPromises();
@@ -100,7 +100,7 @@ describe('component DynamicFormItemChoice - analytics', () => {
     });
   });
 
-  describe('maxOccurs > 1 (ST-02)', () => {
+  describe('maxOccurs > 1', () => {
     function mountExplicitRepeatableChoiceWithSibling() {
       return mount(TestForm, {
         attachTo: document.body,
@@ -244,7 +244,7 @@ describe('component DynamicFormItemChoice - analytics', () => {
     });
   });
 
-  describe('preserve-on-switch — render counts (ST-05)', () => {
+  describe('preserve-on-switch — render counts', () => {
     function mountPreserveOnSwitchChoiceWithSibling() {
       const metadata = enablePreserveOnSwitch([
         { name: 'sibling', fieldOptions: { label: 'Sibling' } },
@@ -286,7 +286,7 @@ describe('component DynamicFormItemChoice - analytics', () => {
     });
 
     it('switching away with the flag on does not add any extra _analytics_occurrencesCalculatedCount recompute compared to the flag-off baseline', async () => {
-      // Flag-off baseline (ST-01's existing single-recompute contract for plain clear-on-switch).
+      // Flag-off baseline (the existing single-recompute contract for plain clear-on-switch).
       const metadataOff = [
         { name: 'sibling', fieldOptions: { label: 'Sibling' } },
         {

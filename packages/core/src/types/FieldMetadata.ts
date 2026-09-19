@@ -124,7 +124,8 @@ export type FieldMetadata<
 
   /**
    * Opt into selection-first rendering for a `choice` node. When true, no branch is shown until
-   * the template calls the `-choice` slot's `addChoiceOccurrence(branchKey)`; the engine clears a
+   * the template calls the `-choice` slot's (`-choice-array` for `maxOccurs > 1`)
+   * `addChoiceOccurrence(branchKey)`; the engine clears a
    * deselected branch from the form values on switch. When false or omitted (the default), the
    * current value-driven behaviour is unchanged: every branch renders and siblings disable once
    * one holds a value.
@@ -248,10 +249,10 @@ export type ComputedPropsFieldType<
       | 'isComplexType'
       | 'computeOnChildValueChange'
       // Static metadata only: flipping this via computedProps would change the render mode
-      // mid-form (initial flash / mount-unmount storm), see DynamicFormItemChoice's ADR-2.
+      // mid-form (initial flash / mount-unmount storm).
       | 'explicitChoiceSelection'
       // Static metadata only, for the same reason as explicitChoiceSelection: flipping this
-      // via computedProps would change stash/restore behaviour mid-form (ST-05).
+      // via computedProps would change stash/restore behaviour mid-form.
       | 'preserveOnSwitch'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly

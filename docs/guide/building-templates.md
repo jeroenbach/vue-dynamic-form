@@ -58,7 +58,9 @@ The library appends a suffix to the field type to determine which slot to call, 
 | Input control | `{type}-input` (e.g. `select-input`) | `default-input` → `default` |
 | Array container | `{type}-array` (e.g. `text-array`) | `default-array` → `default` |
 | Array item | `{type}-array-item` (e.g. `text-array-item`) | `default-array-item` → `default` |
-| Choice container | `{type}-choice` (e.g. `select-choice`) | `default-choice` → `default` |
+| Choice container (`maxOccurs: 1`) | `{type}-choice` (e.g. `select-choice`) | `default-choice` → `default` |
+| Choice container (`maxOccurs > 1`) | `{type}-choice-array` (e.g. `select-choice-array`) | `default-choice-array` → `default` |
+| Choice occurrence item | `{type}-choice-array-item` (e.g. `text-choice-array-item`) | `default-choice-array-item` → `default` |
 
 You only need to define slots for the cases that need special handling. Everything else falls through automatically.
 
@@ -120,7 +122,7 @@ Array and choice containers have their own fallback slots. Both receive a limite
 
 Use a type-specific slot (e.g. `#text-array`) to override just that type's container without affecting others.
 
-**`#default-choice`** — fallback outer container for any choice field, renders once and wraps all branches:
+**`#default-choice`** — fallback outer container for any single (`maxOccurs: 1`) choice field, renders once and wraps all branches (a repeatable choice renders through `#default-choice-array` instead, with each explicit occurrence going through `#default-choice-array-item`):
 
 ```vue
 <template #default-choice="{ fieldContext: { label, errorMessage }, required }">
@@ -152,7 +154,7 @@ All named slots receive:
 | `settings` | `DynamicFormSettings` | The form settings object, including any extended properties declared in `defineMetadata` |
 | `slotProps` | `SlotProperties \| undefined` | Values threaded down from a parent slot's `<slot />` binding |
 
-The array and choice container slots (`#default-array`, `#default-choice`, and their type-specific variants) receive all the same props except that `fieldContext` only exposes `errors`, `errorMessage`, and `label`.
+The array and choice container slots (`#default-array`, `#default-choice`, `#default-choice-array`, and their type-specific variants) receive all the same props except that `fieldContext` only exposes `errors`, `errorMessage`, and `label`.
 
 ## Accessing Settings in Templates
 
