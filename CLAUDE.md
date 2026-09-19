@@ -10,6 +10,11 @@ Whenever the user says **"remember this"** (or similar) about an instruction or 
 
 - **Never use em dashes (—)** in any text you write: content, copy, descriptions, PR text, etc. Rephrase the sentence or use a comma, colon, or parentheses instead.
 
+## Code Comments
+
+- **Never reference specs, features, stories, or process artifacts in code comments or test names**: no FEAT-001, ST-05, AC4, ADR-2, "QA plan", "feature spec", "finding 3", "decision 4", etc. Specs are process artifacts; the code must stand on its own for a reader who has never seen them.
+- Write sensible comments: short and powerful. Let function and variable names carry the explanation; a comment only earns its place when it states a constraint or rationale the code itself cannot show.
+
 ## Interactive vs Autonomous Sessions
 
 - **Working together (interactive session)**: only make the changes, do **not** commit or push; the user handles git themselves.

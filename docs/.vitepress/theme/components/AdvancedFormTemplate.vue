@@ -8,6 +8,7 @@ import { toValue } from 'vue';
 import ArrayField from './ArrayField.vue';
 import ArraySectionCard from './ArraySectionCard.vue';
 import CheckboxField from './CheckboxField.vue';
+import ChoiceArraySectionCard from './ChoiceArraySectionCard.vue';
 import ChoiceField from './ChoiceField.vue';
 import ChoiceSectionCard from './ChoiceSectionCard.vue';
 import FormField from './FormField.vue';
@@ -153,6 +154,14 @@ const metadata = defineMetadata<
       </div>
     </template>
 
+    <template #wizardPage-choice-array="_props">
+      <div v-show="_props.slotProps.currentStepIndex !== undefined && _props.slotProps.currentStepIndex === _props.index">
+        <AdvancedFormTemplate v-bind="_props" type="heading-choice-array">
+          <slot />
+        </AdvancedFormTemplate>
+      </div>
+    </template>
+
     <template #heading="{ fieldMetadata, fieldContext: { errorMessage, label } }">
       <SectionCard
         v-show="!fieldMetadata.hide"
@@ -165,7 +174,7 @@ const metadata = defineMetadata<
       </SectionCard>
     </template>
 
-    <template #heading-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence, activeChoiceOccurrences }">
+    <template #heading-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, addChoiceOccurrence, activeChoiceOccurrences }">
       <ChoiceSectionCard
         v-slot="{ selectedOption }"
         :label
@@ -173,14 +182,25 @@ const metadata = defineMetadata<
         :error-message="errorMessage.value"
         :dataTestid="fieldMetadata.path"
         :options="fieldMetadata.choiceShowChoiceSelect ? fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
-        :repeatable="(fieldMetadata.maxOccurs ?? 1) > 1"
         :activeChoiceOccurrences
         :addChoiceOccurrence
-        :removeChoiceOccurrence
-        :canAddChoiceOccurrence
       >
         <slot :selectedOption />
       </ChoiceSectionCard>
+    </template>
+
+    <template #heading-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, addChoiceOccurrence, canAddChoiceOccurrence }">
+      <ChoiceArraySectionCard
+        :label
+        :description="fieldMetadata.description"
+        :error-message="errorMessage.value"
+        :dataTestid="fieldMetadata.path"
+        :options="fieldMetadata.choiceShowChoiceSelect ? fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
+        :addChoiceOccurrence
+        :canAddChoiceOccurrence
+      >
+        <slot />
+      </ChoiceArraySectionCard>
     </template>
 
     <template #heading-array="{ fieldMetadata, fieldContext: { errorMessage, label, value }, canAddItems, addItem }">
@@ -232,7 +252,23 @@ const metadata = defineMetadata<
       </ChoiceField>
     </template>
 
-    <template #default-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, canAddItems, addItem }">
+    <!-- One occurrence of a repeatable explicit choice branch (maxOccurs > 1 with explicitChoiceSelection). -->
+    <template #default-choice-array-item="{ fieldMetadata, fieldContext: { label }, branchKey, canRemoveItems, removeItem, index }">
+      <RepeaterCard
+        :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
+        class="hide-optional-required"
+        :index
+        :title="label"
+        :placeholderTitle="`New ${branchKey}`"
+        :canRemove="canRemoveItems"
+        :dataTestid="fieldMetadata.path"
+        @remove="removeItem"
+      >
+        <slot />
+      </RepeaterCard>
+    </template>
+
+    <template #default-array="{ fieldMetadata, fieldContext: { errorMessage, label, value }, disabled, canAddItems, addItem }">
       <ArrayField
         v-show="!fieldMetadata.hide"
         :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
@@ -240,6 +276,7 @@ const metadata = defineMetadata<
         :description="fieldMetadata.description"
         :disabled="fieldMetadata.disabled || disabled"
         :can-add-items="canAddItems"
+        :items-length="value.value?.length ?? 0"
         :error-message="errorMessage.value"
         :dataTestid="fieldMetadata.path"
         @add="addItem"

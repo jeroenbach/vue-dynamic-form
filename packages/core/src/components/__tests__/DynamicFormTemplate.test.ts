@@ -5,17 +5,16 @@ import { defineMetadata } from '@/core/defineMetadata';
 
 // Standalone unit tests of DynamicFormTemplate.vue's slot-resolution (typeWithFallback), mounted
 // directly (not through TestForm/TestFormTemplate) so each test controls exactly which slots are
-// defined. This is the only way to exercise all three tiers of the new *-choice-item fallback
-// chain without adding slot-priority permutations to the shared TestFormTemplate.vue fixture
-// (flagged by ST-01's QA plan as the suite's highest-risk touchpoint). See ST-02's QA plan for
-// the full rationale; accepted on adversarial review.
+// defined. This is the only way to exercise all three tiers of the *-choice-array /
+// *-choice-array-item fallback chains without adding slot-priority permutations to the shared
+// TestFormTemplate.vue fixture.
 
 const metadata = defineMetadata<{ text: string }>();
 
 // The component's entire render is gated by `v-if="attrs.fieldMetadata"` (DynamicFormTemplate.vue),
 // so every mount below must supply a truthy fieldMetadata attr, or all three fallback tiers would
 // render empty and a "falls back to default" assertion would pass vacuously instead of actually
-// exercising typeWithFallback (adversarial-review finding 1, routed as a PROPOSED edit and applied here).
+// exercising typeWithFallback.
 function mountTemplate(type: string, slots: Record<string, string>) {
   return mount(DynamicFormTemplate, {
     props: {
@@ -30,11 +29,11 @@ function mountTemplate(type: string, slots: Record<string, string>) {
 }
 
 describe('component DynamicFormTemplate — slot fallback priority', () => {
-  describe('*-choice-item / default-choice-item fallback chain (ST-02, AC6)', () => {
-    it('renders the dedicated per-type slot when both it and default-choice-item are defined', () => {
-      const wrapper = mountTemplate('text-choice-item', {
-        'text-choice-item': '<div data-testid="dedicated" />',
-        'default-choice-item': '<div data-testid="fallback" />',
+  describe('*-choice-array / default-choice-array fallback chain', () => {
+    it('renders the dedicated per-type slot when both it and default-choice-array are defined', () => {
+      const wrapper = mountTemplate('text-choice-array', {
+        'text-choice-array': '<div data-testid="dedicated" />',
+        'default-choice-array': '<div data-testid="fallback" />',
         'default': '<div data-testid="default" />',
       });
 
@@ -43,9 +42,9 @@ describe('component DynamicFormTemplate — slot fallback priority', () => {
       expect(wrapper.find('[data-testid="default"]').exists()).toBe(false);
     });
 
-    it('renders default-choice-item when only that fallback is defined', () => {
-      const wrapper = mountTemplate('text-choice-item', {
-        'default-choice-item': '<div data-testid="fallback" />',
+    it('renders default-choice-array when only that fallback is defined', () => {
+      const wrapper = mountTemplate('text-choice-array', {
+        'default-choice-array': '<div data-testid="fallback" />',
         'default': '<div data-testid="default" />',
       });
 
@@ -53,8 +52,8 @@ describe('component DynamicFormTemplate — slot fallback priority', () => {
       expect(wrapper.find('[data-testid="default"]').exists()).toBe(false);
     });
 
-    it('falls back to default when neither the dedicated slot nor default-choice-item is defined', () => {
-      const wrapper = mountTemplate('text-choice-item', {
+    it('falls back to default when neither the dedicated slot nor default-choice-array is defined', () => {
+      const wrapper = mountTemplate('text-choice-array', {
         default: '<div data-testid="default" />',
       });
 
@@ -62,8 +61,72 @@ describe('component DynamicFormTemplate — slot fallback priority', () => {
     });
   });
 
-  // Regression guard: a misplaced -choice-item branch could shadow an existing dispatch family.
-  describe('regression — the other dispatch families are not shadowed by -choice-item', () => {
+  describe('*-choice-array-item / default-choice-array-item fallback chain', () => {
+    it('renders the dedicated per-type slot when both it and default-choice-array-item are defined', () => {
+      const wrapper = mountTemplate('text-choice-array-item', {
+        'text-choice-array-item': '<div data-testid="dedicated" />',
+        'default-choice-array-item': '<div data-testid="fallback" />',
+        'default': '<div data-testid="default" />',
+      });
+
+      expect(wrapper.find('[data-testid="dedicated"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="fallback"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(false);
+    });
+
+    it('renders default-choice-array-item when only that fallback is defined', () => {
+      const wrapper = mountTemplate('text-choice-array-item', {
+        'default-choice-array-item': '<div data-testid="fallback" />',
+        'default': '<div data-testid="default" />',
+      });
+
+      expect(wrapper.find('[data-testid="fallback"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(false);
+    });
+
+    it('falls back to default when neither the dedicated slot nor default-choice-array-item is defined', () => {
+      const wrapper = mountTemplate('text-choice-array-item', {
+        default: '<div data-testid="default" />',
+      });
+
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(true);
+    });
+  });
+
+  // "text-choice-array" also ends with "-array" (and "text-choice-array-item" with "-array-item"),
+  // so the resolution order must pick the choice-array families before the plain array families —
+  // and never the other way around.
+  describe('regression — the -choice-array families do not leak into the -array families', () => {
+    it('-choice-array does not resolve to default-array', () => {
+      const wrapper = mountTemplate('text-choice-array', {
+        'default-array': '<div data-testid="array" />',
+        'default-choice-array': '<div data-testid="choice-array" />',
+      });
+      expect(wrapper.find('[data-testid="choice-array"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="array"]').exists()).toBe(false);
+    });
+
+    it('-choice-array-item does not resolve to default-array-item', () => {
+      const wrapper = mountTemplate('text-choice-array-item', {
+        'default-array-item': '<div data-testid="array-item" />',
+        'default-choice-array-item': '<div data-testid="choice-array-item" />',
+      });
+      expect(wrapper.find('[data-testid="choice-array-item"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="array-item"]').exists()).toBe(false);
+    });
+
+    it('-choice-array without its own fallback falls to default, not to default-array', () => {
+      const wrapper = mountTemplate('text-choice-array', {
+        'default-array': '<div data-testid="array" />',
+        'default': '<div data-testid="default" />',
+      });
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="array"]').exists()).toBe(false);
+    });
+  });
+
+  // Regression guard: a misplaced branch in the resolution chain could shadow an existing family.
+  describe('regression — the other dispatch families are not shadowed', () => {
     it('-array still resolves to default-array', () => {
       const wrapper = mountTemplate('text-array', {
         'default-array': '<div data-testid="array" />',
@@ -91,6 +154,15 @@ describe('component DynamicFormTemplate — slot fallback priority', () => {
       expect(wrapper.find('[data-testid="default"]').exists()).toBe(false);
     });
 
+    it('-choice does not resolve to default-choice-array', () => {
+      const wrapper = mountTemplate('text-choice', {
+        'default-choice-array': '<div data-testid="choice-array" />',
+        'default': '<div data-testid="default" />',
+      });
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="choice-array"]').exists()).toBe(false);
+    });
+
     it('a plain (non-suffixed) type still resolves to default', () => {
       const wrapper = mountTemplate('text', {
         default: '<div data-testid="default" />',
@@ -99,10 +171,9 @@ describe('component DynamicFormTemplate — slot fallback priority', () => {
     });
   });
 
-  // Pre-existing gap this story's new standalone-mount pattern also closes for the sibling
-  // -input/-array/-choice tiers (the shared TestFormTemplate.vue fixture always defines their
-  // default-* fallback slot, so the "neither defined, falls all the way to default" side of these
-  // three ternaries was never exercised anywhere in the suite before this file existed).
+  // The shared TestFormTemplate.vue fixture always defines the default-* fallback slot of each
+  // family, so the "neither defined, falls all the way to default" side of these ternaries is
+  // only exercised here.
   describe('falls back all the way to default when the tier-specific default-* slot is absent too', () => {
     it('-input falls back to default when default-input is not defined', () => {
       const wrapper = mountTemplate('text-input', {

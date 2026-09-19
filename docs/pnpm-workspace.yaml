@@ -4,3 +4,7 @@ packages:
 allowBuilds:
   '@tailwindcss/oxide': true
   esbuild: true
+
+overrides:
+  nanoid: ^3.3.18
+  postcss: ^8.5.18

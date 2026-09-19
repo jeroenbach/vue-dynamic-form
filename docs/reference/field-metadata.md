@@ -226,7 +226,7 @@ Combine `choice` with group branches (using `children`) for complex branching fo
 
 Type: `boolean` | Default: `false` (absent)
 
-Opts a `choice` field into selection-first rendering: no branch renders until the template calls `addChoiceOccurrence(branchKey)`, instead of the default automatic mode where every branch renders and siblings disable once one holds a value. Works for both `maxOccurs: 1` (pick exactly one branch) and `maxOccurs > 1` (add several occurrences, each one of several branches). See [Select first, then fill in](/examples/choices#select-first-then-fill-in) in the Choice Fields example for the full pattern, the four slot props it adds to the `-choice` slot, and the clear-on-switch contract.
+Opts a `choice` field into selection-first rendering: no branch renders until the template calls `addChoiceOccurrence(branchKey)`, instead of the default automatic mode where every branch renders and siblings disable once one holds a value. Works for both `maxOccurs: 1` (pick exactly one branch) and `maxOccurs > 1` (add several occurrences, each one of several branches). See [Select first, then fill in](/examples/choices#select-first-then-fill-in) in the Choice Fields example for the full pattern, the four slot props it adds to the `-choice` (`maxOccurs: 1`) and `-choice-array` (`maxOccurs > 1`) slots, and the clear-on-switch contract.
 
 ```ts
 {

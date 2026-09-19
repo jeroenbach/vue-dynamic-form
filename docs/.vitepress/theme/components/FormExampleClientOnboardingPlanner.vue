@@ -100,8 +100,8 @@ const needsTraining = computed(() =>
   Boolean(values?.launchApproach?.guidedRollout?.needsTraining),
 );
 
-// Derived from the submitted-data-shaped `values`, not engine-internal selection state (decision 5:
-// no composable-level read access to the current choice selection exists). By the time the summary
+// Derived from the submitted-data-shaped `values`, not engine-internal selection state (no
+// composable-level read access to the current choice selection exists). By the time the summary
 // page reads this, the active branch's own required field is populated (xsd_choiceMinOccurs plus
 // the branch's own required fields must pass before the wizard lets the user reach this page), so
 // checking that leaf directly is unambiguous: it does not need to know about the mid-selection,
@@ -212,9 +212,9 @@ const metadata: Metadata[] = [
       handleSubmit(
         (values) => {
           // removeNullValues prunes the `undefined`-residue vee-validate leaves behind after a
-          // choice branch switch (ADR-3's accepted contract, FEAT-001 spec): the deselected
-          // branch's key stays present in `values` with `undefined` children until this cleanup
-          // runs. Note the "View submitted JSON" panel on this page cannot prove this by itself:
+          // choice branch switch: the deselected branch's key stays present in `values` with
+          // `undefined` children until this cleanup runs.
+          // Note the "View submitted JSON" panel on this page cannot prove this by itself:
           // JSON.stringify drops undefined-valued keys either way, so a clean-looking JSON view
           // is not evidence that this call ran. Verify against the live `submitted` object instead.
           submitted.value = removeNullValues(values);
@@ -334,12 +334,13 @@ const metadata: Metadata[] = [
         name: 'launchApproach',
         type: 'wizardPage',
         fieldOptions: { label: 'Launch approach' },
-        description: 'Pick one. Switching later clears the fields you filled in for the previous option.',
+        description: 'Pick one. Only the selected option ends up in the submitted values, but what you filled in for the other option is kept and restored when you switch back.',
         helpText: 'How will we go live?',
         fullWidth: true,
         computedProps: [registerWizardPagePath],
         choiceShowChoiceSelect: true,
         explicitChoiceSelection: true,
+        preserveOnSwitch: true,
         choice: [
           {
             name: 'selfServe',

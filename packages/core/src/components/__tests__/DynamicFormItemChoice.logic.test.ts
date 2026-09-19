@@ -833,9 +833,9 @@ describe('component DynamicFormItemChoice - logic', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 9. Explicit selection — maxOccurs:1 (ST-01 foundation)
+  // 9. Explicit selection — maxOccurs:1
   // ─────────────────────────────────────────────────────────────────────────
-  describe('explicit selection — maxOccurs:1 (ST-01)', () => {
+  describe('explicit selection — maxOccurs:1', () => {
     function mountExplicitSingleChoice(extraProps: Record<string, any> = {}) {
       return mount(TestForm, {
         attachTo: document.body,
@@ -854,8 +854,8 @@ describe('component DynamicFormItemChoice - logic', () => {
       });
     }
 
-    // --- AC1: auto mode regression baseline ---
-    it('(AC1) renders byte-identical html whether explicitChoiceSelection is absent or explicitly false', async () => {
+    // --- Auto mode regression baseline ---
+    it('renders byte-identical html whether explicitChoiceSelection is absent or explicitly false', async () => {
       const metadataWithoutFlag = [{
         name: 'pick',
         fieldOptions: { label: 'Pick One' },
@@ -874,8 +874,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(wrapperWithFalseFlag.html()).toBe(wrapperWithoutFlag.html());
     });
 
-    // --- AC2 ---
-    it('(AC2) renders no branch and activeChoiceOccurrences is empty when nothing is selected', async () => {
+    it('renders no branch and activeChoiceOccurrences is empty when nothing is selected', async () => {
       const wrapper = mountExplicitSingleChoice();
       await flushPromises();
 
@@ -885,8 +884,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([]);
     });
 
-    // --- AC3 ---
-    it('(AC3) addChoiceOccurrence selects a branch immediately with no value required', async () => {
+    it('addChoiceOccurrence selects a branch immediately with no value required', async () => {
       const wrapper = mountExplicitSingleChoice();
       await flushPromises();
 
@@ -898,8 +896,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'selfServe', index: 0 }]);
     });
 
-    // --- AC4 ---
-    it('(AC4) switching branches clears the deselected branch and mounts the new one', async () => {
+    it('switching branches clears the deselected branch and mounts the new one', async () => {
       const wrapper = mountExplicitSingleChoice();
       await flushPromises();
 
@@ -917,8 +914,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(childValuesEntry(wrapper, 'pick', 'selfServe')).toEqual({ occurrences: 0, valuesCount: 0 });
     });
 
-    // --- AC5 ---
-    it('(AC5) removeChoiceOccurrence deselects the active branch', async () => {
+    it('removeChoiceOccurrence deselects the active branch', async () => {
       const wrapper = mountExplicitSingleChoice();
       await flushPromises();
 
@@ -932,8 +928,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([]);
     });
 
-    // --- AC7 ---
-    it('(AC7) canAddChoiceOccurrence is false for every branch when the choice is disabled', async () => {
+    it('canAddChoiceOccurrence is false for every branch when the choice is disabled', async () => {
       const wrapper = mountExplicitSingleChoice({
         metadata: [{
           name: 'pick',
@@ -952,7 +947,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').attributes('disabled')).toBeDefined();
     });
 
-    it('(AC7) canAddChoiceOccurrence is true for an enabled choice, before and after a selection', async () => {
+    it('canAddChoiceOccurrence is true for an enabled choice, before and after a selection', async () => {
       const wrapper = mountExplicitSingleChoice();
       await flushPromises();
 
@@ -964,8 +959,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').attributes('disabled')).toBeUndefined();
     });
 
-    // --- AC8 ---
-    describe('(AC8) single-branch choice bypasses the singleChild fast path when explicit', () => {
+    describe('single-branch choice bypasses the singleChild fast path when explicit', () => {
       it('nothing renders until addChoiceOccurrence is called, then the sole branch mounts', async () => {
         const wrapper = mount(TestForm, {
           attachTo: document.body,
@@ -1005,8 +999,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       });
     });
 
-    // --- AC9 ---
-    describe('(AC9) explicitChoiceSelection is static metadata, not computed', () => {
+    describe('explicitChoiceSelection is static metadata, not computed', () => {
       it('runtime: a computedProps mutation of explicitChoiceSelection (via an as any cast) has no effect on the render mode', async () => {
         const wrapper = mount(TestForm, {
           attachTo: document.body,
@@ -1049,8 +1042,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       });
     });
 
-    // --- AC11 ---
-    describe('(AC11) choice inside an array occurrence (maxOccurs:1)', () => {
+    describe('choice inside an array occurrence (maxOccurs:1)', () => {
       function mountChoiceInArray() {
         return mount(TestForm, {
           attachTo: document.body,
@@ -1199,8 +1191,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       });
     });
 
-    // --- AC10 ---
-    it('(AC10) post-switch residue matches the accepted contract, and removeNullValues prunes it', async () => {
+    it('post-switch residue matches the accepted contract, and removeNullValues prunes it', async () => {
       const wrapper = mountExplicitSingleChoice();
       await flushPromises();
 
@@ -1230,9 +1221,9 @@ describe('component DynamicFormItemChoice - logic', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 9b. Preserve-on-switch — maxOccurs:1 (ST-05)
+  // 9b. Preserve-on-switch — maxOccurs:1
   // ─────────────────────────────────────────────────────────────────────────
-  describe('preserve-on-switch (ST-05)', () => {
+  describe('preserve-on-switch', () => {
     function baseMetadata() {
       return [{
         name: 'pick',
@@ -1254,9 +1245,9 @@ describe('component DynamicFormItemChoice - logic', () => {
       });
     }
 
-    // --- AC1: default behaviour unchanged (opt-in, defaulted off) ---
-    describe('(AC1) default behaviour is unchanged', () => {
-      it('1a. flag absent: switching away clears (ST-01 residue), and switching back renders empty, not restored', async () => {
+    // --- Default behaviour unchanged (opt-in, defaulted off) ---
+    describe('default behaviour is unchanged', () => {
+      it('1a. flag absent: switching away clears, and switching back renders empty, not restored', async () => {
         const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: baseMetadata() } });
         await flushPromises();
 
@@ -1298,8 +1289,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       });
     });
 
-    // --- AC2 + AC3 (joint, per the QA plan) ---
-    it('(AC2/AC3) stashes before clearing, and switching back restores the stashed data', async () => {
+    it('stashes before clearing, and switching back restores the stashed data', async () => {
       const wrapper = mountPreserveOnSwitchChoice();
       await flushPromises();
 
@@ -1311,27 +1301,82 @@ describe('component DynamicFormItemChoice - logic', () => {
       await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
       await flushPromises();
 
-      // AC2: the residue shape at the moment of stashing is byte-identical to the flag-off shape.
+      // The residue shape at the moment of stashing is byte-identical to the flag-off shape.
       expect(formValues(wrapper).pick.selfServe).toBeUndefined();
       expect(wrapper.find('[id="pick.selfServe"]').exists()).toBe(false);
 
       await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
       await flushPromises();
 
-      // AC3: restored, guidedRollout unmounted, exactly one branch mounted.
+      // Restored: guidedRollout unmounted, exactly one branch mounted.
       expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('hello');
       expect(formValues(wrapper).pick.selfServe).toBe('hello');
       expect(wrapper.find('[id="pick.guidedRollout"]').exists()).toBe(false);
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'selfServe', index: 0 }]);
     });
 
-    // --- AC5: pure ephemeral UI state ---
+    // Regression: a branch with children reads back as an object (a Vue reactive Proxy) rather
+    // than a primitive. Stashing used structuredClone, which throws a DataCloneError on a Proxy,
+    // so switching away from a filled object-valued branch aborted mid-switch and the selection
+    // could never be changed again. The leaf-branch tests above never caught this because their
+    // stashed values are plain strings.
+    it('stash and restore also work for a branch with children (object value, reactive Proxy)', async () => {
+      const metadata = enablePreserveOnSwitch([{
+        name: 'pick',
+        explicitChoiceSelection: true,
+        fieldOptions: { label: 'Pick One' },
+        choice: [
+          {
+            name: 'homeDelivery',
+            fieldOptions: { label: 'Home Delivery' },
+            children: [
+              { name: 'street', fieldOptions: { label: 'Street' } },
+              { name: 'city', fieldOptions: { label: 'City' } },
+            ],
+          },
+          {
+            name: 'pickupPoint',
+            fieldOptions: { label: 'Pickup Point' },
+            children: [
+              { name: 'pointId', fieldOptions: { label: 'Point Id' } },
+            ],
+          },
+        ],
+      }], 'pick');
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata } });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.homeDelivery-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="pick.homeDelivery.street"]').setValue('Main Street 1');
+      await wrapper.find('[id="pick.homeDelivery.city"]').setValue('Amsterdam');
+      await flushPromises();
+
+      // Switching away must actually happen (this is the call that used to throw) …
+      await wrapper.find('[data-testid="pick.pickupPoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(formValues(wrapper).pick.homeDelivery).toBeUndefined();
+      expect(wrapper.find('[id="pick.homeDelivery.street"]').exists()).toBe(false);
+      expect(wrapper.find('[id="pick.pickupPoint.pointId"]').exists()).toBe(true);
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'pickupPoint', index: 0 }]);
+
+      // … and switching back restores the whole object.
+      await wrapper.find('[data-testid="pick.homeDelivery-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect((wrapper.find('[id="pick.homeDelivery.street"]').element as HTMLInputElement).value).toBe('Main Street 1');
+      expect((wrapper.find('[id="pick.homeDelivery.city"]').element as HTMLInputElement).value).toBe('Amsterdam');
+      expect(formValues(wrapper).pick.homeDelivery).toEqual({ street: 'Main Street 1', city: 'Amsterdam' });
+    });
+
+    // --- Pure ephemeral UI state ---
     // Only the metadata-declared branch names may appear as keys of `pick` — no extra,
     // stash-shaped key (e.g. `_stash`/`stashedBranchValues`) is ever allowed to leak in. This is
     // deliberately NOT an exact-key-set check: which branch keys are present at any given moment
-    // is governed by vee-validate's own field (un)registration lifecycle (out of this story's
-    // scope), not by the stash feature: the stash itself never touches `values` at all.
-    describe('(AC5) the stash never appears in values', () => {
+    // is governed by vee-validate's own field (un)registration lifecycle, not by the stash
+    // feature: the stash itself never touches `values` at all.
+    describe('the stash never appears in values', () => {
       const declaredBranchNames = ['selfServe', 'guidedRollout', 'apiEndpoint'];
 
       function expectOnlyDeclaredBranchKeys(wrapper: ReturnType<typeof mount>) {
@@ -1453,7 +1498,7 @@ describe('component DynamicFormItemChoice - logic', () => {
         expect((wrapper.find('[id="pick.apiEndpoint"]').element as HTMLInputElement).value).toBe('');
       });
 
-      it('per-instance isolation inside an array (decision 6): each contact restores its own stash, not the other\'s', async () => {
+      it('per-instance isolation inside an array: each contact restores its own stash, not the other\'s', async () => {
         const metadata = enablePreserveOnSwitch([{
           name: 'projectContacts',
           maxOccurs: 2,
@@ -1507,7 +1552,7 @@ describe('component DynamicFormItemChoice - logic', () => {
         expect((wrapper.find('[id="projectContacts[1].method.phone"]').element as HTMLInputElement).value).toBe('+1-555-0100');
       });
 
-      it('sanity: the flag has no effect on a maxOccurs > 1 choice (out of scope, ST-02\'s own path)', async () => {
+      it('sanity: the flag has no effect on a maxOccurs > 1 choice', async () => {
         const metadata = enablePreserveOnSwitch([{
           name: 'pick',
           explicitChoiceSelection: true,
@@ -1538,9 +1583,9 @@ describe('component DynamicFormItemChoice - logic', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 10. Explicit selection — maxOccurs > 1 (ST-02)
+  // 10. Explicit selection — maxOccurs > 1
   // ─────────────────────────────────────────────────────────────────────────
-  describe('explicit selection — maxOccurs>1 (ST-02)', () => {
+  describe('explicit selection — maxOccurs>1', () => {
     function mountExplicitRepeatableChoice(extraProps: Record<string, any> = {}) {
       return mount(TestForm, {
         attachTo: document.body,
@@ -1560,8 +1605,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       });
     }
 
-    // --- AC1 ---
-    it('(AC1) adding an occurrence pushes a real placeholder item into the branch\'s array', async () => {
+    it('adding an occurrence pushes a real placeholder item into the branch\'s array', async () => {
       const wrapper = mountExplicitRepeatableChoice();
       await flushPromises();
 
@@ -1574,8 +1618,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
     });
 
-    // --- AC2 ---
-    describe('(AC2) canAddChoiceOccurrence respects both the branch\'s own maxOccurs and the shared choice budget', () => {
+    describe('canAddChoiceOccurrence respects both the branch\'s own maxOccurs and the shared choice budget', () => {
       it('disables only the branch whose own maxOccurs is reached, leaving siblings addable', async () => {
         const wrapper = mountExplicitRepeatableChoice();
         await flushPromises();
@@ -1617,8 +1660,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       });
     });
 
-    // --- AC3 ---
-    it('(AC3) removeChoiceOccurrence(branchKey, index) removes the specified occurrence and shifts the remaining one down', async () => {
+    it('removeChoiceOccurrence(branchKey, index) removes the specified occurrence and shifts the remaining one down', async () => {
       const wrapper = mountExplicitRepeatableChoice();
       await flushPromises();
 
@@ -1639,8 +1681,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
     });
 
-    // --- AC4 ---
-    it('(AC4) activeChoiceOccurrences is grouped by branch declaration order, then index within branch', async () => {
+    it('activeChoiceOccurrences is grouped by branch declaration order, then index within branch', async () => {
       const wrapper = mountExplicitRepeatableChoice();
       await flushPromises();
 
@@ -1665,8 +1706,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(remounted, 'pick')).toEqual(expectedOrder);
     });
 
-    // --- AC6 ---
-    it('(AC6) the *-choice-item slot receives branchKey, and its removeItem calls through to removeChoiceOccurrence', async () => {
+    it('the *-choice-array-item slot receives branchKey, and its removeItem calls through to removeChoiceOccurrence', async () => {
       const wrapper = mountExplicitRepeatableChoice();
       await flushPromises();
 
@@ -1682,8 +1722,7 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([]);
     });
 
-    // --- AC7 ---
-    describe('(AC7) choice-in-array, maxOccurs > 1 reindex safety', () => {
+    describe('choice-in-array, maxOccurs > 1 reindex safety', () => {
       function mountChoiceInsideRepeatableArray() {
         return mount(TestForm, {
           attachTo: document.body,
