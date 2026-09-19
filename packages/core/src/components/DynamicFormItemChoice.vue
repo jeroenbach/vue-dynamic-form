@@ -801,7 +801,7 @@ function addItemHandlerFor(branchKey: string): () => void {
         path — the same fragility DynamicFormItemArray's items already guard against).
       -->
       <DynamicFormItem
-        v-for="occurrence in activeChoiceOccurrences"
+        v-for="(occurrence, globalIndex) in activeChoiceOccurrences"
         :key="occurrenceKey(occurrence)"
         :field-metadata="(branchByKey(occurrence.branchKey) as InternalMetadata)"
         :path-override="occurrencePathOverride(occurrence)"
@@ -813,6 +813,7 @@ function addItemHandlerFor(branchKey: string): () => void {
         part-of-array-field
         part-of-choice-field
         :branch-key="occurrence.branchKey"
+        :global-index="globalIndex"
         :can-add-items="canAddChoiceOccurrence(occurrence.branchKey)"
         :add-item="addItemHandlerFor(occurrence.branchKey)"
         :can-remove-items="true"
