@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { ChoiceOption } from './ChoiceSectionCard.vue';
 import type { Props as SectionCardProps } from './SectionCard.vue';
+import { computed } from 'vue';
 import AppButton from './AppButton.vue';
 import AppIcon from './AppIcon.vue';
 import SectionCard from './SectionCard.vue';
@@ -19,9 +20,16 @@ export interface Props extends /* @vue-ignore */ SectionCardProps {
   addChoiceOccurrence?: (branchKey: string) => void
   /** Per-branch "may add" guard, used to disable a branch's Add button. */
   canAddChoiceOccurrence?: (branchKey: string) => boolean
+  /** Choice slots consumed so far, in choice-occurrence units. Renders as the card's count tag alongside maxOccurs. */
+  usedChoiceOccurrences?: number
+  /** The choice's own maxOccurs, shown as the total in the count tag. */
+  maxOccurs?: number
 }
 
 const props = defineProps<Props>();
+
+const countTag = computed(() =>
+  props.maxOccurs !== undefined ? `${props.usedChoiceOccurrences ?? 0} of ${props.maxOccurs}` : undefined);
 
 function canAdd(value: string): boolean {
   return props.canAddChoiceOccurrence ? props.canAddChoiceOccurrence(value) : true;
@@ -37,7 +45,7 @@ function dataTestidFor(value: string): string | undefined {
 </script>
 
 <template>
-  <SectionCard v-bind="$props">
+  <SectionCard v-bind="$props" :tag="countTag">
     <!--
       A disabled button exposes its reason as visible helper text tied to it through
       aria-describedby, rather than only a `title` tooltip (not reliably announced by screen

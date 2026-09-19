@@ -107,3 +107,13 @@ export function canAddChoiceOccurrence(wrapper: ReturnType<typeof mount>, choice
   const button = wrapper.find(`[data-testid="${choicePath}.${branchKey}-add-choice-button"]`);
   return button.exists() && button.attributes('disabled') === undefined;
 }
+
+/**
+ * Reads the `usedChoiceOccurrences` slot prop for the choice rendered at `choicePath`, through
+ * the fixture's real public slot-prop contract (the same indirection `canAddChoiceOccurrence`
+ * above uses), not a `setupState()` reach-in.
+ */
+export function usedChoiceOccurrences(wrapper: ReturnType<typeof mount>, choicePath: string): number | undefined {
+  const span = wrapper.find(`[data-testid="${choicePath}-used-choice-occurrences"]`);
+  return span.exists() ? Number(span.text()) : undefined;
+}

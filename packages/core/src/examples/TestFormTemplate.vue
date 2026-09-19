@@ -71,7 +71,7 @@ const metadata = defineMetadata<
       <slot />
     </template>
 
-    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence }">
+    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences }">
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled }">
           {{ label }}
@@ -83,6 +83,7 @@ const metadata = defineMetadata<
           canAddChoiceOccurrence through the real public slot-prop contract, the same way
           addItem/removeItem are already tested through #default-array.
         -->
+        <span :data-testid="`${fieldMetadata.path}-used-choice-occurrences`">{{ usedChoiceOccurrences }}</span>
         <div v-if="fieldMetadata.choice?.length" class="flex gap-2 flex-wrap">
           <button
             v-for="branch in fieldMetadata.choice"
@@ -121,13 +122,14 @@ const metadata = defineMetadata<
       dispatch through the -choice-array slot family. Identical markup and testids so tests
       drive both modes through the same selectors.
     -->
-    <template #default-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence }">
+    <template #default-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences }">
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled }">
           {{ label }}
           <span v-if="required && !showOptionalInsteadOfRequired" class="text-red-500 dark:text-rose-400">*</span>
           <span v-if="!required && showOptionalInsteadOfRequired" class="text-sm text-gray-400">(optional)</span>
         </span>
+        <span :data-testid="`${fieldMetadata.path}-used-choice-occurrences`">{{ usedChoiceOccurrences }}</span>
         <div v-if="fieldMetadata.choice?.length" class="flex gap-2 flex-wrap">
           <button
             v-for="branch in fieldMetadata.choice"

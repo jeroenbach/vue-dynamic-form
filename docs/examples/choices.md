@@ -29,8 +29,9 @@ Set `explicitChoiceSelection: true` on the `choice` field to opt into this mode.
 | --- | --- | --- |
 | `addChoiceOccurrence` | `(branchKey: string) => void` | Marks a branch active (`maxOccurs: 1`) or adds one occurrence of it (`maxOccurs > 1`). No-op when `canAddChoiceOccurrence(branchKey)` is `false`. |
 | `removeChoiceOccurrence` | `(branchKey: string, index?: number) => void` | Removes a previously added occurrence. `index` is required for `maxOccurs > 1`; omit it for `maxOccurs: 1`, where it deselects the currently active branch. |
-| `canAddChoiceOccurrence` | `(branchKey: string) => boolean` | Per-branch guard, `false` once that branch's own `maxOccurs`, or the choice's shared occurrence budget, is exhausted. |
+| `canAddChoiceOccurrence` | `(branchKey: string) => boolean` | Per-branch guard, `false` once the choice's shared occurrence budget is exhausted for that branch, or (when set) that branch's own `maxOccursTotal` non-XSD cap is reached. |
 | `activeChoiceOccurrences` | `{ branchKey: string; index: number }[]` | The occurrences currently active. Use it to render a count, drive per-branch button state, or check whether anything is selected yet. |
+| `usedChoiceOccurrences` | `number` | Choice slots currently consumed, in choice-occurrence units rather than raw item count. For a repeatable branch, every group of up to that branch's own `maxOccurs` items counts as one slot, the same unit `xsd_choiceMinOccurs` counts in. |
 
 `branchKey` is always the branch's `name`, never its position, so your template code reads against metadata names rather than array indices.
 
@@ -110,7 +111,9 @@ All items of the selected branch together count as **one** choice occurrence, so
 
 ### Add several, each one of several kinds (`maxOccurs > 1`)
 
-When the choice itself has `maxOccurs > 1`, selecting a branch adds one occurrence of it instead of activating it exclusively; you can add more than one occurrence of the same branch, or mix branches, up to each branch's own `maxOccurs` and the choice's shared occurrence budget:
+When the choice itself has `maxOccurs > 1`, selecting a branch adds one occurrence of it instead of activating it exclusively; you can add more than one occurrence of the same branch, or mix branches, up to the choice's shared occurrence budget.
+
+This follows the same XSD occurrence semantics as automatic mode: a branch's own `maxOccurs` is not an independent total, it is the batch size for that branch inside the choice, so every group of up to that many raw items consumes one of the choice's shared slots. A choice with `maxOccurs: 5` containing a branch with `maxOccurs: 2` allows up to 10 items of that branch when the other branch is empty, with every 2 items of it consuming only 1 of the 5 shared slots:
 
 ```ts
 const metadata = [
@@ -130,9 +133,9 @@ const metadata = [
 A repeatable choice renders through the `-choice-array` slot (here using its `default-choice-array` fallback), which renders the per-branch "Add" buttons and a count; each active occurrence's own fields render automatically through the `-choice-array-item` slot (here using its `default-choice-array-item` fallback), which also receives `branchKey` and a `removeItem` wired to `removeChoiceOccurrence`:
 
 ```vue
-<template #default-choice-array="{ fieldMetadata, addChoiceOccurrence, canAddChoiceOccurrence, activeChoiceOccurrences, fieldContext: { errorMessage } }">
+<template #default-choice-array="{ fieldMetadata, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences, fieldContext: { errorMessage } }">
   <fieldset>
-    <legend>{{ fieldMetadata.fieldOptions?.label }} ({{ activeChoiceOccurrences.length }} of {{ fieldMetadata.maxOccurs }})</legend>
+    <legend>{{ fieldMetadata.fieldOptions?.label }} ({{ usedChoiceOccurrences }} of {{ fieldMetadata.maxOccurs }})</legend>
     <p v-if="errorMessage.value">{{ errorMessage.value }}</p>
 
     <button
@@ -163,13 +166,28 @@ A repeatable choice renders through the `-choice-array` slot (here using its `de
 
 `activeChoiceOccurrences` is grouped by branch declaration order, then by index within the branch, derived purely from the value tree; it is never global insertion order. Adding a "CRM export", then an "API endpoint", then a second "CRM export" always yields `[{ branchKey: 'crmExport', index: 0 }, { branchKey: 'crmExport', index: 1 }, { branchKey: 'apiEndpoint', index: 0 }]`, in that order, regardless of the order the add buttons were clicked. Treat the list as either order-agnostic or reflecting that grouped order; do not build UI that assumes it mirrors click order.
 
-Adding an occurrence satisfies `xsd_choiceMinOccurs` immediately, the same way selecting a branch does for `maxOccurs: 1`: the act of adding is what counts, and the occurrence's own required fields enforce their own content separately.
+Adding an occurrence satisfies `xsd_choiceMinOccurs` immediately, the same way selecting a branch does for `maxOccurs: 1`: the act of adding is what counts, and the occurrence's own required fields enforce their own content separately. `xsd_choiceMinOccurs` counts in choice-occurrence units, not raw items: adding a second item of a `maxOccurs: 2` branch does not add a second occurrence toward the minimum, since both items together still consume only one shared slot.
 
-And here is the repeatable flow running. The docs template renders the per-branch Add buttons through `ChoiceArraySectionCard` (its `-choice-array` counterpart to `ChoiceSectionCard`) and wraps each active occurrence in a removable card via its `default-choice-array-item` slot. Each branch here has `maxOccurs: 3` while the choice's shared budget is 5, so an Add button disables at 3 of that kind or 5 in total, whichever comes first:
+And here is the repeatable flow running. The docs template renders the per-branch Add buttons through `ChoiceArraySectionCard` (its `-choice-array` counterpart to `ChoiceSectionCard`) and wraps each active occurrence in a removable card via its `default-choice-array-item` slot. Each branch here is capped at 3 in total through `maxOccursTotal` (a non-XSD opt-in, see below), while the choice's shared XSD budget is 5, so an Add button disables at 3 of that kind or 5 in total, whichever comes first:
 
 <FormExampleChoiceExplicitRepeatable />
 
 <<< @/.vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue#metadata{ts} [FormExampleChoiceExplicitRepeatable.vue]
+
+### Capping a branch's total count (`maxOccursTotal`)
+
+XSD batching alone has no concept of "at most 3 of this kind": a branch's `maxOccurs` only sets the batch size, not a ceiling on how many batches it may consume. When a per-kind limit like that is a real requirement, set `maxOccursTotal` on the branch. It is an opt-in, non-XSD property with no `<xs:choice>` equivalent, a hard cap on that branch's own raw item count across the whole choice, independent of the batching above:
+
+```ts
+{
+  name: 'crmExport',
+  maxOccurs: 1,
+  maxOccursTotal: 3,
+  fieldOptions: { label: 'CRM export' },
+}
+```
+
+With `maxOccurs: 1` and `maxOccursTotal: 3`, each add consumes exactly one shared slot and the branch's own Add button disables once 3 items exist, regardless of how much of the choice's shared budget remains. Set alongside a `maxOccurs` greater than 1, the cap still counts raw items, not slots: `maxOccurs: 2` with `maxOccursTotal: 3` allows one batch of 2 plus one more single item before disabling. The property applies the same way in automatic mode: the branch's rendered array stops offering an add once its own count reaches the cap, even if the choice's shared budget would otherwise allow more.
 
 ## Full Metadata
 

@@ -751,6 +751,80 @@ describe('component DynamicFormItemChoice', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
+  // 9b. Explicit selection — xsd_choiceMinOccurs counts in choice-occurrence units
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('explicit selection — xsd_choiceMinOccurs counts in choice-occurrence units', () => {
+    function mountChoiceUnitValidation() {
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            minOccurs: 2,
+            maxOccurs: 5,
+            fieldOptions: { label: 'Pick Several' },
+            choice: [
+              { name: 'apiEndpoint', maxOccurs: 2, fieldOptions: { label: 'Api Endpoint' } },
+              { name: 'crmExport', maxOccurs: 2, fieldOptions: { label: 'Crm Export' } },
+            ],
+          }],
+          settings: { messages: { choiceMinOccurs: 'Pick at least {min}' } },
+        },
+      });
+    }
+
+    it('2 items of one maxOccurs:2 branch count as 1 choice occurrence, still below minOccurs:2', async () => {
+      const wrapper = mountChoiceUnitValidation();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').text()).toContain('Pick at least 2');
+    });
+
+    it('adding an item of a second branch satisfies the minimum', async () => {
+      const wrapper = mountChoiceUnitValidation();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+    });
+
+    it('a third item of the first branch also satisfies the minimum (2 choice slots consumed)', async () => {
+      const wrapper = mountChoiceUnitValidation();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
   // 10. Explicit selection — single-branch degenerate case
   // ─────────────────────────────────────────────────────────────────────────
   describe('explicit selection — single-branch degenerate case', () => {
