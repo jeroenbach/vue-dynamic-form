@@ -41,6 +41,12 @@ const metadata = defineMetadata<
   },
   {
     showOptionalInsteadOfRequired?: boolean
+    /**
+     * Example-only switch for the wizard page wrapper: gate page visibility with `v-if` (unmounts
+     * non-current pages) instead of the correct `v-show`. Lets a playground demonstrate the
+     * clear-on-unmount data loss `v-show` avoids, and how `keepValuesOnUnmount` changes it.
+     */
+    wizardPageUseVIf?: boolean
   }
 >();
 </script>
@@ -185,6 +191,73 @@ const metadata = defineMetadata<
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <slot :level="(slotProps?.level ?? 0) + 1" />
         </div>
+      </div>
+    </template>
+
+    <!--
+      Wizard container test harness: builds its stepper purely from the `pages` slot prop (never
+      `fieldMetadata.children`), so a stepper/navigation desync would fail any test asserting the
+      rendered step list against actual navigation. Buttons/spans mirror the -choice harness above.
+    -->
+    <template #default-wizard="{ fieldMetadata, fieldContext: { errorMessage, label }, pages, currentStepIndex, pageCount, isFirst, isLast, isValidating, next, prev, gotoStep }">
+      <div class="flex flex-col gap-2">
+        <span>{{ label }}</span>
+        <div class="flex gap-2 flex-wrap">
+          <button
+            v-for="(page, pageIndex) in pages"
+            :key="page.path"
+            type="button"
+            :data-testid="`${fieldMetadata.path}-goto-${pageIndex}-button`"
+            @click="gotoStep(pageIndex)"
+          >
+            {{ page.name }}
+          </button>
+        </div>
+        <span :data-testid="`${fieldMetadata.path}-currentStepIndex`">{{ currentStepIndex }}</span>
+        <span :data-testid="`${fieldMetadata.path}-pageCount`">{{ pageCount }}</span>
+        <span :data-testid="`${fieldMetadata.path}-isFirst`">{{ isFirst }}</span>
+        <span :data-testid="`${fieldMetadata.path}-isLast`">{{ isLast }}</span>
+        <span :data-testid="`${fieldMetadata.path}-isValidating`">{{ isValidating }}</span>
+        <div class="flex gap-2">
+          <button type="button" :data-testid="`${fieldMetadata.path}-prev-button`" @click="prev">
+            Previous
+          </button>
+          <button type="button" :data-testid="`${fieldMetadata.path}-next-button`" @click="next">
+            Next
+          </button>
+        </div>
+        <span
+          v-if="errorMessage.value"
+          class="text-red-600 text-sm"
+          :data-testid="`${fieldMetadata.path}-error-message`"
+        >{{ errorMessage.value }}</span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
+          <slot />
+        </div>
+      </div>
+    </template>
+
+    <!--
+      Wizard page visibility wrapper. The correct implementation gates with v-show (keeps every
+      page mounted so values and validation survive navigation). The wizardPageUseVIf setting flips
+      it to v-if so a playground can show the clear-on-unmount data loss v-show avoids; it defaults
+      off, so tests and every other consumer keep the correct v-show behaviour.
+    -->
+    <template #default-wizard-page="{ fieldMetadata, isCurrent, settings: { wizardPageUseVIf } }">
+      <div
+        v-if="!wizardPageUseVIf"
+        v-show="isCurrent"
+        :data-testid="`${fieldMetadata.path}-page`"
+        :data-current="isCurrent"
+      >
+        <slot />
+      </div>
+      <div
+        v-else-if="isCurrent"
+        :data-testid="`${fieldMetadata.path}-page`"
+        :data-current="isCurrent"
+      >
+        <slot />
       </div>
     </template>
 

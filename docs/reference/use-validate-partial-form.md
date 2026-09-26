@@ -50,59 +50,19 @@ This means:
 - You do not need to list which fields a section contains — the registry is the source of truth.
 - Fields that are hidden or removed by `computedProps` are not in the registry and are not validated.
 
-## Wizard example
+## Wizard forms
+
+Multi-step forms no longer need to call `validateSection` by hand. Marking a node `wizard: true` (or `wizard: { allowForwardJump?, validateOnJump? }`) makes it a first-class shape rendered through `DynamicFormItemWizard`, which calls `validateSection` internally to gate `next()`/`gotoStep()` against the current page's own path — read straight from the corrected metadata tree, never re-derived or hand-tracked. See [`wizard`](/reference/field-metadata#wizard) on `FieldMetadata` and the `-wizard` / `-wizard-page` slot families in [DynamicFormTemplate](/reference/dynamic-form-template#wizard-container-and-page-slots).
+
+`validateSection` itself stays public API for the cases a wizard does not cover: validating an arbitrary section on demand outside step navigation, for example a "save draft" action that only needs one sub-form to be valid before persisting:
 
 ```ts
-const { validate, validateSection } = useDynamicForm<MyValues>();
+const { validateSection } = useDynamicForm<MyValues>();
 
-// Records each wizard page's path the first time its computedProps run.
-const wizardPagePaths: Record<number, string> = {};
-
-function registerWizardPagePath(field: ComputedPropsFieldType<any, any>) {
-  if (!field.parent?.children?.length) return;
-  const index = field.parent.children.findIndex(x => x.name === field.name);
-  if (index !== -1)
-    wizardPagePaths[index] = field.path;
-}
-
-async function validatePage(pageIndex: number, resolve: LoadingResolve) {
-  const result = await validateSection(wizardPagePaths[pageIndex] ?? '');
-  resolve(result.valid);
+async function saveDraft() {
+  const result = await validateSection('company');
+  if (!result.valid)
+    return; // show errors, keep editing
+  // persist the draft
 }
 ```
-
-Attach `registerWizardPagePath` to each wizard page via `computedProps`:
-
-```ts
-const metadata: Metadata[] = [
-  {
-    name: 'wizard',
-    type: 'wizard',
-    validatePage,
-    submitForm: async (resolve) => {
-      const result = await validate();
-      resolve(result.valid);
-    },
-    children: [
-      {
-        name: 'company',
-        type: 'wizardPage',
-        computedProps: [registerWizardPagePath],
-        children: [
-          { name: 'companyName', fieldOptions: { label: 'Company name' } },
-        ],
-      },
-      {
-        name: 'contacts',
-        type: 'wizardPage',
-        computedProps: [registerWizardPagePath],
-        children: [
-          { name: 'fullName', fieldOptions: { label: 'Full name' } },
-        ],
-      },
-    ],
-  },
-];
-```
-
-Each page's `computedProps` callback fires when the component renders, which populates `wizardPagePaths` automatically — no hardcoded path strings required.

@@ -4,7 +4,7 @@ A production-style wizard demonstrating the full feature set: multi-step navigat
 
 ## What It Demonstrates
 
-- Multi-step `wizard` type with `validatePage` called before advancing
+- Multi-step forms via the [`wizard`](/reference/field-metadata#wizard) metadata property, with `next()` validating the current page before advancing
 - `computedProps` making fields conditionally required or hidden at runtime
 - `choice` branches with a custom change handler and icon labels
 - Repeatable array pages (`minOccurs`, `maxOccurs`, `arrayItemName`)

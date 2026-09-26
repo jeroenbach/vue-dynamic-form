@@ -246,6 +246,99 @@ describe('component DynamicFormTemplate — slot fallback priority', () => {
     });
   });
 
+  // -wizard / -wizard-page fallback ladders (AC14, AC15), mirroring the -choice-array blocks above.
+  describe('*-wizard / default-wizard fallback chain', () => {
+    it('renders the dedicated per-type slot when both it and default-wizard are defined', () => {
+      const wrapper = mountTemplate('horizontal-wizard', {
+        'horizontal-wizard': '<div data-testid="dedicated" />',
+        'default-wizard': '<div data-testid="fallback" />',
+        'default': '<div data-testid="default" />',
+      });
+
+      expect(wrapper.find('[data-testid="dedicated"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="fallback"]').exists()).toBe(false);
+    });
+
+    it('renders default-wizard when only that fallback is defined', () => {
+      const wrapper = mountTemplate('horizontal-wizard', {
+        'default-wizard': '<div data-testid="fallback" />',
+        'default': '<div data-testid="default" />',
+      });
+
+      expect(wrapper.find('[data-testid="fallback"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(false);
+    });
+
+    it('falls back to default when neither the dedicated slot nor default-wizard is defined', () => {
+      const wrapper = mountTemplate('horizontal-wizard', {
+        default: '<div data-testid="default" />',
+      });
+
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(true);
+    });
+
+    it('a typeless wizard resolves through its engine-default type and falls back to default-wizard', () => {
+      const wrapper = mountTemplate('text-wizard', {
+        'default-wizard': '<div data-testid="fallback" />',
+      });
+
+      expect(wrapper.find('[data-testid="fallback"]').exists()).toBe(true);
+    });
+  });
+
+  describe('*-wizard-page / default-wizard-page fallback chain', () => {
+    it('renders the dedicated per-type slot when both it and default-wizard-page are defined', () => {
+      const wrapper = mountTemplate('text-wizard-page', {
+        'text-wizard-page': '<div data-testid="dedicated" />',
+        'default-wizard-page': '<div data-testid="fallback" />',
+        'default': '<div data-testid="default" />',
+      });
+
+      expect(wrapper.find('[data-testid="dedicated"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="fallback"]').exists()).toBe(false);
+    });
+
+    it('renders default-wizard-page when only that fallback is defined, with no per-page type set', () => {
+      const wrapper = mountTemplate('text-wizard-page', {
+        'default-wizard-page': '<div data-testid="fallback" />',
+        'default': '<div data-testid="default" />',
+      });
+
+      expect(wrapper.find('[data-testid="fallback"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(false);
+    });
+
+    it('falls back to default when neither the dedicated slot nor default-wizard-page is defined', () => {
+      const wrapper = mountTemplate('text-wizard-page', {
+        default: '<div data-testid="default" />',
+      });
+
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(true);
+    });
+  });
+
+  describe('regression — -wizard and -wizard-page are not shadowed by, and do not shadow, other families', () => {
+    it('-wizard does not resolve to default-array or default-choice', () => {
+      const wrapper = mountTemplate('text-wizard', {
+        'default-array': '<div data-testid="array" />',
+        'default-choice': '<div data-testid="choice" />',
+        'default': '<div data-testid="default" />',
+      });
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="array"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="choice"]').exists()).toBe(false);
+    });
+
+    it('-array still resolves to default-array when a -wizard slot is also defined', () => {
+      const wrapper = mountTemplate('text-array', {
+        'default-array': '<div data-testid="array" />',
+        'default-wizard': '<div data-testid="wizard" />',
+      });
+      expect(wrapper.find('[data-testid="array"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="wizard"]').exists()).toBe(false);
+    });
+  });
+
   // The shared TestFormTemplate.vue fixture always defines the default-* fallback slot of each
   // family, so the "neither defined, falls all the way to default" side of these ternaries is
   // only exercised here.

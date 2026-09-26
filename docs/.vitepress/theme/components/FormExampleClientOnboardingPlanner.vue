@@ -1,7 +1,5 @@
 <!-- #region client-onboarding-planner-example -->
 <script setup lang="ts">
-import type { ComputedPropsFieldOf } from '@bach.software/vue-dynamic-form';
-import type { LoadingResolve } from '../utils/loadingResolve';
 import type { Metadata } from './AdvancedFormTemplate.vue';
 import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
 import type { TimelineItem } from './SubmissionSuccess.vue';
@@ -73,7 +71,7 @@ const emit = defineEmits<{
 // #endregion Props & Emits
 
 // #region local-state
-const { values, meta, useFieldValue, handleSubmit, validateSection, resetForm } = useDynamicForm<ClientOnboardingPlannerValues>({ keepValuesOnUnmount: true });
+const { values, meta, useFieldValue, handleSubmit, resetForm } = useDynamicForm<ClientOnboardingPlannerValues>({ keepValuesOnUnmount: true });
 
 const formName = 'Client Onboarding';
 const industryValue = useFieldValue('company.industry');
@@ -120,21 +118,6 @@ const industryLabel = computed(() =>
 // #endregion local-state
 
 // #region validation
-const wizardPagePaths: Record<number, string> = {};
-
-function registerWizardPagePath(field: ComputedPropsFieldOf<Metadata>) {
-  if (!field.parent?.children?.length || field.path.includes('['))
-    return;
-  const index = field.parent.children.findIndex(x => x.name === field.name);
-  if (index !== -1)
-    wizardPagePaths[index] = field.path;
-}
-
-async function validatePage(pageIndex: number, resolve: LoadingResolve) {
-  const result = await validateSection(wizardPagePaths[pageIndex] ?? '');
-  resolve(result.valid);
-}
-
 function dateValidation(value: unknown) {
   if (!value)
     return true;
@@ -203,34 +186,17 @@ const metadata: Metadata[] = [
   {
     name: 'wizard',
     path: '',
-    type: 'wizard',
+    wizard: true,
     fieldOptions: { label: formName },
     description: 'New client setup',
     submitButtonText: 'Submit onboarding',
-    validatePage,
-    submitForm: async (resolve: LoadingResolve) => {
-      handleSubmit(
-        (values) => {
-          // removeNullValues prunes the `undefined`-residue vee-validate leaves behind after a
-          // choice branch switch: the deselected branch's key stays present in `values` with
-          // `undefined` children until this cleanup runs.
-          // Note the "View submitted JSON" panel on this page cannot prove this by itself:
-          // JSON.stringify drops undefined-valued keys either way, so a clean-looking JSON view
-          // is not evidence that this call ran. Verify against the live `submitted` object instead.
-          submitted.value = removeNullValues(values);
-          resolve(true);
-        },
-        () => resolve(false),
-      )();
-    },
     children: [
       {
         name: 'company',
-        type: 'wizardPage',
+        type: 'heading',
         fieldOptions: { label: 'Company details' },
         description: 'Core account information for the rollout.',
         helpText: 'Who are we onboarding?',
-        computedProps: [registerWizardPagePath],
         children: [
           {
             name: 'companyName',
@@ -298,14 +264,13 @@ const metadata: Metadata[] = [
       },
       {
         name: 'projectContacts',
-        type: 'wizardPage',
+        type: 'heading',
         fieldOptions: { label: 'Project contacts' },
         description: 'Anyone who should be looped in on the rollout.',
         helpText: 'Who should we work with?',
         arrayItemName: 'contact',
         arrayItemNamePlural: 'contacts',
         arrayItemFieldForTitle: 'fullName',
-        computedProps: [registerWizardPagePath],
         minOccurs: 1,
         maxOccurs: 3,
         fullWidth: true,
@@ -332,12 +297,11 @@ const metadata: Metadata[] = [
       },
       {
         name: 'launchApproach',
-        type: 'wizardPage',
+        type: 'heading',
         fieldOptions: { label: 'Launch approach' },
         description: 'Pick one. Only the selected option ends up in the submitted values, but what you filled in for the other option is kept and restored when you switch back.',
         helpText: 'How will we go live?',
         fullWidth: true,
-        computedProps: [registerWizardPagePath],
         choiceShowChoiceSelect: true,
         explicitChoiceSelection: true,
         preserveOnSwitch: true,
@@ -407,7 +371,7 @@ const metadata: Metadata[] = [
       },
       {
         name: 'systems',
-        type: 'wizardPage',
+        type: 'heading',
         fieldOptions: { label: 'Systems to connect' },
         description: `Any external tools we'll integrate with during onboarding.`,
         helpText: 'What needs to connect?',
@@ -419,7 +383,6 @@ const metadata: Metadata[] = [
         maxOccurs: 4,
         autoAddMinOccurs: false,
         fullWidth: true,
-        computedProps: [registerWizardPagePath],
         children: [
           {
             name: 'systemName',
@@ -440,7 +403,7 @@ const metadata: Metadata[] = [
         description: 'Quick recap before we kick this off. Anything needs tweaking? Jump back to the step.',
         helpText: 'Check and submit',
         minOccurs: 0,
-        computedProps: [registerWizardPagePath, (field) => { field.wizardSummary = wizardSummary.value; }],
+        computedProps: [(field) => { field.wizardSummary = wizardSummary.value; }],
       },
     ],
   },
@@ -478,6 +441,23 @@ function reset() {
   resetForm();
   submitted.value = undefined;
 }
+
+// Submit stays consumer-owned: the wizard's last-page button is a native type="submit" control,
+// so AdvancedForm forwards the form's own submit event here for handleSubmit to take over.
+function onSubmit(event?: Event) {
+  handleSubmit(
+    (values) => {
+      // removeNullValues prunes the `undefined`-residue vee-validate leaves behind after a
+      // choice branch switch: the deselected branch's key stays present in `values` with
+      // `undefined` children until this cleanup runs.
+      // Note the "View submitted JSON" panel on this page cannot prove this by itself:
+      // JSON.stringify drops undefined-valued keys either way, so a clean-looking JSON view
+      // is not evidence that this call ran. Verify against the live `submitted` object instead.
+      submitted.value = removeNullValues(values);
+    },
+    () => {},
+  )(event);
+}
 // #endregion Helper methods
 </script>
 
@@ -492,7 +472,7 @@ function reset() {
         It highlights reusable templates, grouped fields, repeatable contacts, mutually exclusive launch paths, and computed fields that become required only when they matter.
       </p>
     </div>
-    <AdvancedForm v-if="!submitted" :metadata />
+    <AdvancedForm v-if="!submitted" :metadata @submit="onSubmit" />
     <SubmissionSuccess
       v-else
       :title="`Onboarding kicked off for ${values.company?.companyName}`"
