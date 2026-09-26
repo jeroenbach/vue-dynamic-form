@@ -689,6 +689,34 @@ describe('component DynamicFormItemChoice - analytics', () => {
         expect(setupState(wrapper, 'pick')?._analytics_activeChoiceOccurrencesCalculatedCount).toBe(activeAfterAdd + 1);
         expect(setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount).toBe(renderedAfterAdd + 1);
       });
+
+      it('recomputes the render sort exactly once per value write inside an occurrence under displayOrder added, and not at all for a sibling change', async () => {
+        // Under preserveOrder + displayOrder 'added' the sort key lives in the occurrence values,
+        // so typing inside an occurrence legitimately re-evaluates the sort. This pins the cost
+        // at one recompute per value write, so a refactor can't silently turn it into N.
+        const wrapper = mountPreserveOrderRepeatableChoiceWithSibling({
+          metadata: enableDisplayOrder(enablePreserveOrder(objectBranchesMetadata(), 'pick'), 'pick', 'added'),
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        const countBefore = setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount;
+
+        await wrapper.find('[id="pick.apiEndpoint[0].url"]').setValue('a');
+        await flushPromises();
+        await wrapper.find('[id="pick.apiEndpoint[0].url"]').setValue('ab');
+        await flushPromises();
+
+        expect(setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount).toBe(countBefore + 2);
+
+        const countBeforeSibling = setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount;
+        await wrapper.find('[id="sibling"]').setValue('unrelated');
+        await flushPromises();
+
+        expect(setupState(wrapper, 'pick')?._analytics_renderedChoiceOccurrencesCalculatedCount).toBe(countBeforeSibling);
+      });
     });
   });
 

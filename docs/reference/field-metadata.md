@@ -243,7 +243,7 @@ Opts a `choice` field into selection-first rendering: no branch renders until th
 
 Type: `'grouped' | 'added'` | Default: `'grouped'` (absent)
 
-For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Selects the render order of its occurrences: `'grouped'` is the default (grouped by branch declaration order, same as `activeChoiceOccurrences`), `'added'` interleaves occurrences by the order their `addChoiceOccurrence` press happened. Static metadata, read once when the choice mounts. Display only, never written to `values`. See [Interleaving occurrences by add order](/examples/choices#interleaving-occurrences-by-add-order) in the Choice Fields example.
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Selects the render order of its occurrences: `'grouped'` is the default (grouped by branch declaration order, same as `activeChoiceOccurrences`), `'added'` interleaves occurrences by the order their `addChoiceOccurrence` press happened. Reactive: changing it in the metadata re-sorts the occurrence list in place, without a remount, and the session's add history survives the flip. Display only, never written to `values`. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
 
 ```ts
 {
@@ -259,7 +259,7 @@ For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Select
 
 Type: `boolean` | Default: `false` (absent)
 
-For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). Removing an occurrence compacts the survivors' `order` back to a contiguous `1..N`. Requires the branch's occurrences to be objects (a branch with `children`); a no-op with a development warning otherwise. See [Interleaving occurrences by add order](/examples/choices#interleaving-occurrences-by-add-order) in the Choice Fields example.
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). The values stay contiguous `1..N` at all times: loaded data with missing or gapped `order` is normalized at mount (preserving its relative order) and removing an occurrence renumbers the survivors. Reactive: flipping it on mid-session seeds `order` into existing occurrences, flipping it off strips `order` from all of them; mounting with the flag absent never touches loaded data. Requires every branch to have `children`: one scalar-leaf branch disables it for the whole choice, with a development warning. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
 
 ```ts
 {

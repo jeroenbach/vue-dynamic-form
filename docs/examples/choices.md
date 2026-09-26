@@ -1,70 +1,59 @@
 # Choice Fields
 
-Mutually exclusive branches. Selecting one branch disables the others and relaxes their child field validation until that branch becomes active.
+Mutually exclusive branches: the user fills in one of several alternatives, and the other branches are disabled and skip validation until they become active.
 
 ## What It Demonstrates
 
 - `choice` array on a heading to declare mutually exclusive branches
-- Branch children are only validated once the branch is active
-- Sibling branches are automatically disabled when one branch has a value
-- Each branch can have its own `children` with independent fields
+- Automatic mode: the branch the user starts filling in wins, siblings disable
+- Explicit mode (`explicitChoiceSelection`): pick a branch first, then fill in its fields
+- Repeatable choices and branches, add-order display, and per-kind caps
 
 ## Example
 
 <FormExampleChoiceFields />
 
-## Choice Structure
+## How It Works
 
-The `choice` property replaces `children` on the heading. Each entry becomes a selectable branch:
+Declare the branches in a `choice` array (it replaces `children` on the heading). Each entry becomes a branch with its own fields:
 
 <<< @/.vitepress/theme/components/FormExampleChoiceFields.vue#choice-structure{ts} [FormExampleChoiceFields.vue]
 
-## Select first, then fill in
+- As soon as one branch has a value, the sibling branches are disabled.
+- Only the active branch's fields are validated; the others are relaxed until they become active.
+- Clearing the active branch re-enables the others.
 
-Everything above is the automatic mode: whichever branch the user starts typing into is the one that counts, and siblings disable themselves once that happens. Some forms need the opposite flow: show a selector first ("what kind of data do you want to enter?") and only reveal that branch's fields once the user has explicitly picked one, before anything has been filled in.
+This is the automatic mode: whichever branch the user starts typing into is the one that counts. The rest of this page covers the opt-in explicit mode, where the user picks a branch before any fields appear.
 
-Set `explicitChoiceSelection: true` on the `choice` field to opt into this mode. With the flag absent (or `false`), nothing here changes: the page above still applies exactly as written. With the flag on, no branch renders until your template calls `addChoiceOccurrence`, and the choice's slot receives a set of extra primitives to drive the interaction. A `maxOccurs: 1` choice renders through the `-choice` slot family; a repeatable (`maxOccurs > 1`) choice renders through `-choice-array` (falling back to the `-choice` slots when no `-choice-array` slot is defined). Both receive the same primitives:
+## Explicit Selection: Pick First, Then Fill In
 
-| Slot prop | Signature | Purpose |
-| --- | --- | --- |
-| `addChoiceOccurrence` | `(branchKey: string) => void` | Marks a branch active (`maxOccurs: 1`) or adds one occurrence of it (`maxOccurs > 1`). No-op when `canAddChoiceOccurrence(branchKey)` is `false`. |
-| `removeChoiceOccurrence` | `(branchKey: string, index?: number) => void` | Removes a previously added occurrence. `index` is required for `maxOccurs > 1`; omit it for `maxOccurs: 1`, where it deselects the currently active branch. |
-| `canAddChoiceOccurrence` | `(branchKey: string) => boolean` | Per-branch guard, `false` once the choice's shared occurrence budget is exhausted for that branch, or (when set) that branch's own `maxOccursTotal` non-XSD cap is reached. |
-| `activeChoiceOccurrences` | `{ branchKey: string; index: number }[]` | The occurrences currently active. Use it to render a count, drive per-branch button state, or check whether anything is selected yet. |
-| `usedChoiceOccurrences` | `number` | Choice slots currently consumed, in choice-occurrence units rather than raw item count. For a repeatable branch, every group of up to that branch's own `maxOccurs` items counts as one slot, the same unit `xsd_choiceMinOccurs` counts in. |
+Some forms should ask "what kind of data do you want to enter?" before showing any fields. Set `explicitChoiceSelection: true` on the choice field to get that flow: nothing renders until the user picks a branch.
 
-`branchKey` is always the branch's `name`, never its position, so your template code reads against metadata names rather than array indices.
+<FormExampleChoiceExplicitSingle />
 
-The engine ships no widget for this: cards, a `<select>`, per-branch "Add" buttons, are all template-author code built on these primitives. `ChoiceSectionCard.vue` in this library's own docs (used by the [Client Onboarding Wizard example](/examples/advanced)) is one card-based worked example for the single case, and `ChoiceArraySectionCard.vue` its per-branch-Add-buttons counterpart for the repeatable case; a `<select>` that calls `addChoiceOccurrence` on change works exactly the same way underneath.
+<<< @/.vitepress/theme/components/FormExampleChoiceExplicitSingle.vue#metadata{ts} [FormExampleChoiceExplicitSingle.vue]
 
-### Pick exactly one (`maxOccurs: 1`)
+With the flag on, no branch renders until your template calls `addChoiceOccurrence`. The choice's slot receives a small set of props for building the picker:
 
-The metadata is unchanged apart from the new flag:
+| Slot prop | Purpose |
+| --- | --- |
+| `addChoiceOccurrence(branchKey)` | Selects a branch (`maxOccurs: 1`) or adds one occurrence of it (`maxOccurs > 1`). |
+| `removeChoiceOccurrence(branchKey, index?)` | Deselects the active branch; pass `index` when the choice repeats. |
+| `canAddChoiceOccurrence(branchKey)` | `false` when the choice is full or the branch reached its own cap. |
+| `activeChoiceOccurrences` | Array of `{ branchKey, index }` for everything currently selected. |
+| `usedChoiceOccurrences` | How many of the choice's `maxOccurs` slots are in use. |
 
-```ts
-const metadata = [
-  {
-    name: 'contactMethod',
-    fieldOptions: { label: 'Preferred contact' },
-    explicitChoiceSelection: true,
-    choice: [
-      { name: 'email', type: 'text', fieldOptions: { label: 'Email address' } },
-      { name: 'phone', type: 'text', fieldOptions: { label: 'Phone number' } },
-    ],
-  },
-];
-```
+`branchKey` is always the branch's `name`, never its position.
 
-The `-choice` slot (here using the `default-choice` fallback) shows a picker while nothing is selected, and renders the active branch's fields (the slot's own default content, forwarded automatically by the engine) once one is:
+The library ships no picker widget: cards, a `<select>`, or per-branch buttons are all template code built on these props (the cards above come from the docs template's own `ChoiceSectionCard`). A minimal picker in a template looks like this:
 
 ```vue
-<template #default-choice="{ fieldMetadata, addChoiceOccurrence, activeChoiceOccurrences, fieldContext: { errorMessage } }">
+<template #default-choice="{ fieldMetadata, addChoiceOccurrence, activeChoiceOccurrences }">
   <fieldset>
     <legend>{{ fieldMetadata.fieldOptions?.label }}</legend>
-    <p v-if="errorMessage.value">{{ errorMessage.value }}</p>
 
-    <!-- Nothing selected yet: show the picker, no branch fields rendered at all. -->
-    <div v-if="!activeChoiceOccurrences.length" role="radiogroup" :aria-label="fieldMetadata.fieldOptions?.label">
+    <!-- Nothing selected yet: show the picker. -->
+    <div v-if="!activeChoiceOccurrences.length">
       <button
         v-for="branch in fieldMetadata.choice"
         :key="branch.name"
@@ -75,70 +64,55 @@ The `-choice` slot (here using the `default-choice` fallback) shows a picker whi
       </button>
     </div>
 
-    <!-- A branch is active: its fields render here, passed through as this slot's default content. -->
+    <!-- A branch is active: its fields render as the slot's default content. -->
     <slot v-else />
   </fieldset>
 </template>
 ```
 
-Picking a branch satisfies `xsd_choiceMinOccurs` immediately, before any field inside it has a value; the branch's own required fields then enforce their own content separately, exactly as they would in automatic mode.
+Picking a branch satisfies the choice's `xsd_choiceMinOccurs` rule immediately; the required fields inside the branch still enforce their own values separately.
 
-Here is that flow running. It is built with the docs' own `AdvancedFormTemplate`, whose `ChoiceSectionCard` implements the picker as selectable cards on top of the same four primitives (`type: 'heading'` and `choiceShowChoiceSelect: true` belong to that template's contract, not to the engine):
+**Switching branches clears the old branch.** Selecting a different branch sets the previous branch's data to `undefined`. Those `undefined` placeholders can linger in the raw `values` object, but they are harmless: validation and occurrence counting ignore them, and they disappear under `JSON.stringify`. If you need a fully clean object at submit time, run the exported `removeNullValues(values)` once, as the [Client Onboarding Wizard](/examples/advanced) does.
 
-<FormExampleChoiceExplicitSingle />
+### Keeping Values Across Switches (`preserveOnSwitch`)
 
-<<< @/.vitepress/theme/components/FormExampleChoiceExplicitSingle.vue#metadata{ts} [FormExampleChoiceExplicitSingle.vue]
-
-**Switching branches (clear-on-switch).** Calling `addChoiceOccurrence` for a different branch than the one currently active clears the previously active branch's data: the engine sets it to `undefined` through vee-validate's form context. That branch's key can remain present in the raw `values` object with an `undefined`-valued shape (for example `contactMethod: { email: undefined }`) rather than being deleted outright; this residue is behaviourally inert, occurrence counting and `xsd_choiceMinOccurs` both ignore `undefined` values, and it serialises away under `JSON.stringify`. If you need a byte-clean object at submit time, run the exported `removeNullValues(values)` once, the same way the [Client Onboarding Wizard example](/examples/advanced)'s `handleSubmit` does for its `launchApproach` choice.
-
-**Keeping values across switches (`preserveOnSwitch`).** Set `preserveOnSwitch: true` next to `explicitChoiceSelection: true` to soften clear-on-switch: switching away still clears the branch from the form `values` (submit only ever sees the active branch), but the engine first stashes a copy of what was filled in, and switching back restores it. The stash is ephemeral and instance-local, never written to `values`, and restored fields come back pristine: no error flashes on a still-empty required field. The flag only applies to `maxOccurs: 1` explicit choices:
+If users may switch back and forth, add `preserveOnSwitch: true` next to `explicitChoiceSelection: true`. Try it below: fill in a branch, switch away, then switch back.
 
 <FormExampleChoicePreserveOnSwitch />
 
 <<< @/.vitepress/theme/components/FormExampleChoicePreserveOnSwitch.vue#metadata{ts} [FormExampleChoicePreserveOnSwitch.vue]
 
-See the [Client Onboarding Wizard example](/examples/advanced) (the `launchApproach` step) for this pattern inside a full wizard, including the submit-time `removeNullValues` cleanup. The `maxOccurs > 1` flow has its own live example below.
+Switching away still clears the branch from the form values (submit only ever sees the active branch), but the engine keeps an in-memory copy and restores it when the user switches back, without flashing errors on still-empty required fields. The copy is never written to `values` and does not survive a page reload. The flag only applies to `maxOccurs: 1` explicit choices.
 
-### A repeatable branch inside a single choice
+## A Repeatable Branch Inside a Single Choice
 
-The choice's `maxOccurs` and a branch's own `maxOccurs` are independent limits that multiply, following XSD semantics: a branch's limit applies per occurrence of the choice. So a `maxOccurs: 1` choice can still contain a branch with `maxOccurs: 3`; picking that branch is exclusive (the other branches stay locked out), but within it you can add up to 3 items:
+A branch can itself repeat: a `maxOccurs: 1` choice may contain a branch with `maxOccurs: 3`. Picking that branch is still exclusive (the other branches stay locked out), but within it you can add up to 3 items:
 
 <FormExampleChoiceRepeatableBranch />
 
 <<< @/.vitepress/theme/components/FormExampleChoiceRepeatableBranch.vue#metadata{ts} [FormExampleChoiceRepeatableBranch.vue]
 
-All items of the selected branch together count as **one** choice occurrence, so `xsd_choiceMinOccurs` and the sibling lock-out behave exactly as with a single-value branch, and switching to the other branch clears all of them at once. Because the choice itself is still `maxOccurs: 1`, it renders through the regular `-choice` slot, and the repeatable branch renders through the normal `-array` / `-array-item` slots with its own add and remove buttons; the `-choice-array` and `-choice-array-item` slot families below only come into play when the choice itself repeats.
+All items of the selected branch together count as **one** choice occurrence, so the sibling lock-out and `xsd_choiceMinOccurs` behave exactly as with a single-value branch, and switching to the other branch clears all items at once. Because the choice itself does not repeat, it renders through the regular `-choice` slot and the branch renders through the normal `-array` / `-array-item` slots.
 
-### Add several, each one of several kinds (`maxOccurs > 1`)
+## A Repeatable Choice (`maxOccurs > 1`)
 
-When the choice itself has `maxOccurs > 1`, selecting a branch adds one occurrence of it instead of activating it exclusively; you can add more than one occurrence of the same branch, or mix branches, up to the choice's shared occurrence budget.
+When the choice itself has `maxOccurs > 1`, selecting a branch adds one occurrence instead of activating it exclusively. The user can add several of the same kind, or mix kinds, up to the choice's shared budget:
 
-This follows the same XSD occurrence semantics as automatic mode: a branch's own `maxOccurs` is not an independent total, it is the batch size for that branch inside the choice, so every group of up to that many raw items consumes one of the choice's shared slots. A choice with `maxOccurs: 5` containing a branch with `maxOccurs: 2` allows up to 10 items of that branch when the other branch is empty, with every 2 items of it consuming only 1 of the 5 shared slots:
+<FormExampleChoiceExplicitRepeatable />
 
-```ts
-const metadata = [
-  {
-    name: 'integrations',
-    fieldOptions: { label: 'Integrations to add' },
-    maxOccurs: 5,
-    explicitChoiceSelection: true,
-    choice: [
-      { name: 'crmExport', type: 'text', fieldOptions: { label: 'CRM export' } },
-      { name: 'apiEndpoint', type: 'text', fieldOptions: { label: 'API endpoint' } },
-    ],
-  },
-];
-```
+<<< @/.vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue#metadata{ts} [FormExampleChoiceExplicitRepeatable.vue]
 
-A repeatable choice renders through the `-choice-array` slot (here using its `default-choice-array` fallback), which renders the per-branch "Add" buttons and a count; each active occurrence's own fields render automatically through the `-choice-array-item` slot (here using its `default-choice-array-item` fallback; without any `-choice-array-item` slot the occurrence falls back to the `-array-item` slots), which also receives `branchKey`, a `removeItem` wired to `removeChoiceOccurrence`, and an `addItem` / `canAddItems` pair that adds another occurrence of the same branch.
+A repeatable choice renders through the `-choice-array` slot family (falling back to the `-choice` slots when none is defined), and each active occurrence renders through `-choice-array-item`. On top of the picker props above, the item slot receives:
 
-Each occurrence's own `index` (used above only for `removeItem`/keying) is its position within its own branch, so it resets per branch: a second "CRM export" is `index: 1` no matter how many "API endpoint" occurrences exist. To show a single continuous count across every branch instead, the same slot also receives `globalIndex`, the occurrence's zero-based position across all active occurrences combined, in the same grouped order `activeChoiceOccurrences` reports them. `globalIndex` is live-derived (never written to `values`) and renumbers automatically whenever an occurrence anywhere in the choice is removed, so a "1, 2, 3..." badge never leaves a gap:
+- `branchKey`: which kind this occurrence is
+- `removeItem()`: removes this occurrence
+- `index`: the occurrence's position within its own branch (resets per kind)
+- `globalIndex`: the occurrence's position across all branches combined, for a continuous "1, 2, 3" badge; it renumbers automatically on removal, so it never leaves a gap
 
 ```vue
-<template #default-choice-array="{ fieldMetadata, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences, fieldContext: { errorMessage } }">
+<template #default-choice-array="{ fieldMetadata, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences }">
   <fieldset>
     <legend>{{ fieldMetadata.fieldOptions?.label }} ({{ usedChoiceOccurrences }} of {{ fieldMetadata.maxOccurs }})</legend>
-    <p v-if="errorMessage.value">{{ errorMessage.value }}</p>
 
     <button
       v-for="branch in fieldMetadata.choice"
@@ -150,61 +124,46 @@ Each occurrence's own `index` (used above only for `removeItem`/keying) is its p
       Add {{ branch.fieldOptions?.label }}
     </button>
 
-    <!-- Every active occurrence's fields render here, one after another, via default-choice-array-item below. -->
+    <!-- Every active occurrence renders here, via default-choice-array-item below. -->
     <slot />
   </fieldset>
 </template>
 
 <template #default-choice-array-item="{ branchKey, globalIndex, removeItem }">
   <div>
-    <span class="num-badge">{{ globalIndex + 1 }}</span>
-    <span class="kind-badge">{{ branchKey }}</span>
+    <span>{{ globalIndex + 1 }}. {{ branchKey }}</span>
     <slot />
-    <button type="button" @click="removeItem">
-      Remove
-    </button>
+    <button type="button" @click="removeItem">Remove</button>
   </div>
 </template>
 ```
 
-`activeChoiceOccurrences` is grouped by branch declaration order, then by index within the branch, derived purely from the value tree; it is never global insertion order. Adding a "CRM export", then an "API endpoint", then a second "CRM export" always yields `[{ branchKey: 'crmExport', index: 0 }, { branchKey: 'crmExport', index: 1 }, { branchKey: 'apiEndpoint', index: 0 }]`, in that order, regardless of the order the add buttons were clicked. Treat the list as either order-agnostic or reflecting that grouped order; do not build UI that assumes it mirrors click order. `globalIndex` walks that same grouped list, so with the above additions the badges read `1, 2, 3` (CRM export, CRM export, API endpoint), not a per-branch-reset `1, 1, 2`.
+By default, occurrences render grouped by branch declaration order, not by the order the add buttons were clicked: first all "CRM export" items, then all "API endpoint" items. The next section shows how to opt into click order instead.
 
-Adding an occurrence satisfies `xsd_choiceMinOccurs` immediately, the same way selecting a branch does for `maxOccurs: 1`: the act of adding is what counts, and the occurrence's own required fields enforce their own content separately. `xsd_choiceMinOccurs` counts in choice-occurrence units, not raw items: adding a second item of a `maxOccurs: 2` branch does not add a second occurrence toward the minimum, since both items together still consume only one shared slot.
+::: details XSD occurrence math: a branch's `maxOccurs` is a batch size
+Following XSD semantics, a branch's `maxOccurs` is not an independent total; it is the batch size that branch consumes one choice slot with. A choice with `maxOccurs: 5` containing a branch with `maxOccurs: 2` allows up to 10 items of that branch, with every 2 items consuming 1 of the 5 shared slots. `xsd_choiceMinOccurs` counts in these slot units too, not in raw items.
+:::
 
-And here is the repeatable flow running. The docs template renders the per-branch Add buttons through `ChoiceArraySectionCard` (its `-choice-array` counterpart to `ChoiceSectionCard`) and wraps each active occurrence in a removable card via its `default-choice-array-item` slot, with `RepeaterCard`'s existing numbered badge bound to `globalIndex` so the cards show a continuous 1, 2, 3 down the page instead of resetting per branch. Removing a card renumbers the survivors immediately, with no gap, since the badge is never stored. Each branch here is capped at 3 in total through `maxOccursTotal` (a non-XSD opt-in, see below), while the choice's shared XSD budget is 5, so an Add button disables at 3 of that kind or 5 in total, whichever comes first:
+### Showing Occurrences in the Order They Were Added
 
-<FormExampleChoiceExplicitRepeatable />
+Two opt-in flags, set next to `explicitChoiceSelection`, control the ordering. Both are reactive: change them in your metadata at any time and the choice adjusts in place, no remount needed. The toolbar in the example above flips both live, so you can try each combination:
 
-<<< @/.vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue#metadata{ts} [FormExampleChoiceExplicitRepeatable.vue]
+| Flag | What it does |
+| --- | --- |
+| `displayOrder: 'added'` | Renders occurrences in the order they were added, interleaving kinds. Display only, nothing is written to `values`. The default, `'grouped'`, groups by kind. |
+| `preserveOrder: true` | Additionally writes an `order` number (`1, 2, 3...` in add order) into each occurrence's values, so the order is real submitted data that survives a reload or loaded saved data. |
 
-### Interleaving occurrences by add order
+With `displayOrder: 'added'` alone, the add order lives only in memory: the engine records every add press regardless of the current display mode (so flipping to `'added'` mid-session shows the clicks made before the flip too), but a page reload starts over and the display falls back to grouped order. Turn on `preserveOrder` to make it durable.
 
-`activeChoiceOccurrences` (and the `globalIndex` badge above) always groups by branch declaration order, never by the order the add buttons were actually clicked. Some UIs want the opposite: show occurrences in the order they were added, interleaving branches. Two independent, opt-in mechanisms cover this, both static per-choice `FieldMetadata` flags next to `explicitChoiceSelection`:
+`preserveOrder` keeps the `order` values contiguous at all times: occurrences loaded without `order` (or with gaps from older data) are normalized to `1..N` at mount, preserving their relative order, and removing an occurrence renumbers the survivors. Flipping it on mid-session seeds `order` into the occurrences that already exist; flipping it off strips `order` from all of them (loading a form with the flag simply absent never touches existing data).
 
-| Flag | Type | Default | What it does |
-| --- | --- | --- | --- |
-| `displayOrder` | `'grouped' \| 'added'` | `'grouped'` | Selects what render order the choice's occurrences appear in. `'grouped'` is today's behaviour (`activeChoiceOccurrences` order). `'added'` interleaves them by add-press order. Display only; it never writes to `values`. |
-| `preserveOrder` | `boolean` | `false` (absent) | Writes an `order` field into each occurrence's own values as it is added, so add-press order survives a page reload or loaded saved data. Real submitted data, not stripped by `removeNullValues`. |
+`preserveOrder` needs an object to write into, so it requires every branch to have `children`: if any branch is a bare scalar, the flag is disabled for the whole choice (with a development-mode warning naming the branch), and `displayOrder: 'added'` keeps working through the in-memory tier for all kinds. Avoid declaring your own child field named `order` on branches that use it; the ordering owns that key and warns about the collision in development.
 
-The toolbar above the live example flips both: "Grouped by kind" / "Order added" drives `displayOrder`, and the `preserveOrder` toggle drives the second flag. Try it: switch to "Order added" with `preserveOrder` off, add a CRM export, an API endpoint, then a second CRM export, and the cards render in that click order rather than grouped by kind.
+One visible side effect of `preserveOrder`: a freshly added occurrence already holds a value (its `order`), so its required fields show their required indicator immediately instead of after the first touch. Validation outcomes are identical either way; only the indicator timing shifts.
 
-**The ephemeral tier (`displayOrder: 'added'`, `preserveOrder` off).** While `preserveOrder` is off, add-order comes from `insertionOrder`, an extra slot prop on `-choice-array-item` (`ChoiceArrayItemAttributes`) alongside `globalIndex`. It is instance-local engine state keyed by the occurrence's stable field-array key, assigned the moment an occurrence is added, and it is never written to `values`. This is the whole reason it is called ephemeral: reload the page, or remount the form the way the toolbar's own flip does, and the counter is gone, so the display silently falls back to grouped order. The toolbar demo makes this concrete without needing an actual page reload: flipping either control remounts the choice (both flags are read once at setup, not reactively), which wipes whatever click history the session had built up, so a still-showing "Order added" view falls straight back to grouped immediately after the flip.
+### Capping a Branch's Total Count (`maxOccursTotal`)
 
-**The persisted tier (`preserveOrder: true`).** Turning `preserveOrder` on makes the engine write a real `order` number into each occurrence's own values object as it is added (`1, 2, 3...` in add-press order across all branches), and `displayOrder: 'added'` then sorts by that stored `order` instead of the ephemeral counter. Because it lives in `values`, it survives a reload and loaded saved data exactly, at the price of an extra field sitting next to the occurrence's own declared fields. Removing an occurrence compacts the survivors' `order` back to a contiguous `1..N`, so the next added occurrence always gets `count + 1`, never a gap. Toggling `preserveOrder` off after adding occurrences with it on drops `order` from every occurrence's values entirely (the persisted data is gone once you opt out); toggling it back on later runs a fresh backfill from the current grouped position, so the new `order` sequence starts at `1` again rather than resuming the sequence from before the toggle.
-
-**Reload trade-off, side by side:**
-
-| | Ephemeral (`preserveOrder` off) | Persisted (`preserveOrder` on) |
-| --- | --- | --- |
-| Where it lives | Instance-local engine state | `order` field in each occurrence's own values |
-| Survives reload / loaded data | No, falls back to grouped order | Yes, reconstructs the exact add order |
-| Footprint in `values` | None | One extra number per occurrence |
-
-**Constraints.** `preserveOrder` only has somewhere to write `order` when a branch's occurrences are objects (a branch with `children`, like both branches in the example above); a branch whose occurrences are a bare scalar leaf has no object to attach a field to, so `preserveOrder` is a no-op for that branch (with a development-mode console warning naming it). And because `order` is a plain sibling field inside the occurrence's own object, a branch that already declares a child literally named `order` collides with it: avoiding that name, or not opting into `preserveOrder` for that branch, is the consumer's responsibility.
-
-### Capping a branch's total count (`maxOccursTotal`)
-
-XSD batching alone has no concept of "at most 3 of this kind": a branch's `maxOccurs` only sets the batch size, not a ceiling on how many batches it may consume. When a per-kind limit like that is a real requirement, set `maxOccursTotal` on the branch. It is an opt-in, non-XSD property with no `<xs:choice>` equivalent, a hard cap on that branch's own raw item count across the whole choice, independent of the batching above:
+As the XSD math above shows, a branch's `maxOccurs` is a batch size, not a ceiling. To enforce "at most 3 of this kind" set `maxOccursTotal` on the branch, a non-XSD opt-in that caps the branch's raw item count across the whole choice:
 
 ```ts
 {
@@ -215,7 +174,7 @@ XSD batching alone has no concept of "at most 3 of this kind": a branch's `maxOc
 }
 ```
 
-With `maxOccurs: 1` and `maxOccursTotal: 3`, each add consumes exactly one shared slot and the branch's own Add button disables once 3 items exist, regardless of how much of the choice's shared budget remains. Set alongside a `maxOccurs` greater than 1, the cap still counts raw items, not slots: `maxOccurs: 2` with `maxOccursTotal: 3` allows one batch of 2 plus one more single item before disabling. The property applies the same way in automatic mode: the branch's rendered array stops offering an add once its own count reaches the cap, even if the choice's shared budget would otherwise allow more.
+`canAddChoiceOccurrence` turns `false` for that branch once the cap is reached, regardless of how much of the choice's shared budget remains. The example above uses this: each kind is capped at 3, while the choice allows 5 in total, so an Add button disables at whichever limit hits first. The property works the same way in automatic mode.
 
 ## Full Metadata
 
@@ -225,6 +184,7 @@ With `maxOccurs: 1` and `maxOccursTotal: 3`, each add consumes exactly one share
 
 - [FormExampleChoiceFields.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoiceFields.vue)
 - [FormExampleChoiceExplicitSingle.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoiceExplicitSingle.vue)
+- [FormExampleChoicePreserveOnSwitch.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoicePreserveOnSwitch.vue)
 - [FormExampleChoiceRepeatableBranch.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoiceRepeatableBranch.vue)
 - [FormExampleChoiceExplicitRepeatable.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue)
 - [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)

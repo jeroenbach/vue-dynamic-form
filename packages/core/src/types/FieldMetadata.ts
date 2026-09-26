@@ -172,52 +172,44 @@ export type FieldMetadata<
    * error renders immediately after restore even if a required field is still empty.
    *
    * Has no effect on non-choice nodes, on `maxOccurs > 1` explicit choices, or when
-   * `explicitChoiceSelection` is not set. Read from static metadata only: it is excluded from
-   * `ComputedPropsFieldType`, so a `computedProps` function cannot flip it at runtime.
+   * `explicitChoiceSelection` is not set. Read reactively from the metadata, so it may be
+   * flipped live through the metadata prop; it is excluded from `ComputedPropsFieldType`, so
+   * the metadata prop (not `computedProps`) is the channel for changing it.
    */
   preserveOnSwitch?: boolean
 
   /**
-   * Selects the render order of a repeatable explicit choice's occurrences (`maxOccurs > 1`
-   * together with `explicitChoiceSelection: true`; a no-op everywhere else, including
-   * `maxOccurs: 1` explicit choices).
+   * How a repeatable explicit choice (`explicitChoiceSelection: true`, `maxOccurs > 1`) orders
+   * its occurrences on screen:
    *
-   * `'grouped'` (the default when absent) renders occurrences grouped by branch declaration
-   * order, then by index within branch, identical to today's `activeChoiceOccurrences` order.
+   * - `'grouped'` (default): grouped by branch, in declaration order.
+   * - `'added'`: in the order the user clicked "add", mixing branches. Occurrences from loaded
+   *   data render first, in grouped order. This order is display-only and resets on reload;
+   *   combine with `preserveOrder` to keep it.
    *
-   * `'added'` renders occurrences in the order they were added this session: an occurrence
-   * added via `addChoiceOccurrence` sorts by its add-press position across every branch, ahead
-   * of it any occurrence that already existed when the form mounted (loaded saved data),
-   * which keeps its grouped position since it has no add-press to sort by. Reloading the form
-   * loses the session's add-order and falls back to grouped order.
-   *
-   * Static metadata only: it is excluded from `ComputedPropsFieldType`, so a `computedProps`
-   * function cannot flip the render order mid-form.
+   * May be changed while the form is mounted; the list re-sorts in place. Ignored everywhere
+   * else, and not settable from `computedProps`.
    */
   displayOrder?: 'grouped' | 'added'
 
   /**
-   * Opt into persisting a repeatable explicit choice's add-order into the submitted values
-   * themselves (only meaningful together with `explicitChoiceSelection: true` and
-   * `maxOccurs > 1`; a no-op everywhere else). When true, `addChoiceOccurrence` writes a numeric
-   * `order` field into the new occurrence's own values (1-based, counted across every branch of
-   * the choice), and removing an occurrence compacts the survivors' `order` values back to a
-   * contiguous 1..N sequence. Occurrences already present when the form mounts (loaded or
-   * previously saved data) that lack `order` are backfilled once, from their current grouped
-   * position, before any add-press can occur.
+   * Stores the add-order of a repeatable explicit choice (`explicitChoiceSelection: true`,
+   * `maxOccurs > 1`) in the form values, so it survives a reload: each occurrence gets a
+   * numeric `order` field (1..N across all branches, renumbered on removal, normalized at
+   * mount for loaded data). Use together with `displayOrder: 'added'`, which then sorts by
+   * this field.
    *
-   * Unlike `displayOrder`'s ephemeral `insertionOrder`, `order` is real submitted data: it
-   * survives a page reload and loaded saved data, at the price of appearing in `values` next to
-   * the occurrence's own declared fields. `removeNullValues` keeps it, since it is never
-   * null/undefined.
+   * Note that `order` becomes part of your submitted values, next to the occurrence's own
+   * fields. Don't declare a child named `order` yourself; the engine owns that key.
    *
-   * Only applies to a branch whose occurrence is an object (the branch declares `children`); a
-   * scalar-leaf branch (e.g. `type: 'text'`, no `children`) has nowhere to attach `order`, so
-   * enabling this on such a branch is a no-op for that branch and logs a `console.warn` in
-   * development.
+   * Requires every branch to have `children`, since the `order` field needs an object to live
+   * in. If any branch is a bare scalar, the flag is ignored for the whole choice, with a
+   * warning in development.
    *
-   * Static metadata only: it is excluded from `ComputedPropsFieldType`, so a `computedProps`
-   * function cannot flip it at runtime.
+   * May be changed while the form is mounted: turning it on adds `order` to the existing
+   * occurrences, seeding it from this session's add-order (so an interleaved display keeps the
+   * sequence the user built) and from grouped position for occurrences not added this session;
+   * turning it off removes it. Ignored everywhere else, and not settable from `computedProps`.
    */
   preserveOrder?: boolean
 
@@ -319,14 +311,12 @@ export type ComputedPropsFieldType<
       // Static metadata only: flipping this via computedProps would change the render mode
       // mid-form (initial flash / mount-unmount storm).
       | 'explicitChoiceSelection'
-      // Static metadata only, for the same reason as explicitChoiceSelection: flipping this
-      // via computedProps would change stash/restore behaviour mid-form.
+      // The three ordering flags below are reactive to the metadata prop, but excluded here so
+      // the metadata prop stays their one sanctioned channel: a computedProps function runs
+      // inside the engine's computed and must not drive behaviour with side effects (order
+      // writes, stash lifecycles) from there.
       | 'preserveOnSwitch'
-      // Static metadata only, for the same reason as its siblings above: flipping the render
-      // order mid-form would cause an already-rendered occurrence to visibly jump position.
       | 'displayOrder'
-      // Static metadata only, for the same reason as its siblings above: flipping this mid-form
-      // would require backfilling or stripping `order` from occurrences that already exist.
       | 'preserveOrder'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly

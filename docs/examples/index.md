@@ -4,12 +4,12 @@ Runnable examples that cover the main features. Each page embeds the live compon
 
 ## Available Demos
 
-- [Basic Form](/examples/basic) — two fields, a heading group, and form state
-- [Arrays & Groups](/examples/arrays-and-groups) — repeatable sections with per-item labels
-- [Choice Fields](/examples/choices) — mutually exclusive branches
-- [Dynamic Fields](/examples/dynamic-fields) — options loaded from an external source
-- [Validation](/examples/validation) — restrictions, async checks, password strength, and cross-field rules
-- [Advanced Wizard](/examples/advanced) — full-featured client onboarding wizard
+- [Basic Form](/examples/basic): two fields, a heading group, and form state
+- [Arrays & Groups](/examples/arrays-and-groups): repeatable sections with per-item labels
+- [Choice Fields](/examples/choices): mutually exclusive branches
+- [Dynamic Fields](/examples/dynamic-fields): options loaded from an external source
+- [Validation](/examples/validation): restrictions, async checks, password strength, and cross-field rules
+- [Advanced Wizard](/examples/advanced): full-featured client onboarding wizard
 
 ## Quick Overview
 

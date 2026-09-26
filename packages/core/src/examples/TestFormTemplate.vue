@@ -177,8 +177,8 @@ const metadata = defineMetadata<
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2 border-s-2 ps-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <div class="flex gap-2 items-center">
           <span :data-testid="`${fieldMetadata.path}-kind-badge`">{{ branchKey }}</span>
-          <span :data-testid="`${fieldMetadata.path}-global-index`">{{ globalIndex }}</span>
-          <span v-if="insertionOrder !== undefined" :data-testid="`${fieldMetadata.path}-insertion-order`">{{ insertionOrder }}</span>
+          globalIndex: <span :data-testid="`${fieldMetadata.path}-global-index`">{{ globalIndex }}</span>
+          insertionOrder: <span v-if="insertionOrder !== undefined" :data-testid="`${fieldMetadata.path}-insertion-order`">{{ insertionOrder }}</span>
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-choice-button`" @click="addItem" />
           <IconButton icon="minus" tabindex="-1" color="red" :data-testid="`${fieldMetadata.path}-remove-choice-button`" @click="removeItem" />
         </div>

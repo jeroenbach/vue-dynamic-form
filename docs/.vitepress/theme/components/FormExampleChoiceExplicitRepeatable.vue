@@ -1,21 +1,24 @@
 <script setup lang="ts">
 import type { Metadata } from './AdvancedFormTemplate.vue';
-import type { ExplicitChoiceRepeatableValues } from './FormExampleChoiceExplicitRepeatableForm.vue';
-import { computed, ref, useTemplateRef } from 'vue';
-import FormExampleChoiceExplicitRepeatableForm from './FormExampleChoiceExplicitRepeatableForm.vue';
+import { useDynamicForm } from '@bach.software/vue-dynamic-form';
+import { computed, ref } from 'vue';
+import AdvancedForm from './AdvancedForm.vue';
 import ToggleSwitch from './ToggleSwitch.vue';
 
-type IntegrationOccurrence = Record<string, unknown> & { order?: number };
+export interface ExplicitChoiceRepeatableValues {
+  integrations?: {
+    crmExport?: { crmSystem?: string, exportSchedule?: string, order?: number }[]
+    apiEndpoint?: { url?: string, apiKey?: string, order?: number }[]
+  }
+}
 
+// Both flags are reactive engine metadata: flipping them through the computed metadata below
+// takes effect in place, no remount needed. Turning preserveOrder on seeds `order` into the
+// existing occurrences, turning it off strips it again; both are visible live in the values dump.
 const displayOrder = ref<'grouped' | 'added'>('grouped');
 const preserveOrder = ref(false);
 
-// Bumped on every toolbar flip to force the form to remount: `displayOrder`/`preserveOrder` are
-// static, engine-captured-at-setup flags, so changing them only takes effect on a fresh mount.
-const formKey = ref(0);
-const seedValues = ref<ExplicitChoiceRepeatableValues>();
-
-const formRef = useTemplateRef<InstanceType<typeof FormExampleChoiceExplicitRepeatableForm>>('formRef');
+const { values, meta } = useDynamicForm<ExplicitChoiceRepeatableValues>();
 
 // #region metadata
 const metadata = computed<Metadata[]>(() => [
@@ -56,56 +59,6 @@ const metadata = computed<Metadata[]>(() => [
   },
 ]);
 // #endregion metadata
-
-function withoutOrder(occurrences?: IntegrationOccurrence[]) {
-  return occurrences?.map(({ order: _order, ...rest }) => rest);
-}
-
-/**
- * Snapshots the currently entered values so they survive the remount a toolbar flip causes.
- * `order` is stripped from the snapshot when `preserveOrder` is being turned off, since the
- * engine never removes a pre-existing `order` on its own and the reader needs to see it actually
- * disappear from the values dump.
- */
-function snapshotValues(stripOrder: boolean): ExplicitChoiceRepeatableValues | undefined {
-  const current = formRef.value?.values;
-  if (!current)
-    return undefined;
-
-  const cloned = JSON.parse(JSON.stringify(current)) as ExplicitChoiceRepeatableValues;
-  if (!stripOrder || !cloned.integrations)
-    return cloned;
-
-  return {
-    ...cloned,
-    integrations: {
-      crmExport: withoutOrder(cloned.integrations.crmExport),
-      apiEndpoint: withoutOrder(cloned.integrations.apiEndpoint),
-    },
-  };
-}
-
-function remountWith(applyChange: () => void) {
-  applyChange();
-  seedValues.value = snapshotValues(!preserveOrder.value);
-  formKey.value += 1;
-}
-
-function setDisplayOrder(next: 'grouped' | 'added') {
-  if (next === displayOrder.value)
-    return;
-  remountWith(() => {
-    displayOrder.value = next;
-  });
-}
-
-function setPreserveOrder(next: boolean) {
-  if (next === preserveOrder.value)
-    return;
-  remountWith(() => {
-    preserveOrder.value = next;
-  });
-}
 </script>
 
 <template>
@@ -123,7 +76,7 @@ function setPreserveOrder(next: boolean) {
             :class="displayOrder === 'grouped'
               ? 'bg-sky-600 text-white'
               : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'"
-            @click="setDisplayOrder('grouped')"
+            @click="displayOrder = 'grouped'"
           >
             Grouped by kind
           </button>
@@ -136,7 +89,7 @@ function setPreserveOrder(next: boolean) {
             :class="displayOrder === 'added'
               ? 'bg-sky-600 text-white'
               : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'"
-            @click="setDisplayOrder('added')"
+            @click="displayOrder = 'added'"
           >
             Order added
           </button>
@@ -148,7 +101,7 @@ function setPreserveOrder(next: boolean) {
           :checked="preserveOrder"
           label="preserveOrder"
           dataTestid="preserve-order-toggle"
-          @update:checked="setPreserveOrder(!!$event)"
+          @update:checked="preserveOrder = !!$event"
         />
         <span class="text-sm text-slate-700 dark:text-slate-300">preserveOrder</span>
       </div>
@@ -158,16 +111,20 @@ function setPreserveOrder(next: boolean) {
       v-if="displayOrder === 'added' && !preserveOrder"
       class="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950 p-3 text-sm text-amber-800 dark:text-amber-200"
     >
-      <strong>This order will not survive a reload.</strong> Add-order display is ephemeral: reloading the page,
-      or remounting the form the way flipping either control here does, falls back to grouped order. Turn on
-      <code>preserveOrder</code> to make it survive.
+      <strong>This order will not survive a reload.</strong> Add-order display is ephemeral: reloading the page
+      falls back to grouped order. Turn on <code>preserveOrder</code> to make it survive.
     </div>
 
-    <FormExampleChoiceExplicitRepeatableForm
-      ref="formRef"
-      :key="formKey"
-      :metadata="metadata"
-      :initialValues="seedValues"
-    />
+    <AdvancedForm :metadata :settings="{ showRequiredOrOptional: 'required' }" />
+    <pre
+      class="bg-gray-100 dark:bg-slate-800 p-4 rounded-lg text-sm overflow-auto"
+    >
+IsDirty: {{ meta.dirty }}
+Touched: {{ meta.touched }}
+Valid: {{ meta.valid }}
+
+// form values:
+{{ JSON.stringify(values, null, 2) }}
+    </pre>
   </div>
 </template>
