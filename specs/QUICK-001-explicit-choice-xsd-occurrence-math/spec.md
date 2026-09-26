@@ -1,7 +1,7 @@
 ---
 id: QUICK-001
 type: quick
-status: verifying
+status: done
 approved_by: Jeroen
 pr: ""
 ---

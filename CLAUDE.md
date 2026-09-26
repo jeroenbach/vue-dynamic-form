@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Remembering Instructions
 
-Whenever the user says **"remember this"** (or similar) about an instruction or preference, add it to this CLAUDE.md file in the appropriate section (create one if needed), then commit it. Keep CLAUDE.md as one single file, do not split it into partials.
+Whenever the user says **"remember this"** (or similar) about an instruction or preference, add it to this CLAUDE.md file in the appropriate section (create one if needed). Keep CLAUDE.md as one single file, do not split it into partials. Whether to commit that edit follows the same rule as everything else: see "Interactive vs Autonomous Sessions" below, in an interactive session, make the edit and stop there; the user commits it themselves.
 
 ## Writing Style
 
@@ -192,6 +192,7 @@ Additional conventions:
 ## Git
 
 - **Commit message wrapping: no hard line breaks mid-sentence.** Write each paragraph and each bullet as one continuous line, so the editor's word-wrap handles the display. Only insert a real newline where a new paragraph, bullet, or the subject/body separation actually starts. Never hard-wrap a sentence across multiple lines at a fixed column, because those breaks show up as awkward mid-sentence line breaks when pasted into the VS Code commit box.
+- **Commit messages and changesets lead with the business purpose, not the mechanism.** Open with why this matters, the problem it solves for whoever hits it (end user filling in a form, template author, library consumer), before any API detail. Technical detail (which flag, which slot, internal data structures, why a particular approach was chosen) can follow after that, only if it matters for correct usage, and should stay brief. This applies especially to changesets: they become the CHANGELOG entries a library consumer reads, so write them for someone skimming release notes, not as an internal implementation summary. The number of changesets is decoupled from the number of commits or branches: a changeset is one CHANGELOG entry, so the right unit is one per cohesive user-facing capability, not one per commit and not mechanically one per branch. Prefer a single changeset for a feature that ships as one thing (use sub-bullets inside it if it has distinct sub-capabilities worth finding), rather than several changesets that describe the same feature from different angles, those read as fragmented entries under one release. Conversely, do not merge genuinely unrelated changes that happen to share a branch into one entry. **If the business purpose isn't already documented and can't be inferred with confidence, ask Jeroen rather than guessing at one.** For spec-driven work, it's usually already written down: pull it from the feature's `Problem & goal` or the story's `User story` section instead of re-deriving it. When starting a new feature spec, the product-owner should make sure `Problem & goal` actually captures the business purpose (the why, for whom), since it gets reused verbatim later for commit messages and changesets.
 
 ## Release Process
 
@@ -207,4 +208,4 @@ Commit the generated `.changeset/*.md` file with the branch. When ready to relea
 pnpm changeset version   # bumps version, updates CHANGELOG.md, deletes .changeset files
 ```
 
-PRs should be **merged** (not squash-merged) to preserve the commit history that Changesets depends on.
+The release PR that `pnpm changeset version` generates (the one that bumps versions and updates `CHANGELOG.md`) must be **merged**, not squash-merged. Squashing it has broken npm publishing before. Regular feature/fix PRs don't have this constraint: squash or merge is a style choice, since the changeset `.md` files land on `main` identically either way.
