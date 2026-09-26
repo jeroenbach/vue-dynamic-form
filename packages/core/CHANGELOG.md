@@ -1,5 +1,32 @@
 # @bach.software/vue-dynamic-form
 
+## 0.6.0
+
+### Minor Changes
+
+- a6998d5: Let a template control how the occurrences of a repeatable explicit choice ("add several, each one of several kinds") are numbered and ordered on screen, so the user sees one continuous list in the order they built it, rather than items that restart their numbering per kind and always sit grouped by kind.
+
+  Everything here is opt-in and layers on top of FEAT-001's `explicitChoiceSelection`: the default numbering, order, and storage of a repeatable choice are unchanged, so existing consumers are unaffected. What you can now build:
+
+  - **Continuous "item N of M" numbering across kinds**: the new `globalIndex` slot prop on `*-choice-array-item` / `default-choice-array-item` reports each occurrence's position across every branch (not just within its own kind), renumbering live on add and remove, so a badge can read 1, 2, 3, 4 regardless of which kinds were added.
+  - **Show occurrences in the order they were added, this session** (opt-in `displayOrder: 'added'`): render occurrences interleaved by add-press order instead of grouped by kind. Backed by an ephemeral `insertionOrder` slot prop that lives only in memory, never in form values, and falls back to grouped order after a reload. Flipping the flag re-sorts in place without a remount.
+  - **Persist that add-order into the saved data** (opt-in `preserveOrder`): write a 1-based `order` field into each occurrence's own values, kept contiguous 1..N as occurrences are added and removed, and normalized from loaded data at mount. Unlike `insertionOrder`, this survives a reload and saved data, at the cost of appearing in `values`. Requires every branch to have `children` (an object to hold the field); a scalar-leaf branch disables it for the whole choice with a development warning.
+
+  Neither ordering flag changes `xsd_choiceMinOccurs` or occurrence-budget outcomes, and the storage model stays per-branch. Additive throughout: a choice that opts into none of these renders exactly as before.
+
+- 6d893c4: Let a template show a selector first ("what kind of data do you want to enter?") and reveal a choice branch's fields only after the user picks it, instead of requiring at least one field to already hold a value before the branch counts as selected. This replaces the hidden-phantom-field workaround previously needed to fake a selection.
+
+  Add the opt-in `explicitChoiceSelection` field metadata flag, plus the slot props to drive it (`addChoiceOccurrence`, `removeChoiceOccurrence`, `canAddChoiceOccurrence`, `activeChoiceOccurrences`, `usedChoiceOccurrences`). What you can now build:
+
+  - **Pick one, then fill in** (`maxOccurs: 1`): mark a branch selected before any of its fields hold a value, driven from the `-choice` slot.
+  - **Add several, each one of several kinds** (`maxOccurs > 1`): add and remove occurrences of chosen branches, rendered through new `*-choice-array` / `*-choice-array-item` slots. Both fall back to the existing `*-choice` / `*-array-item` slots when a template doesn't define them, so a generic array-item card renders occurrences out of the box.
+  - **Keep data across a switch** (opt-in `preserveOnSwitch`): when the user switches away from a `maxOccurs: 1` branch and back, restore what they had entered instead of clearing it. Values are stashed in an ephemeral, instance-local clone that is never written to form `values`.
+  - **Per-kind ceiling** (opt-in `maxOccursTotal`): cap a single branch's occurrence count independently of the shared choice budget, a "at most 3 of this kind" limit with no XSD equivalent.
+
+  Occurrence counting follows the same XSD-faithful rule the library already uses for automatic choice mode: a branch's own `maxOccurs` is the batch size within the shared choice budget (every group of up to that many raw items consumes one shared slot), not an independent total, and it is validated in the same choice-occurrence units as `xsd_choiceMinOccurs`.
+
+  Additive and opt-in throughout: existing choices with none of these flags set render exactly as before.
+
 ## 0.5.0
 
 ### Minor Changes
