@@ -118,6 +118,9 @@ const combinedValidation = computed<GenericValidateFunction[]>(() => {
   if (required.value)
     _validations.push(createValidation('xsd_minOccurs', minOccurs.value, _messages?.minOccurs));
 
+  if (!disabled.value)
+    _validations.push(createValidation('xsd_maxOccurs', maxOccurs.value, _messages?.maxOccurs));
+
   if (field.value?.validation)
     _validations.push(...splitToValidationFunctions(field.value?.validation));
 

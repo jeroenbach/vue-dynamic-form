@@ -3,6 +3,13 @@ import { configure } from 'vee-validate';
 import { afterEach, describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 
+/** Reads the internal setup state of a mounted DynamicFormItemArray instance for a given path. */
+function arraySetupState(wrapper: ReturnType<typeof mount>, path: string): Record<string, any> | undefined {
+  const component = wrapper.findAllComponents({ name: 'DynamicFormItemArray' })
+    .find(c => (c.vm as any).$.setupState.path === path);
+  return (component?.vm as any)?.$.setupState;
+}
+
 describe('component DynamicFormItemArray', () => {
   describe('xsd_minOccurs restriction', () => {
     afterEach(() => {
@@ -180,6 +187,363 @@ describe('component DynamicFormItemArray', () => {
       await inputs[1].setValue('');
       await flushPromises();
       expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('At least 2 items required');
+    });
+  });
+
+  describe('xsd_maxOccurs restriction', () => {
+    afterEach(() => {
+      configure({ generateMessage: undefined as any });
+    });
+
+    it.each`
+      label      | maxOccurs | items                     | message                                       | expected
+      ${'Items'} | ${2}      | ${['a', 'b', 'c']}        | ${'At most {0} item(s) allowed for {field}'} | ${'At most 2 item(s) allowed for Items'}
+      ${'Items'} | ${3}      | ${['a', 'b', 'c', 'd']}   | ${'At most {0} item(s) allowed for {field}'} | ${'At most 3 item(s) allowed for Items'}
+    `('shows custom settings message with positional {0} for maxOccurs=$maxOccurs with over-limit raw items', async ({ label, maxOccurs, items, message, expected }: any) => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label },
+            minOccurs: 0,
+            maxOccurs,
+          }] as any,
+          initialValues: { items },
+          settings: {
+            messages: { maxOccurs: message },
+          },
+        },
+      });
+
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain(expected);
+    });
+
+    it('shows custom settings message with named {max} placeholder', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 0,
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: ['a', 'b', 'c'] },
+          settings: {
+            messages: { maxOccurs: '{field} allows at most {max} items' },
+          },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('Items allows at most 2 items');
+    });
+
+    it('shows configure.generateMessage when no settings message is provided', async () => {
+      configure({
+        generateMessage: ctx =>
+          `${ctx.field}: too many, max is ${(ctx.rule?.params as unknown[])?.[0]}`,
+      });
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 0,
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: ['a', 'b', 'c'] },
+          settings: { messages: {} },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('Items: too many, max is 2');
+    });
+
+    it('does not show an error when raw item count is exactly at the max', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 0,
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: ['a', 'b'] },
+          settings: {
+            messages: { maxOccurs: 'At most {0} items allowed' },
+          },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+    });
+
+    it('does not show an error when raw item count is below the max', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: ['a'] },
+          settings: {
+            messages: { maxOccurs: 'At most {0} items allowed' },
+          },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+    });
+
+    it('counts raw items, not filled values: 2 raw items with one empty placeholder passes at max=2', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 0,
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: ['a', null] },
+          settings: {
+            messages: { maxOccurs: 'At most {0} items allowed' },
+          },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+    });
+
+    it('counts raw items, not filled values: a 3rd empty placeholder still fails at max=2', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 0,
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: ['a', null, null] },
+          settings: {
+            messages: { maxOccurs: 'At most {0} items allowed' },
+          },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('At most 2 items allowed');
+    });
+
+    it('counts raw items, not filled values: a 3rd filled item also fails at max=2', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 0,
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: ['a', null, 'b'] },
+          settings: {
+            messages: { maxOccurs: 'At most {0} items allowed' },
+          },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('At most 2 items allowed');
+    });
+
+    it('fails for a non-required array (minOccurs=0) loaded over its max', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 0,
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: ['a', 'b', 'c'] },
+          settings: {
+            messages: { maxOccurs: 'At most {0} items allowed' },
+          },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(true);
+    });
+
+    it('never raises for a disabled array (maxOccurs=0 propagated from a parent group), regardless of raw item count', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'group',
+            maxOccurs: 0,
+            children: [{
+              name: 'items',
+              fieldOptions: { label: 'Items' },
+              maxOccurs: 2,
+            }],
+          }] as any,
+          initialValues: { group: { items: ['a', 'b', 'c'] } },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="group.items-error-message"]').exists()).toBe(false);
+      expect(arraySetupState(wrapper, 'group.items')?.combinedValidation).toHaveLength(0);
+    });
+
+    describe('timing mirrors xsd_minOccurs', () => {
+      // Empty placeholders (not real values) keep firstValueSet false at mount, the same gate
+      // xsd_minOccurs already relies on; a raw item that already holds a real value flips it
+      // immediately (see guardAndNotifyItemUpdate), which is why these fixtures load null items.
+      it('does not show an error on mount, before any interaction or submit', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'items',
+              fieldOptions: { label: 'Items' },
+              minOccurs: 0,
+              maxOccurs: 2,
+            }] as any,
+            initialValues: { items: [null, null, null] },
+          },
+        });
+
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+      });
+
+      it('shows an error once the form is submitted', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'items',
+              fieldOptions: { label: 'Items' },
+              minOccurs: 0,
+              maxOccurs: 2,
+            }] as any,
+            initialValues: { items: [null, null, null] },
+          },
+        });
+
+        await flushPromises();
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(true);
+      });
+
+      it('shows an error on first interaction, without a submit, when validateOnValueUpdate is on (default)', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'items',
+              fieldOptions: { label: 'Items' },
+              minOccurs: 0,
+              maxOccurs: 2,
+            }] as any,
+            initialValues: { items: [null, null, null] },
+          },
+        });
+
+        await flushPromises();
+        expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+
+        await wrapper.find('input[id="items[0]"]').setValue('changed');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(true);
+      });
+    });
+
+    it('shows xsd_minOccurs first when it co-occurs with a failing xsd_maxOccurs (min pushed before max)', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 1,
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: [null, null, null] },
+          settings: {
+            messages: {
+              minOccurs: 'At least {min} required',
+              maxOccurs: 'At most {max} allowed',
+            },
+          },
+        },
+      });
+
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      const errorText = wrapper.find('[data-testid="items-error-message"]').text();
+      expect(errorText).toContain('At least 1 required');
+      expect(errorText).not.toContain('At most 2 allowed');
+
+      // vee-validate bails on the first failing rule by default, so only the min rule's message
+      // ever reaches `errors`; this is what makes push order (min before max) load-bearing here.
+      const { fieldContext } = arraySetupState(wrapper, 'items') ?? {};
+      expect(fieldContext.errors.value).toHaveLength(1);
+      expect(fieldContext.errors.value[0]).toContain('At least 1 required');
     });
   });
 

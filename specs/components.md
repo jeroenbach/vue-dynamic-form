@@ -59,9 +59,15 @@ Internal-only utils (not exported, free to change): `camelize`, `createValidatio
 
 ## Validation rules (globally registered, `packages/core/src/core/validation.ts`)
 
-`xsd_required`, `xsd_minOccurs`, `xsd_choiceMinOccurs`, `xsd_minLength`, `xsd_maxLength`, `xsd_length`, `xsd_pattern`, `xsd_minInclusive`, `xsd_maxInclusive`, `xsd_minExclusive`, `xsd_maxExclusive`, `xsd_enumeration`, `xsd_whiteSpace`, `xsd_fractionDigits`, `xsd_totalDigits`.
+`xsd_required`, `xsd_minOccurs`, `xsd_maxOccurs`, `xsd_choiceMinOccurs`, `xsd_choiceMaxOccurs`, `maxOccursTotal`, `xsd_minLength`, `xsd_maxLength`, `xsd_length`, `xsd_pattern`, `xsd_minInclusive`, `xsd_maxInclusive`, `xsd_minExclusive`, `xsd_maxExclusive`, `xsd_enumeration`, `xsd_whiteSpace`, `xsd_fractionDigits`, `xsd_totalDigits`.
 
-Message resolution priority: `settings.messages` → vee-validate `generateMessage` → rule default. Positional (`{0}`) and named (`{min}`, `{field}`) placeholders supported.
+`xsd_maxOccurs` (additive) validates an array field's (`DynamicFormItemArray`) raw item count against its `maxOccurs`, mirroring `xsd_minOccurs`'s wiring and timing exactly: pushed into `combinedValidation` whenever the array is not disabled (`maxOccurs !== 0`), placed after the existing `xsd_minOccurs` push so a co-occurring failure keeps the min message as the displayed error. Counts raw items including empty placeholders (the same quantity the "Add" affordance's cap governs), not filled values. Adds `messages.maxOccurs?: ValidationMessage` to `DynamicFormSettings` (additive, optional; placeholders `{field}`, `{0}`/`{max}`).
+
+`xsd_choiceMaxOccurs` (additive) validates a choice field's (`DynamicFormItemChoice`) `usedChoiceOccurrences` against its `maxOccurs`, in choice-occurrence units (not raw item count), the same unit `xsd_choiceMinOccurs` and `canAddChoiceOccurrence` already use. `combinedValidation` was restructured from an early-return into a list so both the min and max choice rules can coexist if `minOccurs > maxOccurs` is ever declared (an unenforced invariant); under well-formed metadata the two are mutually exclusive. Adds `messages.choiceMaxOccurs?: ValidationMessage` (additive, optional; placeholders `{field}`, `{0}`/`{max}`).
+
+`maxOccursTotal` (additive, **not** `xsd_`-prefixed: a non-XSD library extension with no `<xs:choice>` equivalent) is a choice-level aggregate that fires when any branch's raw occurrence count exceeds that branch's own opt-in `maxOccursTotal` cap (`FieldMetadata.maxOccursTotal`, from FEAT-001). Pushed last into the same `combinedValidation` list as the two choice rules above, so a co-occurring `xsd_choiceMinOccurs`/`xsd_choiceMaxOccurs` failure wins the displayed `errorMessage`. Reports the first offending branch's cap in declaration order and never names the offending branch (`{field}` resolves to the choice's own anchor label). Adds `messages.maxOccursTotal?: ValidationMessage` (additive, optional; placeholders `{field}`, `{0}`/`{max}`).
+
+Message resolution priority: `settings.messages` → vee-validate `generateMessage` → rule default. Positional (`{0}`) and named (`{min}`, `{max}`, `{field}`) placeholders supported.
 
 ## Non-published surfaces
 

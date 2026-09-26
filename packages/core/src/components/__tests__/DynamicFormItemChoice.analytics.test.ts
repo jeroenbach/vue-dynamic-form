@@ -5,6 +5,30 @@ import TestForm from '@/examples/TestForm.vue';
 import { formValues, renderCount } from './DynamicFormItem.test-helpers';
 import { enableDisplayOrder, enablePreserveOnSwitch, enablePreserveOrder, occurrenceGlobalIndex, setupState } from './DynamicFormItemChoice.test-helpers';
 
+// Starts below any maxOccursTotal cap tested here, so the "Add" affordance stays enabled and
+// an add/remove cycle is actually reachable through the UI (a branch already at its cap disables
+// "Add", by design, see the validation suite's own note on this).
+function mountRepeatableBranchWithSibling(maxOccursTotal: number | undefined) {
+  return mount(TestForm, {
+    attachTo: document.body,
+    props: {
+      metadata: [
+        { name: 'sibling', fieldOptions: { label: 'Sibling' } },
+        {
+          name: 'pick',
+          explicitChoiceSelection: true,
+          maxOccurs: 3,
+          fieldOptions: { label: 'Pick Several' },
+          choice: [
+            { name: 'branchA', maxOccurs: 3, maxOccursTotal, fieldOptions: { label: 'Branch A' } },
+          ],
+        },
+      ] as any,
+      initialValues: { pick: { branchA: ['a', 'b'] } },
+    },
+  });
+}
+
 function mountExplicitChoiceWithSibling() {
   return mount(TestForm, {
     attachTo: document.body,
@@ -26,7 +50,7 @@ function mountExplicitChoiceWithSibling() {
 }
 
 describe('component DynamicFormItemChoice - analytics', () => {
-  describe('explicit selection — maxOccurs:1', () => {
+  describe('explicit selection with maxOccurs:1', () => {
     it('selecting a branch mounts its DynamicFormItem exactly once', async () => {
       const wrapper = mountExplicitChoiceWithSibling();
       await flushPromises();
@@ -842,6 +866,88 @@ describe('component DynamicFormItemChoice - analytics', () => {
       // Switching back to an empty branch (flag off, so no restore) mounts it exactly once too.
       expect(renderCount(wrapper, 'pick.selfServe')).toBe(1);
       expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('');
+    });
+  });
+
+  describe('maxOccursTotal backstop: render/recompute cost', () => {
+    it('adding a maxOccursTotal cap does not change how many times occurrences recomputes for an equivalent add/remove sequence', async () => {
+      const withoutCap = mountRepeatableBranchWithSibling(undefined);
+      await flushPromises();
+      const withoutCapBefore = setupState(withoutCap, 'pick')?._analytics_occurrencesCalculatedCount;
+      await withoutCap.find('[data-testid="pick.branchA-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await withoutCap.find('[data-testid="pick.branchA[2]-remove-choice-button"]').trigger('click');
+      await flushPromises();
+      const withoutCapAfter = setupState(withoutCap, 'pick')?._analytics_occurrencesCalculatedCount;
+
+      const withCap = mountRepeatableBranchWithSibling(4);
+      await flushPromises();
+      const withCapBefore = setupState(withCap, 'pick')?._analytics_occurrencesCalculatedCount;
+      await withCap.find('[data-testid="pick.branchA-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await withCap.find('[data-testid="pick.branchA[2]-remove-choice-button"]').trigger('click');
+      await flushPromises();
+      const withCapAfter = setupState(withCap, 'pick')?._analytics_occurrencesCalculatedCount;
+
+      expect(withCapAfter - withCapBefore).toBe(withoutCapAfter - withoutCapBefore);
+    });
+
+    it('does not re-render a sibling field when a branch is loaded over its own maxOccursTotal', async () => {
+      const wrapper = mountRepeatableBranchWithSibling(4);
+      await flushPromises();
+      const siblingCountBefore = renderCount(wrapper, 'sibling');
+
+      await wrapper.find('[data-testid="pick.branchA-add-choice-button"]').trigger('click');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(renderCount(wrapper, 'sibling')).toBe(siblingCountBefore);
+    });
+
+    it('adding then removing back to the cap does not remount the surviving occurrences', async () => {
+      const wrapper = mountRepeatableBranchWithSibling(4);
+      await flushPromises();
+      const survivorCountBefore = renderCount(wrapper, 'pick.branchA[0]');
+      const survivorElementBefore = wrapper.find('[id="pick.branchA[0]"]').element;
+
+      await wrapper.find('[data-testid="pick.branchA-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.branchA[2]-remove-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[id="pick.branchA[0]"]').element).toBe(survivorElementBefore);
+      expect(renderCount(wrapper, 'pick.branchA[0]')).toBeGreaterThanOrEqual(survivorCountBefore);
+      expect(renderCount(wrapper, 'pick.branchA[0]')).toBeLessThanOrEqual(survivorCountBefore + 2);
+    });
+
+    it('the auto-mode double-error (branch xsd_maxOccurs + choice maxOccursTotal) does not multiply the branch\'s render count', async () => {
+      function mountAutoModeBranch(maxOccursTotal: number | undefined) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              minOccurs: 0,
+              fieldOptions: { label: 'Pick One' },
+              choice: [
+                { name: 'branchA', maxOccurs: 3, maxOccursTotal, fieldOptions: { label: 'Branch A' } },
+                { name: 'branchB', fieldOptions: { label: 'Branch B' } },
+              ],
+            }] as any,
+            initialValues: { pick: { branchA: ['a', 'b', 'c'] } },
+          },
+        });
+      }
+
+      const withoutCap = mountAutoModeBranch(undefined);
+      await flushPromises();
+      const withoutCapCount = renderCount(withoutCap, 'pick.branchA');
+
+      const withCap = mountAutoModeBranch(2);
+      await flushPromises();
+      const withCapCount = renderCount(withCap, 'pick.branchA');
+
+      expect(withCapCount).toBeLessThanOrEqual(withoutCapCount + 1);
     });
   });
 });

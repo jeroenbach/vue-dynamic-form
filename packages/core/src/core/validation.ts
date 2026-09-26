@@ -4,10 +4,17 @@ import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 
 export { resolveMessage } from '@/utils/resolveMessage';
 
-/** XSD-derived rule names registered globally via vee-validate's `defineRule`. */
+/**
+ * XSD-derived rule names registered globally via vee-validate's `defineRule`, plus one
+ * non-XSD occurrence extension (`maxOccursTotal`, a per-branch choice cap with no XSD
+ * equivalent).
+ */
 export type ValidationRule = 'xsd_required'
   | 'xsd_minOccurs'
+  | 'xsd_maxOccurs'
   | 'xsd_choiceMinOccurs'
+  | 'xsd_choiceMaxOccurs'
+  | 'maxOccursTotal'
   | 'xsd_minLength'
   | 'xsd_maxLength'
   | 'xsd_pattern'
@@ -31,12 +38,29 @@ defineRule('xsd_minOccurs' as ValidationRule, (value: unknown, [min]: [number]) 
   return value.filter(checkTreeHasValue).length >= Number(min);
 });
 
+// XSD: maxOccurs: maximum number of raw array items, including empty placeholders.
+// Counts the same quantity the array's own "add" affordance limits, not the filled count
+// xsd_minOccurs uses, so the rule and the UI cap never disagree.
+defineRule('xsd_maxOccurs' as ValidationRule, (value: unknown, [max]: [number]) => {
+  if (!Array.isArray(value))
+    return true;
+  return value.length <= Number(max);
+});
+
 // XSD: choiceMinOccurs — minimum number of choice items that have a value
 defineRule('xsd_choiceMinOccurs' as ValidationRule, () => {
   // As we can't actually validate a choice field (it doesn't exist in the vee-validate value tree)
   // we always validate false if this validation is added.
   return false;
 });
+
+// XSD: choiceMaxOccurs: maximum number of choice-occurrence units in use. Same stub shape
+// as xsd_choiceMinOccurs: the real comparison lives in the choice component's own guard.
+defineRule('xsd_choiceMaxOccurs' as ValidationRule, () => false);
+
+// Non-XSD: maxOccursTotal: a choice branch's own opt-in cap on its raw occurrence count,
+// aggregated and reported at the choice level. Same stub shape as the two rules above.
+defineRule('maxOccursTotal' as ValidationRule, () => false);
 
 // XSD: minLength / maxLength — maps to vee-validate's min/max (string length)
 defineRule('xsd_minLength' as ValidationRule, min);
@@ -108,7 +132,10 @@ defineRule('xsd_totalDigits' as ValidationRule, (value: unknown, [digits]: [numb
  */
 export const ruleParamNames: Partial<Record<ValidationRule, string>> = {
   xsd_minOccurs: 'min',
+  xsd_maxOccurs: 'max',
   xsd_choiceMinOccurs: 'min',
+  xsd_choiceMaxOccurs: 'max',
+  maxOccursTotal: 'max',
   xsd_minLength: 'length',
   xsd_maxLength: 'length',
   xsd_length: 'length',

@@ -3,6 +3,7 @@
   setup
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
+import type { GenericValidateFunction } from 'vee-validate';
 import type { ComputedRef } from 'vue';
 import type { ChoiceOccurrence, LimitedFieldContext } from '@/components/DynamicFormTemplate.vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
@@ -374,9 +375,24 @@ const effectiveValuesCount = computed(() => {
   return valuesCount.value;
 });
 
+// The offending branch's maxOccursTotal cap, or undefined when no branch breaches its own
+// cap. Reads occurrences (already a transitive dependency of combinedValidation below), so this
+// adds no new reactive source. Returns the first offending branch's cap in declaration order:
+// a later breach on a different branch is never reached once an earlier one is found.
+const maxOccursTotalBreach = computed(() => {
+  // Non-null: DynamicFormItemChoice only ever renders for a field with a real choice array.
+  const branches = field.value!.choice!;
+  for (let i = 0; i < branches.length; i++) {
+    const cap = branches[i].maxOccursTotal;
+    const rawCount = occurrences.value[i].childOccurrences;
+    if (cap !== undefined && rawCount > cap)
+      return cap;
+  }
+  return undefined;
+});
+
 // --- Vee-Validate field context ---
 
-// Only validate when the total filled choices fall below the minimum required.
 const combinedValidation = computed(() => {
   if (singleChild.value)
     return; // single-child choices are validated by the child itself
@@ -384,11 +400,21 @@ const combinedValidation = computed(() => {
   if (disabled.value)
     return;
 
-  if (effectiveValuesCount.value >= minOccurs.value)
-    return;
-
   const _messages = settings?.value?.messages;
-  return [createValidation('xsd_choiceMinOccurs', minOccurs.value, _messages?.choiceMinOccurs)];
+  const _validations: GenericValidateFunction[] = [];
+
+  // Two independent guards, not else-if: the list shape must be able to hold both rules if the
+  // minOccurs <= maxOccurs invariant is ever relaxed by a caller's metadata.
+  if (effectiveValuesCount.value < minOccurs.value)
+    _validations.push(createValidation('xsd_choiceMinOccurs', minOccurs.value, _messages?.choiceMinOccurs));
+  if (usedChoiceOccurrences.value > maxOccurs.value)
+    _validations.push(createValidation('xsd_choiceMaxOccurs', maxOccurs.value, _messages?.choiceMaxOccurs));
+
+  // Pushed last so a co-occurring choice-occurrence rule above wins the displayed errorMessage.
+  if (maxOccursTotalBreach.value !== undefined)
+    _validations.push(createValidation('maxOccursTotal', maxOccursTotalBreach.value, _messages?.maxOccursTotal));
+
+  return _validations.length ? _validations : undefined;
 });
 
 // A choice field has no entry in the values tree, so validation anchors to the nearest parent

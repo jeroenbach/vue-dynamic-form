@@ -359,6 +359,28 @@ export const arrayOccurrenceSampleValues = {
   },
 };
 
+// Arrays that arrive already over their maxOccurs from outside the form (an API response, an
+// import, or programmatic initialValues). The "Add" button can only stop you going forward, so the
+// only way to reach an over-limit array is to load one: turn on "Load sample data" and submit.
+export const arrayMaxOccursTestCase = createTestCase([
+  {
+    name: 'overLimit',
+    fieldOptions: { label: 'Over-limit Arrays (loaded from initialValues)' },
+    type: 'heading',
+    children: [
+      { name: 'requiredItems', minOccurs: 1, maxOccurs: 2, fieldOptions: { label: 'Required (max 2)' }, description: 'Loaded with 3 items, one over the maximum. Submit to see the xsd_maxOccurs error; the Add button is already disabled.' },
+      { name: 'optionalItems', minOccurs: 0, maxOccurs: 2, fieldOptions: { label: 'Optional (max 2)' }, description: 'A non-required array carried no occurrence rule before; loaded with 3 items it now fails xsd_maxOccurs on submit too.' },
+    ],
+  },
+]);
+
+export const arrayMaxOccursSampleValues = {
+  overLimit: {
+    requiredItems: ['First', 'Second', 'Third'],
+    optionalItems: ['One', 'Two', 'Three'],
+  },
+};
+
 export const choiceOccurrenceTestCase = createTestCase([
   {
     name: 'optionalChoice',
@@ -412,6 +434,39 @@ export const choiceOccurrenceSampleValues = {
   twoOccurrence: { contact: { email: ['ada@example.com', 'grace@example.com'] } },
   differentLimits: { entries: { branchA: ['A-one', 'A-two'] } },
   totalCap: { entries: { capped: ['C-one', 'C-two'] } },
+};
+
+// Choices that arrive already over a maximum from outside the form (an API response, an import, or
+// programmatic initialValues). As with arrays, the "Add" affordance only prevents going forward, so
+// the errors are reachable only by loading over-limit data: turn on "Load sample data" and submit.
+export const choiceMaxOccursTestCase = createTestCase([
+  {
+    name: 'tooManyBranches',
+    fieldOptions: { label: 'Choice Over maxOccurs (auto mode, maxOccurs 1)' },
+    type: 'heading',
+    children: [
+      { name: 'contact', fieldOptions: { label: 'Only one branch allowed' }, maxOccurs: 1, fullWidth: true, description: 'Loaded with both email and phone filled at once. Two occupied branches exceed maxOccurs 1, so submit shows the xsd_choiceMaxOccurs error.', choice: [
+        { name: 'email', fieldOptions: { label: 'Email' } },
+        { name: 'phone', fieldOptions: { label: 'Phone' } },
+      ] },
+    ],
+  },
+  {
+    name: 'branchOverTotal',
+    fieldOptions: { label: 'Branch Over maxOccursTotal (maxOccurs 4)' },
+    type: 'heading',
+    children: [
+      { name: 'entries', fieldOptions: { label: 'Capped branch over its total' }, maxOccurs: 4, fullWidth: true, description: 'The capped branch allows at most 2 items in total across the whole choice (maxOccursTotal 2) but is loaded with 3. Submit shows the maxOccursTotal error.', choice: [
+        { name: 'capped', maxOccurs: 3, maxOccursTotal: 2, fieldOptions: { label: 'Capped (maxOccursTotal 2)' } },
+        { name: 'uncapped', maxOccurs: 3, fieldOptions: { label: 'Uncapped' } },
+      ] },
+    ],
+  },
+]);
+
+export const choiceMaxOccursSampleValues = {
+  tooManyBranches: { contact: { email: 'ada@example.com', phone: '555-0100' } },
+  branchOverTotal: { entries: { capped: ['C-one', 'C-two', 'C-three'] } },
 };
 
 export const explicitChoiceTestCase = createTestCase([

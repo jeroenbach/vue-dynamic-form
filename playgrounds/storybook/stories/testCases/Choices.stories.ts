@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { choiceDisplayOrderAddedSampleValues, choiceDisplayOrderAddedTestCase, choiceOccurrenceSampleValues, choiceOccurrenceTestCase, choicePreserveOrderSampleValues, choicePreserveOrderScalarBranchSampleValues, choicePreserveOrderScalarBranchTestCase, choicePreserveOrderTestCase, choiceSampleValues, choiceTestCase, explicitChoiceSampleValues, explicitChoiceTestCase, explicitRepeatableChoiceSampleValues, explicitRepeatableChoiceTestCase, preserveOnSwitchSampleValues, preserveOnSwitchTestCase } from '@bach.software/vue-dynamic-form/examples';
+import { choiceDisplayOrderAddedSampleValues, choiceDisplayOrderAddedTestCase, choiceMaxOccursSampleValues, choiceMaxOccursTestCase, choiceOccurrenceSampleValues, choiceOccurrenceTestCase, choicePreserveOrderSampleValues, choicePreserveOrderScalarBranchSampleValues, choicePreserveOrderScalarBranchTestCase, choicePreserveOrderTestCase, choiceSampleValues, choiceTestCase, explicitChoiceSampleValues, explicitChoiceTestCase, explicitRepeatableChoiceSampleValues, explicitRepeatableChoiceTestCase, preserveOnSwitchSampleValues, preserveOnSwitchTestCase } from '@bach.software/vue-dynamic-form/examples';
 import { sampleDataStory } from './sampleDataStory';
 
 const meta = {
@@ -19,6 +19,9 @@ export const ChoiceFields: Story = sampleDataStory(choiceTestCase, choiceSampleV
 
 /** Choice occurrence combinations: optional choice, minOccurs 2, branches with different per-iteration limits and a maxOccursTotal branch cap in auto mode. Toggle "Load sample data" to pre-fill it. */
 export const OccurrenceVariants: Story = sampleDataStory(choiceOccurrenceTestCase, choiceOccurrenceSampleValues);
+
+/** Choices loaded already over a maximum (as from an API response or import). Turn on "Load sample data" and submit: the first section fills two branches of a maxOccurs 1 choice to trigger xsd_choiceMaxOccurs; the second loads a branch past its maxOccursTotal cap to trigger the maxOccursTotal error. */
+export const OverLimitData: Story = sampleDataStory(choiceMaxOccursTestCase, choiceMaxOccursSampleValues);
 
 /** explicitChoiceSelection: no branch renders until one is added; switching clears the other branch. Loading sample data auto-selects the branch that carries a value. */
 export const ExplicitChoice: Story = sampleDataStory(explicitChoiceTestCase, explicitChoiceSampleValues);
