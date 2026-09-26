@@ -6,7 +6,7 @@
 import type { FieldContext as _FieldContext } from 'vee-validate';
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
-import type { ReadOnlyFieldType } from '@/types/FieldMetadata';
+import type { ReadOnlyFieldType, WizardGotoStepOptions } from '@/types/FieldMetadata';
 import type { MetadataConfiguration } from '@/types/MetadataConfiguration';
 import { computed, useAttrs } from 'vue';
 import { camelize } from '@/utils/camelize';
@@ -46,7 +46,7 @@ export interface LimitedFieldContext<TValue = unknown> {
 export interface Attributes<
   TMetadataConfiguration extends MetadataConfiguration,
 > {
-  type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'default-array' | 'default-array-item' | 'default-choice' | 'default-choice-array' | 'default-choice-array-item'
+  type: TMetadataConfiguration['fieldTypes'][number] | 'default' | 'default-array' | 'default-array-item' | 'default-choice' | 'default-choice-array' | 'default-choice-array-item' | 'default-wizard' | 'default-wizard-page'
   /** The metadata you configured for this field. */
   fieldMetadata: ReadOnlyFieldType<
     TMetadataConfiguration['fieldTypes'][number],
@@ -157,11 +157,51 @@ export interface ChoiceArrayItemAttributes<
   insertionOrder?: number
 }
 
+/**
+ * Slot props for the wizard container (`<type>-wizard` / `default-wizard`). `pages` is the
+ * engine's resolved page list (the corrected page metadata nodes, in page order): the single
+ * source of truth for a stepper, so a template never re-derives `fieldMetadata.children` itself.
+ */
+export interface WizardAttributes<
+  TMetadataConfiguration extends MetadataConfiguration,
+> extends Attributes<TMetadataConfiguration> {
+  fieldContext: LimitedFieldContext
+  currentStepIndex: number
+  pages: ReadOnlyFieldType<TMetadataConfiguration['fieldTypes'][number], TMetadataConfiguration['extendedProperties']>[]
+  pageCount: number
+  isFirst: boolean
+  isLast: boolean
+  isValidating: boolean
+  next: () => Promise<void>
+  prev: () => void
+  gotoStep: (index: number, options?: WizardGotoStepOptions) => Promise<void> | void
+}
+
+/**
+ * Slot props for a single wizard page (`<type>-wizard-page` / `default-wizard-page`). Delivered
+ * for every page, not only the current one; the template gates visibility with `isCurrent`
+ * (`v-show`, never `v-if`, or navigating away clears and deregisters the page's fields).
+ */
+export interface WizardPageAttributes<
+  TMetadataConfiguration extends MetadataConfiguration,
+> extends Attributes<TMetadataConfiguration> {
+  isCurrent: boolean
+  pageIndex: number
+  currentStepIndex: number
+  isFirst: boolean
+  isLast: boolean
+  next: () => Promise<void>
+  prev: () => void
+  gotoStep: (index: number, options?: WizardGotoStepOptions) => Promise<void> | void
+}
+
 type Props = DynamicFormConfigurationProps<TMetadataConfiguration>;
 type SlotProps<FieldType extends string = string> = ItemAttributes<TMetadataConfiguration, FieldType>;
 type ArrayChoiceSlotProps = ArrayChoiceAttributes<TMetadataConfiguration>;
 type ChoiceSlotProps = ChoiceAttributes<TMetadataConfiguration>;
 type ChoiceArrayItemSlotProps<FieldType extends string = string> = ChoiceArrayItemAttributes<TMetadataConfiguration, FieldType>;
+type WizardSlotProps = WizardAttributes<TMetadataConfiguration>;
+type WizardPageSlotProps = WizardPageAttributes<TMetadataConfiguration>;
 
 type SlotsFromMetadata = {
   // Fallback slot for field types that don't have a dedicated slot.
@@ -187,6 +227,12 @@ type SlotsFromMetadata = {
   // Fallback slot for components that are repeatable-choice occurrence items but don't have a dedicated slot.
   'default-choice-array-item': (props: ChoiceArrayItemSlotProps) => any
 } & {
+  // Fallback slot for the wizard container.
+  'default-wizard': (props: WizardSlotProps) => any
+} & {
+  // Fallback slot for a single wizard page.
+  'default-wizard-page': (props: WizardPageSlotProps) => any
+} & {
   // One slot per field type defined in the metadata configuration.
   [K in TMetadataConfiguration['fieldTypes'][number]]: (props: SlotProps<K>) => any;
 } & {
@@ -207,6 +253,12 @@ type SlotsFromMetadata = {
 } & {
   // One choice-array-item slot per field type (e.g. "text-choice-array-item") for rendering a single occurrence of a repeatable explicit choice branch.
   [K in `${TMetadataConfiguration['fieldTypes'][number]}-choice-array-item`]: (props: ChoiceArrayItemSlotProps<K extends `${infer FieldType}-choice-array-item` ? FieldType : never>) => any;
+} & {
+  // One wizard container slot per field type (e.g. "text-wizard") for rendering the wizard's chrome.
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-wizard`]: (props: WizardSlotProps) => any;
+} & {
+  // One wizard page slot per field type (e.g. "text-wizard-page") for rendering a single page's visibility wrapper.
+  [K in `${TMetadataConfiguration['fieldTypes'][number]}-wizard-page`]: (props: WizardPageSlotProps) => any;
 };
 
 // #endregion
@@ -275,6 +327,14 @@ const typeWithFallback = computed((): RegularSlotName => {
   if (type?.endsWith('-choice')) {
     return slots['default-choice'] ? 'default-choice' : 'default';
   }
+  // Checked before -wizard so a per-page type ending in "-wizard-page" resolves its own tier
+  // rather than being captured by the (non-overlapping, but checked first for clarity) -wizard tier.
+  if (type?.endsWith('-wizard-page')) {
+    return slots['default-wizard-page'] ? 'default-wizard-page' : 'default';
+  }
+  if (type?.endsWith('-wizard')) {
+    return slots['default-wizard'] ? 'default-wizard' : 'default';
+  }
   return 'default';
 });
 
@@ -286,6 +346,8 @@ const typeWithFallback = computed((): RegularSlotName => {
     <slot v-if="attrs.type?.endsWith('-choice-array')" :name="typeWithFallback" v-bind="(attrs as unknown as ChoiceSlotProps)" />
     <slot v-else-if="attrs.type?.endsWith('-array')" :name="typeWithFallback" v-bind="(attrs as unknown as ArrayChoiceSlotProps)" />
     <slot v-else-if="attrs.type?.endsWith('-choice')" :name="typeWithFallback" v-bind="(attrs as unknown as ChoiceSlotProps)" />
+    <slot v-else-if="attrs.type?.endsWith('-wizard-page')" :name="typeWithFallback" v-bind="(attrs as unknown as WizardPageSlotProps)" />
+    <slot v-else-if="attrs.type?.endsWith('-wizard')" :name="typeWithFallback" v-bind="(attrs as unknown as WizardSlotProps)" />
     <slot v-else :name="typeWithFallback" v-bind="attrs" />
   </template>
 </template>

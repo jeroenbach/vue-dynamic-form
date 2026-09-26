@@ -68,6 +68,7 @@ export default defineConfig({
             { text: 'Choices', link: '/examples/choices' },
             { text: 'Dynamic Fields', link: '/examples/dynamic-fields' },
             { text: 'Validation', link: '/examples/validation' },
+            { text: 'Wizard', link: '/examples/wizard' },
             { text: 'Advanced example', link: '/examples/advanced' },
           ],
         },

@@ -64,6 +64,8 @@ const country = useFieldValue('address.country');
 | `keepValuesOnUnmount` | `boolean \| Ref<boolean>` | `false` | Preserve form values when the component unmounts |
 | `name` | `string` | `undefined` | Named form — used to scope nested forms |
 
+A per-field `fieldOptions.keepValueOnUnmount` overrides `keepValuesOnUnmount` for that one field. Attribute fields (a field's `attributes` entries) clear on unmount when the owning field's own value is gone (an empty complex value keeps no stale attributes); when the owning field still has a value, its attributes follow the same `keepValuesOnUnmount` / `fieldOptions.keepValueOnUnmount` rules as any other field.
+
 ```ts
 const form = useDynamicForm<MyFormValues>({
   initialValues: { email: 'prefilled@example.com' },

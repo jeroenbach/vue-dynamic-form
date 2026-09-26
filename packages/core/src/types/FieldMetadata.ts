@@ -214,6 +214,22 @@ export type FieldMetadata<
   preserveOrder?: boolean
 
   /**
+   * Marks this node as a wizard: a first-class shape rendered through `DynamicFormItemWizard`,
+   * checked before `choice`/array/parent detection. Its pages are its `children` in declaration
+   * order; a non-empty `choice` or a `maxOccurs > 1` on the same node is ignored (a dev-mode
+   * `console.warn` fires once per ignored property). A choice of wizards or a repeated wizard is
+   * expressed by nesting `wizard: true` nodes inside a plain `choice` branch or an array item's
+   * children instead.
+   *
+   * `true` selects the defaults (backward-only `gotoStep`, no validate-on-jump); an object form
+   * opts into per-wizard configuration.
+   *
+   * Static, render-mode-defining metadata: excluded from `ComputedPropsFieldType` so
+   * `computedProps` cannot flip it mid-form.
+   */
+  wizard?: boolean | WizardConfig
+
+  /**
    * Attributes are additional metadata that can be attached to a field.
    * These attributes can be used to provide extra information about the field,
    * such as for example whether the data is verified.
@@ -282,6 +298,20 @@ export type FieldMetadata<
   computeOnChildValueChange?: boolean
 } & ExtendedProperties;
 
+/** Per-wizard defaults for `gotoStep` gating. `wizard: true` resolves to `{ allowForwardJump: false, validateOnJump: false }`. */
+export interface WizardConfig {
+  /** Allow `gotoStep` to jump forward to a not-yet-visited page. Default `false` (backward-only). */
+  allowForwardJump?: boolean
+  /** Validate the current page before a `gotoStep` jump. Default `false`. */
+  validateOnJump?: boolean
+}
+
+/** Call-time overrides for a single `gotoStep` call, taking priority over the wizard's own `WizardConfig`. */
+export interface WizardGotoStepOptions {
+  allowForwardJump?: boolean
+  validateOnJump?: boolean
+}
+
 export type ComputedPropsFieldType<
   ExtendedFieldTypes extends string = string,
   ExtendedProperties extends object = object,
@@ -318,6 +348,9 @@ export type ComputedPropsFieldType<
       | 'preserveOnSwitch'
       | 'displayOrder'
       | 'preserveOrder'
+      // Static, render-mode-defining metadata: flipping this via computedProps would change
+      // which component renders the node mid-form.
+      | 'wizard'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string
