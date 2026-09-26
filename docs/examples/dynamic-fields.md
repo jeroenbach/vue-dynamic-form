@@ -21,7 +21,7 @@ Each `computedProps` callback runs reactively whenever its dependencies change. 
 
 ## Option Loading
 
-The context wrapper simulates an external API — replace `loadOptions` with a real fetch in production:
+The context wrapper simulates an external API; replace `loadOptions` with a real fetch in production:
 
 <<< @/.vitepress/theme/context/FormExampleDynamicFieldsContext.vue#load-options{ts} [FormExampleDynamicFieldsContext.vue]
 

@@ -239,6 +239,39 @@ Opts a `choice` field into selection-first rendering: no branch renders until th
 }
 ```
 
+### `displayOrder`
+
+Type: `'grouped' | 'added'` | Default: `'grouped'` (absent)
+
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Selects the render order of its occurrences: `'grouped'` is the default (grouped by branch declaration order, same as `activeChoiceOccurrences`), `'added'` interleaves occurrences by the order their `addChoiceOccurrence` press happened. Reactive: changing it in the metadata re-sorts the occurrence list in place, without a remount, and the session's add history survives the flip. Display only, never written to `values`. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
+
+```ts
+{
+  name: 'integrations',
+  maxOccurs: 5,
+  explicitChoiceSelection: true,
+  displayOrder: 'added',
+  choice: [/* ... */],
+}
+```
+
+### `preserveOrder`
+
+Type: `boolean` | Default: `false` (absent)
+
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). The values stay contiguous `1..N` at all times: loaded data with missing or gapped `order` is normalized at mount (preserving its relative order) and removing an occurrence renumbers the survivors. Reactive: flipping it on mid-session seeds `order` into existing occurrences, flipping it off strips `order` from all of them; mounting with the flag absent never touches loaded data. Requires every branch to have `children`: one scalar-leaf branch disables it for the whole choice, with a development warning. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
+
+```ts
+{
+  name: 'integrations',
+  maxOccurs: 5,
+  explicitChoiceSelection: true,
+  displayOrder: 'added',
+  preserveOrder: true,
+  choice: [/* ... */],
+}
+```
+
 ### `attributes`
 
 Type: `FieldMetadata[]`

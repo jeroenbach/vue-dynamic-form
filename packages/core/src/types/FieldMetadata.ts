@@ -172,10 +172,46 @@ export type FieldMetadata<
    * error renders immediately after restore even if a required field is still empty.
    *
    * Has no effect on non-choice nodes, on `maxOccurs > 1` explicit choices, or when
-   * `explicitChoiceSelection` is not set. Read from static metadata only: it is excluded from
-   * `ComputedPropsFieldType`, so a `computedProps` function cannot flip it at runtime.
+   * `explicitChoiceSelection` is not set. Read reactively from the metadata, so it may be
+   * flipped live through the metadata prop; it is excluded from `ComputedPropsFieldType`, so
+   * the metadata prop (not `computedProps`) is the channel for changing it.
    */
   preserveOnSwitch?: boolean
+
+  /**
+   * How a repeatable explicit choice (`explicitChoiceSelection: true`, `maxOccurs > 1`) orders
+   * its occurrences on screen:
+   *
+   * - `'grouped'` (default): grouped by branch, in declaration order.
+   * - `'added'`: in the order the user clicked "add", mixing branches. Occurrences from loaded
+   *   data render first, in grouped order. This order is display-only and resets on reload;
+   *   combine with `preserveOrder` to keep it.
+   *
+   * May be changed while the form is mounted; the list re-sorts in place. Ignored everywhere
+   * else, and not settable from `computedProps`.
+   */
+  displayOrder?: 'grouped' | 'added'
+
+  /**
+   * Stores the add-order of a repeatable explicit choice (`explicitChoiceSelection: true`,
+   * `maxOccurs > 1`) in the form values, so it survives a reload: each occurrence gets a
+   * numeric `order` field (1..N across all branches, renumbered on removal, normalized at
+   * mount for loaded data). Use together with `displayOrder: 'added'`, which then sorts by
+   * this field.
+   *
+   * Note that `order` becomes part of your submitted values, next to the occurrence's own
+   * fields. Don't declare a child named `order` yourself; the engine owns that key.
+   *
+   * Requires every branch to have `children`, since the `order` field needs an object to live
+   * in. If any branch is a bare scalar, the flag is ignored for the whole choice, with a
+   * warning in development.
+   *
+   * May be changed while the form is mounted: turning it on adds `order` to the existing
+   * occurrences, seeding it from this session's add-order (so an interleaved display keeps the
+   * sequence the user built) and from grouped position for occurrences not added this session;
+   * turning it off removes it. Ignored everywhere else, and not settable from `computedProps`.
+   */
+  preserveOrder?: boolean
 
   /**
    * Attributes are additional metadata that can be attached to a field.
@@ -275,9 +311,13 @@ export type ComputedPropsFieldType<
       // Static metadata only: flipping this via computedProps would change the render mode
       // mid-form (initial flash / mount-unmount storm).
       | 'explicitChoiceSelection'
-      // Static metadata only, for the same reason as explicitChoiceSelection: flipping this
-      // via computedProps would change stash/restore behaviour mid-form.
+      // The three ordering flags below are reactive to the metadata prop, but excluded here so
+      // the metadata prop stays their one sanctioned channel: a computedProps function runs
+      // inside the engine's computed and must not drive behaviour with side effects (order
+      // writes, stash lifecycles) from there.
       | 'preserveOnSwitch'
+      | 'displayOrder'
+      | 'preserveOrder'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string

@@ -255,11 +255,12 @@ const metadata = defineMetadata<
     </template>
 
     <!-- One occurrence of a repeatable explicit choice branch (maxOccurs > 1 with explicitChoiceSelection). -->
-    <template #default-choice-array-item="{ fieldMetadata, fieldContext: { label }, branchKey, canRemoveItems, removeItem, index }">
+    <template #default-choice-array-item="{ fieldMetadata, fieldContext: { label }, branchKey, canRemoveItems, removeItem, index, globalIndex }">
       <RepeaterCard
         :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
         class="hide-optional-required"
         :index
+        :displayNumber="globalIndex + 1"
         :title="label"
         :placeholderTitle="`New ${branchKey}`"
         :canRemove="canRemoveItems"

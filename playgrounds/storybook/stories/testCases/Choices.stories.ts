@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { choiceOccurrenceSampleValues, choiceOccurrenceTestCase, choiceSampleValues, choiceTestCase, explicitChoiceSampleValues, explicitChoiceTestCase, explicitRepeatableChoiceSampleValues, explicitRepeatableChoiceTestCase, preserveOnSwitchSampleValues, preserveOnSwitchTestCase } from '@bach.software/vue-dynamic-form/examples';
+import { choiceDisplayOrderAddedSampleValues, choiceDisplayOrderAddedTestCase, choiceOccurrenceSampleValues, choiceOccurrenceTestCase, choicePreserveOrderSampleValues, choicePreserveOrderScalarBranchSampleValues, choicePreserveOrderScalarBranchTestCase, choicePreserveOrderTestCase, choiceSampleValues, choiceTestCase, explicitChoiceSampleValues, explicitChoiceTestCase, explicitRepeatableChoiceSampleValues, explicitRepeatableChoiceTestCase, preserveOnSwitchSampleValues, preserveOnSwitchTestCase } from '@bach.software/vue-dynamic-form/examples';
 import { sampleDataStory } from './sampleDataStory';
 
 const meta = {
@@ -28,3 +28,12 @@ export const PreserveOnSwitch: Story = sampleDataStory(preserveOnSwitchTestCase,
 
 /** Repeatable explicit choice (maxOccurs 5) with per-branch maxOccursTotal caps, rendered through the choice-array slot family. Loading sample data shows a mix of both kinds. */
 export const ExplicitRepeatableChoice: Story = sampleDataStory(explicitRepeatableChoiceTestCase, explicitRepeatableChoiceSampleValues);
+
+/** displayOrder: 'added': occurrences render in add-press order interleaved across both kinds instead of grouped by kind. The global-index badge follows the rendered order; the insertion-order badge appears only on items added this session. Loaded sample data sorts first (no add-order) and is lost on reload. */
+export const DisplayOrderAdded: Story = sampleDataStory(choiceDisplayOrderAddedTestCase, choiceDisplayOrderAddedSampleValues);
+
+/** preserveOrder + displayOrder: 'added': each added occurrence persists a 1-based "order" into its own values (see debug output), counted across both kinds; removing compacts survivors back to 1..N. Loaded sample data lacks "order" and is backfilled once from its grouped position. */
+export const PreserveOrder: Story = sampleDataStory(choicePreserveOrderTestCase, choicePreserveOrderSampleValues);
+
+/** preserveOrder on a choice mixing an object branch and a scalar-leaf branch: the object branch gets an "order" field, the scalar branch is a no-op (nowhere to attach it) and logs a console.warn in development. */
+export const PreserveOrderScalarBranch: Story = sampleDataStory(choicePreserveOrderScalarBranchTestCase, choicePreserveOrderScalarBranchSampleValues);

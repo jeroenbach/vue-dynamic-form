@@ -1,7 +1,7 @@
 ---
 id: FEAT-002
 type: feature
-status: in-progress
+status: done
 approved_by: Jeroen
 epic: ""
 ---
@@ -27,6 +27,15 @@ Settled from research during discussion, not reviewed by Jeroen. Override any of
 - AR-3 → deterministic ephemeral sort: occurrences without `insertionOrder` keep grouped position, ahead of session-added ones
 - AR-4 → `preserveOrder` is a no-op with a dev-mode warning on scalar-leaf branches (fail loud over silent data corruption)
 - AR-5 → `ChoiceOccurrence.insertionOrder` dropped; `insertionOrder` lives only on `ChoiceArrayItemAttributes`
+
+## Superseded decisions (post-implementation review with Jeroen)
+
+A review walkthrough of the implemented branch surfaced ordering edge cases, and Jeroen decided to resolve them by changing four earlier decisions. Where a section below (AR-2, AR-4, ADR-5, ADR-6, and the derived test-surface notes) conflicts with this list, this list wins:
+
+- **AR-2 superseded → normalize at mount.** The mount-time pass no longer trusts non-contiguous legacy `order` values as-is; it normalizes every occurrence to contiguous 1..N, preserving the relative order the existing values encode (a missing `order` slots in at its grouped position). Reason: trusting gaps made a fresh add (`count + 1`) sort ahead of legacy occurrences with larger values; `order` is the form's own bookkeeping, so its literal values may be rewritten. The same `normalizeOrder()` routine runs after removals (replacing the separate compaction) and self-heals values injected after mount via `setValues`, which previously crashed the removal path.
+- **AR-4 superseded → `preserveOrder` is all-or-nothing.** One scalar-leaf branch disables the persisted tier for the whole choice (one dev warning at mount naming the branches) instead of a per-branch no-op with a per-add-press warning. Reason: partial persistence left a half-reconstructable sequence, and with `preserveOrder` on the sort ignored scalar occurrences' `insertionOrder`, so their in-session display contradicted click order. Disabled entirely, the ephemeral tier covers every branch shape correctly.
+- **ADR-5 and ADR-6 superseded → `displayOrder`, `preserveOrder`, and `preserveOnSwitch` are reactive.** All three are read reactively from the metadata prop (still excluded from `ComputedPropsFieldType`; the metadata prop is the one sanctioned channel). None of them changes the shape of stored values, so no remount is needed: `displayOrder` re-sorts the keyed list in place with the session's add history intact, `preserveOrder` seeds `order` via `normalizeOrder()` on flip-on and strips it on flip-off (mounting with the flag absent never touches loaded data), and `preserveOnSwitch` applies to switches from the flip onward. `explicitChoiceSelection` stays static (setup-time structure and a mount-unmount storm on flip). The docs demo dropped its re-key/snapshot/strip chrome accordingly.
+- **Added:** a dev warning when `preserveOrder` is requested and a branch declares its own child named `order` (the collision ADR-3 documented is now also loud).
 
 ## Problem & goal
 

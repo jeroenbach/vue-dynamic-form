@@ -495,6 +495,90 @@ export const explicitRepeatableChoiceSampleValues = {
   },
 };
 
+export const choiceDisplayOrderAddedTestCase = createTestCase([
+  {
+    name: 'timelineSection',
+    fieldOptions: { label: 'Repeatable Explicit Choice (displayOrder: added)' },
+    type: 'heading',
+    children: [
+      { name: 'events', fieldOptions: { label: 'Timeline entries' }, fullWidth: true, maxOccurs: 6, explicitChoiceSelection: true, displayOrder: 'added', description: 'Occurrences render in the order their add button was pressed, interleaved across both kinds, instead of grouped by kind. The global-index badge follows the rendered order; the insertion-order badge appears only on occurrences added this session. Pre-loaded occurrences have no add-order, so they sort first in grouped order; reloading drops the add-order entirely.', choice: [
+        { name: 'note', maxOccurs: 6, fullWidth: true, fieldOptions: { label: 'Note' }, children: [
+          { name: 'text', fullWidth: true, fieldOptions: { label: 'Note text' } },
+        ] },
+        { name: 'milestone', maxOccurs: 6, fullWidth: true, fieldOptions: { label: 'Milestone' }, children: [
+          { name: 'title', fieldOptions: { label: 'Milestone title' } },
+          { name: 'owner', fieldOptions: { label: 'Owner' } },
+        ] },
+      ] },
+    ],
+  },
+]);
+
+export const choiceDisplayOrderAddedSampleValues = {
+  // Both pre-loaded occurrences lack an add-order, so they render first in grouped order;
+  // anything added afterwards appends below them in add-press order.
+  timelineSection: {
+    events: {
+      note: [{ text: 'Loaded note (sorts first, grouped)' }],
+      milestone: [{ title: 'Loaded milestone', owner: 'Ada' }],
+    },
+  },
+};
+
+export const choicePreserveOrderTestCase = createTestCase([
+  {
+    name: 'stepsSection',
+    fieldOptions: { label: 'Repeatable Explicit Choice (preserveOrder + displayOrder: added)' },
+    type: 'heading',
+    children: [
+      { name: 'steps', fieldOptions: { label: 'Workflow steps' }, fullWidth: true, maxOccurs: 6, explicitChoiceSelection: true, displayOrder: 'added', preserveOrder: true, description: 'Each added occurrence writes a 1-based "order" field into its own values (watch the debug output below), counted across both kinds. Removing one compacts the survivors back to a contiguous 1..N. Unlike the ephemeral displayOrder-only case, this order is real submitted data and survives a reload. The pre-loaded occurrences arrive without "order" and are backfilled once from their grouped position.', choice: [
+        { name: 'manual', maxOccurs: 6, fullWidth: true, fieldOptions: { label: 'Manual step' }, children: [
+          { name: 'instruction', fullWidth: true, fieldOptions: { label: 'Instruction' } },
+        ] },
+        { name: 'automated', maxOccurs: 6, fullWidth: true, fieldOptions: { label: 'Automated step' }, children: [
+          { name: 'script', fullWidth: true, fieldOptions: { label: 'Script' } },
+        ] },
+      ] },
+    ],
+  },
+]);
+
+export const choicePreserveOrderSampleValues = {
+  // Neither pre-loaded occurrence carries "order"; the mount-time backfill assigns 1 and 2 from
+  // their grouped position before any add-press can occur.
+  stepsSection: {
+    steps: {
+      manual: [{ instruction: 'Backfilled order 1' }],
+      automated: [{ script: 'deploy.sh' }],
+    },
+  },
+};
+
+export const choicePreserveOrderScalarBranchTestCase = createTestCase([
+  {
+    name: 'labelsSection',
+    fieldOptions: { label: 'preserveOrder With a Scalar-Leaf Branch (per-branch no-op)' },
+    type: 'heading',
+    children: [
+      { name: 'items', fieldOptions: { label: 'Mixed branches' }, fullWidth: true, maxOccurs: 6, explicitChoiceSelection: true, displayOrder: 'added', preserveOrder: false, description: 'The object branch (with children) gets an "order" field written into its values; the scalar-leaf branch (plain text, no children) has nowhere to attach "order", so preserveOrder is a no-op for it and logs a console.warn in development. Adding a scalar item still works, it just carries no persisted order.', choice: [
+        { name: 'labelled', maxOccurs: 6, fullWidth: true, fieldOptions: { label: 'Labelled item (object branch)' }, children: [
+          { name: 'label', fullWidth: true, fieldOptions: { label: 'Label' } },
+        ] },
+        { name: 'tag', maxOccurs: 6, type: 'text', fullWidth: true, fieldOptions: { label: 'Tag (scalar branch, no order)' } },
+      ] },
+    ],
+  },
+]);
+
+export const choicePreserveOrderScalarBranchSampleValues = {
+  labelsSection: {
+    items: {
+      labelled: [{ label: 'Has an order field' }],
+      tag: ['plain-tag-no-order'],
+    },
+  },
+};
+
 export const computedPropsTestCase = createTestCase([
   {
     name: 'ownValue',

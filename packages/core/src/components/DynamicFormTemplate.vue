@@ -142,6 +142,19 @@ export interface ChoiceArrayItemAttributes<
 > extends ItemAttributes<TMetadataConfiguration, FieldType> {
   /** The choice branch this occurrence belongs to (the child's `name`). Drives the "kind" badge. */
   branchKey: string
+  /**
+   * This occurrence's zero-based position across every branch's active occurrences, in the same
+   * order `activeChoiceOccurrences` reports them (grouped by branch declaration order, then by
+   * index within branch). Renumbers live when an occurrence is removed; never stored.
+   */
+  globalIndex: number
+  /**
+   * This occurrence's ephemeral, instance-local add-order position (1-based, in add-press order
+   * across every branch), set only when it was added via `addChoiceOccurrence` this session.
+   * `undefined` for an occurrence that already existed when the form mounted (loaded saved data).
+   * Gone on remount; never stored in form values.
+   */
+  insertionOrder?: number
 }
 
 type Props = DynamicFormConfigurationProps<TMetadataConfiguration>;

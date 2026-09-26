@@ -1,11 +1,11 @@
 import type { Metadata } from '@/examples/TestFormTemplate.vue';
 import type { ComputedPropsFieldOf } from '@/types/FieldMetadata';
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { removeNullValues } from '@/utils/removeNullValues';
 import { formValues } from './DynamicFormItem.test-helpers';
-import { activeChoiceOccurrences, canAddChoiceOccurrence, childValuesEntry, enablePreserveOnSwitch, findDynamicFormItemChoiceByPath, occurrenceBranchKey, usedChoiceOccurrences } from './DynamicFormItemChoice.test-helpers';
+import { activeChoiceOccurrences, canAddChoiceOccurrence, childValuesEntry, enableDisplayOrder, enablePreserveOnSwitch, enablePreserveOrder, findDynamicFormItemChoiceByPath, insertionOrdersMap, occurrenceBranchKey, occurrenceGlobalIndex, occurrenceInsertionOrder, renderedChoiceOccurrences, usedChoiceOccurrences } from './DynamicFormItemChoice.test-helpers';
 
 function addButton(wrapper: ReturnType<typeof mount>, path: string) {
   return wrapper.find(`[data-testid="${path}-add-button"]`);
@@ -1289,6 +1289,38 @@ describe('component DynamicFormItemChoice - logic', () => {
       });
     });
 
+    it('is reactive through the metadata prop: flipping it on mid-session makes the next switch stash, flipping it off stops preserving', async () => {
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: baseMetadata() } });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="pick.selfServe"]').setValue('hello');
+      await flushPromises();
+
+      await wrapper.setProps({ metadata: enablePreserveOnSwitch(baseMetadata(), 'pick') });
+      await flushPromises();
+
+      // Switch away and back: the away-switch happened with the flag on, so it stashed.
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('hello');
+
+      await wrapper.setProps({ metadata: baseMetadata() });
+      await flushPromises();
+
+      // With the flag back off, switching away clears without stashing.
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('');
+    });
+
     it('stashes before clearing, and switching back restores the stashed data', async () => {
       const wrapper = mountPreserveOnSwitchChoice();
       await flushPromises();
@@ -1964,6 +1996,1402 @@ describe('component DynamicFormItemChoice - logic', () => {
 
         expect(wrapper.find('[id="projectContacts[1].certifications.advanced[0]"]').exists()).toBe(true);
         expect(wrapper.find('[id="projectContacts[2].certifications.advanced[0]"]').exists()).toBe(false);
+      });
+    });
+
+    describe('globalIndex', () => {
+      function mountExplicitRepeatableObjectBranchChoice(extraProps: Record<string, any> = {}) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              maxOccurs: 4,
+              fieldOptions: { label: 'Pick Several' },
+              choice: [
+                {
+                  name: 'apiEndpoint',
+                  maxOccurs: 2,
+                  fieldOptions: { label: 'Api Endpoint' },
+                  children: [{ name: 'url', type: 'text', fieldOptions: { label: 'URL' } }],
+                },
+                {
+                  name: 'crmExport',
+                  maxOccurs: 2,
+                  fieldOptions: { label: 'Crm Export' },
+                  children: [{ name: 'system', type: 'text', fieldOptions: { label: 'System' } }],
+                },
+              ],
+            }],
+            ...extraProps,
+          },
+        });
+      }
+
+      it('reflects each occurrence\'s cross-branch position in activeChoiceOccurrences (grouped) order, not add-press order', async () => {
+        const wrapper = mountExplicitRepeatableChoice();
+        await flushPromises();
+
+        // Press order deliberately does not match grouped order, proving globalIndex follows
+        // activeChoiceOccurrences (branch declaration order, then index within branch), not clicks.
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[1]')).toBe(1);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(2);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[1]')).toBe(3);
+
+        // Same values read directly off the internal prop: no drift between the internal
+        // forwarding value and what the slot actually receives.
+        expect(findDynamicFormItemByPath(wrapper, 'pick.apiEndpoint[0]').props('globalIndex')).toBe(0);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.apiEndpoint[1]').props('globalIndex')).toBe(1);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.crmExport[0]').props('globalIndex')).toBe(2);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.crmExport[1]').props('globalIndex')).toBe(3);
+      });
+
+      it('removal renumbers survivors live, with no order/index value written to values', async () => {
+        const wrapper = mountExplicitRepeatableObjectBranchChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[id="pick.apiEndpoint[0].url"]').setValue('first');
+        await flushPromises();
+        await wrapper.find('[id="pick.apiEndpoint[1].url"]').setValue('second');
+        await flushPromises();
+        await wrapper.find('[id="pick.crmExport[0].system"]').setValue('salesforce');
+        await flushPromises();
+        await wrapper.find('[id="pick.crmExport[1].system"]').setValue('hubspot');
+        await flushPromises();
+
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[1]')).toBe(1);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(2);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[1]')).toBe(3);
+
+        // Remove the occurrence at globalIndex 1.
+        await wrapper.find('[data-testid="pick.apiEndpoint[1]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(1);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[1]')).toBe(2);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.apiEndpoint[0]').props('globalIndex')).toBe(0);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.crmExport[0]').props('globalIndex')).toBe(1);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.crmExport[1]').props('globalIndex')).toBe(2);
+
+        const values = formValues(wrapper);
+        for (const occurrence of values.pick.apiEndpoint)
+          expect(Object.keys(occurrence)).toEqual(['url']);
+        for (const occurrence of values.pick.crmExport)
+          expect(Object.keys(occurrence)).toEqual(['system']);
+
+        // A submit-capture round-trip introduces no extra key either.
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+
+        const submittedValues = formValues(wrapper);
+        for (const occurrence of submittedValues.pick.apiEndpoint)
+          expect(Object.keys(occurrence)).toEqual(['url']);
+        for (const occurrence of submittedValues.pick.crmExport)
+          expect(Object.keys(occurrence)).toEqual(['system']);
+      });
+
+      it('leaves the per-branch index prop unaffected while globalIndex counts across all branches', async () => {
+        const wrapper = mountExplicitRepeatableChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(findDynamicFormItemByPath(wrapper, 'pick.apiEndpoint[0]').props('index')).toBe(0);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.apiEndpoint[1]').props('index')).toBe(1);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.crmExport[0]').props('index')).toBe(0);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.crmExport[1]').props('index')).toBe(1);
+
+        expect(findDynamicFormItemByPath(wrapper, 'pick.apiEndpoint[0]').props('globalIndex')).toBe(0);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.apiEndpoint[1]').props('globalIndex')).toBe(1);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.crmExport[0]').props('globalIndex')).toBe(2);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.crmExport[1]').props('globalIndex')).toBe(3);
+      });
+
+      it('introduces no globalIndex on a maxOccurs:1 explicit choice, which never renders through the -choice-array-item slot', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              fieldOptions: { label: 'Pick One' },
+              choice: [
+                { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+                { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+              ],
+            }],
+          },
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(findDynamicFormItemByPath(wrapper, 'pick.selfServe').props('globalIndex')).toBeUndefined();
+        expect(wrapper.find('[data-testid="pick.selfServe-global-index"]').exists()).toBe(false);
+      });
+
+      it('is undefined on a plain (non-choice) repeatable array item', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'items',
+              type: 'text',
+              maxOccurs: 2,
+              fieldOptions: { label: 'Items' },
+            }],
+          },
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="items-add-button"]').trigger('click');
+        await flushPromises();
+
+        expect(findDynamicFormItemByPath(wrapper, 'items[0]').props('globalIndex')).toBeUndefined();
+        expect(wrapper.find('[data-testid="items[0]-global-index"]').exists()).toBe(false);
+      });
+
+      it('is undefined on a non-explicit (automatic) choice\'s branch', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              fieldOptions: { label: 'Pick One' },
+              choice: [
+                { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+                { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+              ],
+            }],
+          },
+        });
+        await flushPromises();
+
+        expect(findDynamicFormItemByPath(wrapper, 'pick.opt1').props('globalIndex')).toBeUndefined();
+        expect(wrapper.find('[data-testid="pick.opt1-global-index"]').exists()).toBe(false);
+      });
+
+      it('is undefined on a top-level plain field with no array/choice ancestry', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{ name: 'sibling', fieldOptions: { label: 'Sibling' } }],
+          },
+        });
+        await flushPromises();
+
+        expect(findDynamicFormItemByPath(wrapper, 'sibling').props('globalIndex')).toBeUndefined();
+      });
+
+      it('stays correct through a reindexing ancestor array: the ancestor\'s reindex does not affect this choice\'s own globalIndex', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'projectContacts',
+              maxOccurs: 3,
+              minOccurs: 0,
+              autoAddMinOccurs: false,
+              fieldOptions: { label: 'Project Contacts' },
+              children: [{
+                name: 'certifications',
+                explicitChoiceSelection: true,
+                maxOccurs: 4,
+                minOccurs: 0,
+                fieldOptions: { label: 'Certifications' },
+                choice: [
+                  { name: 'basic', maxOccurs: 3, fieldOptions: { label: 'Basic' } },
+                  { name: 'advanced', maxOccurs: 3, fieldOptions: { label: 'Advanced' } },
+                ],
+              }],
+            }],
+          },
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="projectContacts-add-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="projectContacts-add-button"]').trigger('click');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="projectContacts[1].certifications.basic-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="projectContacts[1].certifications.basic-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="projectContacts[1].certifications.advanced-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        // Grouped order: both basic occurrences first (declared before advanced), then advanced.
+        expect(occurrenceGlobalIndex(wrapper, 'projectContacts[1].certifications.basic[0]')).toBe(0);
+        expect(occurrenceGlobalIndex(wrapper, 'projectContacts[1].certifications.basic[1]')).toBe(1);
+        expect(occurrenceGlobalIndex(wrapper, 'projectContacts[1].certifications.advanced[0]')).toBe(2);
+
+        await wrapper.find('[data-testid="projectContacts[0]-remove-button"]:not(.invisible)').trigger('click');
+        await flushPromises();
+
+        // Same globalIndex values; only the path prefix changed (projectContacts[1] -> [0]).
+        expect(occurrenceGlobalIndex(wrapper, 'projectContacts[0].certifications.basic[0]')).toBe(0);
+        expect(occurrenceGlobalIndex(wrapper, 'projectContacts[0].certifications.basic[1]')).toBe(1);
+        expect(occurrenceGlobalIndex(wrapper, 'projectContacts[0].certifications.advanced[0]')).toBe(2);
+      });
+
+      describe('edge cases', () => {
+        it('does not run the -choice-array-item loop and renders no globalIndex testid when there are zero active occurrences', async () => {
+          const wrapper = mountExplicitRepeatableChoice();
+          await flushPromises();
+
+          expect(wrapper.find('[data-testid="pick.apiEndpoint[0]-global-index"]').exists()).toBe(false);
+          expect(wrapper.find('[data-testid="pick.crmExport[0]-global-index"]').exists()).toBe(false);
+        });
+
+        it('is 0 for exactly one active occurrence', async () => {
+          const wrapper = mountExplicitRepeatableChoice();
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(0);
+        });
+
+        it('counts across the whole merged list, not restarting per branch and not following add-press order', async () => {
+          const wrapper = mountExplicitRepeatableChoice();
+          await flushPromises();
+
+          // Press order: crmExport, crmExport, apiEndpoint (deliberately not matching grouped order).
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
+          expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(1);
+          expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[1]')).toBe(2);
+        });
+      });
+    });
+
+    describe('insertionOrder / displayOrder', () => {
+      function scalarChoiceMetadata(): Metadata[] {
+        return [{
+          name: 'pick',
+          explicitChoiceSelection: true,
+          maxOccurs: 3,
+          fieldOptions: { label: 'Pick Several' },
+          choice: [
+            { name: 'apiEndpoint', maxOccurs: 2, fieldOptions: { label: 'Api Endpoint' } },
+            { name: 'crmExport', maxOccurs: 2, fieldOptions: { label: 'Crm Export' } },
+          ],
+        }];
+      }
+
+      function objectBranchChoiceMetadata(): Metadata[] {
+        return [{
+          name: 'pick',
+          explicitChoiceSelection: true,
+          maxOccurs: 4,
+          fieldOptions: { label: 'Pick Several' },
+          choice: [
+            {
+              name: 'apiEndpoint',
+              maxOccurs: 2,
+              fieldOptions: { label: 'Api Endpoint' },
+              children: [{ name: 'url', type: 'text', fieldOptions: { label: 'URL' } }],
+            },
+            {
+              name: 'crmExport',
+              maxOccurs: 2,
+              fieldOptions: { label: 'Crm Export' },
+              children: [{ name: 'system', type: 'text', fieldOptions: { label: 'System' } }],
+            },
+          ],
+        }];
+      }
+
+      function mountObjectBranchChoice(extraProps: Record<string, any> = {}) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: { metadata: objectBranchChoiceMetadata(), ...extraProps },
+        });
+      }
+
+      function assertNoInsertionOrderKeyAnywhere(value: unknown) {
+        if (Array.isArray(value)) {
+          value.forEach(assertNoInsertionOrderKeyAnywhere);
+          return;
+        }
+        if (value && typeof value === 'object') {
+          expect(Object.keys(value as object)).not.toContain('insertionOrder');
+          Object.values(value as object).forEach(assertNoInsertionOrderKeyAnywhere);
+        }
+      }
+
+      describe('default is byte-identical to today (displayOrder absent or grouped)', () => {
+        it('renders byte-identical html whether displayOrder is absent or explicitly grouped', async () => {
+          const absent = mountExplicitRepeatableChoice({ metadata: scalarChoiceMetadata() });
+          const grouped = mountExplicitRepeatableChoice({ metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'grouped') });
+          await flushPromises();
+
+          async function runSequence(wrapper: ReturnType<typeof mount>) {
+            await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await wrapper.find('[data-testid="pick.crmExport[0]-remove-choice-button"]').trigger('click');
+            await flushPromises();
+          }
+
+          await runSequence(absent);
+          await runSequence(grouped);
+
+          expect(grouped.html()).toBe(absent.html());
+        });
+
+        it('renderedChoiceOccurrences equals activeChoiceOccurrences in membership and order at every step', async () => {
+          const wrapper = mountExplicitRepeatableChoice({ metadata: scalarChoiceMetadata() });
+          await flushPromises();
+
+          function assertEqualAtCurrentStep() {
+            expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual(activeChoiceOccurrences(wrapper, 'pick'));
+          }
+
+          assertEqualAtCurrentStep();
+
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          assertEqualAtCurrentStep();
+
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          assertEqualAtCurrentStep();
+
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          assertEqualAtCurrentStep();
+
+          await wrapper.find('[data-testid="pick.crmExport[0]-remove-choice-button"]').trigger('click');
+          await flushPromises();
+          assertEqualAtCurrentStep();
+        });
+
+        it('globalIndex values over the render list are unaffected when displayOrder is absent', async () => {
+          const wrapper = mountExplicitRepeatableChoice({ metadata: scalarChoiceMetadata() });
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
+          expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[1]')).toBe(1);
+          expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(2);
+          expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[1]')).toBe(3);
+        });
+      });
+
+      it('assigns insertionOrder at add-press time, in press order, across branches', async () => {
+        const wrapper = mountExplicitRepeatableChoice({ metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'added') });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(occurrenceInsertionOrder(wrapper, 'pick.crmExport[0]')).toBe(1);
+        expect(occurrenceInsertionOrder(wrapper, 'pick.apiEndpoint[0]')).toBe(2);
+        expect(occurrenceInsertionOrder(wrapper, 'pick.crmExport[1]')).toBe(3);
+      });
+
+      it('leaves insertionOrder undefined for occurrences already present when the form mounts', async () => {
+        const wrapper = mountExplicitRepeatableChoice({
+          metadata: scalarChoiceMetadata(),
+          initialValues: { pick: { apiEndpoint: [null], crmExport: [null] } },
+        });
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="pick.apiEndpoint[0]-insertion-order"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="pick.crmExport[0]-insertion-order"]').exists()).toBe(false);
+        expect(findDynamicFormItemByPath(wrapper, 'pick.apiEndpoint[0]').props('insertionOrder')).toBeUndefined();
+        expect(findDynamicFormItemByPath(wrapper, 'pick.crmExport[0]').props('insertionOrder')).toBeUndefined();
+      });
+
+      it('never writes insertionOrder into form values, keeping the counter instance-local', async () => {
+        const wrapper = mountObjectBranchChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        const values = formValues(wrapper);
+        expect(Object.keys(values.pick.apiEndpoint[0])).toEqual(['url']);
+        expect(Object.keys(values.pick.crmExport[0])).toEqual(['system']);
+        expect(Object.keys(values.pick.crmExport[1])).toEqual(['system']);
+        assertNoInsertionOrderKeyAnywhere(values);
+
+        expect(insertionOrdersMap(wrapper, 'pick')).toBeInstanceOf(Map);
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+
+        const submittedValues = formValues(wrapper);
+        assertNoInsertionOrderKeyAnywhere(submittedValues);
+      });
+
+      it('prunes a removed occurrence\'s insertionOrder entry, keeping the map bounded by the live occurrence count', async () => {
+        const wrapper = mountObjectBranchChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        // One entry per press.
+        expect(insertionOrdersMap(wrapper, 'pick')?.size).toBe(3);
+
+        await wrapper.find('[data-testid="pick.crmExport[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        // The removed occurrence's entry is dropped rather than left to accumulate.
+        expect(insertionOrdersMap(wrapper, 'pick')?.size).toBe(2);
+
+        // Removing the rest (each remove reindexes the survivor to index 0) drains it to empty,
+        // proving the pruning tracks the reindexed occupant, not a stale slot.
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(insertionOrdersMap(wrapper, 'pick')?.size).toBe(0);
+      });
+
+      it('sorts the render list with a deterministic two-key comparator when mixing loaded and added occurrences, repeatably', async () => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const wrapper = mountExplicitRepeatableChoice({
+            metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'added'),
+            initialValues: { pick: { apiEndpoint: [null], crmExport: [null] } },
+          });
+
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+
+          await flushPromises();
+
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual([
+            { branchKey: 'apiEndpoint', index: 0 },
+            { branchKey: 'crmExport', index: 0 },
+            { branchKey: 'crmExport', index: 1 },
+          ]);
+        }
+      });
+
+      it('derives globalIndex from the displayed sequence, not the grouped one, when interleaving makes the two diverge', async () => {
+        // apiEndpoint is declared first, so its grouped position is 0; crmExport[0] is loaded
+        // (no insertionOrder) at grouped position 1. Adding a new apiEndpoint occurrence gives it
+        // an insertionOrder, moving it into the numbered group after crmExport[0] in the displayed
+        // sequence, deliberately reversing the two occurrences' relative order versus grouped.
+        const wrapper = mountExplicitRepeatableChoice({
+          metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'added'),
+          initialValues: { pick: { crmExport: [null] } },
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([
+          { branchKey: 'apiEndpoint', index: 0 },
+          { branchKey: 'crmExport', index: 0 },
+        ]);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(0);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(1);
+      });
+
+      describe('displayOrder is reactive through the metadata prop', () => {
+        it('flipping grouped to added live re-sorts in place, honouring click history recorded before the flip, without remounting any occurrence', async () => {
+          const wrapper = mountExplicitRepeatableChoice({ metadata: scalarChoiceMetadata() });
+          await flushPromises();
+
+          // Press order deliberately opposite to grouped order.
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual([
+            { branchKey: 'apiEndpoint', index: 0 },
+            { branchKey: 'crmExport', index: 0 },
+          ]);
+          const crmElementBefore = wrapper.find('[id="pick.crmExport[0]"]').element;
+
+          await wrapper.setProps({ metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'added') });
+          await flushPromises();
+
+          // The click history was recorded while still displaying grouped, so the flip shows
+          // true press order immediately, and the keyed list reorders without a remount.
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual([
+            { branchKey: 'crmExport', index: 0 },
+            { branchKey: 'apiEndpoint', index: 0 },
+          ]);
+          expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(0);
+          expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(1);
+          expect(wrapper.find('[id="pick.crmExport[0]"]').element).toBe(crmElementBefore);
+        });
+
+        it('flipping added back to grouped restores grouped order, and a second flip to added still has the full history', async () => {
+          const wrapper = mountExplicitRepeatableChoice({ metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'added') });
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          const pressOrder = [
+            { branchKey: 'crmExport', index: 0 },
+            { branchKey: 'apiEndpoint', index: 0 },
+          ];
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual(pressOrder);
+
+          await wrapper.setProps({ metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'grouped') });
+          await flushPromises();
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual(activeChoiceOccurrences(wrapper, 'pick'));
+
+          await wrapper.setProps({ metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'added') });
+          await flushPromises();
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual(pressOrder);
+        });
+
+        it('type-level: displayOrder is not assignable inside computedProps', () => {
+          // Checked by vue-tsc during `pnpm typecheck` / `pnpm ci`. If displayOrder is ever
+          // re-added to ComputedPropsFieldType, this line stops erroring and vue-tsc fails
+          // with TS2578 (unused '@ts-expect-error' directive).
+          function typeCheckOnly(thisField: ComputedPropsFieldOf<Metadata>) {
+            // @ts-expect-error displayOrder is excluded from ComputedPropsFieldType
+            thisField.displayOrder = 'added';
+          }
+          expect(typeof typeCheckOnly).toBe('function');
+        });
+      });
+
+      it('renumbers globalIndex live across the whole interleaved sequence when an occurrence is removed', async () => {
+        const wrapper = mountExplicitRepeatableChoice({
+          metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'added'),
+          initialValues: { pick: { apiEndpoint: [null], crmExport: [null] } },
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        // Missing-insertionOrder group first (apiEndpoint[0], crmExport[0], grouped order),
+        // then the numbered group in press order (apiEndpoint[1], crmExport[1]).
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(1);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[1]')).toBe(2);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[1]')).toBe(3);
+        expect(occurrenceInsertionOrder(wrapper, 'pick.apiEndpoint[1]')).toBe(1);
+        expect(occurrenceInsertionOrder(wrapper, 'pick.crmExport[1]')).toBe(2);
+
+        // Remove the occurrence at displayed position 1 (crmExport[0], the loaded one).
+        await wrapper.find('[data-testid="pick.crmExport[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[0]')).toBe(0);
+        expect(occurrenceGlobalIndex(wrapper, 'pick.apiEndpoint[1]')).toBe(1);
+        // crmExport[1] reindexed to crmExport[0]; its insertionOrder followed the stable
+        // occurrenceKey through the reindex, unaffected by the array-position shift.
+        expect(occurrenceGlobalIndex(wrapper, 'pick.crmExport[0]')).toBe(2);
+        expect(occurrenceInsertionOrder(wrapper, 'pick.crmExport[0]')).toBe(2);
+      });
+
+      it('has no effect on a maxOccurs:1 explicit choice', async () => {
+        function singleChoiceMetadata(withDisplayOrder: boolean): Metadata[] {
+          return [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            ...(withDisplayOrder ? { displayOrder: 'added' as const } : {}),
+            choice: [
+              { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+              { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+            ],
+          }];
+        }
+
+        const withFlag = mount(TestForm, { attachTo: document.body, props: { metadata: singleChoiceMetadata(true) } });
+        const withoutFlag = mount(TestForm, { attachTo: document.body, props: { metadata: singleChoiceMetadata(false) } });
+        await flushPromises();
+
+        await withFlag.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await withoutFlag.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(withFlag.html()).toBe(withoutFlag.html());
+        expect(withFlag.find('[data-testid="pick.selfServe-global-index"]').exists()).toBe(false);
+        expect(withFlag.find('[data-testid="pick.selfServe-insertion-order"]').exists()).toBe(false);
+      });
+
+      describe('edge cases', () => {
+        it('equals grouped order exactly when every occurrence was loaded and none was added this session', async () => {
+          const wrapper = mountExplicitRepeatableChoice({
+            metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'added'),
+            initialValues: { pick: { apiEndpoint: [null, null], crmExport: [null] } },
+          });
+          await flushPromises();
+
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual(activeChoiceOccurrences(wrapper, 'pick'));
+        });
+
+        it('does not reuse a removed occurrence\'s insertionOrder; the counter keeps incrementing', async () => {
+          const wrapper = mountExplicitRepeatableChoice({ metadata: enableDisplayOrder(scalarChoiceMetadata(), 'pick', 'added') });
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          expect(occurrenceInsertionOrder(wrapper, 'pick.crmExport[0]')).toBe(1);
+
+          await wrapper.find('[data-testid="pick.crmExport[0]-remove-choice-button"]').trigger('click');
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(occurrenceInsertionOrder(wrapper, 'pick.apiEndpoint[0]')).toBe(2);
+        });
+
+        it('keeps insertionOrder tied to the stable occurrenceKey through an ancestor reindex', async () => {
+          const wrapper = mount(TestForm, {
+            attachTo: document.body,
+            props: {
+              metadata: [{
+                name: 'projectContacts',
+                maxOccurs: 3,
+                minOccurs: 0,
+                autoAddMinOccurs: false,
+                fieldOptions: { label: 'Project Contacts' },
+                children: [{
+                  name: 'certifications',
+                  explicitChoiceSelection: true,
+                  maxOccurs: 4,
+                  minOccurs: 0,
+                  displayOrder: 'added',
+                  fieldOptions: { label: 'Certifications' },
+                  choice: [
+                    { name: 'basic', maxOccurs: 3, fieldOptions: { label: 'Basic' } },
+                    { name: 'advanced', maxOccurs: 3, fieldOptions: { label: 'Advanced' } },
+                  ],
+                }],
+              }],
+            },
+          });
+          await flushPromises();
+
+          await wrapper.find('[data-testid="projectContacts-add-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="projectContacts-add-button"]').trigger('click');
+          await flushPromises();
+
+          await wrapper.find('[data-testid="projectContacts[1].certifications.basic-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="projectContacts[1].certifications.advanced-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(occurrenceInsertionOrder(wrapper, 'projectContacts[1].certifications.basic[0]')).toBe(1);
+          expect(occurrenceInsertionOrder(wrapper, 'projectContacts[1].certifications.advanced[0]')).toBe(2);
+
+          await wrapper.find('[data-testid="projectContacts[0]-remove-button"]:not(.invisible)').trigger('click');
+          await flushPromises();
+
+          // Only the path prefix changed (projectContacts[1] -> [0]); the insertionOrder values,
+          // keyed by the stable occurrenceKey, are unchanged by the ancestor reindex.
+          expect(occurrenceInsertionOrder(wrapper, 'projectContacts[0].certifications.basic[0]')).toBe(1);
+          expect(occurrenceInsertionOrder(wrapper, 'projectContacts[0].certifications.advanced[0]')).toBe(2);
+        });
+      });
+    });
+
+    describe('preserveOrder', () => {
+      function objectBranchesMetadata(): Metadata[] {
+        return [{
+          name: 'pick',
+          explicitChoiceSelection: true,
+          maxOccurs: 5,
+          fieldOptions: { label: 'Pick Several' },
+          choice: [
+            {
+              name: 'apiEndpoint',
+              maxOccurs: 3,
+              fieldOptions: { label: 'Api Endpoint' },
+              children: [{ name: 'url', type: 'text', fieldOptions: { label: 'URL' } }],
+            },
+            {
+              name: 'crmExport',
+              maxOccurs: 3,
+              fieldOptions: { label: 'Crm Export' },
+              children: [{ name: 'system', type: 'text', fieldOptions: { label: 'System' } }],
+            },
+          ],
+        }];
+      }
+
+      function mountExplicitRepeatableChoiceObjectBranches(extraProps: Record<string, any> = {}) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: enablePreserveOrder(objectBranchesMetadata(), 'pick'),
+            ...extraProps,
+          },
+        });
+      }
+
+      function bothScalarBranchesMetadata(): Metadata[] {
+        return [{
+          name: 'pick',
+          explicitChoiceSelection: true,
+          maxOccurs: 3,
+          fieldOptions: { label: 'Pick Several' },
+          choice: [
+            { name: 'apiEndpoint', maxOccurs: 2, fieldOptions: { label: 'Api Endpoint' } },
+            { name: 'crmExport', maxOccurs: 2, fieldOptions: { label: 'Crm Export' } },
+          ],
+        }];
+      }
+
+      function mixedBranchesMetadata(): Metadata[] {
+        return [{
+          name: 'pick',
+          explicitChoiceSelection: true,
+          maxOccurs: 3,
+          fieldOptions: { label: 'Pick Several' },
+          choice: [
+            { name: 'apiEndpoint', maxOccurs: 2, fieldOptions: { label: 'Api Endpoint' } },
+            {
+              name: 'crmExport',
+              maxOccurs: 2,
+              fieldOptions: { label: 'Crm Export' },
+              children: [{ name: 'system', type: 'text', fieldOptions: { label: 'System' } }],
+            },
+          ],
+        }];
+      }
+
+      function mountExplicitRepeatableChoiceMixedBranches(extraProps: Record<string, any> = {}) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: enablePreserveOrder(mixedBranchesMetadata(), 'pick'),
+            ...extraProps,
+          },
+        });
+      }
+
+      it('writes order on add, seeded directly in the push and counted across the whole choice', async () => {
+        const wrapper = mountExplicitRepeatableChoiceObjectBranches();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(formValues(wrapper).pick.crmExport[0].order).toBe(2);
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(3);
+
+        // Stable across a further tick with no interaction: the value settled immediately on
+        // push, not through a later follow-up write.
+        await flushPromises();
+        expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(3);
+      });
+
+      it('compacts survivors to a contiguous order on removal, and the next add continues from the survivor count', async () => {
+        const wrapper = mountExplicitRepeatableChoiceObjectBranches();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+        expect(formValues(wrapper).pick.crmExport[0].order).toBe(2);
+        expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(3);
+        expect(formValues(wrapper).pick.crmExport[1].order).toBe(4);
+
+        await wrapper.find('[data-testid="pick.crmExport[0]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+        expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(2);
+        expect(formValues(wrapper).pick.crmExport[0].order).toBe(3);
+
+        // The compaction write (shouldValidate: false) did not flip the still-empty survivor's
+        // own field into an already-errored state; nothing was touched or submitted.
+        expect(wrapper.find('[data-testid="pick.apiEndpoint[1].url-error-message"]').exists()).toBe(false);
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(formValues(wrapper).pick.crmExport[1].order).toBe(4);
+      });
+
+      describe('mount-time normalization of loaded order values', () => {
+        it('backfills every occurrence from its grouped position when all are missing order', async () => {
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches({
+            initialValues: {
+              pick: {
+                apiEndpoint: [{ url: 'a' }, { url: 'b' }],
+                crmExport: [{ system: 'c' }],
+              },
+            },
+          });
+          await flushPromises();
+
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(2);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(3);
+
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          expect(formValues(wrapper).pick.crmExport[1].order).toBe(4);
+        });
+
+        it('only backfills occurrences that are actually missing order, leaving an existing value untouched', async () => {
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches({
+            initialValues: {
+              pick: {
+                apiEndpoint: [{ url: 'a', order: 1 }, { url: 'b' }],
+                crmExport: [{ system: 'c' }],
+              },
+            },
+          });
+          await flushPromises();
+
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(2);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(3);
+        });
+
+        it('performs zero writes when every occurrence already carries a contiguous order', async () => {
+          const initialValues = {
+            pick: {
+              apiEndpoint: [{ url: 'a', order: 1 }, { url: 'b', order: 2 }],
+              crmExport: [{ system: 'c', order: 3 }],
+            },
+          };
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches({ initialValues });
+          await flushPromises();
+
+          expect(formValues(wrapper).pick).toEqual(initialValues.pick);
+        });
+
+        it('writes no order at all in a mixed scalar/object choice: one scalar-leaf branch disables the persisted tier for the whole choice', async () => {
+          const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+          try {
+            const wrapper = mountExplicitRepeatableChoiceMixedBranches({
+              initialValues: {
+                pick: {
+                  apiEndpoint: ['already here'],
+                  crmExport: [{ system: 'c' }],
+                },
+              },
+            });
+            await flushPromises();
+
+            expect(formValues(wrapper).pick.apiEndpoint[0]).toBe('already here');
+            expect(Object.keys(formValues(wrapper).pick.crmExport[0])).toEqual(['system']);
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(String(warn.mock.calls[0][0])).toContain('apiEndpoint');
+          }
+          finally {
+            warn.mockRestore();
+          }
+        });
+
+        it('normalizes a gapped legacy order to contiguous 1..N at mount, preserving relative order, so the next add lands last', async () => {
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches({
+            metadata: enableDisplayOrder(enablePreserveOrder(objectBranchesMetadata(), 'pick'), 'pick', 'added'),
+            initialValues: {
+              pick: {
+                apiEndpoint: [{ url: 'a', order: 5 }, { url: 'b', order: 10 }],
+                crmExport: [{ system: 'c', order: 20 }],
+              },
+            },
+          });
+          await flushPromises();
+
+          // The literal numbers are the form's own bookkeeping, so they normalize to 1..N; the
+          // relative order they encoded (a, b, c) is preserved exactly.
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(2);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(3);
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual([
+            { branchKey: 'apiEndpoint', index: 0 },
+            { branchKey: 'apiEndpoint', index: 1 },
+            { branchKey: 'crmExport', index: 0 },
+          ]);
+
+          // Without the normalization the new add would get order 4 and jump ahead of the
+          // legacy 5/10/20; with it, count + 1 is always the next rank and it lands last.
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(formValues(wrapper).pick.crmExport[1].order).toBe(4);
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual([
+            { branchKey: 'apiEndpoint', index: 0 },
+            { branchKey: 'apiEndpoint', index: 1 },
+            { branchKey: 'crmExport', index: 0 },
+            { branchKey: 'crmExport', index: 1 },
+          ]);
+        });
+
+        it('resolves duplicated legacy order values deterministically by grouped order, then removal keeps 1..N contiguous', async () => {
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches({
+            initialValues: {
+              pick: {
+                apiEndpoint: [{ url: 'a', order: 7 }, { url: 'b', order: 7 }],
+                crmExport: [{ system: 'c', order: 7 }],
+              },
+            },
+          });
+          await flushPromises();
+
+          // The stable sort breaks the three-way tie by grouped position.
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(2);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(3);
+
+          await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(2);
+        });
+      });
+
+      it('sorts the render list by order, not insertionOrder, and the sort survives a remount', async () => {
+        const wrapper = mountExplicitRepeatableChoiceObjectBranches({
+          metadata: enableDisplayOrder(enablePreserveOrder(objectBranchesMetadata(), 'pick'), 'pick', 'added'),
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        const interleaved = [
+          { branchKey: 'crmExport', index: 0 },
+          { branchKey: 'apiEndpoint', index: 0 },
+          { branchKey: 'crmExport', index: 1 },
+        ];
+        expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual(interleaved);
+
+        // No add-press this session, so every occurrence's ephemeral insertionOrder is undefined
+        // in the fresh instance — the exact condition under which the ephemeral tier's own sort
+        // would fall back to grouped order. The persisted order survives instead.
+        const remounted = mountExplicitRepeatableChoiceObjectBranches({
+          metadata: enableDisplayOrder(enablePreserveOrder(objectBranchesMetadata(), 'pick'), 'pick', 'added'),
+          initialValues: formValues(wrapper),
+        });
+        await flushPromises();
+
+        expect(renderedChoiceOccurrences(remounted, 'pick')).toEqual(interleaved);
+      });
+
+      it('writes and compacts order even when display stays grouped, proving persistence and display are independent', async () => {
+        const wrapper = mountExplicitRepeatableChoiceObjectBranches();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(formValues(wrapper).pick.crmExport[0].order).toBe(1);
+        expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(2);
+        expect(formValues(wrapper).pick.crmExport[1].order).toBe(3);
+
+        // Press order was interleaved, but the DOM/render order stays grouped: displayOrder was
+        // never set, so renderedChoiceOccurrences equals the grouped activeChoiceOccurrences.
+        expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual(activeChoiceOccurrences(wrapper, 'pick'));
+      });
+
+      it('is real submitted data: present alongside declared fields, kept by removeNullValues, and present after submit', async () => {
+        const wrapper = mountExplicitRepeatableChoiceObjectBranches();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        const values = formValues(wrapper);
+        expect(Object.keys(values.pick.apiEndpoint[0]).sort()).toEqual(['order', 'url']);
+        expect(Object.keys(values.pick.crmExport[0]).sort()).toEqual(['order', 'system']);
+
+        const cleaned = removeNullValues(values)!;
+        expect(cleaned.pick.apiEndpoint[0].order).toBe(1);
+
+        await wrapper.find('[data-testid="submit"]').trigger('click');
+        await flushPromises();
+
+        expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+        expect(formValues(wrapper).pick.crmExport[0].order).toBe(2);
+      });
+
+      describe('a scalar-leaf branch disables the persisted tier for the whole choice', () => {
+        it('warns once at mount, writes no order on any branch, and displayOrder added still click-orders every branch through the ephemeral tier', async () => {
+          const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+          try {
+            const wrapper = mountExplicitRepeatableChoiceMixedBranches({
+              metadata: enableDisplayOrder(enablePreserveOrder(mixedBranchesMetadata(), 'pick'), 'pick', 'added'),
+            });
+            await flushPromises();
+
+            // One warning, at mount, naming the scalar branch; add-presses do not warn again.
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(String(warn.mock.calls[0][0])).toContain('apiEndpoint');
+
+            // Press order: object branch first, scalar branch second.
+            await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+            await flushPromises();
+
+            // No order was written anywhere: the whole choice runs the ephemeral tier.
+            expect(Object.keys(formValues(wrapper).pick.crmExport[0])).toEqual(['system']);
+            expect(formValues(wrapper).pick.apiEndpoint[0]).toBeNull();
+            expect(warn).toHaveBeenCalledTimes(1);
+
+            // The ephemeral insertionOrder covers both branch shapes, so the display is true
+            // press order, not grouped-with-scalars-pinned-first.
+            expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual([
+              { branchKey: 'crmExport', index: 0 },
+              { branchKey: 'apiEndpoint', index: 0 },
+            ]);
+          }
+          finally {
+            warn.mockRestore();
+          }
+        });
+      });
+
+      describe('preserveOrder is reactive through the metadata prop', () => {
+        it('flipping it on while mounted seeds order into existing occurrences from their current positions', async () => {
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches({
+            metadata: objectBranchesMetadata(),
+          });
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          // Added while off: no order yet.
+          expect(Object.keys(formValues(wrapper).pick.apiEndpoint[0] ?? {})).not.toContain('order');
+          expect(Object.keys(formValues(wrapper).pick.crmExport[0] ?? {})).not.toContain('order');
+
+          await wrapper.setProps({ metadata: enablePreserveOrder(objectBranchesMetadata(), 'pick') });
+          await flushPromises();
+
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(2);
+
+          // The counter picks up seamlessly from the seeded sequence.
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(3);
+        });
+
+        it('seeds order from this session\'s add-order, not grouped position, so an interleaved display does not snap back on flip-on', async () => {
+          // apiEndpoint is declared first (grouped position 0), but crmExport is added first this
+          // session, so with displayOrder 'added' the user sees crm, then api. Flipping
+          // preserveOrder on must persist that add-order (crm = 1, api = 2), not grouped order
+          // (which would make api = 1 and jump the display).
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches({
+            metadata: enableDisplayOrder(objectBranchesMetadata(), 'pick', 'added'),
+          });
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          // The ephemeral tier already interleaves by add-order, and nothing is persisted yet.
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual([
+            { branchKey: 'crmExport', index: 0 },
+            { branchKey: 'apiEndpoint', index: 0 },
+          ]);
+          expect(Object.keys(formValues(wrapper).pick.crmExport[0] ?? {})).not.toContain('order');
+
+          await wrapper.setProps({
+            metadata: enablePreserveOrder(enableDisplayOrder(objectBranchesMetadata(), 'pick', 'added'), 'pick'),
+          });
+          await flushPromises();
+
+          // Seeded from add-order (crm added first), not the grouped position (which would make
+          // apiEndpoint 1).
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(1);
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(2);
+
+          // The displayed sequence is unchanged: persisting did not reorder what the user saw.
+          expect(renderedChoiceOccurrences(wrapper, 'pick')).toEqual([
+            { branchKey: 'crmExport', index: 0 },
+            { branchKey: 'apiEndpoint', index: 0 },
+          ]);
+
+          // The counter continues from the seeded sequence, so the next add lands last.
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          expect(formValues(wrapper).pick.apiEndpoint[1].order).toBe(3);
+        });
+
+        it('flipping it off while mounted strips order from every occurrence, leaving the entered data intact', async () => {
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches();
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[id="pick.apiEndpoint[0].url"]').setValue('https://example.com');
+          await flushPromises();
+          await wrapper.find('[id="pick.crmExport[0].system"]').setValue('salesforce');
+          await flushPromises();
+
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(2);
+
+          await wrapper.setProps({ metadata: objectBranchesMetadata() });
+          await flushPromises();
+
+          // The write leaves the residual undefined-valued key the clear contract accepts;
+          // removeNullValues produces the clean submitted shape, with the user's data intact.
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBeUndefined();
+          expect(formValues(wrapper).pick.crmExport[0].order).toBeUndefined();
+          const cleaned = removeNullValues(formValues(wrapper))!;
+          expect(cleaned.pick.apiEndpoint[0]).toEqual({ url: 'https://example.com' });
+          expect(cleaned.pick.crmExport[0]).toEqual({ system: 'salesforce' });
+        });
+
+        it('type-level: preserveOrder is not assignable inside computedProps', () => {
+          // Checked by vue-tsc during `pnpm typecheck` / `pnpm ci`. If preserveOrder is ever
+          // re-added to ComputedPropsFieldType, this line stops erroring and vue-tsc fails
+          // with TS2578 (unused '@ts-expect-error' directive).
+          function typeCheckOnly(thisField: ComputedPropsFieldOf<Metadata>) {
+            // @ts-expect-error preserveOrder is excluded from ComputedPropsFieldType
+            thisField.preserveOrder = false;
+          }
+          expect(typeof typeCheckOnly).toBe('function');
+        });
+      });
+
+      describe('edge cases', () => {
+        it('does not run compaction for a no-op removal (already removed / out-of-range index)', async () => {
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches();
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+          await flushPromises();
+          await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(2);
+
+          const choiceComp = findDynamicFormItemChoiceByPath(wrapper, 'pick');
+          expect(() => {
+            (choiceComp!.vm as any).$.setupState.removeChoiceOccurrence('apiEndpoint', 99);
+          }).not.toThrow();
+          await flushPromises();
+
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(2);
+        });
+
+        it('never writes an order key anywhere when a choice with two scalar branches has preserveOrder enabled, and warns exactly once at mount', async () => {
+          const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+          try {
+            const wrapper = mountExplicitRepeatableChoice({ metadata: enablePreserveOrder(bothScalarBranchesMetadata(), 'pick') });
+            await flushPromises();
+
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(String(warn.mock.calls[0][0])).toContain('apiEndpoint');
+            expect(String(warn.mock.calls[0][0])).toContain('crmExport');
+
+            await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await wrapper.find('[data-testid="pick.crmExport-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+            await flushPromises();
+            await wrapper.find('[data-testid="pick.apiEndpoint[0]-remove-choice-button"]').trigger('click');
+            await flushPromises();
+
+            const values = formValues(wrapper);
+            for (const value of values.pick.apiEndpoint)
+              expect(value === null || typeof value === 'string').toBe(true);
+            for (const value of values.pick.crmExport)
+              expect(value === null || typeof value === 'string').toBe(true);
+
+            // Adds and removals do not repeat the mount-time warning.
+            expect(warn).toHaveBeenCalledTimes(1);
+          }
+          finally {
+            warn.mockRestore();
+          }
+        });
+
+        it('survives values injected after mount via setValues: the next removal does not throw and heals order to contiguous 1..N', async () => {
+          const wrapper = mountExplicitRepeatableChoiceObjectBranches();
+          await flushPromises();
+
+          // Simulates loading a draft asynchronously after the form is already on screen: the
+          // injected occurrences bypass the mount-time normalization, one of them as a bare
+          // null placeholder and one as an object without order.
+          const choiceComp = findDynamicFormItemChoiceByPath(wrapper, 'pick');
+          (choiceComp!.vm as any).$.setupState.formContext.setValues({
+            pick: {
+              apiEndpoint: [{ url: 'a' }, null],
+              crmExport: [{ system: 'c', order: 1 }],
+            },
+          });
+          await flushPromises();
+
+          await wrapper.find('[data-testid="pick.apiEndpoint[1]-remove-choice-button"]').trigger('click');
+          await flushPromises();
+
+          // Keyless survivors slot in at their grouped position: apiEndpoint[0] (no order,
+          // position key 1) ties with crmExport[0] (order 1) and the stable sort resolves the
+          // tie by grouped order.
+          expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          expect(formValues(wrapper).pick.crmExport[0].order).toBe(2);
+        });
+
+        it('a branch declaring its own child named order warns at mount, and the written ordering overwrites that child\'s value', async () => {
+          const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+          try {
+            const wrapper = mountExplicitRepeatableChoiceObjectBranches({
+              metadata: enablePreserveOrder([{
+                name: 'pick',
+                explicitChoiceSelection: true,
+                maxOccurs: 4,
+                fieldOptions: { label: 'Pick Several' },
+                choice: [{
+                  name: 'apiEndpoint',
+                  maxOccurs: 2,
+                  fieldOptions: { label: 'Api Endpoint' },
+                  children: [
+                    { name: 'url', type: 'text', fieldOptions: { label: 'URL' } },
+                    { name: 'order', type: 'text', fieldOptions: { label: 'Order' } },
+                  ],
+                }],
+              }] as Metadata[], 'pick'),
+            });
+            await flushPromises();
+
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(String(warn.mock.calls[0][0])).toContain('apiEndpoint');
+
+            await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+            await flushPromises();
+
+            // The documented collision: the ordering owns the key, the declared child loses.
+            expect(formValues(wrapper).pick.apiEndpoint[0].order).toBe(1);
+          }
+          finally {
+            warn.mockRestore();
+          }
+        });
+
+        it('has no effect on a maxOccurs:1 explicit choice', async () => {
+          function singleChoiceMetadata(withPreserveOrder: boolean): Metadata[] {
+            return [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              fieldOptions: { label: 'Pick One' },
+              ...(withPreserveOrder ? { preserveOrder: true as const } : {}),
+              choice: [
+                { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+                { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+              ],
+            }];
+          }
+
+          const withFlag = mount(TestForm, { attachTo: document.body, props: { metadata: singleChoiceMetadata(true) } });
+          const withoutFlag = mount(TestForm, { attachTo: document.body, props: { metadata: singleChoiceMetadata(false) } });
+          await flushPromises();
+
+          await withFlag.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+          await withoutFlag.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+          await flushPromises();
+
+          expect(withFlag.html()).toBe(withoutFlag.html());
+        });
       });
     });
 

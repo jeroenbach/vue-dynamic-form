@@ -1,24 +1,24 @@
 # Validation
 
-A focused showcase of every validation strategy the library supports — declarative restrictions, custom validation functions, async server-side checks, and reactive cross-field rules — all in a single form.
+A focused showcase of every validation strategy the library supports, all in a single form: declarative restrictions, custom validation functions, async server-side checks, and reactive cross-field rules.
 
 ## What It Demonstrates
 
 - `restriction` properties (minLength, maxLength, pattern, whiteSpace, fractionDigits, minExclusive, …) that need zero validation code
 - A custom `validation` function for password complexity with a real-time strength bar
 - An `async` validation function that simulates a server-side uniqueness check
-- Cross-field validation — the rule re-runs automatically when the referenced field changes using `computedProps`
+- Cross-field validation: the rule re-runs automatically when the referenced field changes using `computedProps`
 - A custom `password` field type with a show/hide toggle and animated strength indicator
 
 ## Example
 
 <FormExampleValidation />
 
-## Restrictions — No Code Required
+## Restrictions: No Code Required
 
 Restrictions are declared inline on the field and automatically converted to vee-validate rules by the library. No `validation` function is needed.
 
-The `username` field combines three restrictions at once — length bounds and a character-set pattern:
+The `username` field combines three restrictions at once: length bounds and a character-set pattern:
 
 <<< @/.vitepress/theme/components/FormExampleValidation.vue#restriction-example{ts} [FormExampleValidation.vue]
 
@@ -34,7 +34,7 @@ Other restriction flavours used in this example:
 
 ## Async Validation
 
-The `validation` property accepts a function that returns a `Promise`. vee-validate handles the pending state automatically — the field stays invalid while the promise is in flight.
+The `validation` property accepts a function that returns a `Promise`. vee-validate handles the pending state automatically: the field stays invalid while the promise is in flight.
 
 The email field first checks the format via a `restriction`, then calls the async function to simulate a round-trip to the server. Try entering `admin@example.com` to see the taken-email error.
 
@@ -61,11 +61,11 @@ The new `password` field type was added to the template by:
 
 Each field's `validation` function is a plain closure that reads a reactive ref at the moment it runs. The validation for `confirmPassword` and `endDate` both do exactly that:
 
-**Confirm password** — reads `passwordValue.value` at validation time:
+**Confirm password** reads `passwordValue.value` at validation time:
 
 <<< @/.vitepress/theme/components/FormExampleValidation.vue#cross-field-password{ts} [FormExampleValidation.vue]
 
-**End date** — reads `startDateValue.value` at validation time. YYYY-MM-DD strings compare correctly as plain strings, so no date parsing is needed:
+**End date** reads `startDateValue.value` at validation time. YYYY-MM-DD strings compare correctly as plain strings, so no date parsing is needed:
 
 <<< @/.vitepress/theme/components/FormExampleValidation.vue#cross-field-date{ts} [FormExampleValidation.vue]
 
@@ -73,7 +73,7 @@ Each field's `validation` function is a plain closure that reads a reactive ref 
 
 A `validation` function only runs when its own field is validated (on blur, input, or submit). Both fields above use `computedProps` to re-trigger `validateField` whenever the source field changes.
 
-`computedProps` callbacks run inside a Vue `computed`, which means any reactive ref read inside them is tracked automatically. When `passwordValue` (or `startDateValue`) changes, the computed re-runs and — if both fields already have a value — calls `validateField` on the dependent field. The two concerns stay cleanly separated: the logic lives in `validation`, and the re-trigger lives in `computedProps`.
+`computedProps` callbacks run inside a Vue `computed`, which means any reactive ref read inside them is tracked automatically. When `passwordValue` (or `startDateValue`) changes, the computed re-runs and, if both fields already have a value, calls `validateField` on the dependent field. The two concerns stay cleanly separated: the logic lives in `validation`, and the re-trigger lives in `computedProps`.
 
 ## Website Validation
 
