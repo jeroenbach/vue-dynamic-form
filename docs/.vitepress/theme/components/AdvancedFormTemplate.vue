@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
-import type { LoadingResolve } from '../utils/loadingResolve';
+import type { GetDynamicFormSettingsType, GetMetadataType, WizardGotoStepOptions } from '@bach.software/vue-dynamic-form';
 import type { AppIconName } from './AppIcon.vue';
 import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
 import { defineMetadata, DynamicFormTemplate } from '@bach.software/vue-dynamic-form';
@@ -34,8 +33,6 @@ export type DynamicFormSettings = GetDynamicFormSettingsType<typeof metadata>;
 
 const metadata = defineMetadata<
   {
-    wizard: never
-    wizardPage: never
     wizardSummaryPage: never
     heading: never
     text: string
@@ -59,15 +56,13 @@ const metadata = defineMetadata<
     disabled?: boolean
     hide?: boolean
     showStrengthBar?: boolean
-    validatePage?: (pageIndex: number, loadingResolve: LoadingResolve) => Promise<void>
-    submitForm?: (loadingResolve: LoadingResolve) => Promise<void>
     falseAsUndefined?: boolean
     wizardSummary?: ReviewGroupProps[]
     submitButtonText?: string
   },
   {
-    currentStepIndex?: number
-    gotoStepIndex?: (index: number) => void
+    /** Provided by the #default-wizard-page slot below, forwarded to a page's own slot content (e.g. the summary page's "edit" links). */
+    gotoStep?: (index: number, options?: WizardGotoStepOptions) => Promise<void> | void
   },
   {
     showRequiredOrOptional?: 'optional' | 'required'
@@ -79,27 +74,42 @@ const metadata = defineMetadata<
 <template>
   <DynamicFormTemplate :metadata-configuration="metadata">
     <!-- #region structural-slots -->
-    <template #wizard="{ fieldMetadata, fieldContext: { errorMessage, label } }">
+    <template #default-wizard="{ fieldMetadata, fieldContext: { errorMessage, label }, pages, currentStepIndex, isFirst, isLast, isValidating, next, prev, gotoStep }">
       <FormWizard
-        v-slot="{ currentStepIndex, gotoStep }"
         :title="label"
         :subTitle="fieldMetadata.description"
         :error-message="errorMessage.value"
         :dataTestid="fieldMetadata.path"
-        :steps="fieldMetadata.children?.map(x => ({ title: toValue(x.fieldOptions?.label) ?? x.name, description: x.helpText }))"
+        :steps="pages.map(x => ({ title: toValue(x.fieldOptions?.label) ?? x.name, description: x.helpText }))"
+        :currentStepIndex
+        :isFirst
+        :isLast
+        :isValidating
+        :next
+        :prev
+        :gotoStep
         :nextButton
         :prevButton
         :submitButton="fieldMetadata.submitButtonText ?? submitButton"
-        @validate-page="fieldMetadata.validatePage"
-        @submit="fieldMetadata.submitForm"
       >
-        <slot :current-step-index :gotoStepIndex="gotoStep" />
+        <slot />
       </FormWizard>
     </template>
 
-    <template #wizardSummaryPage="{ fieldMetadata, fieldContext: { errorMessage, label }, slotProps, index }">
+    <!--
+      Shape-agnostic visibility wrapper for a single wizard page: gates with v-show (never v-if,
+      or navigating away would clear the page's values and deregister its fields), and forwards
+      gotoStep to the page's own slot content via the slotProps channel (used below by the
+      summary page's "edit" links).
+    -->
+    <template #default-wizard-page="{ isCurrent, gotoStep }">
+      <div v-show="isCurrent">
+        <slot :goto-step="gotoStep" />
+      </div>
+    </template>
+
+    <template #wizardSummaryPage="{ fieldMetadata, fieldContext: { errorMessage, label }, slotProps }">
       <SectionCard
-        v-if="slotProps.currentStepIndex !== undefined && slotProps.currentStepIndex === index"
         :label
         :description="fieldMetadata.description"
         :error-message="errorMessage.value"
@@ -110,7 +120,7 @@ const metadata = defineMetadata<
           :key="group.title"
           class="md:col-span-2"
           v-bind="group"
-          @edit="slotProps.gotoStepIndex?.(i)"
+          @edit="slotProps?.gotoStep?.(i)"
         />
         <div class="md:col-span-2 mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           <p class="font-medium">
@@ -121,45 +131,6 @@ const metadata = defineMetadata<
           </p>
         </div>
       </SectionCard>
-    </template>
-
-    <template #wizardPage="_props">
-      <div v-show="_props.slotProps.currentStepIndex !== undefined && _props.slotProps.currentStepIndex === _props.index">
-        <!-- #region inherit the heading template -->
-        <AdvancedFormTemplate v-bind="_props" type="heading">
-          <slot />
-        </AdvancedFormTemplate>
-      </div>
-    </template>
-
-    <template #wizardPage-array="_props">
-      <div v-show="_props.slotProps.currentStepIndex !== undefined && _props.slotProps.currentStepIndex === _props.index">
-        <AdvancedFormTemplate v-bind="_props" type="heading-array">
-          <slot />
-        </AdvancedFormTemplate>
-      </div>
-    </template>
-
-    <template #wizardPage-array-item="_props">
-      <AdvancedFormTemplate v-bind="_props" type="heading-array-item">
-        <slot />
-      </AdvancedFormTemplate>
-    </template>
-
-    <template #wizardPage-choice="_props">
-      <div v-show="_props.slotProps.currentStepIndex !== undefined && _props.slotProps.currentStepIndex === _props.index">
-        <AdvancedFormTemplate v-bind="_props" type="heading-choice">
-          <slot />
-        </AdvancedFormTemplate>
-      </div>
-    </template>
-
-    <template #wizardPage-choice-array="_props">
-      <div v-show="_props.slotProps.currentStepIndex !== undefined && _props.slotProps.currentStepIndex === _props.index">
-        <AdvancedFormTemplate v-bind="_props" type="heading-choice-array">
-          <slot />
-        </AdvancedFormTemplate>
-      </div>
     </template>
 
     <template #heading="{ fieldMetadata, fieldContext: { errorMessage, label } }">

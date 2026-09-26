@@ -825,6 +825,303 @@ export const individualSampleValues = {
   ],
 };
 
+// ----- Wizard -----
+
+const planOptions = [
+  { key: 'starter', value: 'Starter' },
+  { key: 'growth', value: 'Growth' },
+  { key: 'enterprise', value: 'Enterprise' },
+];
+
+// A backward-only wizard (the default): every page carries a required field, so "Next" only
+// advances once the current page validates, and the stepper buttons can only jump to an
+// already-visited earlier page. "isLast" is true on the last page, where the form's own Submit
+// button takes over from "Next".
+export const wizardTestCase = createTestCase([{
+  name: 'onboarding',
+  wizard: true,
+  fieldOptions: { label: 'Onboarding wizard (backward-only)' },
+  children: [
+    {
+      name: 'company',
+      type: 'heading',
+      fieldOptions: { label: 'Company' },
+      children: [
+        { name: 'companyName', fieldOptions: { label: 'Company name (required)' }, fullWidth: true },
+        { name: 'website', minOccurs: 0, fieldOptions: { label: 'Website (optional)' }, fullWidth: true },
+      ],
+    },
+    {
+      name: 'plan',
+      type: 'heading',
+      fieldOptions: { label: 'Plan' },
+      children: [
+        { name: 'planName', type: 'select', fieldOptions: { label: 'Plan (required)' }, options: planOptions },
+        { name: 'seats', minOccurs: 0, fieldOptions: { label: 'Seats (optional)' } },
+      ],
+    },
+    {
+      name: 'review',
+      type: 'heading',
+      fieldOptions: { label: 'Review' },
+      children: [
+        { name: 'termsAccepted', type: 'checkbox', fieldOptions: { label: 'I accept the terms (required)' } },
+      ],
+    },
+  ],
+}]);
+
+export const wizardSampleValues = {
+  onboarding: {
+    company: { companyName: 'Acme Corp', website: 'https://acme.example' },
+    plan: { planName: 'growth', seats: '25' },
+    review: { termsAccepted: true },
+  },
+};
+
+// allowForwardJump: true lets the stepper buttons jump forward to a not-yet-visited page, not just
+// back. Forward jumps do not validate the pages they skip (validateOnJump is off here).
+export const wizardForwardJumpTestCase = createTestCase([{
+  name: 'onboarding',
+  wizard: { allowForwardJump: true },
+  fieldOptions: { label: 'Wizard with forward jumping' },
+  children: [
+    {
+      name: 'company',
+      type: 'heading',
+      fieldOptions: { label: 'Company' },
+      children: [{ name: 'companyName', fieldOptions: { label: 'Company name (required)' }, fullWidth: true }],
+    },
+    {
+      name: 'plan',
+      type: 'heading',
+      fieldOptions: { label: 'Plan' },
+      children: [{ name: 'planName', type: 'select', fieldOptions: { label: 'Plan (required)' }, options: planOptions }],
+    },
+    {
+      name: 'review',
+      type: 'heading',
+      fieldOptions: { label: 'Review' },
+      children: [{ name: 'termsAccepted', type: 'checkbox', fieldOptions: { label: 'I accept the terms (required)' } }],
+    },
+  ],
+}]);
+
+export const wizardForwardJumpSampleValues = {
+  onboarding: {
+    company: { companyName: 'Acme Corp' },
+    plan: { planName: 'enterprise' },
+    review: { termsAccepted: true },
+  },
+};
+
+// validateOnJump: true (with allowForwardJump) gates every stepper jump on the current page's
+// validation: try jumping away from page 1 while its required field is empty and the jump is
+// blocked with the error shown, exactly like "Next".
+export const wizardValidateOnJumpTestCase = createTestCase([{
+  name: 'onboarding',
+  wizard: { allowForwardJump: true, validateOnJump: true },
+  fieldOptions: { label: 'Wizard with validate-on-jump' },
+  children: [
+    {
+      name: 'company',
+      type: 'heading',
+      fieldOptions: { label: 'Company' },
+      children: [{ name: 'companyName', fieldOptions: { label: 'Company name (required)' }, fullWidth: true }],
+    },
+    {
+      name: 'plan',
+      type: 'heading',
+      fieldOptions: { label: 'Plan' },
+      children: [{ name: 'planName', type: 'select', fieldOptions: { label: 'Plan (required)' }, options: planOptions }],
+    },
+    {
+      name: 'review',
+      type: 'heading',
+      fieldOptions: { label: 'Review' },
+      children: [{ name: 'termsAccepted', type: 'checkbox', fieldOptions: { label: 'I accept the terms (required)' } }],
+    },
+  ],
+}]);
+
+export const wizardValidateOnJumpSampleValues = wizardForwardJumpSampleValues;
+
+// Pages of every shape behind one wizard: a plain group page, a repeatable array page, a choice
+// page, and a field-less summary page. Each page renders through its own shape (heading / array /
+// choice) inside the shape-agnostic wizard-page wrapper. allowForwardJump lets you reach them all.
+export const wizardCompositePagesTestCase = createTestCase([{
+  name: 'onboarding',
+  wizard: { allowForwardJump: true },
+  fieldOptions: { label: 'Wizard with group / array / choice / summary pages' },
+  children: [
+    {
+      name: 'company',
+      type: 'heading',
+      fieldOptions: { label: 'Company (group page)' },
+      children: [
+        { name: 'companyName', fieldOptions: { label: 'Company name (required)' }, fullWidth: true },
+      ],
+    },
+    {
+      name: 'contacts',
+      type: 'heading',
+      maxOccurs: 4,
+      minOccurs: 1,
+      fullWidth: true,
+      fieldOptions: { label: 'Contacts (repeatable array page)' },
+      children: [
+        { name: 'fullName', fieldOptions: { label: 'Full name' } },
+        { name: 'email', minOccurs: 0, fieldOptions: { label: 'Email (optional)' } },
+      ],
+    },
+    {
+      name: 'launchApproach',
+      type: 'heading',
+      fullWidth: true,
+      fieldOptions: { label: 'Launch approach (choice page)' },
+      choice: [
+        { name: 'selfServe', type: 'group', fieldOptions: { label: 'Self serve' }, children: [
+          { name: 'startDate', fieldOptions: { label: 'Start date' } },
+        ] },
+        { name: 'guidedRollout', type: 'group', fieldOptions: { label: 'Guided rollout' }, children: [
+          { name: 'accountManager', fieldOptions: { label: 'Account manager' } },
+        ] },
+      ],
+    },
+    {
+      name: 'summary',
+      type: 'heading',
+      fieldOptions: { label: 'Summary (field-less page)' },
+    },
+  ],
+}]);
+
+export const wizardCompositePagesSampleValues = {
+  onboarding: {
+    company: { companyName: 'Acme Corp' },
+    contacts: [
+      { fullName: 'Ada Lovelace', email: 'ada@acme.example' },
+      { fullName: 'Grace Hopper' },
+    ],
+    launchApproach: { guidedRollout: { accountManager: 'Alan Turing' } },
+  },
+};
+
+// A "choice of wizards": the top node is an ordinary explicit choice, and each branch is itself a
+// wizard. Selecting a branch mounts one independent wizard with its own step state; this falls out
+// of the existing choice mechanics with no wizard-specific code.
+export const choiceOfWizardsTestCase = createTestCase([{
+  name: 'setupPath',
+  explicitChoiceSelection: true,
+  fullWidth: true,
+  fieldOptions: { label: 'Pick a setup path (choice of wizards)' },
+  choice: [
+    {
+      name: 'quickStart',
+      wizard: { allowForwardJump: true },
+      fieldOptions: { label: 'Quick start wizard' },
+      children: [
+        { name: 'basics', type: 'heading', fieldOptions: { label: 'Basics' }, children: [
+          { name: 'projectName', fieldOptions: { label: 'Project name (required)' }, fullWidth: true },
+        ] },
+        { name: 'done', type: 'heading', fieldOptions: { label: 'Done' }, children: [
+          { name: 'confirm', type: 'checkbox', fieldOptions: { label: 'Looks good (required)' } },
+        ] },
+      ],
+    },
+    {
+      name: 'guidedSetup',
+      wizard: { allowForwardJump: true },
+      fieldOptions: { label: 'Guided setup wizard' },
+      children: [
+        { name: 'company', type: 'heading', fieldOptions: { label: 'Company' }, children: [
+          { name: 'companyName', fieldOptions: { label: 'Company name (required)' }, fullWidth: true },
+        ] },
+        { name: 'plan', type: 'heading', fieldOptions: { label: 'Plan' }, children: [
+          { name: 'planName', type: 'select', fieldOptions: { label: 'Plan (required)' }, options: planOptions },
+        ] },
+        { name: 'review', type: 'heading', fieldOptions: { label: 'Review' }, children: [
+          { name: 'termsAccepted', type: 'checkbox', fieldOptions: { label: 'Accept terms (required)' } },
+        ] },
+      ],
+    },
+  ],
+}]);
+
+export const choiceOfWizardsSampleValues = {
+  setupPath: {
+    guidedSetup: {
+      company: { companyName: 'Acme Corp' },
+      plan: { planName: 'growth' },
+      review: { termsAccepted: true },
+    },
+  },
+};
+
+// A repeated wizard: an array whose item children contain a wizard node. Each occurrence gets its
+// own wizard with independent step state, again with no wizard-specific composition code.
+export const repeatedWizardTestCase = createTestCase([{
+  name: 'teams',
+  type: 'heading',
+  maxOccurs: 3,
+  minOccurs: 1,
+  fullWidth: true,
+  fieldOptions: { label: 'Teams (each team runs its own wizard)' },
+  children: [{
+    name: 'setup',
+    wizard: { allowForwardJump: true },
+    fieldOptions: { label: 'Team setup wizard' },
+    children: [
+      { name: 'team', type: 'heading', fieldOptions: { label: 'Team' }, children: [
+        { name: 'teamName', fieldOptions: { label: 'Team name (required)' }, fullWidth: true },
+      ] },
+      { name: 'lead', type: 'heading', fieldOptions: { label: 'Lead' }, children: [
+        { name: 'leadName', fieldOptions: { label: 'Lead name (required)' }, fullWidth: true },
+      ] },
+    ],
+  }],
+}]);
+
+export const repeatedWizardSampleValues = {
+  teams: [
+    { setup: { team: { teamName: 'Platform' }, lead: { leadName: 'Ada Lovelace' } } },
+    { setup: { team: { teamName: 'Growth' }, lead: { leadName: 'Grace Hopper' } } },
+  ],
+};
+
+// A wizard for exercising the page-gating contract by hand: fill a field on one page, navigate
+// away and back, and watch whether the value survived. All fields are optional so navigation is
+// never blocked by validation, keeping the focus on mount/unmount behaviour. Drive it from the
+// Storybook controls: gate pages with v-show (correct) or v-if (unmounts non-current pages), and
+// toggle keepValuesOnUnmount to see it preserve values even under v-if. The live form values are
+// shown in the debug panel at the bottom.
+export const wizardKeepValuesTestCase = createTestCase([{
+  name: 'onboarding',
+  wizard: { allowForwardJump: true },
+  fieldOptions: { label: 'Wizard: v-show vs v-if and keepValuesOnUnmount' },
+  children: [
+    {
+      name: 'company',
+      type: 'heading',
+      fieldOptions: { label: 'Company' },
+      children: [{ name: 'companyName', minOccurs: 0, fieldOptions: { label: 'Company name (type something, then navigate away and back)' }, fullWidth: true }],
+    },
+    {
+      name: 'plan',
+      type: 'heading',
+      fieldOptions: { label: 'Plan' },
+      children: [{ name: 'planName', minOccurs: 0, fieldOptions: { label: 'Plan name' }, fullWidth: true }],
+    },
+  ],
+}]);
+
+export const wizardKeepValuesSampleValues = {
+  onboarding: {
+    company: { companyName: 'Acme Corp' },
+    plan: { planName: 'Growth' },
+  },
+};
+
 export function createTestCase(
   metadata: Metadata[],
   settings?: DynamicFormSettings,
@@ -836,19 +1133,22 @@ export function createTestCase(
 ) {
   return markRaw(defineComponent({
     // Overridable at runtime so a Storybook control can flip a case between empty and pre-filled
-    // without a second component; an unset prop falls back to the baked testCaseConfig.
+    // without a second component; an unset prop falls back to the baked testCaseConfig/settings.
     props: {
       initialValues: { type: Object as PropType<GenericObject>, default: undefined },
       initialEdit: { type: Boolean as PropType<boolean | undefined>, default: undefined },
       hideFieldsWithoutValue: { type: Boolean as PropType<boolean | undefined>, default: undefined },
+      settings: { type: Object as PropType<DynamicFormSettings | undefined>, default: undefined },
+      keepValuesOnUnmount: { type: Boolean as PropType<boolean | undefined>, default: undefined },
     },
     setup: props => () => h(TestForm, {
       metadata,
-      settings,
+      settings: props.settings ?? settings,
       showDebugState: true,
       initialValues: props.initialValues ?? testCaseConfig.initialValues,
       initialEdit: props.initialEdit ?? testCaseConfig.initialEdit,
       hideFieldsWithoutValue: props.hideFieldsWithoutValue ?? testCaseConfig.hideFieldsWithoutValue,
+      keepValuesOnUnmount: props.keepValuesOnUnmount,
     }),
   }));
 }

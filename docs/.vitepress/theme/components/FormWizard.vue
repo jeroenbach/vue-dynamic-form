@@ -1,9 +1,7 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
-import type { LoadingResolve } from '../utils/loadingResolve';
 import type { Step } from './Stepper.vue';
-import { computed, ref } from 'vue';
-import { createLoadingResolve } from '../utils/loadingResolve';
+import { computed } from 'vue';
 import AppButton from './AppButton.vue';
 import AppIcon from './AppIcon.vue';
 import Stepper from './Stepper.vue';
@@ -12,52 +10,23 @@ interface Props {
   title?: MaybeRefOrGetter<string | undefined>
   subTitle?: string
   steps?: Step[]
+  currentStepIndex: number
+  isFirst: boolean
+  isLast: boolean
+  isValidating: boolean
+  next: () => Promise<void>
+  prev: () => void
+  gotoStep: (index: number) => void
   nextButton?: string
   prevButton?: string
   submitButton?: string
   dataTestid?: string
 }
-interface Emits {
-  (e: 'validatePage', pageIndex: number, loadingResolve: LoadingResolve): void
-  (e: 'submit', loadingResolve: LoadingResolve): void
-}
 
-const { steps = [] } = defineProps<Props>();
-const emits = defineEmits<Emits>();
-const currentStepIndex = ref(0);
-const currentStep = computed(() => steps?.[currentStepIndex.value ?? 0]);
-const isLast = computed(() => currentStepIndex.value === steps.length - 1);
-const isFirst = computed(() => currentStepIndex.value === 0);
-const helperText = computed(() => [`Step ${currentStepIndex.value + 1} of ${steps.length}`, currentStep.value?.description || currentStep.value?.title].join(' · '));
-
-function gotoStep(_index: number) {
-  if (_index >= 0 && _index <= steps.length - 1 && _index <= currentStepIndex.value) {
-    currentStepIndex.value = _index;
-  }
-}
-async function submit() {
-  const resolve = createLoadingResolve();
-  emits('submit', resolve);
-
-  if (!(await resolve.promise))
-    return;
-
-  // Todo, show a success page
-}
-async function next() {
-  const resolve = createLoadingResolve();
-  emits('validatePage', currentStepIndex.value, resolve);
-
-  if (!(await resolve.promise))
-    return;
-
-  if (currentStepIndex.value < steps.length - 1)
-    currentStepIndex.value++;
-}
-function prev() {
-  if (currentStepIndex.value > 0)
-    currentStepIndex.value--;
-}
+const props = defineProps<Props>();
+const currentStep = computed(() => props.steps?.[props.currentStepIndex]);
+const helperText = computed(() =>
+  [`Step ${props.currentStepIndex + 1} of ${props.steps?.length ?? 0}`, currentStep.value?.description || currentStep.value?.title].join(' · '));
 </script>
 
 <template>
@@ -74,11 +43,16 @@ function prev() {
     </header>
 
     <div class="mb-8">
-      <Stepper :steps="steps" :current-step="currentStepIndex" @goto="gotoStep" />
+      <Stepper :steps="steps ?? []" :current-step="currentStepIndex" @goto="gotoStep" />
     </div>
 
+    <!--
+      Pages stay mounted at all times; the engine's -wizard-page wrapper (rendered inside this
+      slot) toggles their visibility with v-show. Never wrap this <main> in a v-if per page, or
+      navigating away clears the page's values and deregisters its fields.
+    -->
     <main>
-      <slot :currentStepIndex :gotoStep />
+      <slot />
     </main>
 
     <footer class="mt-8 flex items-center justify-between">
@@ -102,7 +76,6 @@ function prev() {
         variant="primary"
         type="submit"
         :dataTestid="dataTestid ? `${dataTestid}-submit-button` : undefined"
-        @click="submit"
       >
         {{ submitButton }}
         <AppIcon name="check" />
@@ -111,6 +84,7 @@ function prev() {
         v-else
         type="button"
         variant="primary"
+        :disabled="isValidating"
         :dataTestid="dataTestid ? `${dataTestid}-next-button` : undefined"
         @click="next"
       >

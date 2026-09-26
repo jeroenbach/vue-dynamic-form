@@ -9,6 +9,7 @@ Runnable examples that cover the main features. Each page embeds the live compon
 - [Choice Fields](/examples/choices): mutually exclusive branches
 - [Dynamic Fields](/examples/dynamic-fields): options loaded from an external source
 - [Validation](/examples/validation): restrictions, async checks, password strength, and cross-field rules
+- [Wizard](/examples/wizard): multi-step form with per-step validation and a review page
 - [Advanced Wizard](/examples/advanced): full-featured client onboarding wizard
 
 ## Quick Overview

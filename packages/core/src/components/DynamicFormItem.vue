@@ -14,6 +14,7 @@ import { useField, useFormContext, useSubmitCount } from 'vee-validate';
 import { computed, inject, onBeforeUnmount, onMounted, ref, toValue, watch, watchEffect } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
+import DynamicFormItemWizard from '@/components/DynamicFormItemWizard.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
@@ -163,10 +164,12 @@ fieldContext.handleChange = function (e: unknown, shouldValidate?: boolean | und
 
 // --- Field type flags ---
 
+const isWizard = computed(() => !!field.value?.wizard);
 const isParent = computed(() => !!field.value?.children?.length);
 const isChoice = computed(() => !!field.value?.choice?.length);
-// An input is any leaf field — not a repeating array, not a branching choice, not a parent group.
-const isInput = computed(() => !isArray.value && !isChoice.value && !isParent.value);
+// An input is any leaf field — not a repeating array, not a branching choice, not a parent group,
+// and not a wizard (a wizard always has its own delegated rendering, even with no children yet).
+const isInput = computed(() => !isArray.value && !isChoice.value && !isParent.value && !isWizard.value);
 
 // --- Reactive field and dynamic state ---
 const initialUpdate = ref(true);
@@ -213,6 +216,7 @@ const computedField = computed(() => {
   _internalMetadata.path = path.value;
   _internalMetadata.explicitChoiceSelection = field.value?.explicitChoiceSelection;
   _internalMetadata.preserveOnSwitch = field.value?.preserveOnSwitch;
+  _internalMetadata.wizard = field.value?.wizard;
   _internalMetadata._hash = hashField(_internalMetadata);
 
   return _internalMetadata;
@@ -485,7 +489,16 @@ function updateArrayValue(_value: unknown) {
       ++_analytics_renderCount
     }}</span>
   </div>
-  <template v-if="isChoice">
+  <template v-if="isWizard">
+    <DynamicFormItemWizard
+      v-bind="props"
+      :field-metadata="computedField"
+
+      @update:model-value="notifyValueUpdate"
+      @update:computed-field="onChildComputedFieldUpdate"
+    />
+  </template>
+  <template v-else-if="isChoice">
     <DynamicFormItemChoice
       v-bind="props"
       :field-metadata="computedField"

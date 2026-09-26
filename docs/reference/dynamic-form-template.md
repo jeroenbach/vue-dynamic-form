@@ -10,7 +10,7 @@
 
 ## Slots Overview
 
-For every type name `T` you declared in `defineMetadata()`, seven slots are available — each with a specific rendering role:
+For every type name `T` you declared in `defineMetadata()`, nine slots are available — each with a specific rendering role:
 
 | Slot | Role |
 |------|------|
@@ -21,6 +21,8 @@ For every type name `T` you declared in `defineMetadata()`, seven slots are avai
 | `#T-choice` | Outer container when this field is a single (`maxOccurs: 1`) choice |
 | `#T-choice-array` | Outer container when this field is a repeatable (`maxOccurs > 1`) choice |
 | `#T-choice-array-item` | Each individual occurrence of a repeatable explicit choice |
+| `#T-wizard` | Outer container (chrome, navigation) when this field is a `wizard` |
+| `#T-wizard-page` | Visibility/nav wrapper around each of a wizard's pages |
 
 All slots are optional. When a slot is missing, the library walks a fallback chain until it finds one you've defined:
 
@@ -32,6 +34,8 @@ All slots are optional. When a slot is missing, the library walks a fallback cha
 #text-choice            ──► #default-choice            ──► #default
 #text-choice-array      ──► #default-choice-array      ──► #text-choice ──► #default-choice ──► #default
 #text-choice-array-item ──► #default-choice-array-item ──► #text-array-item ──► #default-array-item ──► #default
+#text-wizard            ──► #default-wizard
+#text-wizard-page       ──► #default-wizard-page        ──► #default
 ```
 
 The two `-choice-array` families degrade into a related family before reaching `#default`. A repeatable choice is still a choice (both families receive the same slot props), so without any `-choice-array` slot it renders through your `-choice` slots. A repeatable-choice occurrence behaves like an array item (its slot props are a superset of the array-item props), so without any `-choice-array-item` slot it renders through your `-array-item` slots. Define the dedicated slots only when repeatable choices need their own layout.
@@ -165,6 +169,75 @@ The choice container slots (`#T-choice`, `#default-choice`, `#T-choice-array`, `
 ::: tip
 `#T-array-item` / `#default-array-item` and `#T-choice-array-item` / `#default-choice-array-item` are **not** container slots — they render each individual occurrence, so they receive the full `fieldContext` including `value`, `handleChange`, `errors`, etc. The choice-array-item slots additionally receive `branchKey`, the choice branch the occurrence belongs to, and their `addItem` / `canAddItems` / `removeItem` operate on that branch's occurrences.
 :::
+
+## Wizard Container and Page Slots
+
+A `wizard: true` field (see [`wizard`](/reference/field-metadata#wizard)) renders through two dedicated slot families instead of the regular ones above.
+
+### `#T-wizard` / `#default-wizard` — the container
+
+Receives everything above **except** `fieldContext` is reduced to `LimitedFieldContext` (like the array/choice container slots), plus the navigation bundle:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `pages` | `FieldMetadata[]` | The engine's resolved page list — the corrected page metadata nodes, in page order. Build your stepper from this, never from `fieldMetadata.children`, so it can never desync from what is actually rendered. |
+| `pageCount` | `number` | `pages.length` |
+| `currentStepIndex` | `number` | The zero-based index of the currently visible page |
+| `isFirst` | `boolean` | `true` on the first page |
+| `isLast` | `boolean` | `true` on the last page — use this to switch your "Next" control to a "Submit" control |
+| `isValidating` | `boolean` | `true` while a `next()` or a validating `gotoStep()` call is in flight |
+| `next()` | `() => Promise<void>` | Validates the current page (`validateSection`) and advances only on success |
+| `prev()` | `() => void` | Moves back one page unconditionally, no validation |
+| `gotoStep(index, options?)` | `(index: number, options?: WizardGotoStepOptions) => Promise<void> \| void` | Jumps to `index` (clamped to a valid page). Backward-only unless `allowForwardJump` is set (config or `options`); validates first when `validateOnJump` is set (config or `options`) |
+
+`<slot />` inside this container renders every page's `#T-wizard-page` wrapper.
+
+### `#T-wizard-page` / `#default-wizard-page` — one page's visibility wrapper
+
+One shape-agnostic wrapper per page, rendered for **every** page (not only the current one) so pages stay mounted and their values survive navigation. Receives:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isCurrent` | `boolean` | `true` when this page is the one currently visible |
+| `pageIndex` | `number` | This page's index |
+| `currentStepIndex`, `isFirst`, `isLast`, `next`, `prev`, `gotoStep` | same as the container | Lets a page build its own controls (e.g. a summary page's "edit" links via `gotoStep`) |
+
+`<slot />` inside this wrapper renders the page's own content through **its own shape** — a parent page's children directly, an array page through `-array`, a choice page through `-choice` — exactly as if it were not inside a wizard at all. There is no `-wizard-page-array` / `-wizard-page-choice` combinatorial family.
+
+::: warning Gate visibility with `v-show`, never `v-if`
+```vue
+<!-- Correct: page stays mounted, values and validation state survive navigation -->
+<template #default-wizard-page="{ isCurrent }">
+  <div v-show="isCurrent"><slot /></div>
+</template>
+
+<!-- Wrong: unmounts the page on navigation, clearing its values and deregistering its fields -->
+<template #default-wizard-page="{ isCurrent }">
+  <div v-if="isCurrent"><slot /></div>
+</template>
+```
+A `v-if` here unmounts the page's `DynamicFormItem` subtree when it stops being current. That clears the page's values (unless `keepValuesOnUnmount` is set) **and** deregisters its fields from vee-validate, so a later "Submit" would send that page's data unvalidated even if the value happened to survive. `v-if` is acceptable only for a genuinely field-less page — a static summary or review step with nothing to lose.
+:::
+
+```vue
+<template #default-wizard="{ pages, currentStepIndex, isFirst, isLast, isValidating, next, prev, gotoStep }">
+  <nav>
+    <button v-for="(page, i) in pages" :key="page.path" :disabled="i > currentStepIndex" @click="gotoStep(i)">
+      {{ page.name }}
+    </button>
+  </nav>
+  <slot />
+  <footer>
+    <button type="button" :disabled="isFirst" @click="prev">Back</button>
+    <button v-if="!isLast" type="button" :disabled="isValidating" @click="next">Next</button>
+    <button v-else type="submit">Submit</button>
+  </footer>
+</template>
+
+<template #default-wizard-page="{ isCurrent }">
+  <div v-show="isCurrent"><slot /></div>
+</template>
+```
 
 ## The `<slot />` Inside Your Slot Templates
 

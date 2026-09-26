@@ -272,6 +272,75 @@ For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts i
 }
 ```
 
+### `displayOrder`
+
+Type: `'grouped' | 'added'` | Default: `'grouped'` (absent)
+
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Selects the render order of its occurrences: `'grouped'` is the default (grouped by branch declaration order, same as `activeChoiceOccurrences`), `'added'` interleaves occurrences by the order their `addChoiceOccurrence` press happened. Reactive: changing it in the metadata re-sorts the occurrence list in place, without a remount, and the session's add history survives the flip. Display only, never written to `values`. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
+
+```ts
+{
+  name: 'integrations',
+  maxOccurs: 5,
+  explicitChoiceSelection: true,
+  displayOrder: 'added',
+  choice: [/* ... */],
+}
+```
+
+### `preserveOrder`
+
+Type: `boolean` | Default: `false` (absent)
+
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). The values stay contiguous `1..N` at all times: loaded data with missing or gapped `order` is normalized at mount (preserving its relative order) and removing an occurrence renumbers the survivors. Reactive: flipping it on mid-session seeds `order` into existing occurrences, flipping it off strips `order` from all of them; mounting with the flag absent never touches loaded data. Requires every branch to have `children`: one scalar-leaf branch disables it for the whole choice, with a development warning. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
+
+```ts
+{
+  name: 'integrations',
+  maxOccurs: 5,
+  explicitChoiceSelection: true,
+  displayOrder: 'added',
+  preserveOrder: true,
+  choice: [/* ... */],
+}
+```
+
+### `wizard`
+
+Type: `boolean | WizardConfig` | Default: `false` (absent)
+
+Marks this field as a wizard: a multi-step shape rendered through `DynamicFormItemWizard`, checked before `choice`/array/parent detection. Its pages are its `children`, in declaration order. `wizard: true` selects the defaults (backward-only `gotoStep`, no validate-on-jump); pass a `WizardConfig` object to opt into per-wizard behavior:
+
+```ts
+interface WizardConfig {
+  /** Allow gotoStep to jump forward to a not-yet-visited page. Default false. */
+  allowForwardJump?: boolean
+  /** Validate the current page before a gotoStep jump. Default false. */
+  validateOnJump?: boolean
+}
+```
+
+```ts
+{
+  name: 'onboarding',
+  wizard: { allowForwardJump: true },
+  children: [
+    { name: 'company', fieldOptions: { label: 'Company details' }, children: [ /* ... */ ] },
+    { name: 'plan', fieldOptions: { label: 'Plan' }, children: [ /* ... */ ] },
+  ],
+}
+```
+
+A non-empty `choice` or a `maxOccurs > 1` set alongside `wizard` is inert (pages still come from `children` only) and triggers a one-time `console.warn` naming the node's path and the ignored property. A choice of wizards, or a repeated wizard, is expressed by nesting `wizard: true` nodes inside a plain `choice` branch or an array item's children instead — both fall out of the existing choice/array mechanics with no special handling.
+
+The engine delivers step state and navigation (`currentStepIndex`, `pages`, `isFirst`, `isLast`, `isValidating`, `next()`, `prev()`, `gotoStep()`) purely as slot props on the `-wizard` / `-wizard-page` slot family — see [Wizard container and page slots](/reference/dynamic-form-template#wizard-container-and-page-slots).
+
+::: warning
+Wizard page slots must gate visibility with `v-show`, never `v-if`. All pages render continuously; the template decides what's visible. A `v-if` unmounts the page's fields, which clears their values on navigation and deregisters their validation — so a later submit would send that page's data unvalidated. `v-if` is acceptable only for a field-less page (e.g. a static summary/review page with nothing to lose).
+:::
+
+Read from static metadata only: `wizard` is excluded from `ComputedPropsFieldType`, so a `computedProps` function cannot flip a node's shape mid-form.
+
 ### `attributes`
 
 Type: `FieldMetadata[]`
