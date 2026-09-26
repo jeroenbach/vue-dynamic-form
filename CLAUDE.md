@@ -2,9 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Remembering Instructions
+
+Whenever the user says **"remember this"** (or similar) about an instruction or preference, add it to this CLAUDE.md file in the appropriate section (create one if needed). Keep CLAUDE.md as one single file, do not split it into partials. Whether to commit that edit follows the same rule as everything else: see "Interactive vs Autonomous Sessions" below, in an interactive session, make the edit and stop there; the user commits it themselves.
+
+## Writing Style
+
+- **Never use em dashes (—)** in any text you write: content, copy, descriptions, PR text, etc. Rephrase the sentence or use a comma, colon, or parentheses instead.
+
+## Code Comments
+
+- **Never reference specs, features, stories, or process artifacts in code comments or test names**: no FEAT-001, ST-05, AC4, ADR-2, "QA plan", "feature spec", "finding 3", "decision 4", etc. Specs are process artifacts; the code must stand on its own for a reader who has never seen them.
+- Write sensible comments: short and powerful. Let function and variable names carry the explanation; a comment only earns its place when it states a constraint or rationale the code itself cannot show.
+
+## Interactive vs Autonomous Sessions
+
+- **Working together (interactive session)**: only make the changes, do **not** commit or push; the user handles git themselves.
+- **Working autonomously (e.g. GitHub Actions, scheduled agents, or when explicitly asked to finish a task end-to-end)**: follow the full "Before Every Push" workflow below, including commits, screenshots, and the PR.
+
+## Spec-Driven Development
+
+Larger work runs through the spec workflow in `specs/` (see `specs/README.md` for the full lifecycle): epics, features, and stories with approval gates that only Jeroen may pass. The `/spec:*` commands in `.claude/commands/spec/` drive it, the agents live in `.claude/agents/`, and `specs/components.md` is the living inventory of the library's public surface (keep it up to date on every public-surface change). Bug fixes and trivial changes can use `/spec:quick`.
+
 ## Before Every Push
 
-Always run these steps before committing or pushing changes:
+Always run these steps before committing or pushing changes.
+
+Before running any of them, **verify `node_modules` is actually installed** (e.g. `ls node_modules | head`), don't assume it is. Fresh/sandboxed checkouts can start with an empty `node_modules`, and tools like bare `npx eslint`/`npx vue-tsc` will then fail with confusing module-not-found errors that look unrelated to the real cause. If it's missing or empty, run `pnpm install` first (it also installs the `docs/` and `playgrounds/storybook/` sub-projects).
+
+When a step fails, fix the error and re-run **only that step**, don't restart the whole list from the top (the earlier steps already passed). If the failing tool supports scoping, narrow the re-run to just the affected area first (e.g. `npx eslint --fix <file>`, `cd packages/core && npx vitest run <test-file>`), then run the full step once more to confirm it's clean before moving on.
 
 1. **Run all pipeline checks** — `pnpm ci` (runs tests, lint, and typecheck together). Fix every error before pushing.
 2. **Keep coverage green** — run `pnpm -r ci:test:coverage` and verify that statement/branch/function coverage does not drop compared to the baseline. The codecov integration tracks this on every PR.
@@ -158,6 +184,16 @@ Time-sensitive tests must run with `TZ=Europe/Amsterdam` (set in CI scripts, not
 
 ESLint uses `@antfu/eslint-config` with `formatters: true`, `stylistic: true`, `typescript: true`, `vue: true`. Semicolons are required (`style/semi: error`). The docs directory disables `vue/attribute-hyphenation`.
 
+Additional conventions:
+
+- **Vue: always use camelCase, never kebab-case** (component names, props, event names, ...).
+- **Every user-runnable script gets a `package.json` script.** Whenever you add a script meant to be run by the user (e.g. anything under a `scripts/` folder), add a matching entry to the `scripts` section of `package.json` so it can be run via `pnpm <name>` instead of a long raw command. Name it clearly.
+
+## Git
+
+- **Commit message wrapping: no hard line breaks mid-sentence.** Write each paragraph and each bullet as one continuous line, so the editor's word-wrap handles the display. Only insert a real newline where a new paragraph, bullet, or the subject/body separation actually starts. Never hard-wrap a sentence across multiple lines at a fixed column, because those breaks show up as awkward mid-sentence line breaks when pasted into the VS Code commit box.
+- **Commit messages and changesets lead with the business purpose, not the mechanism.** Open with why this matters, the problem it solves for whoever hits it (end user filling in a form, template author, library consumer), before any API detail. Technical detail (which flag, which slot, internal data structures, why a particular approach was chosen) can follow after that, only if it matters for correct usage, and should stay brief. This applies especially to changesets: they become the CHANGELOG entries a library consumer reads, so write them for someone skimming release notes, not as an internal implementation summary. The number of changesets is decoupled from the number of commits or branches: a changeset is one CHANGELOG entry, so the right unit is one per cohesive user-facing capability, not one per commit and not mechanically one per branch. Prefer a single changeset for a feature that ships as one thing (use sub-bullets inside it if it has distinct sub-capabilities worth finding), rather than several changesets that describe the same feature from different angles, those read as fragmented entries under one release. Conversely, do not merge genuinely unrelated changes that happen to share a branch into one entry. **If the business purpose isn't already documented and can't be inferred with confidence, ask Jeroen rather than guessing at one.** For spec-driven work, it's usually already written down: pull it from the feature's `Problem & goal` or the story's `User story` section instead of re-deriving it. When starting a new feature spec, the product-owner should make sure `Problem & goal` actually captures the business purpose (the why, for whom), since it gets reused verbatim later for commit messages and changesets.
+
 ## Release Process
 
 Uses [Changesets](https://github.com/changesets/changesets). Before merging a PR:
@@ -172,4 +208,4 @@ Commit the generated `.changeset/*.md` file with the branch. When ready to relea
 pnpm changeset version   # bumps version, updates CHANGELOG.md, deletes .changeset files
 ```
 
-PRs should be **merged** (not squash-merged) to preserve the commit history that Changesets depends on.
+The release PR that `pnpm changeset version` generates (the one that bumps versions and updates `CHANGELOG.md`) must be **merged**, not squash-merged. Squashing it has broken npm publishing before. Regular feature/fix PRs don't have this constraint: squash or merge is a style choice, since the changeset `.md` files land on `main` identically either way.

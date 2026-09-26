@@ -197,9 +197,14 @@ const computedField = computed(() => {
     { ...field.value, path: path.value } as ComputedPropsFieldOf<FieldMetadata>,
   );
 
-  // Always restore our calculated path — computedProps may read it but must not override it.
+  // Always restore our calculated path plus the static choice-selection flags, then the hash —
+  // computedProps may read these but must not override them. Both flags are excluded from
+  // ComputedPropsFieldType, so this only defends against an `as any` cast; restoring them keeps
+  // the hash (and thus the render mode) stable if one is mutated that way.
   const _internalMetadata = _computedField as InternalMetadata;
   _internalMetadata.path = path.value;
+  _internalMetadata.explicitChoiceSelection = field.value?.explicitChoiceSelection;
+  _internalMetadata.preserveOnSwitch = field.value?.preserveOnSwitch;
   _internalMetadata._hash = hashField(_internalMetadata);
 
   return _internalMetadata;
@@ -482,7 +487,7 @@ function updateArrayValue(_value: unknown) {
   <template v-else>
     <component
       :is="template"
-      :type="partOfArrayField ? `${computedField.type}-array-item` : computedField.type"
+      :type="branchKey !== undefined ? `${computedField.type}-choice-array-item` : partOfArrayField ? `${computedField.type}-array-item` : computedField.type"
       :field-metadata="computedField"
       :field-context
       :slot-props
@@ -494,6 +499,7 @@ function updateArrayValue(_value: unknown) {
       :can-remove-items="_canRemoveItems"
       :add-item
       :remove-item
+      :branch-key="branchKey"
     >
       <template #default="slotProps">
         <template v-if="isParent">

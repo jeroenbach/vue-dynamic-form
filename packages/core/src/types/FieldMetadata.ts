@@ -33,6 +33,28 @@ export type FieldMetadata<
    */
   autoAddMinOccurs?: boolean
   /**
+   * Opt-in, non-XSD cap on the total number of raw occurrences a `choice` branch may reach
+   * across the whole choice, independent of the occurrence batching `maxOccurs` drives. Only
+   * meaningful on a node that is itself an entry inside a `choice` array.
+   *
+   * Plain `<xs:choice>` has no equivalent: XSD only bounds how many times the choice itself
+   * repeats and how many items a single repetition of a branch may hold, never a branch's
+   * running total across the whole choice. Use this when a per-kind ceiling ("at most 3 of this
+   * kind") is a real requirement layered on top of correct XSD batching.
+   *
+   * - With `explicitChoiceSelection: true`, the branch's add affordance disables once its own
+   *   raw item count reaches this value, regardless of the shared choice budget.
+   * - Without it (auto mode), the branch's rendered array headroom is capped at this value even
+   *   when the shared choice budget would otherwise allow more.
+   *
+   * If set lower than `maxOccurs`, the cap simply limits the effective per-iteration reach;
+   * this is not validated at runtime, consistent with other metadata combinations.
+   *
+   * Read from static metadata only: it is excluded from `ComputedPropsFieldType`, so a
+   * `computedProps` function cannot flip occurrence capacity mid-form.
+   */
+  maxOccursTotal?: number
+  /**
    * Simple restrictions to the data, these are available in XSD and can be applied easily.
    * For more advance validation use the validation property.
    */
@@ -121,6 +143,39 @@ export type FieldMetadata<
    *
    */
   choice?: FieldMetadata<ExtendedFieldTypes, ExtendedProperties>[]
+
+  /**
+   * Opt into selection-first rendering for a `choice` node. When true, no branch is shown until
+   * the template calls the `-choice` slot's (`-choice-array` for `maxOccurs > 1`)
+   * `addChoiceOccurrence(branchKey)`; the engine clears a
+   * deselected branch from the form values on switch. When false or omitted (the default), the
+   * current value-driven behaviour is unchanged: every branch renders and siblings disable once
+   * one holds a value.
+   *
+   * Has no effect on non-choice nodes. Read from static metadata only: it is excluded from
+   * `ComputedPropsFieldType`, so a `computedProps` function cannot flip it at runtime.
+   */
+  explicitChoiceSelection?: boolean
+
+  /**
+   * Opt into preserve-on-switch for a `maxOccurs: 1` explicit choice (only meaningful together
+   * with `explicitChoiceSelection: true`). When true, switching away from a branch (calling
+   * `addChoiceOccurrence` for a different branch) deep-clones that branch's current values into
+   * an ephemeral, instance-local stash before clearing it as usual; switching back to that branch
+   * restores the stashed values via `setFieldValue`. The stash is never written to the form
+   * `values`, exactly like the selection state itself.
+   *
+   * When false or omitted (the default), switching clears the branch with nothing preserved,
+   * matching the baseline clear-on-switch behaviour.
+   *
+   * Restored fields start with fresh touched/validation state (as if freshly re-entered), and no
+   * error renders immediately after restore even if a required field is still empty.
+   *
+   * Has no effect on non-choice nodes, on `maxOccurs > 1` explicit choices, or when
+   * `explicitChoiceSelection` is not set. Read from static metadata only: it is excluded from
+   * `ComputedPropsFieldType`, so a `computedProps` function cannot flip it at runtime.
+   */
+  preserveOnSwitch?: boolean
 
   /**
    * Attributes are additional metadata that can be attached to a field.
@@ -212,9 +267,17 @@ export type ComputedPropsFieldType<
       // Changing the maxOccurs changes the item in an array item, this is not allowed. MinOccurs is ok, as it only affects whether
       // the item is required.
       | 'maxOccurs'
+      // Same reasoning as maxOccurs: occurrence capacity must not flip mid-form.
+      | 'maxOccursTotal'
       // Not allowed to update the following values as they aren't read from the computedField, but the prop field
       | 'isComplexType'
       | 'computeOnChildValueChange'
+      // Static metadata only: flipping this via computedProps would change the render mode
+      // mid-form (initial flash / mount-unmount storm).
+      | 'explicitChoiceSelection'
+      // Static metadata only, for the same reason as explicitChoiceSelection: flipping this
+      // via computedProps would change stash/restore behaviour mid-form.
+      | 'preserveOnSwitch'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string
