@@ -161,9 +161,11 @@ type SlotsFromMetadata = {
   'default-array': (props: ArrayChoiceSlotProps) => any
 } & {
   // Fallback slot for components that are array items but don't have a dedicated slot.
+  // Also the final family fallback for repeatable-choice occurrences without any -choice-array-item slot.
   'default-array-item': (props: SlotProps) => any
 } & {
   // Fallback slot for components that are single (maxOccurs: 1) choice fields but don't have a dedicated slot.
+  // Also the final family fallback for repeatable choices without any -choice-array slot.
   'default-choice': (props: ChoiceSlotProps) => any
 } & {
   // Fallback slot for components that are repeatable (maxOccurs > 1) choice fields but don't have a dedicated slot.
@@ -228,11 +230,28 @@ const typeWithFallback = computed((): RegularSlotName => {
   // The -choice-array families must be checked before the plain -array families: a
   // "text-choice-array" also ends with "-array" (and "text-choice-array-item" with "-array-item"),
   // so the reversed order would wrongly resolve them to the array fallbacks.
+  //
+  // A repeatable-choice occurrence is an array item at heart (ChoiceArrayItemAttributes is a
+  // superset of ItemAttributes), so past its own dedicated tiers it falls back into the
+  // -array-item family: a template with a generic array-item card renders occurrences for free.
   if (type?.endsWith('-choice-array-item')) {
-    return slots['default-choice-array-item'] ? 'default-choice-array-item' : 'default';
+    if (slots['default-choice-array-item'])
+      return 'default-choice-array-item';
+    const arrayItemSlot = `${type.slice(0, -'-choice-array-item'.length)}-array-item` as RegularSlotName;
+    if (slots[arrayItemSlot])
+      return arrayItemSlot;
+    return slots['default-array-item'] ? 'default-array-item' : 'default';
   }
+  // A repeatable choice is still a choice (both families receive the same ChoiceAttributes), so
+  // past its own dedicated tiers it falls back into the -choice family; templates written before
+  // the -choice-array family existed keep rendering repeatable choices through their -choice slot.
   if (type?.endsWith('-choice-array')) {
-    return slots['default-choice-array'] ? 'default-choice-array' : 'default';
+    if (slots['default-choice-array'])
+      return 'default-choice-array';
+    const choiceSlot = `${type.slice(0, -'-choice-array'.length)}-choice` as RegularSlotName;
+    if (slots[choiceSlot])
+      return choiceSlot;
+    return slots['default-choice'] ? 'default-choice' : 'default';
   }
   if (type?.endsWith('-array')) {
     return slots['default-array'] ? 'default-array' : 'default';

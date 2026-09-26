@@ -12,7 +12,7 @@ export function deepCloneValue<T>(value: T): T {
     return value;
 
   if (value instanceof Date)
-    return new Date(value.getTime()) as T;
+    return new Date(value) as T;
 
   if (Array.isArray(value))
     return value.map(item => deepCloneValue(item)) as T;

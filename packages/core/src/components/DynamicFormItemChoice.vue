@@ -471,6 +471,18 @@ function branchIndexOf(branchKey: string): number {
   return field.value?.choice?.findIndex(child => child.name === branchKey) ?? -1;
 }
 
+// Max-occurs override for the single active branch in the maxOccurs:1 explicit case. There is no
+// shared cross-branch budget to contend for here (only one branch is ever active), so the only
+// extra ceiling is the branch's own opt-in maxOccursTotal. Read from static metadata rather than
+// the reactive `occurrences` computed so it does not change as the branch's value populates:
+// that keeps a restored branch's first render stable (no extra recompute-driven render), and
+// still applies the cap the auto-mode path applies through overrideChildMaxOccurrences.
+function branchMaxOccursOverride(branchKey: string): number | undefined {
+  if (_maxOccursOverride.value === 0)
+    return 0; // whole choice disabled
+  return branchByKey(branchKey)?.maxOccursTotal ?? _maxOccursOverride.value;
+}
+
 function branchByKey(branchKey: string): InternalMetadata | undefined {
   const index = branchIndexOf(branchKey);
   return index >= 0 ? (field.value?.choice?.[index] as InternalMetadata) : undefined;
@@ -500,6 +512,12 @@ function clearBranch(branchKey: string, options: { stash?: boolean } = {}) {
     // Proxy here, and structuredClone throws a DataCloneError on a Proxy, which would abort the
     // switch entirely (the previously selected branch could then never be deselected).
     stashedBranchValues.value[branchKey] = deepCloneValue(branchValueRefs[index]?.value ?? undefined);
+  }
+  else if (branchKey in stashedBranchValues.value) {
+    // A non-preserving clear (an explicit remove/deselect, not a switch-away) forgets any earlier
+    // stash for this branch, so re-selecting it later starts empty instead of resurrecting data
+    // the user has since discarded.
+    delete stashedBranchValues.value[branchKey];
   }
 
   if (branchPath) {
@@ -555,14 +573,19 @@ function addChoiceOccurrence(branchKey: string) {
     return;
   }
 
-  // maxOccurs: 1: mark a single branch active, clearing any previously active branch.
+  // maxOccurs: 1: mark a single branch active, clearing any other currently-active branch.
   if (explicitlySelectedBranch.value === branchKey)
     return; // idempotent: already selected
 
-  const previousBranch = explicitlySelectedBranch.value;
-  if (previousBranch && previousBranch !== branchKey) {
-    // Stash the deselected branch's values before clearing when preserveOnSwitch is on.
-    clearBranch(previousBranch, { stash: preserveOnSwitch });
+  // Clear every other active branch, derived from activeChoiceOccurrences rather than from
+  // explicitlySelectedBranch alone: a branch can be active purely because loaded values put a
+  // value in it (value-driven, never explicitly selected), and switching away from such a branch
+  // must still clear it, or a single-occurrence choice would end up with two branches active.
+  for (const occurrence of activeChoiceOccurrences.value) {
+    if (occurrence.branchKey !== branchKey) {
+      // Stash the deselected branch's values before clearing when preserveOnSwitch is on.
+      clearBranch(occurrence.branchKey, { stash: preserveOnSwitch });
+    }
   }
 
   // Restore any stash for the newly selected branch before it mounts.
@@ -571,21 +594,22 @@ function addChoiceOccurrence(branchKey: string) {
   explicitlySelectedBranch.value = branchKey;
 }
 
-/** Remove a previously added occurrence. index is required in maxOccurs > 1; ignored (optional) in maxOccurs:1 where it deselects the active branch. No-op for an unknown branchKey, an inactive branch, or (maxOccurs > 1) a missing/out-of-range index. */
+/** Remove a previously added occurrence. In maxOccurs > 1 the index selects which occurrence to remove; omitting it removes the last one, mirroring addChoiceOccurrence(branchKey) which appends with only a branchKey. In maxOccurs:1 the index is ignored and it deselects the active branch. No-op for an unknown branchKey, an inactive branch, an empty branch, or an out-of-range index. */
 function removeChoiceOccurrence(branchKey: string, index?: number) {
   const branchIdx = branchIndexOf(branchKey);
   if (branchIdx < 0)
     return;
 
   if (maxOccurs.value > 1) {
-    if (index === undefined)
-      return;
-
     const fieldsLength = branchFieldArrays[branchIdx]?.fields.value.length ?? 0;
-    if (index < 0 || index >= fieldsLength)
-      return; // out-of-range: no-op, no throw
 
-    branchFieldArrays[branchIdx]?.remove(index);
+    // Default to the last occurrence so a template can offer a plain "remove one of this branch"
+    // control symmetric with addChoiceOccurrence(branchKey), without tracking indices itself.
+    const targetIndex = index ?? fieldsLength - 1;
+    if (targetIndex < 0 || targetIndex >= fieldsLength)
+      return; // empty branch or out-of-range: no-op, no throw
+
+    branchFieldArrays[branchIdx]?.remove(targetIndex);
     return;
   }
 
@@ -695,6 +719,21 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
   return handler;
 }
 
+// Memoized per-branch add-item handlers, for the same render-stability reason as
+// occurrenceRemoveHandlers above. "Add" on an occurrence appends another occurrence of its own
+// branch, so a generic -array-item template reached through the fallback chain behaves like a
+// real array item: its addItem/canAddItems are the choice primitives scoped to that branch.
+// Keyed by branchKey only (not per occurrence), so the map stays bounded by the branch count.
+const branchAddHandlers = new Map<string, () => void>();
+function addItemHandlerFor(branchKey: string): () => void {
+  let handler = branchAddHandlers.get(branchKey);
+  if (!handler) {
+    handler = () => addChoiceOccurrence(branchKey);
+    branchAddHandlers.set(branchKey, handler);
+  }
+  return handler;
+}
+
 // #endregion
 </script>
 
@@ -744,7 +783,7 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
         :template
         :slot-props
         :min-occurs-override="_minOccursOverride"
-        :max-occurs-override="_maxOccursOverride"
+        :max-occurs-override="branchMaxOccursOverride(occurrence.branchKey)"
         :is-array-override="childrenAreArrays"
         part-of-choice-field
 
@@ -774,6 +813,8 @@ function removeItemHandlerFor(occurrence: ChoiceOccurrence): () => void {
         part-of-array-field
         part-of-choice-field
         :branch-key="occurrence.branchKey"
+        :can-add-items="canAddChoiceOccurrence(occurrence.branchKey)"
+        :add-item="addItemHandlerFor(occurrence.branchKey)"
         :can-remove-items="true"
         :remove-item="removeItemHandlerFor(occurrence)"
 

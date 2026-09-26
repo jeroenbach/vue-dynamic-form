@@ -22,7 +22,7 @@ For every type name `T` you declared in `defineMetadata()`, seven slots are avai
 | `#T-choice-array` | Outer container when this field is a repeatable (`maxOccurs > 1`) choice |
 | `#T-choice-array-item` | Each individual occurrence of a repeatable explicit choice |
 
-All slots are optional. When a slot is missing, the library walks a two-level fallback chain until it finds one you've defined:
+All slots are optional. When a slot is missing, the library walks a fallback chain until it finds one you've defined:
 
 ```
 #text                   ──► #default
@@ -30,15 +30,17 @@ All slots are optional. When a slot is missing, the library walks a two-level fa
 #text-array             ──► #default-array             ──► #default
 #text-array-item        ──► #default-array-item        ──► #default
 #text-choice            ──► #default-choice            ──► #default
-#text-choice-array      ──► #default-choice-array      ──► #default
-#text-choice-array-item ──► #default-choice-array-item ──► #default
+#text-choice-array      ──► #default-choice-array      ──► #text-choice ──► #default-choice ──► #default
+#text-choice-array-item ──► #default-choice-array-item ──► #text-array-item ──► #default-array-item ──► #default
 ```
+
+The two `-choice-array` families degrade into a related family before reaching `#default`. A repeatable choice is still a choice (both families receive the same slot props), so without any `-choice-array` slot it renders through your `-choice` slots. A repeatable-choice occurrence behaves like an array item (its slot props are a superset of the array-item props), so without any `-choice-array-item` slot it renders through your `-array-item` slots. Define the dedicated slots only when repeatable choices need their own layout.
 
 This means you can define just `#default` and `#default-input` to handle every field type, then progressively opt into more specific slots as needed.
 
 ## Slot Props — Regular Slots
 
-`#default`, `#default-input`, `#default-array-item`, and all named `#T`, `#T-input`, `#T-array-item` slots receive:
+`#default`, `#default-input`, `#default-array-item`, `#default-choice-array-item`, and all named `#T`, `#T-input`, `#T-array-item`, `#T-choice-array-item` slots receive:
 
 ### `fieldMetadata`
 
@@ -103,7 +105,7 @@ The zero-based position of this field within its parent collection:
 
 Type: `boolean`
 
-`true` when the array can accept another occurrence (current count is below `maxOccurs`). Useful for showing or hiding an "Add" button.
+`true` when the array can accept another occurrence (current count is below `maxOccurs`). Useful for showing or hiding an "Add" button. In a repeatable-choice occurrence slot it reflects `canAddChoiceOccurrence` for that occurrence's branch (the shared choice budget).
 
 ### `canRemoveItems`
 
@@ -115,13 +117,19 @@ Type: `boolean`
 
 Type: `() => void`
 
-Appends a new occurrence to the array. Only meaningful when `canAddItems` is `true`.
+Appends a new occurrence to the array. Only meaningful when `canAddItems` is `true`. In a repeatable-choice occurrence slot it appends another occurrence of that occurrence's own branch.
 
 ### `removeItem()`
 
 Type: `() => void`
 
-Removes the current occurrence from the array. Only meaningful when `canRemoveItems` is `true`.
+Removes the current occurrence from the array. Only meaningful when `canRemoveItems` is `true`. In a repeatable-choice occurrence slot it removes that occurrence from its branch.
+
+### `branchKey`
+
+Type: `string`
+
+Only on the `#T-choice-array-item` / `#default-choice-array-item` slots: the `name` of the choice branch this occurrence belongs to. Useful for a "kind" badge when occurrences of different branches render in one list.
 
 ### `slotProps`
 
@@ -142,8 +150,20 @@ Extra data passed down from the parent slot via `<slot :my-prop="value" />`. Acc
 
 All other props (`required`, `disabled`, `canAddItems`, `canRemoveItems`, `addItem`, `removeItem`, `slotProps`) are the same.
 
+### Choice-Only Props
+
+The choice container slots (`#T-choice`, `#default-choice`, `#T-choice-array`, `#default-choice-array`) additionally receive the explicit-selection primitives. They are mainly relevant when the choice sets `explicitChoiceSelection: true` (see [Select first, then fill in](/examples/choices#select-first-then-fill-in)):
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `addChoiceOccurrence` | `(branchKey: string) => void` | Marks a branch active (`maxOccurs: 1`) or adds one occurrence of it (`maxOccurs > 1`). No-op when `canAddChoiceOccurrence(branchKey)` is `false`. |
+| `removeChoiceOccurrence` | `(branchKey: string, index?: number) => void` | Removes an occurrence. `index` is required for a repeatable choice; for `maxOccurs: 1` it is ignored and the active branch is deselected. |
+| `canAddChoiceOccurrence` | `(branchKey: string) => boolean` | `false` when the branch's own budget or the choice's shared occurrence budget is exhausted, or the choice is disabled. |
+| `activeChoiceOccurrences` | `{ branchKey: string, index: number }[]` | Every currently active occurrence, grouped by branch declaration order, then by index within the branch. |
+| `usedChoiceOccurrences` | `number` | Choice slots currently consumed, in choice-occurrence units (a repeatable branch's items are batched by its own `maxOccurs`), the same unit `xsd_choiceMinOccurs` counts in. |
+
 ::: tip
-`#T-array-item` / `#default-array-item` and `#T-choice-array-item` / `#default-choice-array-item` are **not** container slots — they render each individual occurrence, so they receive the full `fieldContext` including `value`, `handleChange`, `errors`, etc. The choice-array-item slots additionally receive `branchKey`, the choice branch the occurrence belongs to.
+`#T-array-item` / `#default-array-item` and `#T-choice-array-item` / `#default-choice-array-item` are **not** container slots — they render each individual occurrence, so they receive the full `fieldContext` including `value`, `handleChange`, `errors`, etc. The choice-array-item slots additionally receive `branchKey`, the choice branch the occurrence belongs to, and their `addItem` / `canAddItems` / `removeItem` operate on that branch's occurrences.
 :::
 
 ## The `<slot />` Inside Your Slot Templates

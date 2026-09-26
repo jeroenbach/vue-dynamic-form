@@ -110,6 +110,8 @@ Pass it to `DynamicFormTemplate` via `:metadata-configuration`.
 | `#default-choice-array` | Any `#T-choice-array` slot that is not defined |
 | `#default-choice-array-item` | Any `#T-choice-array-item` slot that is not defined |
 
+When a `default-*` slot is missing too, resolution keeps walking: the `-choice-array` families degrade into the `-choice` and `-array-item` families before landing on `#default`. See the full fallback chain in [DynamicFormTemplate](/reference/dynamic-form-template#slots-overview).
+
 ::: tip Naming advice
 Avoid names ending in `-input`, `-array`, `-array-item`, `-choice`, `-choice-array`, or `-choice-array-item` — they are valid but will generate ambiguous slot names. For example, declaring `my-array` as a type produces `#my-array` (wrapper) and `#my-array-array` (array container), which is hard to distinguish from the generated slots.
 :::

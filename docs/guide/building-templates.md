@@ -59,10 +59,10 @@ The library appends a suffix to the field type to determine which slot to call, 
 | Array container | `{type}-array` (e.g. `text-array`) | `default-array` → `default` |
 | Array item | `{type}-array-item` (e.g. `text-array-item`) | `default-array-item` → `default` |
 | Choice container (`maxOccurs: 1`) | `{type}-choice` (e.g. `select-choice`) | `default-choice` → `default` |
-| Choice container (`maxOccurs > 1`) | `{type}-choice-array` (e.g. `select-choice-array`) | `default-choice-array` → `default` |
-| Choice occurrence item | `{type}-choice-array-item` (e.g. `text-choice-array-item`) | `default-choice-array-item` → `default` |
+| Choice container (`maxOccurs > 1`) | `{type}-choice-array` (e.g. `select-choice-array`) | `default-choice-array` → `{type}-choice` → `default-choice` → `default` |
+| Choice occurrence item | `{type}-choice-array-item` (e.g. `text-choice-array-item`) | `default-choice-array-item` → `{type}-array-item` → `default-array-item` → `default` |
 
-You only need to define slots for the cases that need special handling. Everything else falls through automatically.
+You only need to define slots for the cases that need special handling. Everything else falls through automatically. Note that the two `-choice-array` families degrade into a related family before reaching `default`: a repeatable choice without its own slots renders through the `-choice` slots (same slot props), and a repeatable-choice occurrence renders through the `-array-item` slots (its props are a superset of theirs).
 
 ## Adding a Specific Input Control
 
@@ -122,7 +122,7 @@ Array and choice containers have their own fallback slots. Both receive a limite
 
 Use a type-specific slot (e.g. `#text-array`) to override just that type's container without affecting others.
 
-**`#default-choice`** — fallback outer container for any single (`maxOccurs: 1`) choice field, renders once and wraps all branches (a repeatable choice renders through `#default-choice-array` instead, with each explicit occurrence going through `#default-choice-array-item`):
+**`#default-choice`** — fallback outer container for any single (`maxOccurs: 1`) choice field, renders once and wraps all branches (a repeatable choice renders through `#default-choice-array` when defined, with each explicit occurrence going through `#default-choice-array-item`; without those slots it falls back here and to the `-array-item` slots respectively):
 
 ```vue
 <template #default-choice="{ fieldContext: { label, errorMessage }, required }">

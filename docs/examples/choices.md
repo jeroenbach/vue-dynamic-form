@@ -23,7 +23,7 @@ The `choice` property replaces `children` on the heading. Each entry becomes a s
 
 Everything above is the automatic mode: whichever branch the user starts typing into is the one that counts, and siblings disable themselves once that happens. Some forms need the opposite flow: show a selector first ("what kind of data do you want to enter?") and only reveal that branch's fields once the user has explicitly picked one, before anything has been filled in.
 
-Set `explicitChoiceSelection: true` on the `choice` field to opt into this mode. With the flag absent (or `false`), nothing here changes: the page above still applies exactly as written. With the flag on, no branch renders until your template calls `addChoiceOccurrence`, and the choice's slot receives four extra primitives to drive the interaction. A `maxOccurs: 1` choice renders through the `-choice` slot family; a repeatable (`maxOccurs > 1`) choice renders through `-choice-array`. Both receive the same four primitives:
+Set `explicitChoiceSelection: true` on the `choice` field to opt into this mode. With the flag absent (or `false`), nothing here changes: the page above still applies exactly as written. With the flag on, no branch renders until your template calls `addChoiceOccurrence`, and the choice's slot receives a set of extra primitives to drive the interaction. A `maxOccurs: 1` choice renders through the `-choice` slot family; a repeatable (`maxOccurs > 1`) choice renders through `-choice-array` (falling back to the `-choice` slots when no `-choice-array` slot is defined). Both receive the same primitives:
 
 | Slot prop | Signature | Purpose |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ Set `explicitChoiceSelection: true` on the `choice` field to opt into this mode.
 
 `branchKey` is always the branch's `name`, never its position, so your template code reads against metadata names rather than array indices.
 
-The engine ships no widget for this: cards, a `<select>`, per-branch "Add" buttons, are all template-author code built on these four primitives. `ChoiceSectionCard.vue` in this library's own docs (used by the [Client Onboarding Wizard example](/examples/advanced)) is one card-based worked example for the single case, and `ChoiceArraySectionCard.vue` its per-branch-Add-buttons counterpart for the repeatable case; a `<select>` that calls `addChoiceOccurrence` on change works exactly the same way underneath.
+The engine ships no widget for this: cards, a `<select>`, per-branch "Add" buttons, are all template-author code built on these primitives. `ChoiceSectionCard.vue` in this library's own docs (used by the [Client Onboarding Wizard example](/examples/advanced)) is one card-based worked example for the single case, and `ChoiceArraySectionCard.vue` its per-branch-Add-buttons counterpart for the repeatable case; a `<select>` that calls `addChoiceOccurrence` on change works exactly the same way underneath.
 
 ### Pick exactly one (`maxOccurs: 1`)
 
@@ -130,7 +130,7 @@ const metadata = [
 ];
 ```
 
-A repeatable choice renders through the `-choice-array` slot (here using its `default-choice-array` fallback), which renders the per-branch "Add" buttons and a count; each active occurrence's own fields render automatically through the `-choice-array-item` slot (here using its `default-choice-array-item` fallback), which also receives `branchKey` and a `removeItem` wired to `removeChoiceOccurrence`:
+A repeatable choice renders through the `-choice-array` slot (here using its `default-choice-array` fallback), which renders the per-branch "Add" buttons and a count; each active occurrence's own fields render automatically through the `-choice-array-item` slot (here using its `default-choice-array-item` fallback; without any `-choice-array-item` slot the occurrence falls back to the `-array-item` slots), which also receives `branchKey`, a `removeItem` wired to `removeChoiceOccurrence`, and an `addItem` / `canAddItems` pair that adds another occurrence of the same branch:
 
 ```vue
 <template #default-choice-array="{ fieldMetadata, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences, fieldContext: { errorMessage } }">

@@ -83,7 +83,7 @@ const metadata = defineMetadata<
           canAddChoiceOccurrence through the real public slot-prop contract, the same way
           addItem/removeItem are already tested through #default-array.
         -->
-        <span :data-testid="`${fieldMetadata.path}-used-choice-occurrences`">{{ usedChoiceOccurrences }}</span>
+        <div>Used choice occurrences: <span :data-testid="`${fieldMetadata.path}-used-choice-occurrences`">{{ usedChoiceOccurrences }}</span></div>
         <div v-if="fieldMetadata.choice?.length" class="flex gap-2 flex-wrap">
           <button
             v-for="branch in fieldMetadata.choice"
@@ -129,7 +129,7 @@ const metadata = defineMetadata<
           <span v-if="required && !showOptionalInsteadOfRequired" class="text-red-500 dark:text-rose-400">*</span>
           <span v-if="!required && showOptionalInsteadOfRequired" class="text-sm text-gray-400">(optional)</span>
         </span>
-        <span :data-testid="`${fieldMetadata.path}-used-choice-occurrences`">{{ usedChoiceOccurrences }}</span>
+        <div>Used choice occurrences: <span :data-testid="`${fieldMetadata.path}-used-choice-occurrences`">{{ usedChoiceOccurrences }}</span></div>
         <div v-if="fieldMetadata.choice?.length" class="flex gap-2 flex-wrap">
           <button
             v-for="branch in fieldMetadata.choice"
@@ -163,17 +163,19 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #default-choice-array-item="{ fieldMetadata, slotProps, branchKey, removeItem }">
+    <template #default-choice-array-item="{ fieldMetadata, slotProps, branchKey, canAddItems, addItem, removeItem }">
       <!--
         Repeatable explicit-choice occurrence test harness: renders the branchKey slot
         prop directly (as a "kind badge") so tests can assert it arrived as a real slot prop
-        rather than being inferred from the path, plus a remove button wired to removeItem.
-        Forwards the default slot for the occurrence's own fields, mirroring #default's own
-        remove-button pattern.
+        rather than being inferred from the path, plus add/remove buttons wired to
+        addItem/removeItem (addItem appends another occurrence of this occurrence's own branch,
+        so the occurrence behaves like a regular array item). Forwards the default slot for the
+        occurrence's own fields, mirroring #default's own remove-button pattern.
       -->
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2 border-s-2 ps-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <div class="flex gap-2 items-center">
           <span :data-testid="`${fieldMetadata.path}-kind-badge`">{{ branchKey }}</span>
+          <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-choice-button`" @click="addItem" />
           <IconButton icon="minus" tabindex="-1" color="red" :data-testid="`${fieldMetadata.path}-remove-choice-button`" @click="removeItem" />
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

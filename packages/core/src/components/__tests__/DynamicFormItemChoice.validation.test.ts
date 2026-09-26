@@ -610,6 +610,37 @@ describe('component DynamicFormItemChoice', () => {
       expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
     });
 
+    it('removing a branch that was active purely via loaded values re-triggers the choice-required error', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+              { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+            ],
+          }],
+          settings: { messages: { choiceMinOccurs: 'Pick at least {min} in {field}' } },
+          initialValues: { pick: { selfServe: 'hello' } },
+        },
+      });
+      await flushPromises();
+
+      // A loaded branch already satisfies the required choice.
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+
+      await wrapper.find('[data-testid="pick.selfServe-remove-choice-button"]').trigger('click');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
+    });
+
     it('the selected branch\'s own required fields still validate independently of the choice-level error', async () => {
       const wrapper = mount(TestForm, {
         attachTo: document.body,

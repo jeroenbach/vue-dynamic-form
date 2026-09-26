@@ -201,7 +201,7 @@ The rendering splits the same way as arrays:
 1. **`#default-choice`** (or `#<type>-choice`, e.g. `#contact-choice`) — rendered once; the outer wrapper.
 2. **`#default`** (or `#<type>`, e.g. `#contact`) — rendered once per branch; the `disabled` prop signals locked branches.
 
-A choice with `maxOccurs > 1` renders its outer wrapper through `#default-choice-array` (or `#<type>-choice-array`) instead, so a template can lay out "pick exactly one" and "add several" choices independently.
+A choice with `maxOccurs > 1` renders its outer wrapper through `#default-choice-array` (or `#<type>-choice-array`) instead, so a template can lay out "pick exactly one" and "add several" choices independently. When no `-choice-array` slot is defined, a repeatable choice falls back to the `-choice` slots, which receive the same slot props.
 
 ```vue
 <!-- Outer wrapper -->

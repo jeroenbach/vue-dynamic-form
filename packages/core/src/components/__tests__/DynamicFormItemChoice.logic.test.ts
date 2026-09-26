@@ -1618,6 +1618,64 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
     });
 
+    // The occurrence's own slot also receives addItem/canAddItems (wired to the choice
+    // primitives, scoped to that occurrence's branch), so an occurrence behaves like a regular
+    // array item, including through the -array-item fallback slots.
+    describe('occurrence-level addItem/canAddItems', () => {
+      it('addItem on an occurrence appends another occurrence of that occurrence\'s own branch', async () => {
+        const wrapper = mountExplicitRepeatableChoice();
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[id="pick.apiEndpoint[1]"]').exists()).toBe(true);
+        expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([
+          { branchKey: 'apiEndpoint', index: 0 },
+          { branchKey: 'apiEndpoint', index: 1 },
+        ]);
+        expect(formValues(wrapper).pick.crmExport ?? []).toEqual([]);
+      });
+
+      it('canAddItems turns false (add button hides) when the branch\'s budget is exhausted', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              maxOccurs: 2,
+              fieldOptions: { label: 'Pick Several' },
+              choice: [
+                { name: 'apiEndpoint', maxOccurs: 1, fieldOptions: { label: 'Api Endpoint' } },
+                { name: 'crmExport', maxOccurs: 1, fieldOptions: { label: 'Crm Export' } },
+              ],
+            }],
+          },
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="pick.apiEndpoint[0]-add-choice-button"]').exists()).toBe(true);
+
+        // Second occurrence consumes the last shared slot: every add affordance disappears.
+        await wrapper.find('[data-testid="pick.apiEndpoint[0]-add-choice-button"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="pick.apiEndpoint[0]-add-choice-button"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="pick.apiEndpoint[1]-add-choice-button"]').exists()).toBe(false);
+
+        // Removing one occurrence frees the slot and the affordance returns.
+        await wrapper.find('[data-testid="pick.apiEndpoint[1]-remove-choice-button"]').trigger('click');
+        await flushPromises();
+        expect(wrapper.find('[data-testid="pick.apiEndpoint[0]-add-choice-button"]').exists()).toBe(true);
+      });
+    });
+
     describe('canAddChoiceOccurrence follows XSD batching: a branch\'s own maxOccurs is the slot size, not an independent total cap', () => {
       // choice.maxOccurs=5, branch maxOccurs 1 and 2: every 2 "pair" items consume 1 of the 5
       // shared slots, so up to 10 "pair" items fit when "single" is empty.
@@ -1776,6 +1834,35 @@ describe('component DynamicFormItemChoice - logic', () => {
       expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
     });
 
+    it('removeChoiceOccurrence(branchKey) with no index removes the last occurrence, symmetric with addChoiceOccurrence(branchKey)', async () => {
+      const wrapper = mountExplicitRepeatableChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[id="pick.apiEndpoint[0]"]').setValue('first');
+      await flushPromises();
+      await wrapper.find('[id="pick.apiEndpoint[1]"]').setValue('second');
+      await flushPromises();
+
+      // The slot-level "Remove apiEndpoint" button passes no index; it must drop the last occurrence.
+      await wrapper.find('[data-testid="pick.apiEndpoint-remove-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(formValues(wrapper).pick.apiEndpoint).toEqual(['first']);
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
+
+      await wrapper.find('[data-testid="pick.apiEndpoint-remove-choice-button"]').trigger('click');
+      await flushPromises();
+
+      // Removing the final occurrence empties the branch; a further click is a no-op, no throw.
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([]);
+      expect(() => wrapper.find('[data-testid="pick.apiEndpoint-remove-choice-button"]').trigger('click')).not.toThrow();
+    });
+
     it('activeChoiceOccurrences is grouped by branch declaration order, then index within branch', async () => {
       const wrapper = mountExplicitRepeatableChoice();
       await flushPromises();
@@ -1932,6 +2019,314 @@ describe('component DynamicFormItemChoice - logic', () => {
         expect(formValues(wrapper).pick.apiEndpoint).toHaveLength(1);
         expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'apiEndpoint', index: 0 }]);
       });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Loaded initialValues: a branch is active purely because saved data put a
+  // value in it, without addChoiceOccurrence ever being called.
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('explicit selection — loaded initialValues (value-driven active branch)', () => {
+    function singleChoiceMetadata() {
+      return [{
+        name: 'pick',
+        explicitChoiceSelection: true,
+        fieldOptions: { label: 'Pick One' },
+        choice: [
+          { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+          { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+        ],
+      }];
+    }
+
+    it('loading a value activates only that branch; the sibling stays inactive', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata: singleChoiceMetadata(), initialValues: { pick: { selfServe: 'hello' } } },
+      });
+      await flushPromises();
+
+      expect(wrapper.find('[id="pick.selfServe"]').exists()).toBe(true);
+      expect(wrapper.find('[id="pick.guidedRollout"]').exists()).toBe(false);
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'selfServe', index: 0 }]);
+    });
+
+    it('switching away from a loaded branch clears it and leaves only the new branch active', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata: singleChoiceMetadata(), initialValues: { pick: { selfServe: 'hello' } } },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      // A single-occurrence choice is mutually exclusive: the loaded branch must be cleared.
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'guidedRollout', index: 0 }]);
+      expect(wrapper.find('[id="pick.selfServe"]').exists()).toBe(false);
+      expect(wrapper.find('[id="pick.guidedRollout"]').exists()).toBe(true);
+      expect(formValues(wrapper).pick.selfServe).toBeUndefined();
+    });
+
+    it('removing a loaded (value-driven-only) branch clears it and leaves nothing active', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata: singleChoiceMetadata(), initialValues: { pick: { selfServe: 'hello' } } },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-remove-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([]);
+      expect(wrapper.find('[id="pick.selfServe"]').exists()).toBe(false);
+      expect(formValues(wrapper).pick?.selfServe).toBeUndefined();
+    });
+
+    it('switching away then back to a loaded branch leaves only the loaded branch active (empty, without restore)', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata: singleChoiceMetadata(), initialValues: { pick: { selfServe: 'hello' } } },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      // Only selfServe active; its value was cleared on the first switch and (no preserveOnSwitch) not restored.
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'selfServe', index: 0 }]);
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('');
+      expect(formValues(wrapper).pick.guidedRollout).toBeUndefined();
+    });
+
+    it('invalid loaded data (two branches populated in a maxOccurs:1 choice) renders both and self-heals on the first selection', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata: singleChoiceMetadata(), initialValues: { pick: { selfServe: 'hello', guidedRollout: 'world' } } },
+      });
+      await flushPromises();
+
+      // A maxOccurs:1 choice can legitimately hold only one branch, but schema-invalid input is
+      // reflected as-is rather than rejected, matching auto mode: both loaded branches render and
+      // both read active. There is no choice-level maximum rule, so no error is raised here.
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([
+        { branchKey: 'selfServe', index: 0 },
+        { branchKey: 'guidedRollout', index: 0 },
+      ]);
+      expect(wrapper.find('[id="pick.selfServe"]').exists()).toBe(true);
+      expect(wrapper.find('[id="pick.guidedRollout"]').exists()).toBe(true);
+
+      // The first explicit selection self-heals the mutually-exclusive choice: picking one branch
+      // clears every other active branch, so the form converges to a single valid selection while
+      // keeping the picked branch's own loaded value intact.
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'selfServe', index: 0 }]);
+      expect(wrapper.find('[id="pick.guidedRollout"]').exists()).toBe(false);
+      expect(formValues(wrapper).pick.guidedRollout).toBeUndefined();
+      expect(formValues(wrapper).pick.selfServe).toBe('hello');
+    });
+
+    it('maxOccurs > 1: loaded occurrences across branches are reflected in activeChoiceOccurrences', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            maxOccurs: 5,
+            fieldOptions: { label: 'Pick Several' },
+            choice: [
+              { name: 'apiEndpoint', maxOccurs: 1, fieldOptions: { label: 'Api Endpoint' } },
+              { name: 'crmExport', maxOccurs: 1, fieldOptions: { label: 'Crm Export' } },
+            ],
+          }],
+          initialValues: { pick: { apiEndpoint: ['a', 'b'], crmExport: ['c'] } },
+        },
+      });
+      await flushPromises();
+
+      // Grouped by branch declaration order, then by index within the branch.
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([
+        { branchKey: 'apiEndpoint', index: 0 },
+        { branchKey: 'apiEndpoint', index: 1 },
+        { branchKey: 'crmExport', index: 0 },
+      ]);
+    });
+
+    it('choice nested in an array: each loaded occurrence activates its own branch independently', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'projectContacts',
+            maxOccurs: 2,
+            minOccurs: 0,
+            autoAddMinOccurs: false,
+            fieldOptions: { label: 'Project Contacts' },
+            children: [{
+              name: 'method',
+              explicitChoiceSelection: true,
+              minOccurs: 0,
+              fieldOptions: { label: 'Method' },
+              choice: [
+                { name: 'email', fieldOptions: { label: 'Email' } },
+                { name: 'phone', fieldOptions: { label: 'Phone' } },
+              ],
+            }],
+          }],
+          initialValues: { projectContacts: [{ method: { email: 'a@b.com' } }, { method: { phone: '123' } }] },
+        },
+      });
+      await flushPromises();
+
+      expect(activeChoiceOccurrences(wrapper, 'projectContacts[0].method')).toEqual([{ branchKey: 'email', index: 0 }]);
+      expect(activeChoiceOccurrences(wrapper, 'projectContacts[1].method')).toEqual([{ branchKey: 'phone', index: 0 }]);
+      expect(wrapper.find('[id="projectContacts[0].method.email"]').exists()).toBe(true);
+      expect(wrapper.find('[id="projectContacts[1].method.phone"]').exists()).toBe(true);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // preserve-on-switch: loaded data and post-removal freshness.
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('preserve-on-switch — loaded initialValues & post-removal', () => {
+    function preserveMetadata() {
+      return enablePreserveOnSwitch([{
+        name: 'pick',
+        explicitChoiceSelection: true,
+        fieldOptions: { label: 'Pick One' },
+        choice: [
+          { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+          { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+        ],
+      }], 'pick');
+    }
+
+    it('switching away from a loaded branch stashes it, and switching back restores the loaded value', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata: preserveMetadata(), initialValues: { pick: { selfServe: 'hello' } } },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[id="pick.selfServe"]').exists()).toBe(false);
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('hello');
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'selfServe', index: 0 }]);
+    });
+
+    it('re-selecting a branch after explicitly removing it starts empty, not resurrected from an earlier stash', async () => {
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: preserveMetadata() } });
+      await flushPromises();
+
+      // Build a stash for selfServe: select + fill, switch away (stashes "x"), switch back (restores).
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="pick.selfServe"]').setValue('x');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="pick.selfServe"]').setValue('y');
+      await flushPromises();
+
+      // Explicitly remove selfServe (a discard, not a switch), then re-select it.
+      await wrapper.find('[data-testid="pick.selfServe-remove-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('');
+      expect(formValues(wrapper).pick.selfServe).toBeUndefined();
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // maxOccursTotal cap set below the branch's own maxOccurs.
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('maxOccursTotal — cap set below the branch\'s own maxOccurs', () => {
+    it('repeatable choice: the branch stops at the cap even though a single slot could hold more', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            maxOccurs: 5,
+            fieldOptions: { label: 'Pick Several' },
+            choice: [
+              // A branch that batches 3 raw items per choice slot, but is capped at 2 total.
+              { name: 'tags', maxOccurs: 3, maxOccursTotal: 2, fieldOptions: { label: 'Tags' } },
+              { name: 'note', maxOccurs: 1, fieldOptions: { label: 'Note' } },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.tags-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.tags-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      // Two items reached; the cap (2) blocks a third even though one 3-item slot is not full.
+      expect(activeChoiceOccurrences(wrapper, 'pick')!.filter(o => o.branchKey === 'tags')).toHaveLength(2);
+      expect(canAddChoiceOccurrence(wrapper, 'pick', 'tags')).toBe(false);
+      expect(canAddChoiceOccurrence(wrapper, 'pick', 'note')).toBe(true);
+    });
+
+    it('maxOccurs:1 explicit choice with a repeatable branch: the cap is honored, matching auto mode', async () => {
+      function mountMode(explicit: boolean) {
+        return mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              ...(explicit ? { explicitChoiceSelection: true } : {}),
+              fieldOptions: { label: 'Pick' },
+              choice: [
+                { name: 'tags', maxOccurs: 5, maxOccursTotal: 2, fieldOptions: { label: 'Tags' } },
+                { name: 'note', fieldOptions: { label: 'Note' } },
+              ],
+            }],
+          },
+        });
+      }
+
+      async function fillTags(wrapper: ReturnType<typeof mount>, explicit: boolean) {
+        if (explicit) {
+          await wrapper.find('[data-testid="pick.tags-add-choice-button"]').trigger('click');
+          await flushPromises();
+        }
+        for (let i = 0; i < 5; i++) {
+          const btn = wrapper.find('[data-testid="pick.tags-add-button"]');
+          if (btn.exists() && btn.attributes('disabled') === undefined)
+            await btn.trigger('click');
+          await flushPromises();
+        }
+        return wrapper.findAll('input').filter(w => (w.attributes('id') ?? '').startsWith('pick.tags[')).length;
+      }
+
+      const autoWrapper = mountMode(false);
+      await flushPromises();
+      const autoCount = await fillTags(autoWrapper, false);
+
+      const explicitWrapper = mountMode(true);
+      await flushPromises();
+      const explicitCount = await fillTags(explicitWrapper, true);
+
+      expect(autoCount).toBe(2);
+      expect(explicitCount).toBe(autoCount);
     });
   });
 });
