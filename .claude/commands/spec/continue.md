@@ -14,7 +14,7 @@ There are three chains, one for each stretch between gates. The same command run
 | --- | --- | --- | --- | --- |
 | 1 | Pre-approval | feature in `design` | design, arch, review | feature `awaiting-discussion` (or `awaiting-approval` if nothing is open) |
 | 2 | Story prep | feature in `approved` | split, then per story qa and review | every story `awaiting-approval`, bar any it had to park |
-| 3 | Implementation | feature in `in-progress` with an approved story | per story implement, verify, fix findings | story `done`, bar any it had to park |
+| 3 | Implementation | feature in `in-progress` with an approved story | per story implement, verify, fix findings; then a final audit of the whole branch with its own fix loop | story `done`, bar any it had to park, plus the audit's Final review in the feature spec |
 
 **Chains 2 and 3 run to the end.** Once the feature is approved Jeroen has stepped back, so these chains never halt the whole run over one item. Anything they cannot settle parks that **one** story at `awaiting-discussion` and the run continues with its siblings. See "Research and decide" below.
 
@@ -46,7 +46,7 @@ Ends with every story at `awaiting-approval` and the feature at `in-progress`. *
 - story in `implementing` or `verifying` → resume chain 3 mid-flight for it, picking up at the phase it is in.
 - story in `awaiting-approval` → **skip it and keep going.** That is Jeroen's gate, so this run cannot advance that story, but it can still prep or implement the others. Note it and move to the next story.
 - story in `awaiting-discussion` → **skip it and keep going**, exactly the same way. It is parked pending a decision from Jeroen. Also skip any story that depends on it, naming the dependency; stories that do not depend on it carry on normally.
-- all stories `done` → the feature is finished. Say so, and check whether the feature status should now be `done`.
+- all stories `done` → run the final audit and its fix loop (steps 5 and 6 below) if the feature spec has no Final review section covering the current branch state, then the feature is finished. Say so, and check whether the feature status should now be `done`.
 
 Only when every remaining story is blocked on Jeroen (waiting at a gate, parked, or depending on one that is) does the run end. Report the whole set at once rather than stopping at the first one.
 
@@ -71,7 +71,13 @@ For each story, in dependency order:
    - **Do not commit its work**, in either mode. Leave the working tree as it is if this is the last story you touch, or revert just that story's changes if you are continuing to another one and its half-finished state would confuse the next story's verification. Say which you did.
    - **Move on to the next story that does not depend on it.** One story failing verification is not a reason to abandon the four that would have passed.
    - Report it prominently at the end: parked stories are the first thing in the summary, not a footnote.
-4. **Then branch on the mode** (see below): commit and continue, or stop and hand back.
+4. **Then branch on the mode** (see below): commit and continue (autonomous), or continue without committing (interactive).
+
+5. **After the last story of the feature verifies clean, run `/spec:audit FEAT-XXX`** (final-reviewer, fable). This is the one phase that looks at the branch as a whole rather than one story at a time: a deep bug hunt through the combined diff, a behaviour-level check for functionality not covered by tests, and a check that a human can exercise every new behaviour by hand (in this repo that usually means a Storybook story or docs example). It writes a Final review section into the feature spec and changes no status. Run it only when every story is `done` (skip it while anything is parked or waiting at a gate, and say so; a parked story means the branch is not final yet).
+
+6. **Fix what the audit found, then re-audit.** If the Final review lists blockers, should-fix findings, test gaps, or manual-test gaps, re-invoke the developer (sonnet) with that section as its work order, then re-run `/spec:audit` so the final-reviewer confirms each fix and reviews the fix diff itself. At most **two** fix rounds; whatever survives them stays documented in the Final review and goes at the top of the closing summary, right after any parked stories, for Jeroen to rule on. Nice-to-have findings are never auto-fixed; they stay documented for Jeroen. In autonomous mode, commit each fix round as one commit (e.g. `FEAT-XXX: final audit fixes`) with the audit's spec update included, or commit the spec update on its own when the audit came back clean.
+
+Keep your own context small: tell the developer and the qa-verifier to cap their final report at about 150 words and to put the detail in the story spec (Implementation notes, Verification report). For a long run over many stories, a `Workflow` script that loops the stories with structured, small results keeps the orchestrator's context from growing per story (only when Jeroen has asked for a workflow).
 
 Never edit a verification report to make it pass, and never mark a story `done` yourself. `done` is the qa-verifier's call on a genuine pass.
 
@@ -79,7 +85,7 @@ Never edit a verification report to make it pass, and never mark a story `done` 
 
 `CLAUDE.md` already draws this line (see its "Interactive vs Autonomous Sessions" section), and chain 3 follows it exactly. The two modes differ only in what happens after a story verifies.
 
-**Interactive (running on Jeroen's machine): do one story, commit nothing.** Implement, verify, fix findings, then **stop**. Leave every change uncommitted and unstaged so Jeroen reviews and commits it himself. Close by naming the story that is now `done`, the files touched, and telling him to run `/spec:continue FEAT-XXX` again once he has committed, to pick up the next story.
+**Interactive (running on Jeroen's machine): do every approved story, commit nothing.** Implement, verify, and fix findings for each story in dependency order, moving straight on to the next without stopping in between. Leave every change uncommitted and unstaged so Jeroen reviews and commits it himself; later stories are verified against a working tree that already contains the earlier ones. Stop early only for a parked story, a story waiting at an approval gate, or a story that depends on one of those. Close by listing the stories that are now `done`, the files touched, and anything parked or skipped.
 
 **Autonomous (your own environment, your own branch): do every story, committing each one.** After a story verifies clean, commit just that story's work, then continue straight to the next story, and repeat until all are `done`. The result is one branch with one commit per story.
 
@@ -134,7 +140,7 @@ Parking should be rare. At story level, most open points are implementation deta
 
 ## Model discipline
 
-Claude Code does **not** honor the `model:` field in an agent's own frontmatter: a subagent silently inherits the calling session's model instead (see the known-limitation note in `specs/README.md`). Passing `model` explicitly on the Agent tool call is the only mechanism that actually works. This command chains seven agents across two different models, so getting it wrong here is both easy and invisible, and a sonnet-driven run would quietly downgrade every opus phase.
+Claude Code does **not** honor the `model:` field in an agent's own frontmatter: a subagent silently inherits the calling session's model instead (see the known-limitation note in `specs/README.md`). Passing `model` explicitly on the Agent tool call is the only mechanism that actually works. This command chains eight agents across three different models, so getting it wrong here is both easy and invisible, and a sonnet-driven run would quietly downgrade every opus or fable phase.
 
 **Before the first agent call, run a config pre-flight.** For every phase this run will execute, read two files and compare:
 
@@ -143,7 +149,7 @@ Claude Code does **not** honor the `model:` field in an agent's own frontmatter:
 
 They should agree, and both should match the Model column of the command reference table in `specs/README.md`. **If any two disagree, stop before running anything** and report the mismatch with the file paths and the conflicting values. A disagreement means the config has drifted and nobody can say which model was intended; resolving that is a decision for Jeroen, not a guess for you. Do not fall back to a default.
 
-The expected mapping, to be confirmed rather than assumed: ui-designer opus, architect opus, adversarial-reviewer opus, scrum-master sonnet, qa-planner sonnet, developer sonnet, qa-verifier sonnet.
+The expected mapping, to be confirmed rather than assumed: ui-designer opus, architect opus, adversarial-reviewer opus, scrum-master sonnet, qa-planner sonnet, developer sonnet, qa-verifier sonnet, final-reviewer fable.
 
 **On every Agent tool call, pass `model` explicitly**, taken from the pre-flight, never from memory and never omitted.
 

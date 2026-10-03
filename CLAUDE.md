@@ -17,7 +17,7 @@ Whenever the user says **"remember this"** (or similar) about an instruction or 
 
 ## Interactive vs Autonomous Sessions
 
-- **Working together (interactive session)**: only make the changes, do **not** commit or push; the user handles git themselves.
+- **Working together (interactive session)**: only make the changes, do **not** commit or push; the user handles git themselves. When implementing a feature's stories (e.g. via `/spec:continue`), do **not** stop after each story: implement and verify all approved stories in dependency order in one run, leaving everything uncommitted. This overrides the "one story, then stop" wording in `.claude/commands/spec/continue.md`. Only stop early for a parked story, a story waiting on an approval gate, or a story that depends on one of those.
 - **Working autonomously (e.g. GitHub Actions, scheduled agents, or when explicitly asked to finish a task end-to-end)**: follow the full "Before Every Push" workflow below, including commits, screenshots, and the PR.
 
 ## Spec-Driven Development

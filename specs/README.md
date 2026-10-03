@@ -116,13 +116,14 @@ Related hard rules: each agent only advances the status for its own phase, after
 | per story: `/spec:qa ST-YY` | qa-planner writes the test plan | sonnet |
 | per story: `/spec:review ST-YY` | adversarial-reviewer, lite mode | opus |
 | **APPROVE** (`/spec:approve ST-YY`) | Jeroen sets `status: approved` on the story | (no agent) |
-| ↓ `/spec:continue FEAT-XXX` runs the next two, plus the fix loop | | opus |
+| ↓ `/spec:continue FEAT-XXX` runs the next two per story, the fix loop, and the final audit | | opus |
 | `/spec:implement ST-YY` | developer implements the approved slice | sonnet |
 | `/spec:verify ST-YY` | qa-verifier checks the result against spec and prototype | sonnet |
+| after the last story: `/spec:audit FEAT-XXX` | final-reviewer sweeps the whole branch diff for bugs, untested functionality, and behaviour a human cannot try by hand; the chain then has the developer fix the findings and re-audits | fable |
 
 This table is the **single source of truth for which model runs which phase**. `/spec:continue` reads it (and each command file) to decide what to pass, so keep it accurate: see the known-limitation note below for why the model has to be passed explicitly rather than read from the agent's own frontmatter.
 
-Any time: `/spec:status` shows the whole pipeline and what is waiting on Jeroen, split into the two queues (needs a decision, needs a stamp). `/spec:approve <id>` opens the gate from either (see above). `/spec:quick <description>` runs the fast lane for small fixes (mini spec, lite review, Jeroen approval, then `/spec:implement`).
+Any time: `/spec:status` shows the whole pipeline and what is waiting on Jeroen, split into the two queues (needs a decision, needs a stamp). `/spec:approve <id>` opens the gate from either (see above). `/spec:quick <description>` runs the fast lane for small fixes (mini spec, lite review, Jeroen approval, then `/spec:implement`). `/spec:audit <id>` can also be run on demand for a final sweep of any branch, outside the chain.
 
 ### Running a whole chain: `/spec:continue`
 
@@ -140,7 +141,7 @@ It never crosses a gate and never sets `status: approved`. Chains 1 and 2 delibe
 
 **Chain 3 and the commit rule.** Chain 3 implements a story, verifies it, and fixes whatever the qa-verifier finds, re-verifying until it passes (three attempts, then it stops and reports rather than trying a fourth time). What happens next follows the interactive-versus-autonomous line drawn in `CLAUDE.md`:
 
-- **On Jeroen's machine (interactive):** it does **one** story and commits **nothing**. He reviews the working tree, commits it himself, and runs `/spec:continue FEAT-XXX` again to pick up the next story.
+- **On Jeroen's machine (interactive):** it implements and verifies **every** approved story in dependency order and commits **nothing**. He reviews the working tree afterwards and commits it himself.
 - **In its own environment on its own branch (autonomous):** it commits each story as it verifies clean and moves straight on to the next, until every story is `done`. The result is one branch with one commit per story.
 
 It defaults to interactive, since committing unasked on Jeroen's machine is the worse failure, and it announces which mode it detected before doing anything irreversible. Autonomous requires a clear signal: `CI`/`GITHUB_ACTIONS` set, an explicit `--autonomous`, or session instructions saying to work unattended. It never pushes and never opens a PR unless asked.
@@ -178,13 +179,13 @@ Case 3 is usually a defect in the **feature**, not in the story. When a story pa
 
 The ui-designer, architect, adversarial-reviewer, and product-owner have `WebFetch` and `WebSearch`. The architect verifies API and library assumptions against official docs (Vue, vee-validate, VitePress, Storybook, Vitest) and the project's installed versions; the adversarial-reviewer checks factual claims instead of only reasoning about them (including XSD semantics for the `xsd_*` rules); the product-owner scopes against what the published docs site and existing examples actually contain; the ui-designer checks UI patterns and accessibility conventions.
 
-Agents use the web to do their own phase better. They still do **not** settle Jeroen's open questions: those go to the Open questions section and are resolved by `/spec:discuss` or the post-approval chain. The scrum-master, qa-planner, developer, and qa-verifier have no web access, since their work is defined by internal artifacts (the approved spec, test conventions, the codebase) rather than by anything external.
+Agents use the web to do their own phase better. They still do **not** settle Jeroen's open questions: those go to the Open questions section and are resolved by `/spec:discuss` or the post-approval chain. The scrum-master, qa-planner, developer, qa-verifier, and final-reviewer have no web access, since their work is defined by internal artifacts (the approved spec, test conventions, the codebase) rather than by anything external.
 
 ### Known limitation: agent frontmatter `model:` is not honored by Claude Code
 
 Each agent in `.claude/agents/*.md` declares a `model:` in its frontmatter (see the Model column above), but Claude Code currently ignores that field when spawning a subagent: the subagent silently inherits whatever model the calling session is running, not its own declared model (tracked upstream as [anthropics/claude-code#43869](https://github.com/anthropics/claude-code/issues/43869)). Until that's fixed, every `/spec:*` command file above states the model inline (e.g. "model: opus") specifically so whoever is invoking the agent passes it explicitly as the `model` parameter on the Agent tool call, since that is the one mechanism that is actually honored. If you add a new `/spec:*` command or agent, carry this pattern forward rather than relying on the agent file's frontmatter alone.
 
-Because the model is now recorded in three places (the agent frontmatter, each command file, and the Model column above), those three can drift apart silently. `/spec:continue` chains several agents across two models, so it runs a **pre-flight** before its first agent call: it reads the command file and the agent frontmatter for every phase it is about to run and refuses to start if they disagree, reporting the conflicting values instead of guessing which was intended. It also asks each agent to open its report with the model it believes it is running as, which is the only available signal that the inheritance bug has fired, since the Agent tool result does not report the model used. Note the limit of that check: a self-reported **mismatch** is real evidence, but a self-reported match is weak confirmation and does not prove the right model ran.
+Because the model is now recorded in three places (the agent frontmatter, each command file, and the Model column above), those three can drift apart silently. `/spec:continue` chains several agents across three models, so it runs a **pre-flight** before its first agent call: it reads the command file and the agent frontmatter for every phase it is about to run and refuses to start if they disagree, reporting the conflicting values instead of guessing which was intended. It also asks each agent to open its report with the model it believes it is running as, which is the only available signal that the inheritance bug has fired, since the Agent tool result does not report the model used. Note the limit of that check: a self-reported **mismatch** is real evidence, but a self-reported match is weak confirmation and does not prove the right model ran.
 
 ## Worked walkthrough: building a feature end to end
 
@@ -232,7 +233,9 @@ Runs `/spec:split` (scrum-master slices along the architecture's seams, e.g. `ST
 
 Check out the branch you want the work on, then run the same command a third time. It picks up the first approved story, runs `/spec:implement` (developer: reuse first, tests from the QA plan alongside the code, `specs/components.md` updated, changeset added when `packages/core/src/` changed) and `/spec:verify` (qa-verifier: full `pnpm ci` plus coverage, every acceptance criterion with evidence, prototype comparison, process compliance). On a fail it fixes the findings and re-verifies, up to three attempts, then parks rather than thrashing.
 
-**On your machine it stops there, with everything uncommitted.** Review, commit the story yourself, and run `/spec:continue FEAT-001` again for the next one. **Running autonomously on its own branch** it commits each story and rolls on, ending with one branch carrying one commit per story. When every story is `done`, the feature is `done`.
+**On your machine it works through all approved stories, with everything uncommitted.** Review and commit the result yourself. **Running autonomously on its own branch** it commits each story and rolls on, ending with one branch carrying one commit per story.
+
+Once the last story is `done`, the chain closes with **`/spec:audit FEAT-XXX`** (final-reviewer, fable): a deep review of the whole branch diff that the per-story checks cannot do, hunting for bugs across story boundaries, for behaviour no test exercises, and for behaviour you cannot try by hand (in this repo: a missing Storybook story or docs example; behaviour already visible in the normal happy flow needs no dedicated story). The chain then feeds the blockers, should-fix findings, and gap lists back to the developer and re-audits, up to two fix rounds; nice-to-have findings and anything that survives the rounds stay documented in the Final review section for you to rule on before the PR. When every story is `done` and the audit loop has finished, the feature is `done`.
 
 ### At any point
 

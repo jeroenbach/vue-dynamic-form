@@ -126,6 +126,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Run Build
+        run: pnpm run build
+
       - name: Run Tests with Coverage
         run: pnpm run ci:test:coverage
 
