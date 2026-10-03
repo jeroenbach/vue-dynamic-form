@@ -1,5 +1,14 @@
 // Components
-export { default as ElementPlusDynamicForm } from '@/ElementPlusDynamicForm.vue';
+export { default as ElementPlusFormTemplate } from '@/ElementPlusFormTemplate.vue';
+
+// Metadata
+export { elementPlusMetadata, extendMetadata } from '@/metadata';
+export type { ElementPlusFieldProperties, ElementPlusValueTypes } from '@/metadata';
 
 // Re-export types from core for convenience
-export type { FieldMetadata, GetMetadataType } from '@bach.software/vue-dynamic-form';
+export type {
+  FieldMetadata,
+  GetDynamicFormSettingsType,
+  GetMetadataType,
+  MetadataConfiguration,
+} from '@bach.software/vue-dynamic-form';

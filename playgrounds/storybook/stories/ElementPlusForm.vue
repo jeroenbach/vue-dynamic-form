@@ -1,189 +1,138 @@
 <script lang="ts" setup>
+import type { ElementPlusExample } from './ElementPlusForm.examples';
 import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
-import { ref } from 'vue';
-import ElementPlusDynamicFormImplementation from '../components/ElementPlusDynamicFormImplementation.vue';
+import { ElementPlusFormTemplate } from '@bach.software/vue-dynamic-form-element-plus';
+import { ElButton } from 'element-plus';
+import { computed, ref } from 'vue';
+import ElementPlusFormTemplateImplementation from '../components/ElementPlusFormTemplateImplementation.vue';
+import '@bach.software/vue-dynamic-form-element-plus/style.css';
 import 'element-plus/dist/index.css';
 
-interface FormModel {
-  firstName: string
-  email: string
-  age: number
-  profile: {
-    firstName: string
-    lastName: string
-    email: string
-  }
-  preferences: {
-    theme: string
-    language: string
-    notifications: boolean
-    newsletter: boolean
-  }
-  details: {
-    birthDate: Date
-    rating: number
-    satisfaction: number
-  }
-}
+const { exampleId, title, description, metadata, initialValues, bare = false, hideSubmit = false } = defineProps<ElementPlusExample>();
 
-const basicMetadata = [
-  {
-    name: 'firstName',
-    type: 'text',
-    label: 'First Name',
-    placeholder: 'Enter your first name',
-    minOccurs: 1,
-  },
-  {
-    name: 'email',
-    type: 'text',
-    label: 'Email',
-    placeholder: 'Enter your email',
-    minOccurs: 1,
-  },
-  {
-    name: 'age',
-    type: 'number',
-    label: 'Age',
-    min: 18,
-    max: 120,
-  },
-];
+const { values, handleSubmit } = useDynamicForm({ initialValues });
 
-const advancedMetadata = [
-  {
-    name: 'profile',
-    type: 'heading',
-    label: 'Profile Information',
-    children: [
-      {
-        name: 'firstName',
-        type: 'text',
-        label: 'First Name',
-        placeholder: 'Enter your first name',
-        minOccurs: 1,
-      },
-      {
-        name: 'lastName',
-        type: 'text',
-        label: 'Last Name',
-        placeholder: 'Enter your last name',
-        minOccurs: 1,
-      },
-      {
-        name: 'email',
-        type: 'text',
-        label: 'Email',
-        placeholder: 'Enter your email',
-        minOccurs: 1,
-      },
-    ],
-  },
-  {
-    name: 'preferences',
-    type: 'heading',
-    label: 'Preferences',
-    children: [
-      {
-        name: 'theme',
-        type: 'select',
-        label: 'Theme',
-        options: [
-          { label: 'Light', value: 'light' },
-          { label: 'Dark', value: 'dark' },
-          { label: 'Auto', value: 'auto' },
-        ],
-      },
-      {
-        name: 'language',
-        type: 'radio',
-        label: 'Language',
-        options: [
-          { label: 'English', value: 'en' },
-          { label: 'Spanish', value: 'es' },
-          { label: 'French', value: 'fr' },
-        ],
-      },
-      {
-        name: 'notifications',
-        type: 'checkbox',
-        label: 'Enable Notifications',
-      },
-      {
-        name: 'newsletter',
-        type: 'switch',
-        label: 'Subscribe to Newsletter',
-      },
-    ],
-  },
-  {
-    name: 'details',
-    type: 'heading',
-    label: 'Additional Details',
-    children: [
-      {
-        name: 'birthDate',
-        type: 'date',
-        label: 'Birth Date',
-        placeholder: 'Select your birth date',
-      },
-      {
-        name: 'rating',
-        type: 'rate',
-        label: 'Rate our service',
-        max: 5,
-      },
-      {
-        name: 'satisfaction',
-        type: 'slider',
-        label: 'Satisfaction Level',
-        min: 0,
-        max: 100,
-        showStops: true,
-      },
-    ],
-  },
-];
+// The playground and the linked packages can resolve different Vue type versions, so the component type is widened.
+const template = computed<any>(() => (bare ? ElementPlusFormTemplate : ElementPlusFormTemplateImplementation));
 
-const { values } = useDynamicForm<FormModel>();
+const settings = {
+  messages: {
+    required: '{field} is required',
+    minOccurs: 'At least {min} items required',
+    choiceMinOccurs: 'The following fields need to occur at least {min} time(s): {field}',
+  },
+};
+
+const submitState = ref<'idle' | 'submitted' | 'failed'>('idle');
+const submittedValues = ref<unknown>();
+const failedErrors = ref<Record<string, string | undefined>>({});
+
+const onSubmit = handleSubmit(
+  (formValues) => {
+    submitState.value = 'submitted';
+    submittedValues.value = formValues;
+  },
+  (context) => {
+    submitState.value = 'failed';
+    failedErrors.value = context.errors;
+  },
+);
 </script>
 
 <template>
-  <div class="p-6 space-y-8">
-    <h1 class="text-2xl font-bold">
-      Element Plus Dynamic Form Examples
-    </h1>
+  <section class="exampleRoot" :data-testid="`example-${exampleId}`">
+    <h2 class="exampleTitle">
+      {{ title }}
+    </h2>
+    <p class="exampleNote" data-testid="exampleNote">
+      {{ description }}
+    </p>
 
-    <!-- Basic Form -->
-    <div class="space-y-4">
-      <h2 class="text-xl font-semibold">
-        Basic Form
-      </h2>
-      <div class="border border-gray-200 rounded-lg p-4">
-        <DynamicForm :metadata="basicMetadata" :template="ElementPlusDynamicFormImplementation" />
+    <form class="exampleForm" novalidate :data-testid="`form-${exampleId}`" @submit.prevent="onSubmit">
+      <DynamicForm :metadata="metadata" :template="template" :settings="settings" />
+      <div v-if="!hideSubmit" class="exampleActions">
+        <ElButton type="primary" nativeType="submit" data-testid="submit-button">
+          Submit
+        </ElButton>
       </div>
+    </form>
+
+    <div v-if="submitState === 'submitted'" class="resultPanel resultSuccess" data-testid="submit-result">
+      <strong>Submitted</strong>
+      <pre class="jsonPanel" data-testid="submitted-json">{{ JSON.stringify(submittedValues, null, 2) }}</pre>
+    </div>
+    <div v-else-if="submitState === 'failed'" class="resultPanel resultFailure" data-testid="submit-errors">
+      <strong>Submit failed</strong>
+      <ul>
+        <li v-for="(error, path) in failedErrors" :key="path">
+          {{ path }}: {{ error }}
+        </li>
+      </ul>
     </div>
 
-    <!-- Advanced Form -->
-    <div class="space-y-4">
-      <h2 class="text-xl font-semibold">
-        Advanced Form with All Components
-      </h2>
-      <div class="border border-gray-200 rounded-lg p-4">
-        <DynamicForm :metadata="advancedMetadata" :template="ElementPlusDynamicFormImplementation" />
-      </div>
-    </div>
-
-    <!-- Form Data Display -->
-    <div class="space-y-4">
-      <h2 class="text-xl font-semibold">
-        Form Data (JSON)
-      </h2>
-      <pre class="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">{{ JSON.stringify(values, null, 2) }}</pre>
-    </div>
-  </div>
+    <h3 class="jsonTitle">
+      Form data (JSON)
+    </h3>
+    <pre class="jsonPanel" data-testid="form-json">{{ JSON.stringify(values, null, 2) }}</pre>
+  </section>
 </template>
 
 <style scoped>
-/* Add any custom styles if needed */
+.exampleRoot {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.exampleTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.exampleNote {
+  margin: 0 0 1rem;
+  color: var(--el-text-color-secondary);
+}
+
+.exampleForm {
+  padding: 1rem;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+}
+
+.exampleActions {
+  margin-top: 1rem;
+}
+
+.resultPanel {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--el-border-radius-base);
+}
+
+.resultSuccess {
+  background-color: var(--el-color-success-light-9);
+  color: var(--el-color-success);
+}
+
+.resultFailure {
+  background-color: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
+}
+
+.jsonTitle {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.jsonPanel {
+  margin: 0.5rem 0 0;
+  padding: 1rem;
+  overflow: auto;
+  border-radius: var(--el-border-radius-base);
+  background-color: var(--el-fill-color-light);
+  font-size: 0.875rem;
+}
 </style>

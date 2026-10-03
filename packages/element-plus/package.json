@@ -24,7 +24,8 @@
       "types": "./dist/src/index.d.ts",
       "import": "./dist/vue-dynamic-form-element-plus.es.js",
       "require": "./dist/vue-dynamic-form-element-plus.umd.js"
-    }
+    },
+    "./style.css": "./dist/style.css"
   },
   "main": "./dist/vue-dynamic-form-element-plus.umd.js",
   "module": "./dist/vue-dynamic-form-element-plus.es.js",
@@ -36,7 +37,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "vite build && vue-tsc --emitDeclarationOnly && tsc-alias",
+    "build": "rm -rf dist && vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly && tsc-alias -p tsconfig.build.json",
     "build:watch": "vite build --watch",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint",
@@ -60,9 +61,11 @@
     "@types/node": "catalog:types",
     "@vitejs/plugin-vue": "catalog:build",
     "@vitest/coverage-v8": "catalog:test",
+    "@vue/test-utils": "catalog:test",
     "element-plus": "catalog:framework-pinned",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
+    "jsdom": "catalog:test",
     "tsc-alias": "catalog:build",
     "typescript": "catalog:types",
     "vee-validate": "catalog:framework",

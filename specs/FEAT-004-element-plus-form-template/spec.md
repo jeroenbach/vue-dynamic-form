@@ -1,8 +1,8 @@
 ---
 id: FEAT-004
 type: feature
-status: awaiting-discussion
-approved_by: ""
+status: in-progress
+approved_by: Jeroen
 epic: ""
 ---
 
@@ -11,382 +11,338 @@ epic: ""
      epic folder, they only reference it here (flat model). -->
 
 
-# Feature: Element Plus Form Template
+# Feature: Element Plus form template as a real drop-in replacement
 
 ## Decided without Jeroen (research)
 
-Settled from research during `/spec:discuss`, not reviewed by Jeroen. Override any of these freely.
+Settled from research during discussion, not reviewed by Jeroen. Override any of these freely.
 
-- AR-2 → scope item 6 qualified: group/leaf share the single `default` slot, not independently overridable
-- AR-3 → `ElFormItem.error` corrected from "immediately" to "~100ms debounced"; tests must await it
-- AR-4 → label alignment pinned: the label must render through `ElFormItem`'s own label region, not a sibling `<label>`
-- AR-5 → reused `ElRadio` migrates from `:label` to `:value`; full audit of other reused controls deferred to implementation
-- AR-7 → cost claim corrected: layout-only usage pushes nothing to `ElForm.fields` (no `prop` is ever set)
-- AR-8 → clarified: `labelWidth="auto"` alignment only runs in label-beside mode, it is a no-op in the default label-above position
+- AR-1 → generic forward of non-enumerated consumer slots to the inner `DynamicFormTemplate` (required to deliver decisions 3 and 5)
+- AR-2 → `build.lib.cssFileName: 'style'` plus `build.cssCodeSplit: false` (the current `true` bypasses `cssFileName`), and a `"./style.css"` `exports` entry, so the documented import resolves
+- AR-3 → bind `ElUpload` via `v-model:file-list` + `on-change`; audit all 16 controls' real v-model contracts and per-control `>=2.0.0` availability during the port
+- AR-4 → slice 1 adds `jsdom` + `@vue/test-utils` (`catalog:test`) to the package `devDependencies`
+- AR-5 → `attributes` is reserved alongside `input`; a consumer field type may be named neither
 
 ## Problem & goal
 
-`packages/element-plus` (`@bach.software/vue-dynamic-form-element-plus`) is currently a stub: one component (`ElementPlusDynamicForm.vue`), `private: true`, version `0.1.0`. It maps a fixed set of field types to Element Plus inputs, but:
+**Problem.** `packages/element-plus` already exists and exports `ElementPlusDynamicForm`, a wrapper around `DynamicFormTemplate` with built-in Element Plus rendering for a set of field types (text, select, checkbox, radio, date, time, datetime, switch, number, rate, slider, color, cascader, transfer, upload, heading, divider). It falls short of being a genuine drop-in replacement for `DynamicFormTemplate` in three concrete ways, confirmed by reading the source:
 
-- It wraps every field in `ElFormItem` but renders no `ElForm` anywhere, so the form-level context (`labelPosition`, `labelWidth="auto"` alignment, size defaults) never exists and none of `ElFormItem`'s form-aware behavior activates. `DynamicForm` + vee-validate already own validation and field state, so `ElForm` used fully (with `model`/`rules`) would be a second source of truth. Investigation (recorded under Architecture) showed `ElForm` degrades to a pure layout provider when given no `model`/`rules`; Jeroen decided it is allowed strictly in that layout-only mode, never for validation.
-- Only the `default` and `default-input` slots forward to a consumer override (`<slot name="default"><ElFormItem>...</ElFormItem></slot>`). Every other slot (`text-input`, `select-input`, `checkbox`, `switch`, `heading`, `divider`, etc.) is hardcoded with no `<slot>` passthrough, so a consumer cannot override an individual input's rendering without reimplementing the whole template.
-- It has no structural slots at all: no array (`default-array`, `*-array-item`), no choice (`default-choice`, `default-choice-array`, `*-choice-array-item`), no group/parent rendering distinct from a leaf field, no wizard, and no handling for `hide`, `fullWidth`, `errorMessage`, or a "dependent on" placeholder. Any metadata tree that uses these core shapes (see `CLAUDE.md`'s Metadata Tree Shapes table) currently has nothing to render into.
-- The field types and their extended properties are hardcoded in the component; a consumer cannot register a new field type (e.g. a domain-specific input) and give it a slot the way core's `DynamicFormTemplate` already supports generically via `defineMetadata`'s `TMetadataConfiguration['fieldTypes']`.
+- **Only two of its slots are overridable.** `default` and `default-input` follow a "forward to a named slot with the built-in markup as fallback content" pattern (`<slot name="default" v-bind="slotProps"><ElFormItem>...</ElFormItem></slot>`). Every other slot (`text-input`, `select-input`, `checkbox-input`, `heading`, `divider`, etc.) is hard-coded with no override path at all. A consumer who wants Element Plus's date picker but their own checkbox rendering cannot do that today.
+- **No support for the structural shapes the engine has grown since this package was written.** There is no `-choice`, `-choice-array`, `-choice-array-item`, `-wizard`, or `-wizard-page` rendering at all (confirmed: none of these slot names appear in `ElementPlusDynamicForm.vue`). A consumer using explicit choice selection (FEAT-001), repeatable-choice ordering (FEAT-002), or the wizard shape (FEAT-003) with this template falls through to bare `default`/`default-array-item` rendering with none of Element Plus's chrome.
+- **Styling depends on Tailwind utility classes with no Tailwind build step in the package** (`class="flex items-center gap-2"`, `class="my-4"`, `class="text-lg font-semibold mb-2"` in `ElementPlusDynamicForm.vue`; also `class="flex flex-col gap-2"` and Tailwind spacing/typography classes throughout the Storybook playground that consumes it). These classes render unstyled in any consumer app that does not happen to already run Tailwind, which this package cannot assume.
+- **No extension mechanism.** A consumer who wants to add their own field type (e.g. a `rich-text` type) alongside the built-in Element Plus types has no way to do so without hand-copying the whole `defineMetadata` call and every slot.
 
-This feature is for **library consumers who build forms with Element Plus** and for **template authors** extending or overriding parts of the shipped template. The goal is a production-quality, capability-complete Element Plus template: it renders anything the docs site's `AdvancedFormTemplate.vue` can render (groups, arrays, choices, repeatable choices, error messages, required/optional indicators, hide/fullWidth), built from genuine Element Plus primitives instead of Tailwind-styled custom docs components, with every one of its ~40 slots individually overridable by a consumer and its field-type set open to extension.
+**Goal.** `packages/element-plus` exports an `ElementPlusFormTemplate` component (named to mirror `DynamicFormTemplate`) that is a genuine drop-in replacement: same `metadataConfiguration` prop contract, full slot-family parity with `DynamicFormTemplate` (structural, input, array, choice, wizard), every slot overridable per type with the built-in Element Plus rendering as that slot's default content, real portable CSS with no Tailwind dependency, and a way for a consumer to layer their own field types and extended properties on top of the package's built-in metadata configuration without losing the built-in ones' typing.
 
-Success looks like: a consumer can `import { ElementPlusDynamicForm } from '@bach.software/vue-dynamic-form-element-plus'` and drop `<ElementPlusDynamicForm :metadata="...">` straight into their app to get a fully working, Element-Plus-styled, labeled and submittable form for any metadata shape the core engine supports, with no composition of their own required. To change how anything renders, they create their own `FormTemplate.vue` with `<ElementPlusFormTemplate>` as its root element and redefine only the slots they want to change, down to a single input control, then hand that file to `ElementPlusDynamicForm` via its `template` prop; every slot they leave undefined keeps rendering the package default. The same override principle extends to `metadata` and `settings`: `ElementPlusDynamicForm` is a thin, fully overridable composition of `ElForm` and core's `DynamicForm`, not a closed black box.
+**Who this is for.**
+- **Library consumers** who already use Element Plus in their app and want a working, styled starting template instead of hand-building every slot of `DynamicFormTemplate` from scratch.
+- **Template authors** extending the built-in template: overriding one control, adding a new field type, or reusing the structural chrome (arrays, choices, wizard) while swapping only the inputs.
+- **Docs/Storybook readers** evaluating whether this library fits an Element Plus-based app.
 
 ## Scope
 
 ### In scope
 
-1. **Rename the existing stub and add the new wrapper**: today's `ElementPlusDynamicForm.vue` (the stub) is renamed to `ElementPlusFormTemplate.vue`, exporting `ElementPlusFormTemplate`. A new `ElementPlusDynamicForm.vue` is added that reuses that name for the batteries-included wrapper component described below (scope item 4), a deliberate rename-and-repurpose rather than a compatibility alias. `packages/element-plus/src/index.ts` exports both `ElementPlusFormTemplate` and `ElementPlusDynamicForm`.
-2. **Capability parity with `docs/.vitepress/theme/components/AdvancedFormTemplate.vue`**, rebuilt with Element Plus primitives instead of Tailwind/custom docs components. Concretely, parity means slot coverage (final list confirmed by the architect) for:
-   - Leaf input rendering (`default`/`default-input` + per-type `*-input`), already present but needs slot passthrough added throughout.
-   - Group/parent rendering (`default` branch for `fieldMetadata.children?.length`, mirroring `GroupField`).
-   - Array rendering: `default-array` (add button, item count, error) and `default-array-item` (mirroring `ArrayField` + `RepeaterCard`).
-   - Choice rendering: `default-choice` (single, `maxOccurs: 1`), `default-choice-array` (repeatable), `default-choice-array-item` (one occurrence), covering `explicitChoiceSelection`'s `addChoiceOccurrence`/`removeChoiceOccurrence`/`canAddChoiceOccurrence`/`activeChoiceOccurrences`/`usedChoiceOccurrences` (mirroring `ChoiceField`/`ChoiceSectionCard`/`ChoiceArraySectionCard`).
-   - Section/heading rendering for grouped content (mirroring `SectionCard`).
-   - Error message, required/optional tag, and `hide`/`fullWidth`/`dependentOnMessage` handling, applied consistently across the slot families above (today's component ignores all four).
-   - Whether wizard parity (`wizard`/`wizardPage`/`wizardSummaryPage`, mirroring `FormWizard`/`ReviewGroup`) is included in this feature or deferred is an open question below; if deferred, the slot contract still leaves room for it later without a breaking change.
-3. **New layout primitives inside `packages/element-plus`**, built from standard Element Plus components wherever one exists (survey below), with custom code only where Element Plus has no equivalent (notably: a `FormField`-equivalent wrapper built around a standalone `ElFormItem`, adding what `ElFormItem` lacks: description, help text, optional/required tag, dependent-on placeholder).
-4. **`ElementPlusDynamicForm`: a batteries-included wrapper component.** It composes a single layout-only `ElForm` around core's `DynamicForm`, defaulting `DynamicForm`'s `template` prop to `ElementPlusFormTemplate`. A consumer drops in `<ElementPlusDynamicForm :metadata="...">` and gets a fully working, submittable, labeled form with no composition of their own required; `metadata`, `template`, and `settings` are all plain, independently overridable props (see Functional overview and Architecture). The `ElForm` receives no `model` and no `rules`, and no `ElFormItem` ever gets a `prop`, which keeps ElForm's entire validate/reset/initial-values machinery inert (verified against the installed 2.14.2 source: every such code path is guarded by `props.model`, and the initial-value `cloneDeep` only runs for items with a `prop`). It contributes only the `<form>` element, the `labelPosition`/`size` context, and the label-width registry that powers equal-width labels; `DynamicFormItem` + vee-validate remain the single source of truth for validation and field state. A named `#actions` slot renders inside the `<form>`, after the fields, so a consumer's own `<ElButton type="submit">` triggers real native form submission; the component's `@submit.prevent` handler runs vee-validate's `handleSubmit` and, on success, calls a `submit` prop/emit.
-5. **FormField label layout**: support both label-above (today's only option) and label-beside (label left, input right) rendering, driven by a `labelPosition` prop on `ElementPlusDynamicForm` (it maps directly onto `ElForm`'s `labelPosition`), with all labels in a label-beside form aligned to the width of the longest label. The primary mechanism is `ElForm labelWidth="auto"` plus `ElFormItem`'s built-in `FormLabelWrap` ResizeObserver registry, which the layout-only `ElForm` provides for free and which aligns labels across the whole form at any nesting depth. CSS grid/subgrid or a package-owned measured-width provider remain fallbacks only if per-section alignment turns out to be needed (one ElForm registry cannot scope alignment to a single card, and nesting ElForms would nest `<form>` elements, which is invalid HTML).
-6. **Slot overridability for every slot**, not just `default`/`default-input`: wrap each of the package's own slot templates in `<slot name="X" v-bind="p"><PackageDefault v-bind="p" /></slot>` (or equivalent) so a consumer overriding `ElementPlusFormTemplate` can replace any individual slot and get the package default everywhere else. Whether this scales cleanly to the full slot count (over 40, once every field type is multiplied by its `-input`/`-array`/`-array-item`/`-choice`/`-choice-array`/`-choice-array-item` variants) or needs a different mechanism is for the architect.
-
-   DECIDED (research): qualified per AR finding 2. Core dispatches both group nodes and leaf nodes to the single `default` slot (there is no `default-group`), so "replace any individual slot" does not hold for group vs. leaf: overriding `#default` takes over both at once. Every other slot family remains independently overridable as stated. If independent group/leaf overridability is genuinely wanted, that is a core gap (a new `default-group`/`group` slot family) and belongs to its own feature, not this one.
-7. **Extensible field types**: a consumer must be able to register additional field types (via their own `defineMetadata` generic, same mechanism core already supports) and supply slots for them without modifying the package. The built-in type set (currently text, select, checkbox, radio, date, time, datetime, switch, number, rate, slider, color, cascader, transfer, upload, heading, divider) is reviewed for which stay in the parity milestone (open question below).
-8. **Update in-repo consumers of the renamed/added exports**: `playgrounds/storybook/components/ElementPlusDynamicFormImplementation.vue` and `playgrounds/storybook/stories/ElementPlusForm.vue` both import today's `ElementPlusDynamicForm` (the stub) directly as `DynamicForm`'s `template`; they move to the new component split, consuming the new `ElementPlusDynamicForm` wrapper directly for the simple case and/or a `FormTemplate.vue` around `ElementPlusFormTemplate` to demonstrate slot overrides (see Functional overview and Open question 7).
-9. **A demonstration surface** showing the new capabilities (Storybook story and/or docs page); exact placement is an open question below.
-10. **`specs/components.md`** gets its "Non-published surfaces" entry for the element-plus package updated to reflect the new component name and capability once implemented (developer's job at implementation time, not this spec).
+- Rename the exported component to `ElementPlusFormTemplate`, wrapping `DynamicFormTemplate` the same way `ElementPlusDynamicForm` does today.
+- An exported metadata configuration (working name `elementPlusMetadata`, per the idea) built with `defineMetadata`, covering the current built-in field-type catalogue and their extended properties (`label`, `placeholder`, `options`, `disabled`, `readonly`, `size`, etc., as already present in `ElementPlusDynamicForm.vue`).
+- An extension mechanism (working name `extendMetadata`, per the idea) that lets a consumer merge their own additional field types and extended properties with `elementPlusMetadata`, producing one typed `MetadataConfiguration` to pass to `ElementPlusFormTemplate`, without hand-redeclaring the built-in types. Exact generic shape and name are for the architect to design against `defineMetadata`'s existing pattern (see Open questions).
+- Slot-family parity with `DynamicFormTemplate`, applied consistently across the whole template (today only two slots follow this pattern):
+  - Structural: `default`, `default-array`, `default-array-item`, `default-choice`, `default-choice-array`, `default-choice-array-item`, `default-wizard`, `default-wizard-page`.
+  - Per built-in type, wherever the combination makes sense: `<type>`, `<type>-input`, `<type>-array`, `<type>-array-item`, `<type>-choice`, `<type>-choice-array`, `<type>-choice-array-item`.
+- Every slot overridable per `DynamicFormTemplate`'s own priority-fallback contract (dedicated per-type slot → the relevant `default-*` slot), with the built-in Element Plus markup as that slot's default content, so a consumer overrides only what they want to change and keeps the rest.
+- Built-in Element Plus rendering for the choice shapes (`-choice`, `-choice-array`, `-choice-array-item`), entirely absent today.
+- Built-in Element Plus rendering for the wizard shapes (`-wizard`, `-wizard-page`), entirely absent today, likely built on `ElSteps`/`ElStep`, following the `v-show`-never-`v-if` contract FEAT-003 established for page visibility.
+- Real, portable CSS: replace every Tailwind utility class in the package with plain CSS (scoped component styles and/or a shipped stylesheet), so the template renders correctly in a consumer app with no Tailwind build step.
+- Keep `element-plus`, `vee-validate`, `vue`, and `@bach.software/vue-dynamic-form` as required (non-optional) peer dependencies, so Element Plus's own styling and behavior are guaranteed available. This is already true in the current `package.json`; this feature preserves it, not introduces it.
+- Update the Storybook playground (`playgrounds/storybook/stories/ElementPlusForm.*`, `playgrounds/storybook/components/ElementPlusDynamicFormImplementation.vue`) to the new component name, replace its Tailwind classes, and demonstrate at least one overridden slot and one extended field type so the extension mechanism has a working, visible example. (Also fixes the existing `#default="{ field, required }"` override in `ElementPlusDynamicFormImplementation.vue`, which destructures a `field` prop that does not exist on the slot; the correct name is `fieldMetadata`.)
+- Replace the placeholder test in `packages/element-plus/src/ElementPlusDynamicForm.test.ts` (currently `expect(true).toBe(true)`) with real coverage of the new component, the metadata export, and the extension mechanism.
+- Update `specs/components.md`'s entry for this package (currently listed under "Non-published surfaces").
 
 ### Out of scope (explicit)
 
-- Any change to `packages/core/src/`: this feature only touches `packages/element-plus` (and its demonstration surface in `docs/`/`playgrounds/storybook`). No new core slots, settings, or validation rules. If parity work surfaces a genuine core gap, that becomes its own feature, not a silent addition here.
-- Other framework templates (Ant Design Vue, Vuetify, PrimeVue, etc.). This feature is Element Plus only.
-- A full design-system/theming pass (dark mode parity, custom Element Plus theme tokens) beyond what is needed for one cohesive default look.
-- An accessibility audit beyond what the underlying Element Plus components already provide.
-- Whether the package becomes publishable (`private: false`) is an open question, not a decision baked into scope; see below.
-
-#### Future ideas from the Element Plus catalog survey (not in scope)
-
-Element Plus's full catalog (~82 components across Basic, Form, Data, Navigation, Feedback) was surveyed for ideas beyond direct parity. Two kinds of findings came out of it:
-
-**Usable now, within this feature's scope** (composition candidates, not new library capabilities):
-- `ElSegmented` as an alternative, more compact choice-branch selector than a card grid.
-- `ElResult`/`ElEmpty` for empty-array and wizard-completion states.
-- `ElDescriptions` as a natural fit if wizard-summary parity (`ReviewGroup` equivalent) is in scope.
-- `ElAffix` for sticky step navigation if wizard parity is in scope.
-
-**Genuinely new library-level ideas, explicitly out of scope for this feature** (recorded here so they are not lost, not because they are approved for any roadmap):
-- A generic "review/summary" rendering mode at the core level (today's `wizardSummaryPage` is a docs-template convention built entirely from existing slots, not a core feature; `ElDescriptions` suggests core could offer a first-class summary slot family usable by any template).
-- A multi-value "tag input" field value type at the core level (inspired by `ElInputTag`/`Mention`), i.e. a value type that is neither a scalar leaf nor a `maxOccurs > 1` array of leaves.
-- Guidance/tooling for very large option lists (`ElVirtualizedSelect`/`Virtualized Table`/`Virtualized Tree` exist in Element Plus for this reason); core has no position today on what a template should do when `options` is large.
-- A guided-tour capability (`ElTour`) for walking a user through a complex, multi-section form.
+- No changes to `packages/core`'s `DynamicFormTemplate`, `defineMetadata`, or the engine's slot-dispatch logic. This feature builds entirely on the existing contract described in `CLAUDE.md`'s Architecture section; it does not modify it.
+- No docs site pages are assumed by default. The published site (vue-dynamic-form.bach.software) currently has zero Element Plus content of any kind (confirmed by fetching the live site); whether this feature adds a docs guide/example page is an open question below, not assumed in scope.
+- No theming system beyond Element Plus's own default theme plus this package's own layout CSS: no dark-mode work, no CSS custom-property theming API, unless separately scoped later.
+- No migration tooling or codemod for existing consumers of `ElementPlusDynamicForm`. The package is `private: true` today with no published version, so there is no external consumer to migrate; the only current consumers are this repo's own test file and Storybook story, both updated as part of this feature.
+- No change to `docs/.vitepress/theme/components/AdvancedFormTemplate.vue` or any other docs-site template. It is a separate, hand-rolled Tailwind template that happens to demonstrate `DynamicFormTemplate` usage for the docs site's own onboarding example; this feature neither touches nor replaces it.
+- No new built-in field types beyond parity with the current catalogue (text, select, checkbox, radio, date, time, datetime, switch, number, rate, slider, color, cascader, transfer, upload, heading, divider), unless Jeroen adds one via the open question below.
 
 ## Functional overview
 
-A consumer who wants a complete, working form with no composition of their own does:
-
-```ts
-import { ElementPlusDynamicForm } from '@bach.software/vue-dynamic-form-element-plus';
-```
-
-```vue
-<ElementPlusDynamicForm :metadata="metadata">
-  <template #actions>
-    <ElButton type="submit" native-type="submit">Submit</ElButton>
-  </template>
-</ElementPlusDynamicForm>
-```
-
-and gets, out of the box:
-
-- Every leaf field type mapped to its matching Element Plus input.
-- Groups (metadata nodes with `children`) rendered as a titled section built from `ElCard` (or equivalent), not the current flat divider/heading treatment.
-- Repeatable groups and repeatable leaf fields rendered with Add/Remove controls built from `ElButton`, one card per occurrence.
-- Choice branches (mutually exclusive) rendered with a selection UI built from Element Plus primitives (`ElRadioGroup`, `ElCard`, or `ElSegmented`, still open, see Open question 8), including the repeatable-choice (`explicitChoiceSelection`, `maxOccurs > 1`) case.
-- Error messages surfaced via a consistent Element Plus pattern (e.g. `ElAlert` or inline validation text), required/optional indicated via `ElTag`.
-- A single, real `<form>` element: `ElementPlusDynamicForm` renders one layout-only `ElForm` (no `model`/`rules`) that provides the `labelPosition`/`size` context and the label-width registry, with a native, working submit button placed via the `#actions` slot.
-- A field wrapper built on a standalone `ElFormItem` (stock label and error styling, error text piped in from vee-validate via the `error` prop) extended with description, help text, and required/optional tag, offered in two layouts via the `labelPosition` prop: label-above (default) and label-beside, where every label in the form shares the width of the longest one through `ElForm`'s own label-width registry.
-
-To change how any part renders, a consumer creates their own `FormTemplate.vue` around the pure template layer:
-
-```vue
-<!-- FormTemplate.vue -->
-<script setup lang="ts">
-import { ElementPlusFormTemplate } from '@bach.software/vue-dynamic-form-element-plus';
-</script>
-
-<template>
-  <ElementPlusFormTemplate>
-    <template #text-input="p">
-      <MyCustomTextInput v-bind="p" />
-    </template>
-  </ElementPlusFormTemplate>
-</template>
-```
-
-and hands it to `ElementPlusDynamicForm`'s `template` prop:
-
-```vue
-<ElementPlusDynamicForm :metadata="metadata" :template="FormTemplate" />
-```
-
-`ElementPlusFormTemplate` wraps every one of its own slots in `<slot name="X"><PackageDefault v-bind="p" /></slot>`, so `FormTemplate.vue` only needs to define the slots it wants to change; every other slot keeps rendering the package default. `ElementPlusDynamicForm` forwards every slot it itself receives straight through to whichever `template` it renders, so a consumer who only needs to override one or two slots can skip the intermediate `FormTemplate.vue` file and define them directly on `<ElementPlusDynamicForm>`, exactly as shown for `#actions` above. `metadata`, `template`, and `settings` follow the same principle: all three are plain props with sensible defaults, and a consumer can extend the type union with their own field types (their own `defineMetadata` call) and supply slots for those types; anything not supplied falls through the same `default-input`/`default-array`/`default-choice`/`default` fallback chain core's `DynamicFormTemplate` already implements, so a new type "just works" with at least a generic rendering before a consumer writes a dedicated slot for it.
+- A consumer imports `ElementPlusFormTemplate` and `elementPlusMetadata` from `@bach.software/vue-dynamic-form-element-plus`, passes `elementPlusMetadata` (or an extended configuration) to `DynamicForm`'s metadata typing the same way `AdvancedFormTemplate.vue` passes its own `defineMetadata()` result, and gets a fully styled Element Plus form with zero further template work, for every structural shape the engine supports (plain fields, arrays, choices in both automatic and explicit selection mode, wizards).
+- A consumer who wants to change one control (say, use their own date-range component instead of `ElDatePicker`) overrides only the `date-input` slot; every other slot keeps rendering through the built-in Element Plus markup, matching the override contract `DynamicFormTemplate` itself already offers to a hand-written template.
+- A consumer who wants an additional field type not in the built-in catalogue calls the extension mechanism with their own `defineMetadata`-shaped types, gets back one typed configuration that has both the built-in types (fully typed, unchanged) and their new type, and supplies a slot for the new type the same way they would for any other type in a hand-written template.
+- A consumer building a multi-step form with `wizard: true` gets a working, styled step UI (indicator, next/prev navigation reflecting `wizardConfig`, per-page visibility) with no additional template code, mirroring what `AdvancedFormTemplate.vue`'s hand-built `FormWizard.vue` demonstrates for the docs site's own template.
+- The rendered result requires no Tailwind (or any other CSS framework) in the consuming app; installing `element-plus` (required, as a peer dependency) and this package is sufficient for the template to render correctly.
 
 ## Design (feature level)
 
-DECIDED (Jeroen): design phase skipped, no prototype produced. This feature's visual surface is composed entirely of Element Plus's own, already-designed components; there is no novel visual language to prototype, since element-plus.org's own docs and live examples already show what an `ElCard`, `ElRadioGroup`, `ElButton`, etc. look and behave like. What is left is a composition question, not a visual design question: which Element Plus component maps to which core metadata shape (group/section, array, choice), which is the architect's normal component/composable-plan job, not a separate design deliverable.
-Why: a hand-built HTML/CSS mockup would only approximate Element Plus's real look and (for the label-width-auto alignment behavior in particular) could not demonstrate the actual ResizeObserver-driven behavior at all; a CDN-loaded live Vue+Element Plus prototype would demonstrate it for real but adds a build/maintain cost for something element-plus.org already shows authoritatively.
-How to apply: the architect resolves the container-mapping questions below directly in the Architecture section (citing the relevant element-plus.org component docs as evidence), and the couple of remaining aesthetic judgment calls stay in Open questions for Jeroen, to be settled in `/spec:discuss` by pointing at the relevant element-plus.org examples rather than a custom prototype.
-Precedent: future template-package features (Ant Design Vue, Vuetify, etc.) facing the same situation, an entirely pre-designed component library with a composition question rather than a visual design question, should skip the design phase the same way and fold the mapping into architecture; a feature that needs genuinely new visual language (not just Element Plus component selection) should not skip it.
-
-PROPOSED (adversarial review) — AR finding 6: skipping the prototype is defensible for individual component *look*, but it also removes the only artifact that captures cross-slot cohesion (two-column grid density, the nested-card visual weight of an array-item card inside an array card inside a group card inside the form, the choice-selector look in OQ8, and label-beside behavior on narrow viewports in OQ6), which is exactly what a feature review checks against a prototype. There is now no such artifact. Rather than reinstate a full prototype, make the demonstration surface (Slice G / OQ7) the standing cohesion review: it must be screenshotted in both light and dark color modes and reviewed for cross-section cohesion before the feature is marked `done`, and its coverage must include a group-with-arrays-and-choices tree (not just a flat input list). Also narrow the precedent sentence: the "skip design" default applies only when the composition raises no layout/nesting/selector decisions of its own; where it does (as here), the demonstration surface must stand in for the prototype's cohesion role.
+Skipped per Jeroen. A standalone HTML prototype adds nothing here: the template composes Element Plus components exactly as they appear in the official Element Plus documentation (element-plus.org), which serves as the visual reference for every control. Layout chrome (arrays, choices, wizard) follows the structural patterns the existing templates already establish. Status moved directly from design to architecture.
 
 ## Architecture (feature level)
 
-All decisions below concern `packages/element-plus` only. Core (`packages/core/src`) is untouched (see Out of scope); its public surface, exports, slots, settings and validation rules are unchanged and this section adds nothing to `specs/components.md`'s published-surface tables. The only `specs/components.md` edit this feature causes is the "Non-published surfaces" row for the element-plus package (rename + capability), which is the developer's job at implementation time.
+### Summary of the shape
 
-### Container component mapping (resolves the design-phase hand-off)
+`packages/element-plus` becomes a real template package layered entirely on the existing core contract. Nothing in `packages/core` changes: `DynamicFormTemplate`, `DynamicFormItem`, `DynamicFormItemChoice/Array/Wizard`, `defineMetadata`, and the slot-dispatch/`v-show` contract are all consumed as-is (confirmed against `DynamicFormItem.vue` and `DynamicFormTemplate.vue`). The package ships three public exports plus internal building blocks:
 
-Each core metadata shape (see `CLAUDE.md`'s Metadata Tree Shapes) maps to Element Plus primitives as follows. Every mapping mirrors the behavior of the named `docs/.vitepress/theme/components/*` reference, rebuilt from Element Plus primitives (the docs components are Tailwind-styled and cannot be imported by the package).
+- `ElementPlusFormTemplate` — a Vue component wrapping `DynamicFormTemplate`, defining every slot in the parity families with Element Plus markup as each slot's fallback content, and re-exposing each of those slots for override. Replaces `ElementPlusDynamicForm` (hard rename, no alias, decision 2).
+- `elementPlusMetadata` — a `defineMetadata()` result covering the 16-type catalogue and its extended properties (decision 5), the default `metadataConfiguration` for `ElementPlusFormTemplate`.
+- `extendMetadata` — a type-carrier function that merges a consumer's additional value types, extended properties, slot properties, and settings on top of `elementPlusMetadata`, consumer-wins on conflicts (decision 3).
 
-| Core shape | Slot family | Element Plus mapping | Mirrors | Evidence |
-| --- | --- | --- | --- | --- |
-| Leaf input | `*-input` / `default-input` | The existing per-type controls (`ElInput`, `ElSelect`/`ElOption`, `ElCheckbox`, `ElRadioGroup`/`ElRadio`, `ElDatePicker`, `ElTimePicker`, `ElInputNumber`, `ElSwitch`, `ElRate`, `ElSlider`, `ElColorPicker`, `ElCascader`, `ElTransfer`, `ElUpload`), each wrapped by a package `FormFieldWrapper` around a standalone `ElFormItem` | `FormField` + `TextInput`/`SelectInput`/... | `ElFormItem` standalone + `error` prop verified against installed 2.14.2 source (below) |
+### Component & composable plan (against `specs/components.md`)
 
-PROPOSED (adversarial review) — AR finding 5: the reused controls are not all on current 2.14.2 API. The existing component renders `<ElRadio :label="option.value">{{ option.label }}</ElRadio>`; in 2.14.2 `ElRadio` splits `label` (display text) from `value` (bound value), and binding the value via `label` is the deprecated back-compat path ("Removed after 3.0.0") that emits a runtime warning. The parity rebuild must migrate radio to `:value="option.value"` with the display text in the default slot, and audit the other reused controls for the same 2.6+ renames before treating them as "reuse as-is".
+Reused from core, unchanged (no modification, no new core surface):
 
-DECIDED (research): confirmed against the current `ElementPlusDynamicForm.vue`, which does render `<ElRadio :label="option.value">{{ option.label }}</ElRadio>`, the deprecated binding. The parity rebuild migrates this to `:value="option.value"` with display text in the default slot. The broader "audit every other reused control for the same rename" is implementation-time work (developer's job during Slice A/E), not a spec-level decision; no other reused control's binding was checked here.
-| Leaf field chrome | `default` (leaf branch) | `FormFieldWrapper`: standalone `ElFormItem` (label + inline error via its `error` prop) extended with description, help text, an optional/required `ElTag`, and a dependent-on placeholder | `FormField.vue` | `ElFormItem` lacks description/help/optional-tag/dependent-on, so the wrapper is genuinely new package code |
-| Group / parent (`children`) | `default` (group branch) | `ElCard`: `#header` = title + description + container-level error `ElAlert`; body (default slot) = the two-column children grid | `GroupField` / `SectionCard` | `ElCard` is a pure layout container with `#header`/`#footer`/default slots and no form coupling ([element-plus.org/card](https://element-plus.org/en-US/component/card.html)) |
-| Section / heading | `heading` (or a section slot) | `ElCard` (grouped section); `ElDivider` retained for the flat `divider` type | `SectionCard` | `ElCard`; `ElDivider` already in use |
-| Array (`maxOccurs > 1`) | `*-array` / `default-array` | Outer `ElCard`: `#header` = title + item-count `ElTag` + Add `ElButton`; body = one occurrence per `*-array-item` | `ArrayField` | `ElCard` + `ElButton` + `ElTag` |
-| Array item | `*-array-item` / `default-array-item` | Inner `ElCard` (`RepeaterItemCard`): index badge + occurrence title + Remove `ElButton`; body = the item's children grid | `RepeaterCard` | `ElCard` + `ElButton` |
-| Single choice (`maxOccurs: 1`) | `*-choice` / `default-choice` | `ElCard` container; a branch selector (widget = Open question 8) whose selection is driven purely by the core slot props `addChoiceOccurrence(branchKey)` / `removeChoiceOccurrence` / `activeChoiceOccurrences`; selected branch renders in the default slot | `ChoiceField` / `ChoiceSectionCard` | `ElCard`; selector widget deferred to OQ8 |
-| Repeatable choice (`maxOccurs > 1`) | `*-choice-array` / `default-choice-array` | `ElCard` container: per-branch Add `ElButton` disabled via `canAddChoiceOccurrence(branchKey)`, a "`usedChoiceOccurrences` of `maxOccurs`" count `ElTag`; occurrences render via `*-choice-array-item` | `ChoiceArraySectionCard` | `ElCard` + `ElButton` + `ElTag` |
-| Repeatable-choice item | `*-choice-array-item` / `default-choice-array-item` | Inner `ElCard` (reuses `RepeaterItemCard` with the `branchKey` badge) | `RepeaterCard` (via `default-choice-array-item`) | `ElCard` + `ElButton` |
-| Required / optional indicator | all wrappers | `ElTag` (small), driven by the `showRequiredOrOptional` extended setting; `ElFormItem`'s own `required` asterisk is purely visual and may back the "required" case | `OptionalRequiredTag` | `ElTag` |
-| Error surfacing | leaf vs container | Leaf: vee-validate `errorMessage` piped into `ElFormItem`'s `error` prop (stock inline validation text). Container (group/array/choice): `ElAlert` `type="error"` inline, non-closable | `ErrorMessage` | `ElFormItem` `error` verified in source; `ElAlert` inline error, types include `error` ([element-plus.org/alert](https://element-plus.org/en-US/component/alert.html)) |
+- `DynamicForm`, `DynamicFormItem`, `DynamicFormItemArray`, `DynamicFormItemChoice`, `DynamicFormItemWizard` — the engine renders `ElementPlusFormTemplate` (or a consumer wrapper around it) exactly as it renders any template. The choice families (`ChoiceAttributes`, `ChoiceArrayItemAttributes`, `ChoiceOccurrence`) and wizard families (`WizardAttributes`, `WizardPageAttributes`) are consumed through their existing slot typing.
+- `DynamicFormTemplate` — used verbatim as the dispatch bridge inside `ElementPlusFormTemplate`. All slot-name/priority-fallback behaviour (including the `-choice-array` before `-array` ordering and the `-wizard`/`-wizard-page` families) comes from it; the package adds no dispatch logic of its own.
+- `defineMetadata` — `elementPlusMetadata` is a direct call; `extendMetadata` delegates to it.
 
-PROPOSED (adversarial review) — AR finding 2: the "Group / parent (`default` group branch)" and "Leaf field chrome (`default` leaf branch)" rows above are not two independently overridable slots. Core dispatches both group nodes and leaf nodes to the single `default` slot (there is no `default-group`); the package's `#default` must branch internally on `fieldMetadata.children?.length` exactly as `AdvancedFormTemplate.vue` does. Consequence: a consumer who overrides `#default` overrides both group and leaf rendering at once and cannot keep the package's group card while replacing only the leaf chrome. Scope item 6's "replace any individual slot and get the package default everywhere else" must be qualified to say group-vs-leaf is a single shared slot. If independent overridability is actually wanted, that is a core gap (a `default-group`/`group` slot family) and must be raised as its own feature, not solved silently here.
+New, in `packages/element-plus/src/`:
 
-DECIDED (research): confirmed against core's `DynamicFormTemplate.vue` slot dispatch, there is no `default-group` slot; group and leaf nodes both resolve through `default`. The package's `#default` branches internally on `fieldMetadata.children?.length`, matching `AdvancedFormTemplate.vue`. Scope item 6 is qualified accordingly (see above). No core change is in scope for this feature; independent group/leaf overridability, if ever wanted, is a future core feature.
+| New surface | Why nothing in `specs/components.md` fits |
+| --- | --- |
+| `ElementPlusFormTemplate.vue` (exported) | The core `DynamicFormTemplate` is contract-only (unstyled dispatcher). No existing component supplies Element Plus rendering with per-slot overridable fallback; this is the whole point of the package. Replaces the private `ElementPlusDynamicForm`. |
+| `elementPlusMetadata` (exported const) | `defineMetadata` is the generic carrier; there is no pre-built EP catalogue anywhere. |
+| `extendMetadata` (exported function) | `defineMetadata` cannot pre-seed the EP generics; a consumer would otherwise hand-redeclare all 16 types. This is a thin, EP-specific specialisation of `defineMetadata`, so it lives here, not in core. |
+| `ElementPlusValueTypes` / `ElementPlusFieldProperties` (exported types) | The concrete generic arguments behind `elementPlusMetadata`, exported so `extendMetadata` and consumers can reference/compose them. |
+| Internal presentational sub-components (e.g. an array-section card, a choice-section card, a wizard shell), not exported | Optional decomposition of `ElementPlusFormTemplate`'s built-in markup for readability/testability; kept internal so they are free to change. The scrum-master may fold these into the single SFC if simpler. |
 
-The choice non-aesthetic wiring is entirely core-driven: the package binds `ElButton`s / the selector to the `ChoiceAttributes` slot props already delivered by core's `DynamicFormTemplate` (`addChoiceOccurrence`, `removeChoiceOccurrence`, `canAddChoiceOccurrence`, `activeChoiceOccurrences`, `usedChoiceOccurrences`), holding no choice state of its own. This is independent of the selector-widget aesthetic, so it is settled here while **Open question 8 (choice-branch selector look) stays open** and **Open question 6 (label-beside per-field override + narrow-viewport collapse) stays open**.
+### Public API impact
 
-### Component / composable plan
+New exports from `@bach.software/vue-dynamic-form-element-plus` (`src/index.ts`):
 
-Reused as-is from core (no change): `DynamicFormTemplate`, `defineMetadata`, and every core export. The package continues to wrap a single `DynamicFormTemplate` and author named slots, exactly as today.
+- `ElementPlusFormTemplate` (component) — replaces `ElementPlusDynamicForm`. Props: `metadataConfiguration?: TMetadataConfiguration` (optional, defaults to `elementPlusMetadata` at the usage site via `metadataConfiguration ?? elementPlusMetadata`). Generic: `TMetadataConfiguration extends MetadataConfiguration = typeof elementPlusMetadata`. Slots: the full parity set (below).
+- `elementPlusMetadata` (value) — `defineMetadata<ElementPlusValueTypes, ElementPlusFieldProperties, {}, {}>()`. `ElementPlusValueTypes` and `ElementPlusFieldProperties` are exactly the two generic bodies already present in `ElementPlusDynamicForm.vue` (the 16 value types and the property bag). Decided after the first implementation: the property bag keeps only properties shared by several controls at the root (`label`, `placeholder`, `options`, `multiple`, `clearable`, `filterable`, `disabled`, `readonly`, `size`, `min`, `max`, `step`, `format`, `valueFormat`), and every property that belongs to a single control moves into a group named after its field type (`number`, `date`, `slider`, `color`, `cascader`, `transfer`, `upload`). This resolves the clash between the field's own `type` and the date picker mode, which is now `date: { type }`.
+- `extendMetadata` (function) — signature designed against `defineMetadata`'s four-generic pattern:
 
-Element Plus components consumed directly (no package wrapper): the leaf controls listed above plus `ElForm`, `ElFormItem`, `ElCard`, `ElButton`, `ElTag`, `ElAlert`, `ElDivider`, and (if wizard is in scope, OQ2) `ElSteps`/`ElStep`, `ElDescriptions`/`ElDescriptionsItem`. `ElSegmented` is a candidate only if OQ8 chooses it. No new runtime dependency: all come from the existing `element-plus` peer dependency (catalog `framework`, `>=2.0.0`; pinned dev at `2.14.2`).
+  ```ts
+  export function extendMetadata<
+    const ExtraValueTypes extends Record<string, any> = object,
+    ExtraFieldProperties extends object = object,
+    ExtraSlotProperties extends object = object,
+    ExtraSettingsProperties extends object = object,
+  >() {
+    return defineMetadata<
+      Omit<ElementPlusValueTypes, keyof ExtraValueTypes> & ExtraValueTypes,
+      Omit<ElementPlusFieldProperties, keyof ExtraFieldProperties> & ExtraFieldProperties,
+      ExtraSlotProperties,
+      ExtraSettingsProperties
+    >();
+  }
+  ```
 
-New package-local components (each justified because the docs Tailwind equivalents cannot be imported and Element Plus ships no single component with the combined responsibility):
+  The `Omit<Built-in, keyof Extra> & Extra` merge makes the consumer's declaration win on any key collision (decision 3): a consumer redefining `text` or `label` replaces the built-in type/property rather than intersecting with it (`string & MyType` would collapse to an unusable type). Value types and extended properties both merge this way; slot and settings properties start empty on `elementPlusMetadata`, so they pass through unchanged. The result is one typed `MetadataConfiguration` usable directly with `GetMetadataType`/`GetDynamicFormSettingsType` and as `ElementPlusFormTemplate`'s `metadataConfiguration` prop. Like `defineMetadata`, it is purely type-level: `fieldTypes` is never read at runtime (dispatch keys off the live `type` attr in `DynamicFormTemplate`, confirmed in its `typeWithFallback`), so no runtime merge is required.
 
-| New component | Responsibility | Why nothing fits |
-| --- | --- | --- |
-| `ElementPlusFormTemplate.vue` | Renamed root template (was `ElementPlusDynamicForm.vue`); wraps `DynamicFormTemplate`, authors all slots | It is the template itself |
-| `ElementPlusDynamicForm.vue` | Batteries-included wrapper: one layout-only `ElForm` around core's `DynamicForm` (`template` defaults to `ElementPlusFormTemplate`); forwards its own slots through, owns `@submit.prevent` and the `#actions` slot | Neither core nor Element Plus composes `ElForm` + `DynamicForm` together; this is genuinely new package glue |
-| `FormFieldWrapper.vue` | Standalone `ElFormItem` + description + help text + optional/required `ElTag` + dependent-on placeholder | `ElFormItem` alone lacks all four extras (mirrors `FormField`) |
-| `FormSectionCard.vue` | `ElCard`-based section for groups/headings (header title/description/error + grid body) | Composes `ElCard` with the standard header/error/grid layout (mirrors `SectionCard`/`GroupField`) |
-| `ArrayCard.vue` | `ElCard` + count `ElTag` + Add `ElButton` for `*-array`/`default-array` | Mirrors `ArrayField` |
-| `RepeaterItemCard.vue` | Inner `ElCard` + index/branch badge + Remove `ElButton` for `*-array-item` and `*-choice-array-item` | Mirrors `RepeaterCard`; one component serves both item families |
-| `ChoiceSection.vue` / `ChoiceArraySection.vue` | `ElCard` + selector/Add buttons bound to the choice slot props | Mirrors `ChoiceField`/`ChoiceSectionCard`/`ChoiceArraySectionCard` |
-| `WizardShell.vue` (only if OQ2 in scope) | `ElSteps`/`ElStep` + nav `ElButton`s, exposes `currentStepIndex`/`gotoStep` via `slotProps` | Mirrors `FormWizard`/`Stepper` |
-| `SummaryGroup.vue` (only if OQ2 in scope) | `ElDescriptions`/`ElDescriptionsItem` read-only summary | Mirrors `ReviewGroup` |
+- Re-exports kept: `FieldMetadata`, `GetMetadataType` (already re-exported), plus adding `GetDynamicFormSettingsType`, `MetadataConfiguration` for consumer typing convenience.
 
-No new composable is needed: all reactive state (field values, validation, choice occurrence math, add/remove) already arrives through the core slot props. These package components are presentational.
+Slot contract (parity with `DynamicFormTemplate`, decision-driven fallback content): `ElementPlusFormTemplate` defines, on its inner `DynamicFormTemplate`, one `<template #X>` per slot family below, each shaped `<slot name="X" v-bind="s"><!-- Element Plus fallback --></slot>` so the consumer overrides `X` and otherwise inherits the EP markup:
 
-### `ElementPlusDynamicForm`, wizard nesting, and the submit affordance
+- Structural: `default`, `default-input`, `default-array`, `default-array-item`, `default-choice`, `default-choice-array`, `default-choice-array-item`, `default-wizard`, `default-wizard-page`.
+- Per built-in type where it renders a control: `<type>-input` for all 16 (mirrors today's `text-input`, `select-input`, ...); `<type>` wrappers only where the type needs bespoke chrome (`checkbox`, `switch`, `heading`, `divider`, matching today). The remaining per-type array/choice/wizard combinations are intentionally left to fall through the priority chain to the `default-*` family (that is exactly what the fallback chain in `DynamicFormTemplate` is for); the package does not enumerate all `16 x 7` combinations, it supplies the `default-*` structural slots plus per-type `-input` slots and lets dispatch fill the rest. A consumer adding a per-type structural slot (e.g. `date-array-item`) still can, because the override slot name is forwarded.
 
-DECIDED (Jeroen): the `ElForm` wrapping is owned by the new `ElementPlusDynamicForm` component (scope item 4), not by a `type: 'form'` metadata convention. This replaces the root-`form`-type mechanism described in an earlier draft of this spec and resolves AR finding 1 (the flat-form submit contract) by construction, since the wrapper component can offer a real slot inside the real `<form>` element.
+Backwards compatibility and changeset: the only consumers of `ElementPlusDynamicForm` today are this repo's own test file and Storybook story (package is `private: true`, never published; confirmed in `package.json`). Both are updated in-feature. There is no external consumer to break, so the hard rename carries no external breakage. Core peer floor: the package's peer range on `@bach.software/vue-dynamic-form` is set to the lowest core version that ships the wizard and explicit-choice slot props the template reads (derived when the publish story runs), so an older installable core cannot break it at runtime. Changeset: minor (decision 6), and only becomes a real CHANGELOG entry once the package flips to published at the end (decision 1); while `private: true`, `packages/element-plus` changes need no changeset per `CLAUDE.md`. Core is untouched, so no core changeset.
 
-- `ElementPlusDynamicForm` renders exactly one `<ElForm labelWidth="auto" :labelPosition="labelPosition ?? 'top'" @submit.prevent="onSubmit">` around a `<DynamicForm :metadata :template="template ?? ElementPlusFormTemplate" :settings>`, forwarding every slot `ElementPlusDynamicForm` itself receives straight down to `DynamicForm`'s template. The `ElForm` gets no `model` and no `rules`. Because the `ElForm` is owned by this one component rather than triggered by any metadata convention, exactly one `<form>` element exists per `ElementPlusDynamicForm` instance, and there is no metadata node for a consumer to add or forget.
-- `@submit.prevent` fallthrough is safe: `ElForm` is a single-root component rendering one `<form>`, so the listener falls through via standard attrs fallthrough (confirmed against 2.14.2 source: `ElForm`'s render is a single `<form :class>` element).
-- Submit contract: a named `#actions` slot renders inside the `<form>`, after the field tree, so a consumer's own `<ElButton type="submit">` is a genuine descendant of the real `<form>` element and native submission (including Enter-to-submit) works. `onSubmit` runs vee-validate's `handleSubmit` (via `useDynamicForm()`, so validation gates submission and vee-validate remains the only validation engine) and, on success, calls the component's `submit` prop/emit with the validated values.
-- Wizard nesting: because the `ElForm` is structural rather than metadata-driven, a `wizard` child type (if in scope, OQ2) needs no special interaction with `ElementPlusDynamicForm` at all. `ElSteps`/`ElStep` are ordinary block content and nest legally inside the `<form>` that `ElementPlusDynamicForm` already renders; the wizard's own step-navigation buttons live inside the wizard's own slot content, and its final step renders its submit action into the same `#actions` slot a flat form uses.
-- A consumer who uses `ElementPlusFormTemplate` directly (composing their own `<DynamicForm>` without an `ElForm` ancestor, bypassing `ElementPlusDynamicForm` entirely) still gets a fully working form: every `ElFormItem` works standalone. They simply lose the `<form>` element and cross-field label alignment (the `labelWidth="auto"` registry needs an `ElForm` ancestor). This is documented graceful degradation, not an error.
+### The slot-forwarding contract (centrepiece)
 
-### Label alignment mechanism (decided in principle: layout-only `ElForm`)
+The engine renders the template component once per field, passing it two slots (confirmed in `DynamicFormItem.vue`): the unnamed `default` slot carries the field's own render (the `-input` component for a leaf, or the recursive children for a parent), and the `attributes` slot carries attribute sub-items. The template dispatches on the `type` attr through `DynamicFormTemplate`.
 
-Source verification against installed element-plus **2.14.2** established the layout-only approach is safe:
+`ElementPlusFormTemplate` is a middle layer: it consumes `DynamicFormTemplate`'s user-facing slots (to inject EP markup) and re-exposes them for override. The one hazard is that the engine's render slot and the parity override slot both want the name `default`. The resolution:
 
-- `ElForm` renders exactly one element (`<form :class>` with a default slot) and publishes everything (`labelPosition`, `size`, `labelSuffix`, the field registry, `useFormLabelWidth()`'s max-width registry) from its own `setup()` via `provide(formContextKey, ...)`. Vue's `inject` resolves along the runtime parent chain, so every `ElFormItem` rendered anywhere inside `ElementPlusDynamicForm`'s slotted `DynamicForm` subtree receives the context regardless of slot-nesting depth.
-- All validation machinery (`validate`, `validateField`, `resetFields`, `setInitialValues`) is guarded by `if (!props.model)` and inert without a `model`; the `rules` watcher deep-watches `undefined`; the per-field `cloneDeep` snapshot in `addField` only runs when an `ElFormItem` has a `prop`. Layout-only usage therefore pushes nothing to `ElForm`'s `fields` array (no `ElFormItem` is ever given a `prop`) and costs only one `ResizeObserver` per label, and only when `labelWidth="auto"` in label-beside mode, which is the alignment feature itself.
-- `ElFormItem` works standalone (its `formContext` inject defaults to `undefined` and every use is optional-chained); its `error` prop shows a message with `ElFormItem`'s built-in ~100ms debounce, so vee-validate errors pipe straight in (see finding below for the test implication).
-- `labelPosition` maps `top` (label-above, default) and `left`/`right` (label-beside); label-beside alignment across the whole form comes for free from `labelWidth="auto"` + the `FormLabelWrap` ResizeObserver registry. Whether label-beside also needs a per-field `ElFormItem.labelPosition` override and a narrow-viewport collapse to label-above is **Open question 6, left open**.
-- Fallbacks, only if per-section alignment is ever required (one `ElForm` registry spans the whole form, and nesting `ElForm`s would nest `<form>` elements, invalid HTML): CSS grid `subgrid`, or a package-owned provide/inject + `ResizeObserver` width provider (the pattern `FormLabelWrap` itself implements). `display: table` was ruled out: sections/arrays/choices need real block-level cards, which a table row/cell model does not compose with.
+- The EP fallback markup reaches the engine's field render through a reserved slot read as `<slot name="input"><slot /></slot>` and the attribute render through `<slot name="attributes" />`.
+- `<slot name="input"><slot /></slot>` means: use an `input` slot when the consumer wrapper forwarded one, otherwise fall back to the unnamed `default` slot. This is what makes **bare, zero-config usage** work: `<DynamicForm :template="ElementPlusFormTemplate" />` renders `ElementPlusFormTemplate` directly, the engine hands it `default` + `attributes` under those exact names, `input` is absent so the nested `<slot />` picks up the engine's `default`, and every field renders with full EP chrome and no wrapper. This is the "zero further template work" path in the Functional overview.
+- **Override usage** requires a thin consumer wrapper (unavoidable: Vue slots are the only channel to inject overrides into a `:template`, same as `AdvancedFormTemplate.vue` wraps `DynamicFormTemplate`). The documented wrapper boilerplate is two forward lines plus overrides:
 
-PROPOSED (adversarial review) — AR finding 4: pin the label-placement constraint the wrapper must obey. `FormLabelWrap` only measures the label `ElFormItem` renders in its own label region (via the `label` prop or the `#label` slot). So `FormFieldWrapper` must render the aligned label *through* `ElFormItem` (not as its own sibling `<label>` the way the parity reference `FormField.vue` does), and the optional/required `ElTag`, description, help text, and dependent-on placeholder must live in the content area (or in `#label` deliberately if they are meant to count toward column width). A naive port of `FormField.vue`'s structure (own `<label>` + tag outside any `ElFormItem`) registers no measurable label and silently breaks cross-field alignment. This interacts with OQ6 (per-field `labelPosition` override).
+  ```vue
+  <ElementPlusFormTemplate :metadataConfiguration="myMetadata">
+    <!-- hand the engine's field + attribute render to the built-in Element Plus chrome -->
+    <template #input="s"><slot v-bind="s" /></template>
+    <template #attributes="s"><slot name="attributes" v-bind="s" /></template>
 
-DECIDED (research): confirmed against `FormField.vue` (its own `<label>` sits outside any form-item wrapper) and against `FormLabelWrap`'s source (it measures only the `ElFormItem` label region). `FormFieldWrapper` renders its label through `ElFormItem`'s `#label` slot (needed anyway to place the optional/required `ElTag` next to the label text), and puts description, help text, and the dependent-on placeholder in the content area below the input, not in the measured label region. This is a straight implementation constraint, not a design choice; it interacts with OQ6 but does not resolve it.
+    <!-- override only what you want; everything else keeps its Element Plus default -->
+    <template #date-input="s"> ...your control... </template>
+  </ElementPlusFormTemplate>
+  ```
 
-PROPOSED (adversarial review) — AR finding 7 (nit): correct the cost claim in the second bullet above. `ElFormItem.onMounted` calls `formContext.addField` only when `props.prop` is set; the layout-only usage never sets `prop`, so nothing is pushed to `ElForm`'s `fields` array. The only runtime cost is the per-label `ResizeObserver`, and only in label-beside auto mode (see next note).
+  Inside the wrapper, `<slot v-bind="s" />` is the wrapper's own default slot, which is the engine's field render, forwarded to `ElementPlusFormTemplate`'s reserved `input` slot; `<slot name="attributes" />` likewise. A consumer who overrides the group wrapper (`#default`) still reaches the field render through their own `<slot v-bind="s" />` inside that override, so overriding chrome never loses the input.
 
-DECIDED (research): confirmed against 2.14.2 source; the bullet above is corrected to say layout-only usage pushes nothing to `ElForm.fields` (no `prop` is ever set on any `ElFormItem`), with the only runtime cost being the per-label `ResizeObserver` in label-beside auto mode.
+FLAGGED AMENDMENT (from the ST-02 implementation, for Jeroen): in bare usage the unnamed `default` slot is the engine's field render, so `<slot name="default" v-bind="s"><ElFormItem>...</ElFormItem></slot>` would render that engine output instead of the Element Plus chrome. The template therefore treats `default` as a chrome override only when an `input` slot is forwarded (the documented wrapper always forwards it); without `input` the built-in chrome renders. Attribute items are rendered after the overridable chrome slots rather than inside their fallback content, so a `#default` override cannot drop them. The wrapper boilerplate and the reserved names are unchanged.
 
-PROPOSED (adversarial review) — AR finding 8 (nit): `labelWidth="auto"` alignment is a no-op in the default label-above (`top`) position: `ElFormItem.labelStyle` returns `{}` for `top`, `is-auto-width` is false, and no `ResizeObserver` runs. State that cross-field label alignment applies only in label-beside (`left`/`right`) mode, so readers do not expect it in the default layout.
+`input` and `attributes` are therefore reserved slot names on `ElementPlusFormTemplate`. Neither is a parity override name (`-input` slots are `text-input`, `default-input`, etc.; `attributes` has no override slot in `DynamicFormTemplate`), and neither is one of the 16 built-in types, so parity is preserved in full including the plain `default` slot. The documented reserved-name caveat: a consumer extension must not introduce a field type literally named `input` **or `attributes`**; both names are reserved on `ElementPlusFormTemplate` and either would collide with the engine-render forwards.
 
-DECIDED (research): confirmed against 2.14.2 source (`ElFormItem.labelStyle` returns `{}` for `top`). The spec text is corrected to state cross-field label alignment applies only in label-beside mode; it is a no-op in the default label-above layout.
+DECIDED (research): the caveat covers both reserved names (`input` and `attributes`), resolving finding 5.
+Why: follows directly from ADR-1's own reserved list; a consumer type named `attributes` collides exactly like one named `input`.
 
-### Slot-override at scale
+**Generic forward of non-enumerated consumer slots (resolves finding 1, blocker).** The enumerated `<template #X>` set above only re-exposes the 16 built-in families, and `elementPlusMetadata.fieldTypes` is empty at runtime, so without a forward a consumer's new-type slot (`richText-input`, or any non-enumerated per-type structural slot like `date-array-item`) would be dropped and render through the built-in `default-input`/`default-*` fallback instead of the consumer's markup. `ElementPlusFormTemplate` therefore adds an explicit generic forward on its inner `DynamicFormTemplate` that passes through every consumer-supplied slot NOT in the reserved/enumerated set:
 
-The `<slot name="X" v-bind="p"><PackageDefault v-bind="p" /></slot>` passthrough (proven today at `default` and `default-input`) is applied to every slot the package authors. Decision: keep explicit per-slot template blocks, but push each default's markup into the small package components above, so each block is a one-liner (`<template #X="p"><slot name="X" v-bind="p"><SomeCard v-bind="p" /></slot></template>`). A generated or renderless approach is rejected: `defineSlots` requires statically-declared slot names for the type inference the whole template contract depends on.
+```vue
+<!-- inside ElementPlusFormTemplate's inner <DynamicFormTemplate>, alongside the enumerated EP-fallback templates -->
+<template v-for="name in forwardedSlotNames()" :key="name" #[name]="s">
+  <slot :name="name" v-bind="s" />
+</template>
+```
 
-The real block count is well under the ~40 upper bound: core's `DynamicFormTemplate` already resolves any unauthored slot through its `default-input`/`default-array`/`default-array-item`/`default-choice`/`default-choice-array`/`default-choice-array-item` → `default` fallback chain. So the package authors the seven family-default slots plus one `*-input` slot per built-in type that needs type-specific control markup (roughly the ~16 today, trimmed by OQ4), and every other per-type variant (`text-array`, `select-choice`, ...) falls through for free. A consumer's own new field type likewise "just works" via the family defaults before they write a dedicated slot.
+where `forwardedSlotNames` is a function called from the template (not a `computed` over `useSlots()`, which is non-reactive and would go stale for slots added after mount) returning every supplied slot name except the excludes: `input`, `attributes`, and every name that already has an explicit EP-fallback `<template #X>` (the structural `default`/`default-*` family and the enumerated per-type slots). Filtering in a computed rather than a `v-if` on the `v-for` element keeps the template valid (Vue forbids `v-if` with `v-for` on one element) and means the forward never duplicates a template nor re-triggers the ADR-1 `default`-slot clash. This is what actually delivers decisions 3 and 5 (a consumer adds a type and supplies its slot) and is a prerequisite for slice 4's extended-field-type example; it lands in slice 1 with the forwarding contract. It refines, not contradicts, ADR-1: ADR-1 rejected forwarding the engine `default` render onto the `default` override slot, which this exclusion list preserves.
 
-Core needs nothing new. `ElementPlusDynamicForm` re-exposes every slot it receives with `<template v-for="(_, name) in $slots" #[name]="slotProps"><slot :name v-bind="slotProps" /></template>` (the same forwarding pattern already used by the storybook `ElementPlusDynamicFormImplementation.vue`) down into its `DynamicForm`'s `template`, and `ElementPlusFormTemplate` exposing every slot name means a consumer's `<template #text-input>`, whether placed directly on `<ElementPlusDynamicForm>` or inside an intermediate `FormTemplate.vue`, overrides just that slot while all others keep the package default.
-
-### Wizard parity mapping (conditional on Open question 2)
-
-If wizard support is in this milestone (OQ2, left open), map: `FormWizard`/`Stepper` -> `ElSteps` + `ElStep` (the active step is the numeric `active` prop bound to `currentStepIndex`; `ElStep` takes `title`/`description`/`status`; renders standalone with no form, [element-plus.org/steps](https://element-plus.org/en-US/component/steps.html)); nav buttons -> `ElButton`; `wizardSummaryPage`/`ReviewGroup` -> `ElDescriptions` + `ElDescriptionsItem` (read-only label/value summary list, [element-plus.org/descriptions](https://element-plus.org/en-US/component/descriptions.html)); optional sticky nav -> `ElAffix` (from the catalog survey). The step-state (`currentStepIndex`/`gotoStep`) flows through `slotProps` exactly as `AdvancedFormTemplate` does today, so no core change is needed. If OQ2 defers wizard, the slot contract already leaves room (the `wizard`/`wizardPage`/`wizardSummaryPage` types are just additional entries in the package's `defineMetadata` union, additive later with no breaking change).
-
-### Public API impact and changeset
-
-- **Core:** none. No exports, props, slots, `defineMetadata` generics, or validation rules change.
-- **Package (currently `private: true`):** `packages/element-plus/src/index.ts` exports two components: `ElementPlusFormTemplate` (renamed from today's `ElementPlusDynamicForm.vue`, the pure slot-authoring template) and a new `ElementPlusDynamicForm` (the batteries-included `ElForm` + `DynamicForm` wrapper; it reuses the old export name for a genuinely new implementation, a deliberate rename-and-repurpose rather than a compatibility alias, see **Open question 5**). `ElementPlusDynamicForm`'s own props are `metadata`, `template` (default `ElementPlusFormTemplate`), `settings`, and `labelPosition`, plus a `submit` emit fired on successful validation. `ElementPlusFormTemplate`'s `defineMetadata` generics gain extended properties mirroring the docs reference (`description`, `helpText`, `dependentOnMessage`, `hide`, `fullWidth`, array item-naming props, choice options, and per OQ2 possibly `wizard`/`wizardPage`/`wizardSummaryPage`); there is no `form` root type. All are additive to the package surface. The two in-repo consumers (`playgrounds/storybook/components/ElementPlusDynamicFormImplementation.vue`, `playgrounds/storybook/stories/ElementPlusForm.vue`) are updated mechanically.
-- **Changeset bump type:** `CLAUDE.md`'s changeset rule is gated on `packages/core/src/` changing. This feature does not touch `packages/core/src/`, so **the existing changeset rule does not apply and no core changeset is required** (stated as fact, not an assumption). Whether `packages/element-plus` gains its own release/changeset flow is tied to publishability, **Open question 1, left open**. If OQ1 flips `private: false`, this is a first public release at `0.1.0` (a new package entering the registry), not a breaking change from a prior published version; the correct starting version (stay `0.1.0` pre-release vs jump to `1.0.0`) and extending the Changesets config to cover the package are the two sub-decisions OQ1 must settle.
-
-### Data flow
-
-- vee-validate form context + `DynamicForm` settings (provide/inject) remain the single source of truth for values, validation, and settings (core, unchanged).
-- The `ElForm` inside `ElementPlusDynamicForm` provides `formContextKey` from its own `setup()`; every nested `ElFormItem` injects it along the runtime parent chain, so `labelPosition`/`size`/label-width alignment reach all fields at any depth. `ElForm` receives no `model`/`rules` and the template never calls its `validate`/`resetFields`.
-- Errors are one-way: vee-validate `errorMessage` -> `ElFormItem.error` (leaf) or `ElAlert` (container). `ElForm` never produces or consumes validation state.
-- Choice occurrence state is fully owned by core; the package renders buttons/selector bound to `ChoiceAttributes` slot props and holds no local choice state.
-- Reactivity: the package adds no `computedProps` and no new watch/computed cycles; it is presentational over the props core already computes, so the `combinedValidation` watchEffect and `computedProps` loop-guard concerns in `DynamicFormItem` are unaffected.
-
-### ADR notes
-
-1. **Layout-only `ElForm`, owned by a wrapper component.** Context: cross-field label-width alignment needs `ElForm`'s `FormLabelWrap` registry, but `DynamicForm` + vee-validate own validation. Decision: `ElementPlusDynamicForm` renders one `ElForm` around `DynamicForm`, with no `model`/`rules` and no `prop` on any `ElFormItem`. Alternatives rejected: full `ElForm` with `model`/`rules` (a second validation source of truth); no `ElForm` + a package-built width provider (reinvents `FormLabelWrap`); a metadata-driven root `form` type (an earlier draft of this decision, dropped in favor of a plain wrapper component, which needs no metadata convention and lets the wrapper own the submit affordance directly). Evidence: 2.14.2 source guards all validation behind `props.model`; `ElFormItem` standalone verified.
-2. **`ElCard` as the universal container** for group/section/array/choice. Alternatives rejected: `ElCollapse` (adds collapse semantics not wanted by default), raw `<div>`s (loses stock elevation/spacing), `ElDivider`-only (no body/header structure). Evidence: [element-plus.org/card](https://element-plus.org/en-US/component/card.html) (pure layout container, `#header`/`#footer`/default slots).
-3. **Split error surfacing:** `ElFormItem.error` inline for leaves, `ElAlert` for container-level. Alternatives rejected: `ElAlert` everywhere (too heavy under a single input), `ElFormItem` everywhere (a section/array is not a form item). Evidence: `ElFormItem.error` verified in source; `ElAlert` supports inline `error` type ([element-plus.org/alert](https://element-plus.org/en-US/component/alert.html)).
-
-   PROPOSED (adversarial review) — AR finding 3: correct the "shows a message immediately" claim (Architecture item 4 and this ADR). `ElFormItem` in 2.14.2 gates the visible error on `validateStateDebounced = refDebounced(validateState, 100)`, so a vee-validate error piped through the `error` prop appears with a ~100ms debounce (and clears with the same lag). This is acceptable UX, but (a) the spec text should say "with `ElFormItem`'s built-in ~100ms debounce" rather than "immediately", and (b) the package's validation tests must await the debounce (advance timers / `await flushPromises` + tick) before asserting error text, or they will false-pass/flake. If truly synchronous error display is required, the wrapper must render its own error node instead of relying on `ElFormItem.error`; that is a larger change and not recommended.
-
-   DECIDED (research): confirmed against 2.14.2 source (`validateStateDebounced = refDebounced(validateState, 100)`). Spec text corrected above and in Architecture item 4 to "~100ms debounce" instead of "immediately". The package's validation tests must await the debounce before asserting error text; noted as a QA-plan requirement for the relevant story rather than a design change. The synchronous-error alternative (wrapper renders its own error node) is not adopted: ~100ms is imperceptible UX and matching stock `ElFormItem` behavior keeps the wrapper thin.
-4. **Wizard on `ElSteps` + `ElDescriptions`** (if OQ2 in scope). Alternatives rejected: `ElTabs` (no progress/step semantics), a custom stepper (reinvents `ElSteps`). Evidence: [element-plus.org/steps](https://element-plus.org/en-US/component/steps.html) (numeric `active`, standalone), [element-plus.org/descriptions](https://element-plus.org/en-US/component/descriptions.html) (read-only summary list).
-5. **Explicit per-slot passthrough blocks + extracted default components**, over generated/renderless slots. Reason: `defineSlots` needs static slot names for the template type contract; core's fallback chain already keeps the authored count low.
-
-### Slicing seams (input for the scrum-master)
-
-Independently deliverable, engine work separate from docs/Storybook per the arch guidance:
-
-- **Slice A (foundation):** rename `ElementPlusDynamicForm.vue` to `ElementPlusFormTemplate.vue`, add the new `ElementPlusDynamicForm.vue` wrapper, update `index.ts` and the two in-repo consumers, add `FormFieldWrapper`, add slot passthrough for every existing leaf input and `default`/`default-input`. Depends on nothing. Delivers an override-complete leaf form with a working `<form>` and submit.
-- **Slice B (labels):** label-above/label-beside via `ElementPlusDynamicForm`'s `labelPosition` prop, riding the layout-only `ElForm` Slice A already stood up. Depends on A. Blocked in aesthetics only by OQ6 (per-field override / narrow-viewport collapse), which does not block the core mechanism.
-- **Slice C (groups/sections):** `FormSectionCard` on `ElCard`, group/heading rendering. Depends on A.
-- **Slice D (arrays):** `ArrayCard` + `RepeaterItemCard`, `*-array`/`*-array-item`. Depends on A and C.
-- **Slice E (choices):** `ChoiceSection`/`ChoiceArraySection`, single and repeatable choice wiring, reusing `RepeaterItemCard`. Depends on A and C; selector widget blocked on OQ8 (the wiring is not).
-- **Slice F (wizard, conditional on OQ2):** `WizardShell` on `ElSteps`, `SummaryGroup` on `ElDescriptions`. Depends on B and C.
-- **Slice G (demonstration surface, OQ7):** Storybook story and/or docs page. Depends on the slices it demonstrates; slices separately from engine work.
-
-### Diagrams
-
-Slot dispatch and error/label context flow for a leaf field inside `ElementPlusDynamicForm`:
+DECIDED (research): adopt the generic forward with the exclusion list above, resolving finding 1 (and naming the concrete excludes per finding 6).
+Why: without it, `extendMetadata` cannot deliver decisions 3 and 5, which Jeroen already made; no alternative exists that keeps the enumerated EP fallbacks and the ADR-1 `default`-slot resolution intact. Confirmed against `DynamicFormTemplate.vue`'s `typeWithFallback` dispatch and `defineMetadata`'s empty runtime `fieldTypes`.
+Sources: `packages/core/src/components/DynamicFormTemplate.vue`, `packages/core/src/core/defineMetadata.ts`, vuejs.org/guide/essentials/list (`v-if` with `v-for` restriction), vuejs.org dynamic slot names
 
 ```mermaid
 sequenceDiagram
-  participant EPDF as ElementPlusDynamicForm
-  participant Form as ElForm (layout-only)
-  participant DF as DynamicForm (core)
-  participant DFI as DynamicFormItem (core)
-  participant EPT as ElementPlusFormTemplate (or consumer FormTemplate.vue)
-  participant DFT as DynamicFormTemplate (core)
-  participant FFW as FormFieldWrapper
-  participant Item as ElFormItem (standalone)
-  EPDF->>Form: render one <form>, provide(formContextKey)
-  Form->>DF: render DynamicForm inside, forward slots
-  DF->>DFI: walk metadata, provide settings
-  DFI->>DFT: leaf field attrs (type ...-input)
-  DFT->>EPT: dispatch to #default / #<type>-input (fallback chain)
-  EPT->>FFW: render default (or consumer override)
-  FFW->>Item: label + error=errorMessage (vee-validate, one-way)
-  Item-->>Form: inject formContext -> labelWidth="auto" alignment
+    participant Engine as DynamicFormItem (engine)
+    participant Wrap as Consumer wrapper (the :template)
+    participant EPFT as ElementPlusFormTemplate
+    participant DFT as DynamicFormTemplate
+
+    Note over Engine: renders template per field, passes<br/>#default (field render) + #attributes
+    Engine->>Wrap: slot default = -input render / children<br/>slot attributes = attribute items
+    Wrap->>EPFT: #input = (wrapper default), #attributes,<br/>+ consumer overrides (#date-input, #default, ...)
+    EPFT->>DFT: :metadataConfiguration, all parity #slots<br/>each = <slot name="X"><EP fallback/></slot>
+    DFT->>DFT: typeWithFallback(type) picks slot X
+    DFT-->>EPFT: render slot X
+    alt consumer overrode X
+        EPFT-->>Wrap: consumer markup wins
+    else no override
+        EPFT->>EPFT: EP fallback markup;<br/>input via <slot name="input"><slot/></slot>
+    end
 ```
 
-Container mapping by shape:
+### Data flow
 
-```mermaid
-flowchart TD
-  A[metadata node] -->|children| G[FormSectionCard / ElCard]
-  A -->|maxOccurs gt 1| R[ArrayCard / ElCard + ElButton]
-  R --> RI[RepeaterItemCard / inner ElCard]
-  A -->|choice, maxOccurs 1| C1[ChoiceSection / ElCard + selector]
-  A -->|choice, maxOccurs gt 1| C2[ChoiceArraySection / ElCard + per-branch ElButton]
-  C2 --> RI
-  A -->|leaf| L[FormFieldWrapper / ElFormItem + ElTag + ElAlert]
-  W[ElementPlusDynamicForm] --> F[ElForm layout-only]
-  F --> A
-```
+- Settings: `DynamicForm` provides the `ComputedRef<DynamicFormSettings>` under `dynamicFormSettingsKey`; `DynamicFormItem` injects it and forwards it to the template as the `settings` slot prop. `ElementPlusFormTemplate` reads settings only through that slot prop (e.g. `settings` in slot scope). No new provide/inject is introduced by the package.
+- vee-validate: leaf inputs bind `:model-value="fieldContext.value.value"` and `@update:model-value="fieldContext.handleChange"` on Element Plus controls, per each control's real v-model contract (not blindly copied from today's bindings, see below). `handleBlur`/`errorMessage` are available in slot scope for controls that surface validation state (fed into `ElFormItem`'s `error`/`validate-status` where useful). Path handling (dot/bracket notation, complex types) is entirely the engine's; the template never touches paths beyond reading `fieldMetadata.path` for keys/testids.
+
+  **Do not port broken v-model bindings verbatim (resolves finding 3).** The current `upload-input` binds `:model-value`/`@update:model-value` on `ElUpload`, which has no `model-value` (it binds via `v-model:file-list` + `on-change`), so the upload field never reaches vee-validate. Slice 1's port binds `ElUpload` through `file-list` + `on-change` (into `handleChange`), and audits each of the 16 controls' real v-model contract (upload, transfer, cascader especially) against the Element Plus docs, checking each bound prop/event is available at the `>=2.0.0` peer floor (per-control floor check, finding 7) rather than trusting the existing bindings.
+
+  DECIDED (research): fix the `ElUpload` binding during the port and audit every control's v-model contract plus its `>=2.0.0` availability, resolving findings 3 and 7.
+  Why: confirmed in `packages/element-plus/src/ElementPlusDynamicForm.vue` (`:model-value`/`@update:model-value` on `ElUpload`) against the Element Plus upload docs, which document `v-model:file-list` + `on-change` and no `model-value`. Porting the defect verbatim contradicts the drop-in goal.
+  Sources: element-plus.org/en-US/component/upload (API), `packages/element-plus/src/ElementPlusDynamicForm.vue` lines 331-346
+- Wizard: the `default-wizard` fallback builds its indicator from the `pages` slot prop (never `fieldMetadata.children`) using `ElSteps :active="currentStepIndex"` + one `ElStep` per page (verified `StepsProps.active`/`StepProps.title`/`description` in element-plus 2.14.2; `ElSteps` has no per-step click event, so forward-jump is offered via `ElButton`/click handlers layered on the step, gated by `wizardConfig.allowForwardJump`, not by a native step event). Prev/next/submit use `ElButton`, wired to `prev`/`next`, with the submit button shown when `isLast`. The `default-wizard-page` fallback gates visibility with `v-show="isCurrent"` and never `v-if` (per the FEAT-003 contract in `WizardPageAttributes`; a `v-if` would deregister the page's fields from vee-validate on navigation). All pages stay mounted.
+- Choice: `default-choice` (single) and `default-choice-array` (repeatable) fallbacks render an `ElCard`-based section reading `activeChoiceOccurrences`/`addChoiceOccurrence`/`canAddChoiceOccurrence`/`removeChoiceOccurrence`/`usedChoiceOccurrences` from slot scope; `default-choice-array-item` renders one occurrence card reading `branchKey`/`globalIndex`/`insertionOrder`/`removeItem`. This mirrors the docs `ChoiceSectionCard`/`ChoiceArraySectionCard` structure but in Element Plus, and works for both automatic and explicit selection modes (the engine drives which occurrences render). The one mode read the template makes: branch select/add/remove controls render only when `fieldMetadata.explicitChoiceSelection` is set, because in automatic mode those engine calls clear sibling branches (the engine binds the same slot props in both modes), which would wipe user-entered data; automatic mode renders the children only.
+
+  DECIDED (Jeroen): the choice section reads `fieldMetadata.explicitChoiceSelection` and shows its selection controls only in explicit mode; automatic mode renders children only. The earlier "no template branching" wording is amended to allow exactly this mode read.
+- Reactivity: the template is purely presentational; it introduces no `computedProps`, no `watchEffect`, and no extra reactive state beyond Element Plus components' own. It does not affect the `combinedValidation` watchEffect or `computedProps` loop guards. Render-count behaviour is unchanged from any other template.
+
+### CSS strategy
+
+- Remove every Tailwind utility class from the package (`flex items-center gap-2`, `my-4`, `text-lg font-semibold mb-2`, `flex flex-col gap-2`, and the Storybook consumer's Tailwind spacing/typography). No Tailwind build step exists or is added.
+- Prefer Element Plus's own layout/presentation components for chrome so most styling arrives through the stylesheet the consumer already imports for Element Plus: `ElCard` (array/choice sections and occurrence cards), `ElDivider` (`divider` type and section separators), `ElSteps`/`ElStep` (wizard indicator), `ElFormItem` (per-field label/required/error), `ElButton` (add/remove/nav). All verified present in element-plus 2.14.2 and available across the `>=2.0.0` peer range. Deliberately avoid `ElSpace`/`ElRow`/`ElCol` to keep the peer floor safe and the CSS surface minimal.
+- The small residue that Element Plus has no primitive for (a two-column responsive field grid, gap/spacing between stacked fields) is authored as plain, scoped `<style scoped>` in `ElementPlusFormTemplate` and any internal sub-components. With `build.cssCodeSplit: false` (the library-mode default; the package config currently overrides it to `true`) and `build.lib.cssFileName: 'style'`, this compiles to a single `dist/style.css`, which the consumer imports once alongside the Element Plus stylesheet:
+
+  ```ts
+  import 'element-plus/dist/index.css';
+  import '@bach.software/vue-dynamic-form-element-plus/style.css';
+  ```
+
+  Requiring one template stylesheet import next to the mandatory Element Plus one is consistent with how Element Plus itself is consumed and is documented in the package README/usage. Element Plus stays a required (non-optional) peer dependency (already true in `package.json`), so its styling and behaviour are guaranteed available; this feature preserves that split, it does not change dependency shape.
+
+  **Make `style.css` real and importable (resolves finding 2).** Three things are needed at the installed Vite `7.3.6`: (a) `build.lib.cssFileName` defaults to the `package.json` `name` when `build.lib.fileName` is a function (it is), so it must be pinned to `'style'`; (b) `cssFileName` is only consulted when `build.cssCodeSplit` is `false` (the library-mode default), but `vite.config.ts` currently sets `cssCodeSplit: true`, which makes the es build emit `index.css` and the umd build inject the CSS into the JS at runtime, so `cssCodeSplit` must be removed or set to `false`; and (c) `package.json`'s `exports` map only exposes `"."`, so a `"./style.css": "./dist/style.css"` entry is needed, and the consumer import is `@bach.software/vue-dynamic-form-element-plus/style.css` (the deep `dist/style.css` path is not an allowed import). Dropping `cssCodeSplit` also removes runtime style injection from the umd bundle, which is the intended behaviour for a package that ships one stylesheet. The implementer confirms a single `dist/style.css` is emitted, since the package ships no CSS today.
+
+  DECIDED (research): set `cssCodeSplit: false`, pin `cssFileName: 'style'`, and export `"./style.css"`, resolving finding 2. This corrects the first version of this decision, which pinned `cssFileName` alone and missed that `cssCodeSplit: true` bypasses it.
+  Why: verified in the installed Vite 7.3.6 source (`vite:css-post` in `dist/node/chunks/config.js`: the `cssCodeSplit` true branch names the asset after the entry chunk and never calls `getCssBundleName()`; `resolveLibCssFilename` is reached only on the false branch; lib builds default to `cssCodeSplit: !raw.lib`) and against the package source (`exports` map only exposes `"."`; `fileName` is a function). Factual, not a taste call.
+  Sources: `packages/element-plus/package.json`, `packages/element-plus/vite.config.ts`, vite 7.3.6 `dist/node/chunks/config.js`, vite.dev/config/build-options (`build.lib`, `build.cssCodeSplit`), nodejs.org docs on package `exports` subpaths
+
+### ADR notes
+
+**ADR-1: Reserved `input`/`attributes` slots with `<slot name="input"><slot/></slot>` fallback, rather than renaming every override slot or breaking `default` parity.**
+Context: the engine passes the field render as the template's unnamed `default` slot, which collides with the parity `default` override slot; bare zero-config usage and full-parity override usage both have to work. Decision: read the engine render through `<slot name="input"><slot /></slot>` (and `<slot name="attributes" />`), reserving `input`/`attributes`, so bare usage falls back to the engine's `default` while wrapped usage forwards `input`. Alternative considered: rename the group-wrapper override off `default` to dodge the clash. Rejected: it breaks the parity promise on the most-used slot and reads worse than reserving two clearly-internal names. Alternative considered: a blanket `v-for="(_, name) in $slots"` forward (today's Storybook approach). Rejected: it forwards the engine `default` onto the `default` override slot and erases the EP chrome, which is exactly why the current package renders unstyled.
+
+DECIDED (Jeroen): keep the two-line wrapper boilerplate as designed in this feature. Eliminating it engine-side (moving the engine's content slots off `default` to a reserved name and letting `DynamicForm` forward consumer override slots into every template render, removing the need for a wrapper for all templates) is a candidate follow-up feature in `packages/core`, raised separately with its own design and deprecation story. ADR-1's `<slot name="input"><slot /></slot>` chain is forward-compatible with that future engine: `ElementPlusFormTemplate` would work unchanged with or without a wrapper.
+
+**ADR-2: Consumer-wins merge (`Omit<Built-in, keyof Extra> & Extra`) in `extendMetadata`.**
+Context: decision 3 allows overriding built-in types, not only adding. Decision: override semantics so the consumer's declaration replaces the built-in on collision. Alternative considered: plain intersection `Built-in & Extra`. Rejected: intersecting a redefined `text: string` with `text: MyType` yields `string & MyType`, an unusable type; overriding is the only shape that lets a consumer genuinely replace a type. The documented pairing (override the type, also supply the matching slot, since built-in fallback markup still assumes the built-in property shape) is decision 3's explicit expectation.
+
+**ADR-3: `ElementPlusFormTemplate` takes `metadataConfiguration` as an optional prop defaulting to `elementPlusMetadata`.**
+Context: bare usage needs the built-in catalogue with no wiring; extended usage needs the merged config for slot typing of new types. Decision: optional prop with a `?? elementPlusMetadata` fallback and a generic default of `typeof elementPlusMetadata`. Alternative considered: no prop, always `elementPlusMetadata`. Rejected: it makes `extendMetadata` unusable with the template (new types would be untyped in slot scope). The engine does not pass `metadataConfiguration` to templates, so bare rendering correctly hits the default; extended usage passes it through the consumer wrapper.
+
+**ADR-4: Wizard indicator on `ElSteps`/`ElStep`, navigation and forward-jump on `ElButton`/click handlers.**
+Context: FEAT-003 wizard slots supply `pages`, `currentStepIndex`, `wizardConfig`, `next`/`prev`/`gotoStep`. Decision: `ElSteps :active="currentStepIndex"` for the indicator, `ElButton` for prev/next/submit, forward-jump click handlers on steps gated by `wizardConfig.allowForwardJump`. Alternative considered: rely on a native `ElStep` click-to-jump. Rejected: `ElStep` exposes no per-step click event in 2.14.2 (verified), so jump affordances are layered explicitly, matching how the docs `Stepper` does it. `v-show`-never-`v-if` page gating is kept per the `WizardPageAttributes` contract.
+
+**ADR-5: Lean on Element Plus components for chrome, minimal scoped CSS shipped as one stylesheet.**
+Context: Tailwind must go; the package cannot assume a CSS framework in the consumer app. Decision: use EP layout/presentation components (whose styles ride the already-required EP stylesheet) and add only a small scoped stylesheet for the responsive field grid and spacing, imported once. Alternative considered: ship no CSS and inline flex/grid via style attributes. Rejected: harder to theme and read, and duplicates layout across every field; a single scoped stylesheet is idiomatic for a Vue component library.
+
+### Natural slicing seams (input for the scrum-master)
+
+These are largely independently deliverable; the metadata/type layer and the CSS de-Tailwinding gate the rest.
+
+1. **Rename + metadata/extension foundation.** Introduce `ElementPlusFormTemplate` (rename of `ElementPlusDynamicForm`), `elementPlusMetadata`, `ElementPlusValueTypes`/`ElementPlusFieldProperties`, and `extendMetadata`; update `src/index.ts` exports. Fix the slot-forwarding contract (reserved `input`/`attributes`, `<slot name="input"><slot/></slot>`) and port the existing 16 `-input` slots plus the `default`/`default-input` structural slots to real fallback content and plain CSS. This unblocks everything and makes bare usage work. Also updates the Vitest config (add `jsdom` environment + setup) since the current package config has neither, adds `jsdom` and `@vue/test-utils` (both `catalog:test`) to the package `devDependencies` (absent today, required to mount and cover the component; resolves finding 4), and replaces the placeholder test with real coverage of the component, `elementPlusMetadata`, and `extendMetadata`. This slice also includes the generic forward of non-enumerated consumer slots (finding 1 resolution above).
+
+   DECIDED (research): slice 1 adds `jsdom` + `@vue/test-utils` from the `test` catalog, resolving finding 4.
+   Why: confirmed absent in `packages/element-plus/package.json` `devDependencies` and present in `pnpm-workspace.yaml`'s test catalog; mounting a Vue component in Vitest requires both. Pure tooling, invisible to consumers.
+   Sources: `packages/element-plus/package.json`, `pnpm-workspace.yaml` catalog entries
+2. **Structural array + choice families.** Add the `default-array`/`default-array-item` and `default-choice`/`default-choice-array`/`default-choice-array-item` fallbacks with EP `ElCard`-based chrome, reading the choice slot-prop set. Depends on slice 1's forwarding contract.
+3. **Wizard family.** Add `default-wizard`/`default-wizard-page` on `ElSteps`/`ElButton` with the `v-show` gate. Independent of slice 2, depends on slice 1.
+4. **Storybook + example polish.** Update `playgrounds/storybook/stories/ElementPlusForm.*` and `ElementPlusDynamicFormImplementation.vue` to the new name, de-Tailwind them, fix the `field` -> `fieldMetadata` slot-prop bug, and demonstrate at least one overridden slot and one extended field type (a working `extendMetadata` example). Depends on slices 1 to 3 for the surfaces it exercises. Screenshots per the Before-Every-Push workflow.
+5. **`specs/components.md` update + publish flip.** Move the package entry out of "Non-published surfaces" and document the new exports; flip `private: false` and add the changeset only at the very end once Jeroen has seen it work (decision 1). Depends on all above.
+
+Docs-site work is explicitly out of scope (decision 4).
 
 ## Adversarial review
+Filled by adversarial-reviewer at feature level. Findings and resolutions. (Reviewer running as opus.)
 
-model: claude-opus-4-8[1m]
+1. **BLOCKER — the extension mechanism cannot route a new type's slot to the inner `DynamicFormTemplate`; the described slot-forwarding only covers the 16 built-in families.** ADR-1 and the centrepiece describe `ElementPlusFormTemplate` as defining one `<template #X>` per parity family on the inner `DynamicFormTemplate`, each `<slot name="X" v-bind="s"><EP fallback/></slot>`. That set is a fixed, hard-coded enumeration (it must be: `elementPlusMetadata.fieldTypes` is `Object.keys({})` = `[]` at runtime in `defineMetadata`, confirmed, so nothing can generate per-type templates dynamically). A consumer who uses `extendMetadata` to add a `richText` type and supplies `#richTextInput` hands that slot to `ElementPlusFormTemplate`, but there is no `<template #richText-input>` on the inner `DynamicFormTemplate` and no described path to forward it there, so the inner dispatch falls to `default-input` and renders the built-in `ElInput` instead of the consumer's control. The same gap defeats the line-131 claim that a consumer "adding a per-type structural slot (e.g. `date-array-item`) still can, because the override slot name is forwarded" — no such forward is specified. This is the headline extension capability (decisions 3 and 5) and the required deliverable of slice 4 ("demonstrate at least one extended field type"), so the architecture as written does not deliver it. Suggested resolution: the architecture must specify an explicit generic forward of consumer-supplied, non-enumerated slots from `ElementPlusFormTemplate` to the inner `DynamicFormTemplate` (a `<template v-for="(_, name) in $slots" #[name]="s"><slot :name="name" v-bind="s"/></template>` that EXCLUDES the reserved `input`/`attributes` names and the enumerated EP-fallback names, so it does not collide with those explicit `<template>`s or re-trigger the ADR-1 default-slot clash). Reconcile this with ADR-1's rejection of the blanket forward (that rejection is specifically about the engine `default` render, not consumer overrides of named slots).
+   DECIDED (research): accepted; the generic forward with the named exclusion list is now part of the slot-forwarding contract (see "Generic forward of non-enumerated consumer slots"). Lands in slice 1.
 
-Reviewed in FEATURE (full) mode. The architect's load-bearing factual claims were checked against the installed `element-plus@2.14.2` source (not just the spec's prior assertions) and against core's `DynamicFormTemplate.vue` slot dispatch. Most held; the ones that did not, and the design holes, are below.
+2. **SHOULD-FIX — the documented stylesheet import `.../dist/style.css` will not resolve as written, on two counts.** (a) At the installed Vite `7.3.6`, `build.lib.cssFileName` defaults to the `name` in `package.json` when `build.lib.fileName` is a function (verified against the Vite build-options docs), and `vite.config.ts` sets `fileName: format => ...` (a function). The emitted CSS is therefore `dist/vue-dynamic-form-element-plus.css`, not `dist/style.css`. (b) `package.json`'s `exports` map only exposes `"."`; with an `exports` field present, the deep subpath `./dist/style.css` is not an allowed import at all. So the exact snippet in the CSS-strategy section fails both because the file has a different name and because the subpath is not exported. Suggested resolution: set `build.lib.cssFileName: 'style'` in `vite.config.ts` (pinning the name) AND add an `exports` entry (e.g. `"./style.css": "./dist/style.css"`), then document the exported path consumers actually use.
+   DECIDED (research): accepted; the CSS strategy section now specifies `cssFileName: 'style'` plus the `"./style.css"` exports entry, both verified against the package source and Vite docs.
 
-SUPERSEDED (Jeroen): the root-`form`-metadata-type mechanism this review was checking against was replaced by the `ElementPlusDynamicForm` wrapper component (see Architecture). Finding 1 below no longer applies, and no `type: 'form'` root type exists to dispatch to, but the surrounding verified facts about `ElForm`/`ElFormItem` still hold and now describe `ElementPlusDynamicForm`'s internals instead.
+   DECIDED (research): the story-prep review of ST-04 found the `cssFileName` half incomplete (`cssCodeSplit: true` bypasses it, verified in the Vite 7.3.6 source); the CSS strategy section and the rollup above are corrected to include `cssCodeSplit: false`, and the import example now uses the exported `/style.css` subpath.
 
-### Verified correct (checked against source, no action needed)
+3. **SHOULD-FIX — porting the existing `upload-input` (and re-checking `transfer-input`) at "parity" ships a non-functional control, which contradicts the "renders correctly / genuine drop-in" goal.** The current `ElementPlusDynamicForm.vue` binds `:model-value` / `@update:model-value` on `ElUpload`, but `ElUpload` has no `model-value` (verified against the Element Plus upload docs: it binds via `v-model:file-list` + `on-change`), so those bindings are no-ops and the upload field never syncs to vee-validate. "Port the existing 16 `-input` slots" (slice 1) must not mean copying this binding verbatim. Suggested resolution: bind `ElUpload` through `file-list` + `on-change` (feeding `fieldContext.handleChange`), and audit each EP control's real v-model contract during the port rather than trusting the existing bindings. (Note: keeping `ElRadio :label` for the value is correct here, not a defect: the `value` prop only exists from EP 2.6 and the peer floor is `>=2.0.0`.)
+   DECIDED (research): accepted; the Data flow section now mandates the `file-list` + `on-change` binding and a per-control v-model + peer-floor audit during the port (which also covers finding 7).
 
-- `ElForm` renders exactly one `<form>` element (`form.vue_...mjs` render fn returns a single `createElementBlock("form", ...)`), so `@submit.prevent` bound on `<ElForm>` reaches the real `<form>`. `formEmits` declares only `validate` (not `submit`), so `@submit` is a genuine native listener, not a swallowed component emit. Claim in Architecture "Root form type" is correct.
-- All `ElForm` validation machinery is guarded by `props.model`: `setInitialValues`, `resetFields` early-return on `if (!props.model)`; `validate`/`validateField` gate on `isValidatable` (`!!props.model`); the `rules` watcher's `validate()` is itself gated. Layout-only usage (no `model`/`rules`, no `prop`) is inert. Claim correct.
-- `ElFormItem` works standalone: `inject(formContextKey, void 0)` defaults to `undefined` and every use is optional-chained. The `error` prop drives `validateMessage`/`validateState` via a watch. Claim correct.
-- Label-width alignment works for `prop`-less items: `FormLabelWrap` registers widths through its own `ResizeObserver` + `registerLabelWidth` (gated on `updateAll = formContext.labelWidth === 'auto'` and `isAutoWidth`), independent of `addField`. So the layout-only `ElForm` + `labelWidth="auto"` mechanism genuinely aligns labels without any field ever registering as a validated field. Core claim of the feature is sound.
-- Core's `DynamicFormTemplate` fallback chain (`*-input`/`*-array`/`*-choice*` → family default → `default`) is exactly as the spec describes, so the "author 7 family defaults + one `*-input` per type, everything else falls through for free" slot-scale claim holds. `ElCard`/`ElAlert`/`ElTag`/`ElSegmented`/`ElSteps`/`ElDescriptions` all exist in 2.14.2 and the cited slots/props are accurate.
-- Root custom type dispatch (`type: 'form'` → `#form` slot) is proven by the existing `type: 'wizard'` root in `AdvancedFormTemplate.vue`. `provide(formContextKey)` from the slotted `ElForm` reaches nested `ElFormItem`s along the instance parent chain (slot content mounts inside `ElForm`'s subtree). Sound.
+4. **SHOULD-FIX — the element-plus package's `devDependencies` lack the tooling slice 1 needs to write the real component tests.** Slice 1 says it "updates the Vitest config (add `jsdom` environment + setup)", but `packages/element-plus/package.json` `devDependencies` has neither `jsdom` nor `@vue/test-utils`, both of which are required to mount and cover `ElementPlusFormTemplate` (both are in the `test` catalog already). Suggested resolution: slice 1 adds `jsdom` and `@vue/test-utils` (`catalog:test`) to the package `devDependencies` alongside the vitest config change.
+   DECIDED (research): accepted into slice 1; both are already in the workspace `test` catalog.
 
-### Findings
+5. **SHOULD-FIX — the reserved-name caveat is incomplete: `attributes` is as reserved as `input`.** ADR-1 and the slot-forwarding section reserve both `input` and `attributes`, but the documented caveat only forbids a consumer field type literally named `input`. A consumer type named `attributes` collides the same way (its override slot name clashes with the reserved engine-attribute forward slot on `ElementPlusFormTemplate`). Suggested resolution: extend the caveat to forbid a consumer type named `attributes` as well.
+   DECIDED (research): accepted; the reserved-name caveat now forbids consumer field types named `input` or `attributes`.
 
-1. **should-fix — Flat-form submit button placement contradicts itself.** Architecture item 4 introduces a `submitForm` hook driven by `<ElForm @submit.prevent="onFormSubmit">`, then says "the submit button is rendered by the consumer inside the form body (matching how the docs `BasicForm`/`AdvancedForm` place their own submit button)." But Constraints forbids the consumer from wrapping `DynamicForm` in their own `<form>` (nested forms), and there is no described affordance for the consumer to inject a `type=submit` button *inside* the layout-only `ElForm`'s slot (that slot only renders child `DynamicFormItem`s). A `<button type=submit>` placed outside the `<form>` element never fires the form's submit event, so `onFormSubmit`/`submitForm` never runs for a flat form. The referenced docs pattern is precisely the one the feature replaces. Resolution routed as PROPOSED in the Architecture "Root form type" section.
+6. **NIT — ADR-1's sequence diagram and prose should name the concrete override-forwarding excludes.** Once finding 1 is resolved, the "consumer overrides" arrow in the Mermaid diagram and the reserved-name prose should state exactly which names the generic forward excludes (`input`, `attributes`, and the enumerated fallback names), so an implementer does not re-introduce the ADR-1 default-slot clash. No status impact.
+   DECIDED (research): folded into the finding-1 resolution, which names the excludes (`input`, `attributes`, the enumerated fallback names).
 
-   SUPERSEDED (Jeroen): resolved by construction. `ElementPlusDynamicForm` now owns the `ElForm`/`<form>` directly and exposes a named `#actions` slot inside it, so a consumer's `type="submit"` button is a genuine descendant of the real `<form>`. See "`ElementPlusDynamicForm`, wizard nesting, and the submit affordance" in Architecture.
-
-2. **should-fix — Group and leaf rendering are the same core slot, not two overridable slots.** Core dispatches both group nodes (`children?.length`) and leaf nodes to the single `default` slot (there is no `default-group`); `AdvancedFormTemplate`'s `#default` branches internally with `v-if fieldMetadata.children?.length`. The container-mapping table lists "Group / parent | `default` (group branch)" and "Leaf field chrome | `default` (leaf branch)" as if independently addressable, and scope item 6 promises "replace any individual slot and get the package default everywhere else." A consumer overriding `#default` necessarily takes over *both* group and leaf rendering; they cannot override just the leaf chrome and keep the package's group card. Resolution routed as PROPOSED in the container-mapping section.
-
-3. **should-fix — Standalone `ElFormItem` error display is debounced 100ms, not "immediate".** `form-item` uses `validateStateDebounced = refDebounced(validateState, 100)` and `shouldShowError` reads the *debounced* state; `validateMessage` is set immediately but the message only becomes visible after ~100ms. Architecture item 4 and ADR-3 state the `error` prop "shows a message immediately". This is a factual inaccuracy and, more practically, a trap for the package's own validation tests (assertions on error text must await the debounce, or they flake/false-pass). Resolution routed as PROPOSED in ADR-3.
-
-4. **should-fix — Label placement constraint for `labelWidth="auto"` is unstated and the parity reference violates it.** `FormLabelWrap` only measures/aligns the label that `ElFormItem` renders in its own label region (via the `label` prop or `#label` slot). The parity reference `FormField.vue` renders its own `<label>` (with the optional/required tag inside it) *outside* any `ElFormItem`, and its description below. A naive port that keeps that structure and merely wraps an `ElFormItem` for the input will register a zero-width (or absent) label and break cross-field alignment; conversely, putting the `ElTag`/description inside the measured label inflates every column. The architecture should pin that the aligned label goes through `ElFormItem`'s label region and that tag/description/dependent-on live in the content area (interacts with OQ6). Resolution routed as PROPOSED in the label-alignment section.
-
-5. **should-fix — Reused radio control is on a deprecated 2.14.2 binding.** The existing component (which the spec plans to "reuse as-is ... with slot passthrough added") renders `<ElRadio :label="option.value">{{ option.label }}</ElRadio>`. In 2.14.2 `ElRadio` splits `label` (display text) from `value` (bound value); binding the value through `label` is the backward-compat path that warns and is "Removed after 3.0.0". The parity rebuild should migrate radio to `:value` and audit the other reused controls for the same 2.6+ renames. Resolution routed as PROPOSED in the container-mapping leaf row.
-
-6. **should-fix — Skipping the prototype removes the only cross-slot cohesion artifact.** The design-skip reasoning (Element Plus components are pre-designed) is defensible for *component look*, but the composition still carries real cohesion decisions no element-plus.org example answers: two-column grid density, nested-card visual weight (array item card inside array card inside group card inside form), the choice-selector look (OQ8), and label-beside narrow-viewport behavior (OQ6). Cross-section cohesion is exactly what a feature review normally checks against a prototype, and there is now none. Rather than reinstate the prototype, make the demonstration surface (Slice G / OQ7) the standing cohesion check, reviewed via screenshots in both VitePress/Storybook color modes before the feature is `done`. Resolution routed as PROPOSED in the Design section. (The broad precedent sentence should be narrowed accordingly.)
-
-7. **nit — "one array push per field at mount" is wrong (cost is even lower).** Architecture's label-alignment evidence says layout-only usage "costs one array push per field at mount plus one `ResizeObserver` per label." `ElFormItem.onMounted` only calls `formContext?.addField(context)` when `props.prop` is set; the package never sets `prop`, so `fields` stays empty and nothing is pushed. The only cost is the per-label `ResizeObserver`, and only in label-beside auto mode. Harmless (strengthens the safety argument), but correct the claim.
-
-8. **nit — `labelWidth="auto"` is a no-op in the default (top) label position.** `ElFormItem.labelStyle` returns `{}` when `labelPosition === 'top'`, so `is-auto-width` is false and no `ResizeObserver` runs; alignment only exists in label-beside (`left`/`right`). The spec's blanket "aligns labels across the whole form" should note it applies only in label-beside mode (the default is label-above), so readers do not expect alignment machinery to run in the default layout.
-
-### Status rationale
-
-Set to `awaiting-discussion`: seven Open questions remain unresolved (mechanical trigger 1). No blockers. Six should-fixes, all routed as `PROPOSED (adversarial review)` edits in their sections, plus two nits. The verified-correct list above means the core mechanism (layout-only `ElForm` + `labelWidth="auto"`) is sound; the should-fixes are design-contract clarifications and one deprecated-API correction, not foundation failures.
+7. **NIT — `element-plus >=2.0.0` peer floor is asserted safe but not enumerated per API.** The architecture claims every EP component used is "available across the `>=2.0.0` peer range" and deliberately avoids `ElSpace`/`ElRow`/`ElCol`. Spot checks hold (`ElSteps`/`ElStep`/`ElCard`/`ElDivider`/`ElFormItem` `error`+`validate-status`/`ElButton` all predate 2.0, verified for Steps and Form), but the claim rests on no per-API list. If any ported control ends up needing a prop introduced after 2.0.0 (the upload/transfer/cascader rework in finding 3 is the likeliest place), the floor claim silently breaks. Worth a quick per-control floor check during the port. No status impact.
+   DECIDED (research): folded into the finding-3 resolution; the port audit checks each bound prop/event against the `>=2.0.0` floor per control.
 
 ## Constraints & assumptions
 
-- Vue conventions: camelCase everywhere in Vue code (component names, props, events), per `CLAUDE.md` and the user's global instruction; no kebab-case slot/prop names.
-- No em dashes in any spec, code comment, or generated text (`CLAUDE.md`).
-- Code comments and test names must never reference spec/story/finding IDs (`CLAUDE.md`).
-- `packages/element-plus` is currently `private: true`; whether that changes is an open question, not assumed.
-- The package's peer dependencies are `@bach.software/vue-dynamic-form`, `element-plus`, `vee-validate`, `vue` (all via pnpm catalogs); no new runtime dependency should be added without a reason tied to a capability Element Plus itself does not provide.
-- `docs/.vitepress/theme/components/*` (Tailwind-styled) are the parity *behavior* reference, not a code source: they cannot be imported by `packages/element-plus` (it must not depend on the docs site), so every equivalent is rebuilt from Element Plus primitives or new package-local code.
-- Existing in-repo consumers of the current export (`playgrounds/storybook/components/ElementPlusDynamicFormImplementation.vue`, `playgrounds/storybook/stories/ElementPlusForm.vue`) must keep working after the rename-and-repurpose; this is a mechanical update, not new scope.
-- Element Plus's own `label-width="auto"` (`ElForm`/`FormLabelWrap`) is the production-proven width-matching mechanism, and the package reuses it directly by rendering `ElForm` in layout-only mode (no `model`, no `rules`, no `prop` on any `ElFormItem`; verified against the 2.14.2 source where all validation paths are guarded by `props.model`). `ElForm` must never be given `model` or `rules`, and the template never calls its `validate`/`resetFields`; vee-validate remains the only validation engine.
-- Consumers must not wrap `ElementPlusDynamicForm` (or their own `ElForm` + `DynamicForm` composition built on `ElementPlusFormTemplate`) in an outer `<form>`; nested forms are invalid HTML. The docs examples that currently wrap a bare `<form>` (`AdvancedForm.vue`, `BasicForm.vue`) illustrate the pattern `ElementPlusDynamicForm` replaces.
-- Per `CLAUDE.md`'s changeset rule, changesets today are only required when `packages/core/src/` changes; this feature does not touch `packages/core/src/` in its current scope, so whether `packages/element-plus` needs its own release/changeset process is itself an open question rather than an assumed "no".
+- `packages/element-plus` stays a private, unpublished workspace package throughout implementation; it flips to published only at the end, once the feature is proven working (decision 1 under Open questions).
+- The dev dependency pins `element-plus` to `2.14.2` (`catalog:framework-pinned`) for reproducible tests, while the peer dependency range stays `>=2.0.0` (`catalog:framework`). This feature assumes that existing split is correct and does not revisit it.
+- The built-in field-type catalogue stays at parity with what `ElementPlusDynamicForm.vue` already renders today (16 types); confirmed by Jeroen (decision 5 under Open questions).
+- `CLAUDE.md` already documents that the docs directory disables `vue/attribute-hyphenation` and uses Tailwind; that is docs-only and does not extend to `packages/element-plus`, which this feature moves fully off Tailwind.
 
 ## Open questions
 
-Must be resolved before approval (`/spec:discuss` researches these first; genuine judgement calls go to Jeroen).
+None open. All resolved with Jeroen:
 
-1. **Publishability.** Should `packages/element-plus` become publishable (`private: false`) as part of this feature? If yes, does the Changesets flow (currently gated on `packages/core/src/` only) need to extend to cover it, and what is the correct starting version (stay `0.1.0` pre-release, or jump to `1.0.0` on first public release)?
-2. **Wizard parity.** Is wizard support (`wizard`/`wizardPage`/`wizardSummaryPage`, `ElSteps`/`ElDescriptions`-based) part of this feature's parity milestone, or does parity mean "sections, arrays, choices, groups, inputs" only, with wizard support deferred to a follow-up feature?
-3. **`ElForm`/`ElFormItem`.** Decided (Jeroen): allowed strictly in layout-only mode; refined (Jeroen) to be owned by the `ElementPlusDynamicForm` wrapper component rather than a metadata root type. `ElementPlusDynamicForm` renders a single `ElForm` (no `model`, no `rules`, `@submit.prevent`); `ElFormItem` is used standalone inside `FormFieldWrapper` for label and error chrome (driven by its `error` prop from vee-validate), never with a `prop`. Validation stays exclusively with `DynamicFormItem` + vee-validate. Listed for the record, no longer open.
-4. **Field type set.** Which of the current 16 types (text, select, checkbox, radio, date, time, datetime, switch, number, rate, slider, color, cascader, transfer, upload, heading, divider) stay in the parity milestone, and which (if any, e.g. transfer, upload, cascader, rate, slider, color) are deferred as "extend it yourself using the new extensibility mechanism" examples rather than built-in?
-5. **Reusing the `ElementPlusDynamicForm` name.** DECIDED (Jeroen): the old stub's behavior (the raw, fully slot-authoring template) moves to `ElementPlusFormTemplate`; the name `ElementPlusDynamicForm` is deliberately reused for the new wrapper component rather than kept as a compatibility alias, since the package is private with only in-repo consumers and no prior behavior needs preserving under that name. No longer open.
-6. **Label side-by-side scope.** Partially resolved: the layout is a per-form choice via `ElementPlusDynamicForm`'s `labelPosition` prop, which maps directly onto `ElForm`'s `labelPosition`. Still open: is a per-field override needed (`ElFormItem` accepts a per-item `labelPosition`, so it would be cheap), and should label-beside collapse to label-above below a breakpoint on narrow viewports (matching how responsive admin UIs typically handle `ElForm label-width="auto"` on mobile)?
-7. **Demonstration surface.** Storybook story only (consistent with today's playground-only presence), a new docs page (`docs/` currently has zero mentions of `element-plus`), or both? If a docs page, does it live under the existing guide/examples structure or as a new top-level section, and does the package's `private: true` status change that recommendation?
-8. **Choice branch selector look.** For the choice/choice-array parity slots, is a card-grid selector (matching `ChoiceSectionCard`'s current docs behavior) preferred, or should the default be `ElRadioGroup`/`ElSegmented` for a more "stock Element Plus" feel? An aesthetic judgment call with a real tradeoff (card-grid matches today's docs behavior most closely; `ElRadioGroup`/`ElSegmented` is more idiomatic stock Element Plus), settled directly against element-plus.org's own examples rather than a custom prototype (design phase skipped, see Design section above).
+1. **Publishing:** Yes, the package should be published, but only once the feature is finished and proven working. It stays `private: true` during implementation; flipping it and the first publish happen at the end (or as an immediate follow-up), once Jeroen has seen it work.
+2. **Rename:** Hard rename to `ElementPlusFormTemplate`, no deprecated alias.
+3. **Extension mechanism:** Overriding built-in types is allowed, not just adding new ones. The intended pairing is that a consumer who overrides a built-in type's declaration also overrides or supplies the matching slot(s), since the built-in slot markup keeps assuming the built-in property shape and slot fallback content is not type-checked against the consumer's override. The architect designs the merge so the consumer's declaration wins over `elementPlusMetadata`, and the pairing expectation is documented.
+4. **Docs:** No docs-site page in this feature. Jeroen first wants to see it work; documentation is a follow-up.
+5. **Type catalogue:** Parity with the current 16 built-in types is the scope. Extensions come later, after the mechanism described here works.
+6. **Changeset:** Minor bump. The package was never published before, so nothing existing can break.
 
 ## Stories
-
 Filled by scrum-master AFTER approval. Links to story folders with implementation order and dependency notes.
+
+The five natural seams were split into ten stories. Seam 1 (large) became four stories (foundation, slot forwarding, binding audit, CSS), seam 2 became two (array, choice), and seam 5 became two (README plus inventory, publish flip). Every story stays in `packages/element-plus` (plus playground, specs, and, at the very end, the changeset); `packages/core` is untouched and the package stays `private: true` until ST-10, so no changeset is needed before then.
+
+| Order | Story | Delivers | Depends on |
+| --- | --- | --- | --- |
+| 1 | [ST-01 Rename, metadata catalogue, and extension mechanism](stories/ST-01-rename-and-metadata-foundation/spec.md) | `ElementPlusFormTemplate` rename, `elementPlusMetadata`, `extendMetadata`, exported types, `jsdom` + `@vue/test-utils` test setup, real tests, `components.md` rename | none |
+| 2 | [ST-02 Overridable slots with the slot-forwarding contract](stories/ST-02-slot-forwarding-contract/spec.md) | Reserved `input`/`attributes`, `<slot name="input"><slot /></slot>`, fallback content for `default`, `default-input`, all `<type>-input` and the `checkbox`/`switch`/`heading`/`divider` wrappers, generic forward of non-enumerated consumer slots | ST-01 |
+| 3 | [ST-03 Every built-in control binds correctly](stories/ST-03-control-binding-audit/spec.md) | `ElUpload` file-list binding fix, per-control v-model contract audit, per-control `>=2.0.0` floor audit | ST-02 |
+| 4 | [ST-04 Portable CSS and stylesheet export](stories/ST-04-portable-css-and-stylesheet-export/spec.md) | Tailwind removed, scoped CSS, `cssCodeSplit: false` + `cssFileName: 'style'`, `"./style.css"` exports entry, emitted and resolvable stylesheet | ST-02 (land after ST-03: same SFC) |
+| 5 | [ST-05 Array section and item](stories/ST-05-array-section-and-item/spec.md) | `default-array`, `default-array-item` fallbacks | ST-02, ST-04 |
+| 6 | [ST-06 Choice section and occurrences](stories/ST-06-choice-section-and-occurrences/spec.md) | `default-choice`, `default-choice-array`, `default-choice-array-item` fallbacks | ST-02, ST-04, ST-05 |
+| 7 | [ST-07 Wizard steps and pages](stories/ST-07-wizard-steps-and-pages/spec.md) | `default-wizard`, `default-wizard-page` on `ElSteps`/`ElButton` with `v-show` gating | ST-02, ST-04 (independent of ST-05/ST-06) |
+| 8 | [ST-08 Storybook playground examples](stories/ST-08-storybook-playground-examples/spec.md) | Playground on the new API, no Tailwind, `field` to `fieldMetadata` fix, one overridden slot, one extended type, array/choice/wizard examples, screenshots | ST-01 to ST-07 |
+| 9 | [ST-09 Package README and inventory final pass](stories/ST-09-package-readme-and-inventory/spec.md) | README (imports, bare and wrapped usage, extension, reserved-name and pairing caveats), final `specs/components.md` | ST-01 to ST-08 |
+| 10 | [ST-10 Publish flip](stories/ST-10-publish-flip/spec.md) | `private` flip, minor changeset, inventory entry moved out of "Non-published surfaces", clean-consumer check | ST-01 to ST-09, and Jeroen's explicit go-ahead after seeing it work |
+
+Implementation order is 1, 2, 3, 4, then 5, 6, and 7 (5 before 6; 7 can go anywhere after 4), then 8, 9, 10.
+
+Points raised during the split, settled during story prep (see the `DECIDED`/`ASSUMED` entries in the named stories):
+- The "16 types" in this spec's prose is a miscount: the current catalogue is 17 types (15 input controls plus `heading` and `divider`). The requirement stays parity with the current catalogue; nothing is dropped (ST-01).
+- The wrapper examples above now use the dispatcher's exact slot spelling (`#date-input`, `richText-input`): `DynamicFormTemplate` matches slot names as exact strings and Vue does not camelize them, so the earlier camelCase spelling would never have matched (ST-02).
+- Built-in English button text for add/remove/previous/next/submit, with no labels mechanism in this version (ST-05, ST-06, ST-07).
+- First published version is `0.2.0` via the minor changeset from decision 6; npm-side publishing configuration is checked when ST-10 is started, which needs Jeroen's go-ahead anyway (ST-10).

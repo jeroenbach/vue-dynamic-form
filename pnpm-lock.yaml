@@ -154,6 +154,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: catalog:test
         version: 3.2.6(vitest@3.2.6(@types/debug@4.1.12)(@types/node@24.2.1)(jsdom@26.0.0)(yaml@2.8.1))
+      '@vue/test-utils':
+        specifier: catalog:test
+        version: 2.4.6
       element-plus:
         specifier: catalog:framework-pinned
         version: 2.14.2(vue@3.5.35(typescript@5.9.2))
@@ -163,6 +166,9 @@ importers:
       eslint-plugin-format:
         specifier: catalog:dev
         version: 1.0.1(eslint@9.33.0)
+      jsdom:
+        specifier: catalog:test
+        version: 26.0.0
       tsc-alias:
         specifier: catalog:build
         version: 1.8.17

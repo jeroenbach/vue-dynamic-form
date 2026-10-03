@@ -23,6 +23,8 @@ export default defineConfig({
   },
 
   build: {
+    // Keep the declarations emitted by vue-tsc; the build script cleans dist itself.
+    emptyOutDir: false,
     cssCodeSplit: true,
     target: 'esnext',
     sourcemap: true,
