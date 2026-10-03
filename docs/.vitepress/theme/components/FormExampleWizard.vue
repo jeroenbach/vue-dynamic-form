@@ -81,7 +81,7 @@ const metadata: Metadata[] = [
   {
     name: 'registration',
     path: '',
-    wizard: true,
+    wizard: { allowForwardJump: true },
     fieldOptions: { label: formName },
     description: 'Reserve your spot',
     submitButtonText: 'Complete registration',
@@ -159,8 +159,9 @@ const metadata: Metadata[] = [
         name: 'summaryPage',
         type: 'wizardSummaryPage',
         fieldOptions: { label: 'Review & submit' },
-        description: 'Check everything before you register. Jump back to any step to make a change.',
+        description: 'Check everything before you register. Jump to any step to make a change.',
         helpText: 'Confirm',
+        wizardSummaryConfirmation: 'We\'ll email your ticket and a calendar invite to confirm your spot.',
         minOccurs: 0,
         computedProps: [(field) => { field.wizardSummary = wizardSummary.value; }],
       },
@@ -193,7 +194,7 @@ function onSubmit(event?: Event) {
     <AdvancedForm v-if="!submitted" :metadata @submit="onSubmit" />
     <SubmissionSuccess
       v-else
-      :title="`You're registered, ${values.attendee?.fullName}`"
+      :title="`You're registered, ${submitted?.attendee?.fullName}`"
       referenceCode="EVT-20260615-K2QP"
       :submittedJson="JSON.stringify(submitted, null, 2)"
       @reset="reset"

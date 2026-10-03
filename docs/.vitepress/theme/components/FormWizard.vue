@@ -14,6 +14,7 @@ interface Props {
   isFirst: boolean
   isLast: boolean
   isValidating: boolean
+  allowForwardJump?: boolean
   next: () => Promise<void>
   prev: () => void
   gotoStep: (index: number) => void
@@ -43,13 +44,15 @@ const helperText = computed(() =>
     </header>
 
     <div class="mb-8">
-      <Stepper :steps="steps ?? []" :current-step="currentStepIndex" @goto="gotoStep" />
+      <Stepper :steps="steps ?? []" :currentStep="currentStepIndex" :allowForwardJump @goto="gotoStep" />
     </div>
 
     <!--
       Pages stay mounted at all times; the engine's -wizard-page wrapper (rendered inside this
       slot) toggles their visibility with v-show. Never wrap this <main> in a v-if per page, or
-      navigating away clears the page's values and deregisters its fields.
+      navigating away deregisters its fields from vee-validate (so submit sends them unvalidated)
+      and clears their values unless keepValuesOnUnmount is set; the deregistration happens either
+      way, so v-show stays required for any page with fields.
     -->
     <main>
       <slot />

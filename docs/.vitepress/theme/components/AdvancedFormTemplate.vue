@@ -58,6 +58,7 @@ const metadata = defineMetadata<
     showStrengthBar?: boolean
     falseAsUndefined?: boolean
     wizardSummary?: ReviewGroupProps[]
+    wizardSummaryConfirmation?: string
     submitButtonText?: string
   },
   {
@@ -74,7 +75,7 @@ const metadata = defineMetadata<
 <template>
   <DynamicFormTemplate :metadata-configuration="metadata">
     <!-- #region structural-slots -->
-    <template #default-wizard="{ fieldMetadata, fieldContext: { errorMessage, label }, pages, currentStepIndex, isFirst, isLast, isValidating, next, prev, gotoStep }">
+    <template #default-wizard="{ fieldMetadata, fieldContext: { errorMessage, label }, pages, currentStepIndex, isFirst, isLast, isValidating, wizardConfig, next, prev, gotoStep }">
       <FormWizard
         :title="label"
         :subTitle="fieldMetadata.description"
@@ -85,6 +86,7 @@ const metadata = defineMetadata<
         :isFirst
         :isLast
         :isValidating
+        :allowForwardJump="wizardConfig.allowForwardJump"
         :next
         :prev
         :gotoStep
@@ -98,13 +100,15 @@ const metadata = defineMetadata<
 
     <!--
       Shape-agnostic visibility wrapper for a single wizard page: gates with v-show (never v-if,
-      or navigating away would clear the page's values and deregister its fields), and forwards
-      gotoStep to the page's own slot content via the slotProps channel (used below by the
-      summary page's "edit" links).
+      or navigating away deregisters the page's fields from vee-validate, so submit sends them
+      unvalidated; it also clears their values unless keepValuesOnUnmount is set, but the
+      deregistration happens regardless, so v-show stays required for any page with fields).
+      Binds gotoStep onto its slot so it lands in the page content's slotProps (used below by
+      the summary page's "edit" links).
     -->
     <template #default-wizard-page="{ isCurrent, gotoStep }">
       <div v-show="isCurrent">
-        <slot :goto-step="gotoStep" />
+        <slot :gotoStep="gotoStep" />
       </div>
     </template>
 
@@ -122,12 +126,12 @@ const metadata = defineMetadata<
           v-bind="group"
           @edit="slotProps?.gotoStep?.(i)"
         />
-        <div class="md:col-span-2 mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+        <div v-if="fieldMetadata.wizardSummaryConfirmation" class="md:col-span-2 mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           <p class="font-medium">
             Ready to submit?
           </p>
           <p class="mt-0.5">
-            We'll create the onboarding workspace and email each contact an invite.
+            {{ fieldMetadata.wizardSummaryConfirmation }}
           </p>
         </div>
       </SectionCard>

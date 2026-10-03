@@ -883,7 +883,7 @@ export const wizardSampleValues = {
 // back. Forward jumps do not validate the pages they skip (validateOnJump is off here).
 export const wizardForwardJumpTestCase = createTestCase([{
   name: 'onboarding',
-  wizard: { allowForwardJump: true },
+  wizard: { allowForwardJump: true, validateOnJump: false },
   fieldOptions: { label: 'Wizard with forward jumping' },
   children: [
     {
@@ -1104,13 +1104,13 @@ export const wizardKeepValuesTestCase = createTestCase([{
       name: 'company',
       type: 'heading',
       fieldOptions: { label: 'Company' },
-      children: [{ name: 'companyName', minOccurs: 0, fieldOptions: { label: 'Company name (type something, then navigate away and back)' }, fullWidth: true }],
+      children: [{ name: 'companyName', minOccurs: 1, fieldOptions: { label: 'Company name (type something, then navigate away and back)' }, fullWidth: true }],
     },
     {
       name: 'plan',
       type: 'heading',
       fieldOptions: { label: 'Plan' },
-      children: [{ name: 'planName', minOccurs: 0, fieldOptions: { label: 'Plan name' }, fullWidth: true }],
+      children: [{ name: 'planName', minOccurs: 1, fieldOptions: { label: 'Plan name' }, fullWidth: true }],
     },
   ],
 }]);
@@ -1119,6 +1119,92 @@ export const wizardKeepValuesSampleValues = {
   onboarding: {
     company: { companyName: 'Acme Corp' },
     plan: { planName: 'Growth' },
+  },
+};
+
+// An optional (minOccurs: 0) ancestor relaxes the wizard's pages while the section is untouched:
+// submitting the empty form passes even though the pages carry required fields. Any value typed
+// inside the section re-arms those requirements, so "Next" and Submit gate again.
+export const wizardOptionalAncestorTestCase = createTestCase([{
+  name: 'registration',
+  type: 'heading',
+  minOccurs: 0,
+  fieldOptions: { label: 'Optional section containing a wizard' },
+  description: 'While this section is empty, nothing in the wizard is required: Submit passes right away. Type into any field and the required fields gate again.',
+  children: [{
+    name: 'onboarding',
+    wizard: true,
+    fieldOptions: { label: 'Onboarding wizard' },
+    children: [
+      {
+        name: 'company',
+        type: 'heading',
+        fieldOptions: { label: 'Company' },
+        children: [
+          { name: 'companyName', fieldOptions: { label: 'Company name (required once the section has a value)' }, fullWidth: true },
+          { name: 'website', minOccurs: 0, fieldOptions: { label: 'Website (optional)' }, fullWidth: true },
+        ],
+      },
+      {
+        name: 'plan',
+        type: 'heading',
+        fieldOptions: { label: 'Plan' },
+        children: [
+          { name: 'planName', type: 'select', fieldOptions: { label: 'Plan (required once the section has a value)' }, options: planOptions },
+        ],
+      },
+    ],
+  }],
+}]);
+
+export const wizardOptionalAncestorSampleValues = {
+  registration: {
+    onboarding: {
+      company: { companyName: 'Acme Corp' },
+    },
+  },
+};
+
+// A disabled (maxOccurs: 0) ancestor reaches through the wizard: the wizard chrome and every page
+// field render disabled, and Submit passes because disabled fields are never required.
+export const wizardDisabledAncestorTestCase = createTestCase([{
+  name: 'archived',
+  type: 'heading',
+  maxOccurs: 0,
+  fieldOptions: { label: 'Disabled section containing a wizard' },
+  description: 'The whole section is disabled via maxOccurs: 0. Navigate the wizard: every page field is disabled and Submit passes without validating them.',
+  children: [{
+    name: 'onboarding',
+    wizard: { allowForwardJump: true },
+    fieldOptions: { label: 'Onboarding wizard' },
+    children: [
+      {
+        name: 'company',
+        type: 'heading',
+        fieldOptions: { label: 'Company' },
+        children: [
+          { name: 'companyName', fieldOptions: { label: 'Company name' }, fullWidth: true },
+          { name: 'website', minOccurs: 0, fieldOptions: { label: 'Website' }, fullWidth: true },
+        ],
+      },
+      {
+        name: 'plan',
+        type: 'heading',
+        fieldOptions: { label: 'Plan' },
+        children: [
+          { name: 'planName', type: 'select', fieldOptions: { label: 'Plan' }, options: planOptions },
+        ],
+      },
+    ],
+  }],
+}]);
+
+export const wizardDisabledAncestorSampleValues = {
+  archived: {
+    onboarding: {
+      company: { companyName: 'Acme Corp', website: 'https://acme.example' },
+      plan: { planName: 'growth' },
+    },
   },
 };
 

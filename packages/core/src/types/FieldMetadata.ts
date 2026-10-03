@@ -221,8 +221,8 @@ export type FieldMetadata<
    * expressed by nesting `wizard: true` nodes inside a plain `choice` branch or an array item's
    * children instead.
    *
-   * `true` selects the defaults (backward-only `gotoStep`, no validate-on-jump); an object form
-   * opts into per-wizard configuration.
+   * `true` selects the defaults (linear: `next` blocks on an invalid page, forward `gotoStep` jumps
+   * refused); an object form opts into per-wizard configuration (see `WizardConfig`).
    *
    * Static, render-mode-defining metadata: excluded from `ComputedPropsFieldType` so
    * `computedProps` cannot flip it mid-form.
@@ -298,11 +298,19 @@ export type FieldMetadata<
   computeOnChildValueChange?: boolean
 } & ExtendedProperties;
 
-/** Per-wizard defaults for `gotoStep` gating. `wizard: true` resolves to `{ allowForwardJump: false, validateOnJump: false }`. */
+/** Per-wizard navigation gating. `wizard: true` resolves to `{ allowForwardJump: false, validateOnJump: true }`. */
 export interface WizardConfig {
-  /** Allow `gotoStep` to jump forward to a not-yet-visited page. Default `false` (backward-only). */
+  /**
+   * Make the wizard non-linear: forward movement (both `next` and forward `gotoStep`) surfaces page
+   * errors but never blocks, so the user can move ahead with an invalid page. Default `false`, a
+   * linear wizard where `next` blocks on an invalid page and forward `gotoStep` jumps are refused.
+   */
   allowForwardJump?: boolean
-  /** Validate the current page before a `gotoStep` jump. Default `false`. */
+  /**
+   * Run validation on non-blocking forward movement so page errors surface. Default `true`; set
+   * `false` for a silent jump that moves without validating. No effect on a linear `next` (which
+   * always validates to decide whether to block) or on backward navigation (always silent).
+   */
   validateOnJump?: boolean
 }
 

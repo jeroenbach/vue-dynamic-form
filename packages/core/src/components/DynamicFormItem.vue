@@ -52,9 +52,15 @@ let _analytics_fieldComputeCount = 0;
 let _analytics_valueChangedCount = 0;
 let _analytics_notifyValueUpdateCount = 0;
 
-// Detects non-idempotent writes inside computedProps that would cause an infinite recomputation loop.
-// The counter resets after each macrotask, so it only catches computes that happen synchronously.
-const COMPUTE_LOOP_MAX = 10;
+// Detects non-idempotent writes inside computedProps that would cause an infinite recomputation
+// loop. Loops that stay inside one reactive flush are already broken by Vue's own recursive-update
+// guard; this one catches loops that self-perpetuate through async watchers (a compute whose write
+// re-triggers itself a microtask later) and therefore never let the event loop turn. The counter
+// resets on a macrotask and the limit is deliberately generous (matching Vue's recursion limit):
+// input bursts faster than a macrotask (paste, autofill, IME, automated typing) can starve the
+// reset timer, and a tight limit miscounted such legitimate once-per-update recomputes as a loop,
+// killing the field's render effect on a false positive and freezing it with stale metadata.
+const COMPUTE_LOOP_MAX = 100;
 let _computeLoopCount = 0;
 let _computeLoopResetTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -70,7 +76,7 @@ function assertNoComputeLoop(fieldPath: string) {
   if (_computeLoopCount > COMPUTE_LOOP_MAX) {
     throw new Error(
       `[DynamicFormItem] Possible infinite loop detected in computedProps for field "${fieldPath}". `
-      + `computedProps recomputed more than ${COMPUTE_LOOP_MAX} times synchronously. `
+      + `computedProps recomputed more than ${COMPUTE_LOOP_MAX} times without the event loop turning. `
       + `Ensure value writes inside computedProps are idempotent (the same input always produces the same output).`,
     );
   }

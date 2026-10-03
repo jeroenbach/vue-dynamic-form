@@ -402,6 +402,7 @@ const metadata: Metadata[] = [
         fieldOptions: { label: 'Review & submit' },
         description: 'Quick recap before we kick this off. Anything needs tweaking? Jump back to the step.',
         helpText: 'Check and submit',
+        wizardSummaryConfirmation: 'We\'ll create the onboarding workspace and email each contact an invite.',
         minOccurs: 0,
         computedProps: [(field) => { field.wizardSummary = wizardSummary.value; }],
       },
@@ -413,14 +414,14 @@ const metadata: Metadata[] = [
 // #region timeline
 const timeline = ref<TimelineItem[]>([]);
 
-watch(submitted, async (isSubmitted) => {
-  if (!isSubmitted) {
+watch(submitted, async (submittedValues) => {
+  if (!submittedValues) {
     timeline.value = [];
     return;
   }
 
-  const contactCount = values?.projectContacts?.length ?? 0;
-  const systemCount = values?.systems?.length ?? 0;
+  const contactCount = submittedValues.projectContacts?.length ?? 0;
+  const systemCount = submittedValues.systems?.length ?? 0;
 
   timeline.value = [
     { id: 'workspace', label: 'Workspace created', status: 'pending' },
@@ -475,7 +476,7 @@ function onSubmit(event?: Event) {
     <AdvancedForm v-if="!submitted" :metadata @submit="onSubmit" />
     <SubmissionSuccess
       v-else
-      :title="`Onboarding kicked off for ${values.company?.companyName}`"
+      :title="`Onboarding kicked off for ${submitted?.company?.companyName}`"
       referenceCode="ONB-20260430-R7ME"
       timelineTitle="What happens next"
       :submittedJson="JSON.stringify(submitted, null, 2) "

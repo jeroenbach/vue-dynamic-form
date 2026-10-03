@@ -42,6 +42,14 @@ export function isValidating(wrapper: ReturnType<typeof mount>, path: string): b
   return wrapper.find(testid(path, 'isValidating')).text() === 'true';
 }
 
+/** Reads the resolved `wizardConfig` slot prop (defaults applied) as surfaced by the test fixture. */
+export function wizardConfig(wrapper: ReturnType<typeof mount>, path: string): { allowForwardJump: boolean, validateOnJump: boolean } {
+  return {
+    allowForwardJump: wrapper.find(testid(path, 'wizardConfig-allowForwardJump')).text() === 'true',
+    validateOnJump: wrapper.find(testid(path, 'wizardConfig-validateOnJump')).text() === 'true',
+  };
+}
+
 export async function clickNext(wrapper: ReturnType<typeof mount>, path: string): Promise<void> {
   await wrapper.find(testid(path, 'next-button')).trigger('click');
   await flushPromises();

@@ -337,6 +337,15 @@ describe('component DynamicFormTemplate — slot fallback priority', () => {
       expect(wrapper.find('[data-testid="array"]').exists()).toBe(true);
       expect(wrapper.find('[data-testid="wizard"]').exists()).toBe(false);
     });
+
+    it('-wizard-page falls back to default, never to the sibling default-wizard tier', () => {
+      const wrapper = mountTemplate('text-wizard-page', {
+        'default-wizard': '<div data-testid="wizard" />',
+        'default': '<div data-testid="default" />',
+      });
+      expect(wrapper.find('[data-testid="default"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="wizard"]').exists()).toBe(false);
+    });
   });
 
   // The shared TestFormTemplate.vue fixture always defines the default-* fallback slot of each

@@ -186,9 +186,10 @@ Receives everything above **except** `fieldContext` is reduced to `LimitedFieldC
 | `isFirst` | `boolean` | `true` on the first page |
 | `isLast` | `boolean` | `true` on the last page — use this to switch your "Next" control to a "Submit" control |
 | `isValidating` | `boolean` | `true` while a `next()` or a validating `gotoStep()` call is in flight |
-| `next()` | `() => Promise<void>` | Validates the current page (`validateSection`) and advances only on success |
+| `wizardConfig` | `Required<WizardConfig>` | The wizard's navigation config with defaults applied (`{ allowForwardJump, validateOnJump }`). Read `allowForwardJump` to decide whether your stepper enables jumps to not-yet-visited steps, so the chrome matches how `next()`/`gotoStep()` behave. Prefer this over re-reading `fieldMetadata.wizard`, which is the raw `boolean \| WizardConfig` before defaults |
+| `next()` | `() => Promise<void>` | In a linear wizard, validates the current page (`validateSection`) and advances only on success. In a non-linear wizard (`allowForwardJump`), surfaces the page's errors but always advances |
 | `prev()` | `() => void` | Moves back one page unconditionally, no validation |
-| `gotoStep(index, options?)` | `(index: number, options?: WizardGotoStepOptions) => Promise<void> \| void` | Jumps to `index` (clamped to a valid page). Backward-only unless `allowForwardJump` is set (config or `options`); validates first when `validateOnJump` is set (config or `options`) |
+| `gotoStep(index, options?)` | `(index: number, options?: WizardGotoStepOptions) => Promise<void> \| void` | Jumps to `index` (clamped to a valid page). Backward jumps are always free; forward jumps require `allowForwardJump` (config or `options`), then surface the current page's errors without blocking. Set `validateOnJump: false` for a silent jump that skips validation |
 
 `<slot />` inside this container renders every page's `#T-wizard-page` wrapper.
 
@@ -200,9 +201,11 @@ One shape-agnostic wrapper per page, rendered for **every** page (not only the c
 |----------|------|-------------|
 | `isCurrent` | `boolean` | `true` when this page is the one currently visible |
 | `pageIndex` | `number` | This page's index |
-| `currentStepIndex`, `isFirst`, `isLast`, `next`, `prev`, `gotoStep` | same as the container | Lets a page build its own controls (e.g. a summary page's "edit" links via `gotoStep`) |
+| `currentStepIndex`, `isFirst`, `isLast`, `wizardConfig`, `next`, `prev`, `gotoStep` | same as the container | Lets a page build its own controls (e.g. a summary page's "edit" links via `gotoStep`) |
 
 `<slot />` inside this wrapper renders the page's own content through **its own shape** — a parent page's children directly, an array page through `-array`, a choice page through `-choice` — exactly as if it were not inside a wizard at all. There is no `-wizard-page-array` / `-wizard-page-choice` combinatorial family.
+
+Like at every other template level, attributes bound on this `<slot />` arrive in the page content's `slotProps` (see [Passing Data to Child Slots](#passing-data-to-child-slots)). Binding `:gotoStep="gotoStep"` here is how a summary page's slot gets to render "edit" links that jump back to an earlier step. Bindings whose values do not change between renders (like `gotoStep`) are free; binding a value that changes on navigation (like `isCurrent`) re-renders the mounted pages on every step change, so prefer reading such values from the wrapper's own slot props instead of forwarding them.
 
 ::: warning Gate visibility with `v-show`, never `v-if`
 ```vue
@@ -220,9 +223,15 @@ A `v-if` here unmounts the page's `DynamicFormItem` subtree when it stops being 
 :::
 
 ```vue
-<template #default-wizard="{ pages, currentStepIndex, isFirst, isLast, isValidating, next, prev, gotoStep }">
+<template #default-wizard="{ pages, currentStepIndex, isFirst, isLast, isValidating, wizardConfig, next, prev, gotoStep }">
   <nav>
-    <button v-for="(page, i) in pages" :key="page.path" :disabled="i > currentStepIndex" @click="gotoStep(i)">
+    <!-- Forward steps are clickable only in a non-linear wizard; wizardConfig has defaults applied. -->
+    <button
+      v-for="(page, i) in pages"
+      :key="page.path"
+      :disabled="!wizardConfig.allowForwardJump && i > currentStepIndex"
+      @click="gotoStep(i)"
+    >
       {{ page.name }}
     </button>
   </nav>
@@ -234,8 +243,9 @@ A `v-if` here unmounts the page's `DynamicFormItem` subtree when it stops being 
   </footer>
 </template>
 
-<template #default-wizard-page="{ isCurrent }">
-  <div v-show="isCurrent"><slot /></div>
+<template #default-wizard-page="{ isCurrent, gotoStep }">
+  <!-- The gotoStep binding lands in the page content's slotProps, e.g. for a summary page's edit links. -->
+  <div v-show="isCurrent"><slot :gotoStep="gotoStep" /></div>
 </template>
 ```
 

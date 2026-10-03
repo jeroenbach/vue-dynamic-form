@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 import { constructValidationCount, fieldChangedCount, fieldComputeCount, notifyValueUpdateCount, renderCount, valueChangedCount } from './DynamicFormItem.test-helpers';
 
@@ -555,6 +555,47 @@ describe('component DynamicFormItem - analytics', () => {
 
       expect(caughtError).toBeInstanceOf(Error);
       expect((caughtError as Error).message).toContain('[DynamicFormItem] Possible infinite loop');
+    });
+
+    it('does not mistake a fast burst of separate value updates for a loop', async () => {
+      let caughtError: unknown;
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            // Idempotent, but depends on the value: recomputes once per value update.
+            computedProps: [(field, value) => {
+              field.description = `len:${String(value.value ?? '').length}`;
+            }],
+          }],
+        },
+        global: {
+          config: {
+            errorHandler: (err) => {
+              caughtError = err;
+            },
+          },
+        },
+      });
+      await flushPromises();
+
+      // A burst of updates yielding only microtasks in between: no macrotask ever runs during the
+      // burst, the way rapid input events (paste, autofill, automated typing) can outrun the
+      // guard's reset timer. The burst must stay comfortably below the loop limit; it used to be
+      // miscounted as a loop, which killed the field's render effect and froze its rendering.
+      const input = wrapper.find('#text');
+      for (let i = 1; i <= 15; i++) {
+        await input.setValue('x'.repeat(i));
+        await nextTick();
+      }
+
+      expect(caughtError).toBeUndefined();
+      // The field kept rendering throughout the burst (the false positive used to kill the render
+      // effect, freezing the field): the rendered description reflects the final value.
+      expect(wrapper.text()).toContain('len:15');
     });
   });
 

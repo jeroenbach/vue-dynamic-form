@@ -309,13 +309,21 @@ For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts i
 
 Type: `boolean | WizardConfig` | Default: `false` (absent)
 
-Marks this field as a wizard: a multi-step shape rendered through `DynamicFormItemWizard`, checked before `choice`/array/parent detection. Its pages are its `children`, in declaration order. `wizard: true` selects the defaults (backward-only `gotoStep`, no validate-on-jump); pass a `WizardConfig` object to opt into per-wizard behavior:
+Marks this field as a wizard: a multi-step shape rendered through `DynamicFormItemWizard`, checked before `choice`/array/parent detection. Its pages are its `children`, in declaration order. `wizard: true` selects the defaults (a linear wizard: `next` blocks on an invalid page and forward `gotoStep` jumps are refused); pass a `WizardConfig` object to opt into per-wizard behavior:
 
 ```ts
 interface WizardConfig {
-  /** Allow gotoStep to jump forward to a not-yet-visited page. Default false. */
+  /**
+   * Make the wizard non-linear: forward movement (both `next` and forward `gotoStep`) surfaces
+   * page errors but never blocks, so the user can move ahead with an invalid page.
+   * Default false, a linear wizard where `next` blocks and forward jumps are refused.
+   */
   allowForwardJump?: boolean
-  /** Validate the current page before a gotoStep jump. Default false. */
+  /**
+   * Run validation on non-blocking forward movement so page errors surface. Default true;
+   * set false for a silent jump that moves without validating. No effect on a linear `next`
+   * (always validates) or on backward navigation (always silent).
+   */
   validateOnJump?: boolean
 }
 ```
@@ -336,7 +344,7 @@ A non-empty `choice` or a `maxOccurs > 1` set alongside `wizard` is inert (pages
 The engine delivers step state and navigation (`currentStepIndex`, `pages`, `isFirst`, `isLast`, `isValidating`, `next()`, `prev()`, `gotoStep()`) purely as slot props on the `-wizard` / `-wizard-page` slot family — see [Wizard container and page slots](/reference/dynamic-form-template#wizard-container-and-page-slots).
 
 ::: warning
-Wizard page slots must gate visibility with `v-show`, never `v-if`. All pages render continuously; the template decides what's visible. A `v-if` unmounts the page's fields, which clears their values on navigation and deregisters their validation — so a later submit would send that page's data unvalidated. `v-if` is acceptable only for a field-less page (e.g. a static summary/review page with nothing to lose).
+Wizard page slots must gate visibility with `v-show`, never `v-if`. All pages render continuously; the template decides what's visible. A `v-if` unmounts the page's fields, which clears their values on navigation (unless `keepValuesOnUnmount` is set) and, regardless of that setting, deregisters their validation from vee-validate, so a later submit would send that page's data unvalidated even when its values survived. Because `keepValuesOnUnmount` preserves only the values and not the field registration, `v-show` stays required for any page with fields. `v-if` is acceptable only for a field-less page (e.g. a static summary/review page with nothing to lose).
 :::
 
 Read from static metadata only: `wizard` is excluded from `ComputedPropsFieldType`, so a `computedProps` function cannot flip a node's shape mid-form.

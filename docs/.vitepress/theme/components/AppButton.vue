@@ -17,8 +17,8 @@ withDefaults(defineProps<Props>(), {
 
 <template>
   <button
-    v-bind="$attrs"
     type="button"
+    v-bind="$attrs"
     :data-testid="dataTestid"
     class="inline-flex items-center gap-2 rounded-md !px-3 !py-2 text-sm font-medium cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
     :class="{

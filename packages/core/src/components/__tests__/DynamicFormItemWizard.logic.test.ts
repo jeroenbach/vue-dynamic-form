@@ -15,6 +15,7 @@ import {
   isPageVisible,
   pageCount,
   setupState,
+  wizardConfig,
 } from './DynamicFormItemWizard.test-helpers';
 
 // Fields default to minOccurs: 0 (optional) so next()/gotoStep() succeed without filling data in
@@ -239,6 +240,29 @@ describe('component DynamicFormItemWizard - logic', () => {
       await flushPromises();
 
       expect(currentStepIndex(wrapper, 'wizard')).toBe(0);
+    });
+  });
+
+  describe('exposes the resolved wizardConfig as a container slot prop so a stepper can match the mode', () => {
+    it('applies defaults for a linear wizard (wizard: true)', async () => {
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: [twoPageWizard()] } });
+      await flushPromises();
+
+      expect(wizardConfig(wrapper, 'wizard')).toEqual({ allowForwardJump: false, validateOnJump: true });
+    });
+
+    it('reflects the config with defaults filled in (validateOnJump stays on unless set false)', async () => {
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: [twoPageWizard({ wizard: { allowForwardJump: true } })] } });
+      await flushPromises();
+
+      expect(wizardConfig(wrapper, 'wizard')).toEqual({ allowForwardJump: true, validateOnJump: true });
+    });
+
+    it('carries an explicit validateOnJump: false through', async () => {
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: [twoPageWizard({ wizard: { allowForwardJump: true, validateOnJump: false } })] } });
+      await flushPromises();
+
+      expect(wizardConfig(wrapper, 'wizard')).toEqual({ allowForwardJump: true, validateOnJump: false });
     });
   });
 
@@ -510,6 +534,16 @@ describe('component DynamicFormItemWizard - logic', () => {
 
       expect(setupState(wrapper, 'wizard')?.disabled).toBe(true);
     });
+
+    it('maxOccurs: 0 disables the page fields too, not just the wizard chrome', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata: [twoPageWizard({ maxOccurs: 0 })] },
+      });
+      await flushPromises();
+
+      expect(wrapper.find('[id="wizard.company.companyName"]').attributes('disabled')).toBeDefined();
+    });
   });
 
   describe('minOccursOverride/maxOccursOverride propagate from an ordinary optional/disabled parent, the same way they do for any other child', () => {
@@ -543,6 +577,22 @@ describe('component DynamicFormItemWizard - logic', () => {
       await flushPromises();
 
       expect(setupState(wrapper, 'section.wizard')?.disabled).toBe(true);
+    });
+
+    it('a disabled ancestor reaches through the wizard into its page fields', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'section',
+            maxOccurs: 0,
+            children: [twoPageWizard()],
+          }] as unknown as Metadata[],
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.find('[id="section.wizard.company.companyName"]').attributes('disabled')).toBeDefined();
     });
   });
 
@@ -578,6 +628,62 @@ describe('component DynamicFormItemWizard - logic', () => {
       await clickNext(wrapper, 'wizard');
       expect(currentStepIndex(wrapper, 'wizard')).toBe(1);
       expect(wrapper.find('[data-testid="wizard.summary-page"]').exists()).toBe(true);
+    });
+  });
+
+  describe('slot bindings on the wizard container and page wrapper reach page content as slotProps', () => {
+    function headingPagesWizard(): Metadata {
+      return {
+        name: 'wizard',
+        wizard: { allowForwardJump: true },
+        fieldOptions: { label: 'Wizard' },
+        children: [
+          { name: 'company', type: 'heading', fieldOptions: { label: 'Company' }, children: [{ name: 'companyName', minOccurs: 0 }] },
+          { name: 'plan', type: 'heading', fieldOptions: { label: 'Plan' }, children: [{ name: 'planName', minOccurs: 0 }] },
+        ],
+      } as unknown as Metadata;
+    }
+
+    function findItemByPath(wrapper: ReturnType<typeof mount>, path: string) {
+      return wrapper.findAllComponents({ name: 'DynamicFormItem' })
+        .find(component => (component.vm as any).$.setupState.normalizedPath === path);
+    }
+
+    it('a page node receives the page wrapper\'s bindings (gotoStep) and the container\'s bindings (level) as its slotProps', async () => {
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: [headingPagesWizard()] } });
+      await flushPromises();
+
+      const slotProps = findItemByPath(wrapper, 'wizard.company')?.props('slotProps') as Record<string, unknown>;
+      expect(typeof slotProps?.gotoStep).toBe('function');
+      expect(slotProps?.level).toBe(1);
+    });
+
+    it('the slotProps object keeps its identity across navigation when the bound values are unchanged', async () => {
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: [headingPagesWizard()] } });
+      await flushPromises();
+
+      const before = findItemByPath(wrapper, 'wizard.company')?.props('slotProps');
+      expect(before).toBeDefined();
+
+      await clickGotoStep(wrapper, 'wizard', 1);
+      await clickGotoStep(wrapper, 'wizard', 0);
+
+      // Same object reference, not merely deep-equal: an identity change would re-render every
+      // mounted page field on each navigation.
+      expect(findItemByPath(wrapper, 'wizard.company')?.props('slotProps')).toBe(before);
+    });
+
+    it('a slot-bound gotoStep works from inside a page (jump back to the first step)', async () => {
+      const wrapper = mount(TestForm, { attachTo: document.body, props: { metadata: [headingPagesWizard()] } });
+      await flushPromises();
+
+      await clickGotoStep(wrapper, 'wizard', 1);
+      expect(currentStepIndex(wrapper, 'wizard')).toBe(1);
+
+      await wrapper.find('[data-testid="wizard.plan-goto-first-step-button"]').trigger('click');
+      await flushPromises();
+
+      expect(currentStepIndex(wrapper, 'wizard')).toBe(0);
     });
   });
 });

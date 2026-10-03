@@ -6,7 +6,7 @@
 import type { FieldContext as _FieldContext } from 'vee-validate';
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
-import type { ReadOnlyFieldType, WizardGotoStepOptions } from '@/types/FieldMetadata';
+import type { ReadOnlyFieldType, WizardConfig, WizardGotoStepOptions } from '@/types/FieldMetadata';
 import type { MetadataConfiguration } from '@/types/MetadataConfiguration';
 import { computed, useAttrs } from 'vue';
 import { camelize } from '@/utils/camelize';
@@ -172,6 +172,8 @@ export interface WizardAttributes<
   isFirst: boolean
   isLast: boolean
   isValidating: boolean
+  /** The wizard's navigation config with defaults applied, so a stepper reflects the resolved mode (e.g. enable forward jumps when `allowForwardJump`) without re-reading `fieldMetadata.wizard` or re-deriving defaults. */
+  wizardConfig: Required<WizardConfig>
   next: () => Promise<void>
   prev: () => void
   gotoStep: (index: number, options?: WizardGotoStepOptions) => Promise<void> | void
@@ -180,7 +182,9 @@ export interface WizardAttributes<
 /**
  * Slot props for a single wizard page (`<type>-wizard-page` / `default-wizard-page`). Delivered
  * for every page, not only the current one; the template gates visibility with `isCurrent`
- * (`v-show`, never `v-if`, or navigating away clears and deregisters the page's fields).
+ * (`v-show`, never `v-if`: `v-if` deregisters the page's fields from vee-validate regardless of
+ * `keepValuesOnUnmount`, and also clears their values unless that flag is set, so `v-show` stays
+ * required for any page with fields).
  */
 export interface WizardPageAttributes<
   TMetadataConfiguration extends MetadataConfiguration,
@@ -190,6 +194,8 @@ export interface WizardPageAttributes<
   currentStepIndex: number
   isFirst: boolean
   isLast: boolean
+  /** The wizard's navigation config with defaults applied (same object as the container slot), so a page can build its own mode-aware controls. */
+  wizardConfig: Required<WizardConfig>
   next: () => Promise<void>
   prev: () => void
   gotoStep: (index: number, options?: WizardGotoStepOptions) => Promise<void> | void
