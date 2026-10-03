@@ -11,18 +11,24 @@ export default defineConfig({
     },
   },
   test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/tests/test-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'json', 'html', 'lcov'],
-      exclude: [...coverageConfigDefaults.exclude],
+      exclude: [...coverageConfigDefaults.exclude, 'src/tests/**'],
     },
   },
   build: {
-    cssCodeSplit: true,
+    // Keep the declarations emitted by vue-tsc; the build script cleans dist itself.
+    emptyOutDir: false,
+    // A single stylesheet that consumers import explicitly; per-chunk css would bypass `cssFileName`.
+    cssCodeSplit: false,
     target: 'esnext',
     lib: {
       entry: path.resolve(__dirname, 'src/index.ts'),
       name: 'VueDynamicFormElementPlus',
+      cssFileName: 'style',
       fileName: format => `vue-dynamic-form-element-plus.${format}.js`,
     },
     rollupOptions: {

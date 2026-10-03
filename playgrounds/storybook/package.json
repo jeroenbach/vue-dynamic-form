@@ -18,10 +18,11 @@
     "@vee-validate/rules": "^4.15.1",
     "element-plus": "2.14.2",
     "vee-validate": "4.15.1",
-    "vue": "3.5.18"
+    "vue": "3.5.35"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "4.1.0",
+    "@types/node": "24.2.1",
     "@storybook/addon-a11y": "9.1.2",
     "@storybook/vue3": "9.1.2",
     "@storybook/vue3-vite": "9.1.2",

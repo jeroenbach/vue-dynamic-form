@@ -44,7 +44,8 @@ export const DisabledAncestor: Story = sampleDataStory(wizardDisabledAncestorTes
  * - Gate with v-if: navigating away unmounts page 1 and clears its value (watch the debug panel), unless keepValuesOnUnmount is on, which preserves it.
  * Note: even with keepValuesOnUnmount, a v-if page's fields are deregistered while unmounted, so they are not validated on submit — v-show remains the correct choice for form pages.
  */
-export const VIfAndKeepValues: Story = {
+// Typed as a bare StoryObj: its args are custom story controls, not props of the component.
+export const VIfAndKeepValues: StoryObj = {
   args: { loadSampleData: false, useVIf: true, keepValuesOnUnmount: true },
   argTypes: {
     loadSampleData: { control: 'boolean', name: 'Load sample data' },
