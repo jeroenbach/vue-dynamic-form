@@ -2,13 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { configure } from 'vee-validate';
 import { afterEach, describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
-
-/** Reads the internal setup state of a mounted DynamicFormItemArray instance for a given path. */
-function arraySetupState(wrapper: ReturnType<typeof mount>, path: string): Record<string, any> | undefined {
-  const component = wrapper.findAllComponents({ name: 'DynamicFormItemArray' })
-    .find(c => (c.vm as any).$.setupState.path === path);
-  return (component?.vm as any)?.$.setupState;
-}
+import { setupState as arraySetupState } from './DynamicFormItemArray.test-helpers';
 
 describe('component DynamicFormItemArray', () => {
   describe('xsd_minOccurs restriction', () => {
@@ -784,6 +778,65 @@ describe('component DynamicFormItemArray', () => {
       await flushPromises();
 
       expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('At least 2 items required');
+    });
+  });
+
+  describe('malformed metadata and default messages', () => {
+    it('minOccurs > maxOccurs stays silently tolerated: xsd_maxOccurs is not pushed, so auto-added items cannot brick the form', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 3,
+            maxOccurs: 2,
+          }] as any,
+          settings: {
+            messages: { minOccurs: 'min rule fired', maxOccurs: 'max rule fired' },
+          },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('min rule fired');
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).not.toContain('max rule fired');
+
+      const inputs = wrapper.findAll('input');
+      for (const input of inputs) {
+        await input.setValue('value');
+      }
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+    });
+
+    it('xsd_maxOccurs still renders a non-empty message with no settings message and no generateMessage configured', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 0,
+            maxOccurs: 2,
+          }] as any,
+          initialValues: { items: ['a', 'b', 'c'] },
+          settings: { messages: {} },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      const message = wrapper.find('[data-testid="items-error-message"]');
+      expect(message.exists()).toBe(true);
+      expect(message.text().trim()).not.toBe('');
     });
   });
 });

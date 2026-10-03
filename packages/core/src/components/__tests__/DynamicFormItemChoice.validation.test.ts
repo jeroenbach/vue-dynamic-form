@@ -3,6 +3,7 @@ import { configure } from 'vee-validate';
 import { afterEach, describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { setupState } from './DynamicFormItem.test-helpers';
+import { setupState as arraySetupState } from './DynamicFormItemArray.test-helpers';
 import {
   canAddChoiceOccurrence,
   combinedValidationCount,
@@ -1787,6 +1788,206 @@ describe('component DynamicFormItemChoice', () => {
 
       expect(wrapper.find('[data-testid="projectContacts[0].certifications-error-message"]').text())
         .toContain('At most 4 certifications');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 16. Over-budget loaded data: branch caps stay sane and recoverable
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('over-budget loaded data', () => {
+    it('never shows a budget-relative or negative per-branch cap error: only the choice-level rule fires and every branch stays enabled', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            maxOccurs: 2,
+            minOccurs: 0,
+            fieldOptions: { label: 'Pick Two' },
+            choice: [
+              { name: 'branchA', fieldOptions: { label: 'Branch A' } },
+              { name: 'branchB', fieldOptions: { label: 'Branch B' } },
+            ],
+          }] as any,
+          // branchA alone exceeds the whole budget, driving branchB's remaining headroom negative.
+          initialValues: { pick: { branchA: ['a', 'b', 'c'], branchB: ['x'] } },
+          settings: { messages: { maxOccurs: 'At most {max} items', choiceMaxOccurs: 'At most {max} in {field}' } },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').text()).toContain('At most 2 in Pick Two');
+      expect(wrapper.find('[data-testid="pick.branchA-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="pick.branchB-error-message"]').exists()).toBe(false);
+      expect(wrapper.findAll('input').filter(i => i.attributes('disabled') !== undefined)).toHaveLength(0);
+    });
+
+    it('leaves every filled branch editable, so the choice-level error can be fixed through the UI', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'email', fieldOptions: { label: 'Email' } },
+              { name: 'phone', fieldOptions: { label: 'Phone' } },
+            ],
+          }],
+          initialValues: { pick: { email: 'a@b.c', phone: '123' } },
+          settings: { messages: { choiceMaxOccurs: 'At most {max} in {field}' } },
+        },
+      });
+      await flushPromises();
+
+      expect(wrapper.find('[id="pick.email"]').attributes('disabled')).toBeUndefined();
+      expect(wrapper.find('[id="pick.phone"]').attributes('disabled')).toBeUndefined();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').text()).toContain('At most 1 in Pick One');
+
+      await wrapper.find('[id="pick.phone"]').setValue('');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+    });
+
+    it('singleChild: maxOccursTotal clamps the lone branch, and an over-limit load fails the branch\'s own xsd_maxOccurs', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            choice: [{ name: 'only', maxOccurs: 3, maxOccursTotal: 1, fieldOptions: { label: 'Only Option' } }],
+          }] as any,
+          initialValues: { pick: { only: ['a', 'b', 'c'] } },
+          settings: { messages: { maxOccurs: 'At most {max} items allowed' } },
+        },
+      });
+      await flushPromises();
+
+      expect(arraySetupState(wrapper, 'pick.only')?.maxOccurs).toBe(1);
+      expect(arraySetupState(wrapper, 'pick.only')?._canAddItems).toBe(false);
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick.only-error-message"]').text()).toContain('At most 1 items allowed');
+    });
+
+    it('singleChild: a disabled choice (maxOccurs:0) disables the lone branch, maxOccursTotal or not', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            maxOccurs: 0,
+            fieldOptions: { label: 'Pick One' },
+            choice: [{ name: 'only', maxOccurs: 3, maxOccursTotal: 1, fieldOptions: { label: 'Only Option' } }],
+          }] as any,
+          initialValues: { pick: { only: ['a', 'b', 'c'] } },
+        },
+      });
+      await flushPromises();
+
+      expect(arraySetupState(wrapper, 'pick.only')?.maxOccurs).toBe(0);
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick.only-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+    });
+
+    it('explicit maxOccurs:1: a maxOccursTotal above the branch\'s declared maxOccurs never widens the cap', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'branchA', maxOccurs: 3, maxOccursTotal: 4, fieldOptions: { label: 'Branch A' } },
+              { name: 'branchB', fieldOptions: { label: 'Branch B' } },
+            ],
+          }] as any,
+          initialValues: { pick: { branchA: ['a', 'b', 'c', 'd'] } },
+          settings: { messages: { maxOccurs: 'At most {max} items allowed' } },
+        },
+      });
+      await flushPromises();
+
+      expect(arraySetupState(wrapper, 'pick.branchA')?.maxOccurs).toBe(3);
+      expect(arraySetupState(wrapper, 'pick.branchA')?._canAddItems).toBe(false);
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick.branchA-error-message"]').text()).toContain('At most 3 items allowed');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 17. Malformed metadata and out-of-box messages
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('malformed metadata and default messages', () => {
+    it('minOccurs > maxOccurs: both choice rules coexist in the list, the min message wins the display', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            minOccurs: 3,
+            maxOccurs: 1,
+            fieldOptions: { label: 'Pick' },
+            choice: [
+              { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+          }],
+          initialValues: { pick: { opt1: 'a', opt2: 'b' } },
+          settings: { messages: { choiceMinOccurs: 'min rule fired', choiceMaxOccurs: 'max rule fired' } },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(combinedValidationCount(wrapper, 'pick')).toBe(2);
+      expect(wrapper.find('[data-testid="pick-error-message"]').text()).toContain('min rule fired');
+    });
+
+    it('xsd_choiceMaxOccurs still renders a non-empty message with no settings message and no generateMessage configured', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+          }],
+          initialValues: { pick: { opt1: 'a', opt2: 'b' } },
+          settings: { messages: {} },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      const message = wrapper.find('[data-testid="pick-error-message"]');
+      expect(message.exists()).toBe(true);
+      expect(message.text().trim()).not.toBe('');
     });
   });
 });

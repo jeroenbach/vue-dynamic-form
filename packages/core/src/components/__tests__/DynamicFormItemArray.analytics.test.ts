@@ -2,13 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { renderCount } from './DynamicFormItem.test-helpers';
-
-/** Reads how many times a DynamicFormItemArray's own combinedValidation computed has run. */
-function constructValidationCount(wrapper: ReturnType<typeof mount>, path: string): number {
-  const component = wrapper.findAllComponents({ name: 'DynamicFormItemArray' })
-    .find(c => (c.vm as any).$.setupState.path === path);
-  return (component?.vm as any)?.$.setupState._analytics_constructValidationCount ?? -1;
-}
+import { arrayConstructValidationCount as constructValidationCount } from './DynamicFormItemArray.test-helpers';
 
 describe('component DynamicFormItemArray - analytics', () => {
   describe('render count', () => {

@@ -83,7 +83,8 @@ export type DynamicFormSettings<
      * choice's own anchor label, never the branch's, so the message cannot name which branch is
      * over its cap. When several branches breach their own `maxOccursTotal` at once, `{max}`/`{0}`
      * carry the cap of the first offending branch in declaration order only, not every breached
-     * cap.
+     * cap. A single-branch choice skips choice-level validation entirely; there a breach surfaces
+     * as the branch's own `maxOccurs` message instead.
      */
     maxOccursTotal?: ValidationMessage
     /** XSD: minLength. Available placeholders: `{field}`, `{0}` or `{length}` (min length) */

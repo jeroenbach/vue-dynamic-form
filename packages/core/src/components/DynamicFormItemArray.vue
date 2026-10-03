@@ -118,7 +118,10 @@ const combinedValidation = computed<GenericValidateFunction[]>(() => {
   if (required.value)
     _validations.push(createValidation('xsd_minOccurs', minOccurs.value, _messages?.minOccurs));
 
-  if (!disabled.value)
+  // Skipped for malformed metadata (minOccurs > maxOccurs): auto-add fills to minOccurs and
+  // removal is blocked below it, so the rule could never be satisfied and would brick the form.
+  // Such metadata stays silently tolerated, as it always was.
+  if (!disabled.value && maxOccurs.value >= minOccurs.value)
     _validations.push(createValidation('xsd_maxOccurs', maxOccurs.value, _messages?.maxOccurs));
 
   if (field.value?.validation)

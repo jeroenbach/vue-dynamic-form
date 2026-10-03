@@ -47,8 +47,8 @@ export type FieldMetadata<
    * - Without it (auto mode), the branch's rendered array headroom is capped at this value even
    *   when the shared choice budget would otherwise allow more.
    *
-   * If set lower than `maxOccurs`, the cap simply limits the effective per-iteration reach;
-   * this is not validated at runtime, consistent with other metadata combinations.
+   * If set lower than `maxOccurs`, the cap simply limits the effective per-iteration reach.
+   * It can only ever tighten the branch's declared `maxOccurs`: a value above it has no effect.
    *
    * Read from static metadata only: it is excluded from `ComputedPropsFieldType`, so a
    * `computedProps` function cannot flip occurrence capacity mid-form.

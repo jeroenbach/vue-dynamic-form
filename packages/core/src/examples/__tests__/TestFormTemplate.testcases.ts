@@ -426,6 +426,19 @@ export const choiceOccurrenceTestCase = createTestCase([
       ] },
     ],
   },
+  {
+    name: 'singleBranchCap',
+    fieldOptions: { label: 'Single-Branch Total Cap (maxOccursTotal 2)' },
+    type: 'heading',
+    children: [
+      { name: 'tags', fieldOptions: { label: 'Capped single branch' }, fullWidth: true, description: 'A one-branch choice renders its branch directly, with no occurrence budget to share. The branch declares maxOccurs 3 but maxOccursTotal 2, so the add button disables after 2 items.', choice: [
+        { name: 'tag', maxOccurs: 3, maxOccursTotal: 2, fieldOptions: { label: 'Tag (maxOccurs 3, maxOccursTotal 2)' } },
+      ] },
+      { name: 'clamped', fieldOptions: { label: 'Cap above maxOccurs has no effect' }, fullWidth: true, description: 'maxOccursTotal can only tighten: this branch declares maxOccurs 2 with maxOccursTotal 5, and still stops at 2 items.', choice: [
+        { name: 'item', maxOccurs: 2, maxOccursTotal: 5, fieldOptions: { label: 'Item (maxOccurs 2, maxOccursTotal 5)' } },
+      ] },
+    ],
+  },
 ]);
 
 export const choiceOccurrenceSampleValues = {
@@ -434,6 +447,8 @@ export const choiceOccurrenceSampleValues = {
   twoOccurrence: { contact: { email: ['ada@example.com', 'grace@example.com'] } },
   differentLimits: { entries: { branchA: ['A-one', 'A-two'] } },
   totalCap: { entries: { capped: ['C-one', 'C-two'] } },
+  // Both single branches filled exactly to their effective cap, so every add button is disabled.
+  singleBranchCap: { tags: { tag: ['T-one', 'T-two'] }, clamped: { item: ['I-one', 'I-two'] } },
 };
 
 // Choices that arrive already over a maximum from outside the form (an API response, an import, or
@@ -462,11 +477,22 @@ export const choiceMaxOccursTestCase = createTestCase([
       ] },
     ],
   },
+  {
+    name: 'singleBranchOverTotal',
+    fieldOptions: { label: 'Single Branch Over maxOccursTotal' },
+    type: 'heading',
+    children: [
+      { name: 'tags', fieldOptions: { label: 'Capped single branch over its total' }, fullWidth: true, description: 'A one-branch choice skips choice-level validation, so a breach surfaces as the branch\'s own maxOccurs error instead: the branch is capped at 2 items (maxOccursTotal 2) but loaded with 3. Submit to see it.', choice: [
+        { name: 'tag', maxOccurs: 3, maxOccursTotal: 2, fieldOptions: { label: 'Tag (maxOccursTotal 2)' } },
+      ] },
+    ],
+  },
 ]);
 
 export const choiceMaxOccursSampleValues = {
   tooManyBranches: { contact: { email: 'ada@example.com', phone: '555-0100' } },
   branchOverTotal: { entries: { capped: ['C-one', 'C-two', 'C-three'] } },
+  singleBranchOverTotal: { tags: { tag: ['T-one', 'T-two', 'T-three'] } },
 };
 
 export const explicitChoiceTestCase = createTestCase([
