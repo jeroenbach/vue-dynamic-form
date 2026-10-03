@@ -19,7 +19,7 @@ Everything listed as exported comes from `packages/core/src/index.ts` and ships 
 | Export | Role |
 | --- | --- |
 | `defineMetadata` | Pure type-level configuration carrier (`<FieldValueTypes, ExtendedFieldProperties, SlotProperties, ExtendedSettingsProperties>`); runtime values are empty stubs. |
-| `useDynamicForm` | Wraps vee-validate's `useForm()`; adds `useFieldValue(path)` (typed path accessor) and `validateSection(sectionPath)` (wizard-step validation). |
+| `useDynamicForm` | Wraps vee-validate's `useForm()`; adds `useFieldValue(path)` (typed path accessor) and `validateSection(sectionPath)` (wizard-step validation). Its `keepValuesOnUnmount` option (and the per-field `fieldOptions.keepValueOnUnmount`) now works as documented for every field rendered through `DynamicFormItem`: when the effective flag is `true`, unmounting a field no longer overwrites vee-validate's own preserved value. Attribute fields (a field's `attributes` entries) clear on unmount when the owning field's own value is gone (an empty complex value keeps no stale attributes); when the owning field still has a value, its attributes follow the same keep flags as any other field. |
 | `useValidatePartialForm` | Partial-form validation. Quirk: when called in the same component as `useDynamicForm` it reads the form context from the instance's own `provides` instead of `inject`. |
 
 ## Types (exported)
@@ -43,6 +43,10 @@ Everything listed as exported comes from `packages/core/src/index.ts` and ships 
 `DynamicFormItemProps` also gained `globalIndex?: number` (additive, engine-internal wiring, mirroring `branchKey`): set alongside `branchKey` on a repeatable explicit choice occurrence's `DynamicFormItem`, it is the render-loop index over `renderedChoiceOccurrences` and is forwarded to the slot as `globalIndex`. `undefined` everywhere else (plain array items, non-explicit choices, `maxOccurs: 1` explicit choices, and any other field).
 
 `DynamicFormItemProps` also gained `insertionOrder?: number` (additive, engine-internal wiring, mirroring `globalIndex`): set alongside `globalIndex` on a repeatable explicit choice occurrence's `DynamicFormItem`, it is that occurrence's ephemeral add-order position this session (1-based, in add-press order across every branch), `undefined` for an occurrence that existed before this session or was never added via `addChoiceOccurrence`. Forwarded to the slot as `insertionOrder`; never written to form `values`.
+
+`DynamicFormItemProps` also gained `partOfAttributeField?: boolean`: set on each `DynamicFormItem` rendered through a parent's `#attributes` slot, marking it as an attribute item for unmount-cleanup purposes (the attribute is conditionally mounted based on whether the parent has a value).
+
+`DynamicFormItemProps` also gained `attributeOwnerHasValue?: () => boolean`: bound alongside `partOfAttributeField`, a getter the attribute item calls on unmount to check whether its owner still has a main value. No owner value → the attribute clears regardless of `keepValuesOnUnmount`/`keepValueOnUnmount` (unchanged guarantee: an empty complex value keeps no stale attributes). Owner still has a value → the attribute follows the same keep flags as any other field.
 
 ## Utils (exported)
 

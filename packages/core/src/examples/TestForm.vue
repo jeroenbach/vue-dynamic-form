@@ -16,12 +16,16 @@ export interface Props {
   initialEdit?: boolean
   hideFieldsWithoutValue?: boolean
   initialValues?: GenericObject
+  keepValuesOnUnmount?: boolean
 }
 
-const { metadata, settings: _settings, initialEdit = true, hideFieldsWithoutValue = false, showDebugState = false, initialValues } = defineProps<Props>();
+const { metadata, settings: _settings, initialEdit = true, hideFieldsWithoutValue = false, showDebugState = false, initialValues, keepValuesOnUnmount } = defineProps<Props>();
 
 const { values, handleSubmit, errors, meta } = useDynamicForm({
   initialValues,
+  // Passed as a computed ref (not the destructured value directly) so a live toggle of the prop
+  // after mount keeps affecting unmount behaviour, instead of freezing whatever it was at setup time.
+  keepValuesOnUnmount: computed(() => keepValuesOnUnmount),
 });
 const manualValues = ref();
 const editMode = ref(initialEdit);

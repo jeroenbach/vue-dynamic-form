@@ -9,8 +9,8 @@ export interface DynamicFormItemProps<
     object,
     object,
     {
-      default?: ((props: object) => any) | undefined
-      attributes?: ((props: object) => any) | undefined
+      default?: ((props: object) => any)
+      attributes?: ((props: object) => any)
     }
   >
   fieldMetadata: InternalMetadata
@@ -46,6 +46,20 @@ export interface DynamicFormItemProps<
    * mark all children optional if no value has been filled in.
    */
   partOfArrayField?: boolean
+  /**
+   * In case this field is one of the parent's `attributes`, it is conditionally mounted based on
+   * whether the parent has a value. This marks it so unmount cleanup can tell it apart from a
+   * regular field and consult `attributeOwnerHasValue` before deciding whether to clear it.
+   */
+  partOfAttributeField?: boolean
+  /**
+   * For an item marked `partOfAttributeField`, a getter that reports whether the owning field
+   * currently has a main value. Called at unmount time: when it returns false, the attribute's
+   * value is cleared regardless of `keepValuesOnUnmount`/`keepValueOnUnmount`, since it belongs
+   * to a value that is itself gone; when it returns true, the attribute follows the same keep
+   * flags as any other field.
+   */
+  attributeOwnerHasValue?: () => boolean
   /**
    * In case this field is part of a choice field, it needs to co-operate with that choice field and
    * behave differently in some situations.

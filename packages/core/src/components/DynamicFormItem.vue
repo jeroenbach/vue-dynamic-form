@@ -10,8 +10,8 @@ import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { ComputedPropsFieldOf, FieldMetadata, ReadOnlyFieldOf } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { useField, useSubmitCount } from 'vee-validate';
-import { computed, inject, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue';
+import { useField, useFormContext, useSubmitCount } from 'vee-validate';
+import { computed, inject, onBeforeUnmount, onMounted, ref, toValue, watch, watchEffect } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
@@ -135,6 +135,14 @@ const fieldContext = !isArray.value
   : { value: ref(undefined) } as FieldContext;
 
 const value = fieldContext.value;
+
+// Used only to read the form-level keepValuesOnUnmount flag for the unmount cleanup below;
+// DynamicFormItem is always a descendant of the useForm() call in useDynamicForm, so a plain
+// useFormContext() resolves it here (unlike the same-instance quirk useValidatePartialForm has
+// to guard against). keepValuesOnUnmount is deliberately left off vee-validate's public
+// FormContext type, so it is read through a loosely typed access rather than a cast to a type
+// that does not carry it.
+const formContext = useFormContext() as { keepValuesOnUnmount?: boolean | (() => boolean) } | undefined;
 
 // Lazily evaluated — only computed when accessed, safe to use on deep field trees.
 fieldContext.hasValue = computed(() => checkTreeHasValue(value.value));
@@ -415,8 +423,20 @@ onBeforeUnmount(() => {
   if (props.partOfArrayField)
     return;
 
-  // Attribute fields are conditionally mounted based on whether the parent has a value.
-  // When unmounted, explicitly clear the value so it is removed from the form state.
+  // Attribute fields are conditionally mounted based on whether the owning field has a value.
+  // When the owner is empty, the attribute belongs to a value that is itself gone: there is
+  // nothing left to keep, so it clears regardless of keepValuesOnUnmount/keepValueOnUnmount.
+  // When the owner still has a value, the attribute honours the same keep flags as any other
+  // field, by skipping this explicit clear and deferring to vee-validate's own unmount handling.
+  const ownerValueIsGone = props.partOfAttributeField && !props.attributeOwnerHasValue?.();
+
+  if (!ownerValueIsGone) {
+    const keepValue = field.value?.fieldOptions?.keepValueOnUnmount
+      ?? toValue(formContext?.keepValuesOnUnmount);
+    if (keepValue)
+      return;
+  }
+
   if (value.value !== undefined) {
     value.value = undefined;
     notifyValueUpdate();
@@ -550,6 +570,8 @@ function updateArrayValue(_value: unknown) {
             :slot-props
             :min-occurs-override="_minOccursOverride"
             :max-occurs-override="_maxOccursOverride"
+            :part-of-attribute-field="true"
+            :attribute-owner-has-value="() => checkTreeHasValue(value)"
 
             @update:model-value="notifyValueUpdate"
             @update:computed-field="onChildComputedFieldUpdate"
