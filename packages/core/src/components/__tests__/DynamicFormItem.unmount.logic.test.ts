@@ -143,6 +143,32 @@ describe('component DynamicFormItem - unmount', () => {
       expect(formValues(wrapper).lastName).toBe('Smith');
     });
 
+    it('clears a field whose fieldOptions.keepValueOnUnmount is false even when the form-level flag is true', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          keepValuesOnUnmount: true,
+          metadata: [
+            { name: 'firstName', type: 'text' },
+            { name: 'lastName', type: 'text', fieldOptions: { keepValueOnUnmount: false } },
+          ],
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('#firstName').setValue('John');
+      await flushPromises();
+      await wrapper.find('#lastName').setValue('Smith');
+      await flushPromises();
+
+      await wrapper.setProps({ metadata: [] });
+      await flushPromises();
+
+      // The per-field opt-out beats the form-level keep flag; the untouched sibling keeps its value.
+      expect(formValues(wrapper).firstName).toBe('John');
+      expect(formValues(wrapper).lastName).toBeUndefined();
+    });
+
     it('still clears an attribute field value on unmount even when the form-level keepValuesOnUnmount flag is true', async () => {
       const wrapper = mount(TestForm, {
         attachTo: document.body,

@@ -9,7 +9,13 @@ export interface Props {
   settings?: DynamicFormSettings
 }
 
+export interface Emits {
+  /** Forwarded from the native form submit event. Wire this to your own `handleSubmit(...)` from `useDynamicForm`. */
+  (e: 'submit', event?: Event): void
+}
+
 const { metadata, settings: _settings } = defineProps<Props>();
+const emit = defineEmits<Emits>();
 
 const settings = computed<DynamicFormSettings>(() => ({
   messages: {
@@ -34,7 +40,7 @@ const settings = computed<DynamicFormSettings>(() => ({
 </script>
 
 <template>
-  <form>
+  <form @submit="emit('submit', $event)">
     <DynamicForm
       :template="AdvancedFormTemplate"
       :metadata="metadata"

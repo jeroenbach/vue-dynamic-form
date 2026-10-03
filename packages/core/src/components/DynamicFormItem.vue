@@ -14,6 +14,7 @@ import { useField, useFormContext, useSubmitCount } from 'vee-validate';
 import { computed, inject, onBeforeUnmount, onMounted, ref, toValue, watch, watchEffect } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
+import DynamicFormItemWizard from '@/components/DynamicFormItemWizard.vue';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
@@ -51,9 +52,15 @@ let _analytics_fieldComputeCount = 0;
 let _analytics_valueChangedCount = 0;
 let _analytics_notifyValueUpdateCount = 0;
 
-// Detects non-idempotent writes inside computedProps that would cause an infinite recomputation loop.
-// The counter resets after each macrotask, so it only catches computes that happen synchronously.
-const COMPUTE_LOOP_MAX = 10;
+// Detects non-idempotent writes inside computedProps that would cause an infinite recomputation
+// loop. Loops that stay inside one reactive flush are already broken by Vue's own recursive-update
+// guard; this one catches loops that self-perpetuate through async watchers (a compute whose write
+// re-triggers itself a microtask later) and therefore never let the event loop turn. The counter
+// resets on a macrotask and the limit is deliberately generous (matching Vue's recursion limit):
+// input bursts faster than a macrotask (paste, autofill, IME, automated typing) can starve the
+// reset timer, and a tight limit miscounted such legitimate once-per-update recomputes as a loop,
+// killing the field's render effect on a false positive and freezing it with stale metadata.
+const COMPUTE_LOOP_MAX = 100;
 let _computeLoopCount = 0;
 let _computeLoopResetTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -69,7 +76,7 @@ function assertNoComputeLoop(fieldPath: string) {
   if (_computeLoopCount > COMPUTE_LOOP_MAX) {
     throw new Error(
       `[DynamicFormItem] Possible infinite loop detected in computedProps for field "${fieldPath}". `
-      + `computedProps recomputed more than ${COMPUTE_LOOP_MAX} times synchronously. `
+      + `computedProps recomputed more than ${COMPUTE_LOOP_MAX} times without the event loop turning. `
       + `Ensure value writes inside computedProps are idempotent (the same input always produces the same output).`,
     );
   }
@@ -163,10 +170,12 @@ fieldContext.handleChange = function (e: unknown, shouldValidate?: boolean | und
 
 // --- Field type flags ---
 
+const isWizard = computed(() => !!field.value?.wizard);
 const isParent = computed(() => !!field.value?.children?.length);
 const isChoice = computed(() => !!field.value?.choice?.length);
-// An input is any leaf field — not a repeating array, not a branching choice, not a parent group.
-const isInput = computed(() => !isArray.value && !isChoice.value && !isParent.value);
+// An input is any leaf field — not a repeating array, not a branching choice, not a parent group,
+// and not a wizard (a wizard always has its own delegated rendering, even with no children yet).
+const isInput = computed(() => !isArray.value && !isChoice.value && !isParent.value && !isWizard.value);
 
 // --- Reactive field and dynamic state ---
 const initialUpdate = ref(true);
@@ -213,6 +222,7 @@ const computedField = computed(() => {
   _internalMetadata.path = path.value;
   _internalMetadata.explicitChoiceSelection = field.value?.explicitChoiceSelection;
   _internalMetadata.preserveOnSwitch = field.value?.preserveOnSwitch;
+  _internalMetadata.wizard = field.value?.wizard;
   _internalMetadata._hash = hashField(_internalMetadata);
 
   return _internalMetadata;
@@ -485,7 +495,16 @@ function updateArrayValue(_value: unknown) {
       ++_analytics_renderCount
     }}</span>
   </div>
-  <template v-if="isChoice">
+  <template v-if="isWizard">
+    <DynamicFormItemWizard
+      v-bind="props"
+      :field-metadata="computedField"
+
+      @update:model-value="notifyValueUpdate"
+      @update:computed-field="onChildComputedFieldUpdate"
+    />
+  </template>
+  <template v-else-if="isChoice">
     <DynamicFormItemChoice
       v-bind="props"
       :field-metadata="computedField"

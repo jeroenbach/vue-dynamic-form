@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import type { WizardGotoStepOptions } from '@/types/FieldMetadata';
 import type { GetDynamicFormSettingsType } from '@/types/GetDynamicFormSettingsType';
 import type { GetMetadataType } from '@/types/GetMetadataType';
 import DynamicFormTemplate from '@/components/DynamicFormTemplate.vue';
@@ -38,11 +39,23 @@ const metadata = defineMetadata<
     /** Helps identifying that we're below a choice field, so if we're rendering an array we can adjust our layout */
     belowChoiceField?: boolean
     hidden?: boolean
+    /** Bound by the wizard page wrapper below, so a page's own content can offer "jump to step" affordances */
+    gotoStep?: (index: number, options?: WizardGotoStepOptions) => Promise<void> | void
   },
   {
     showOptionalInsteadOfRequired?: boolean
+    /**
+     * Example-only switch for the wizard page wrapper: gate page visibility with `v-if` (unmounts
+     * non-current pages) instead of the correct `v-show`. Lets a playground demonstrate the
+     * clear-on-unmount data loss `v-show` avoids, and how `keepValuesOnUnmount` changes it.
+     */
+    wizardPageUseVIf?: boolean
   }
 >();
+
+// Shared harness-button styling; the primary variant only swaps the color tokens.
+const buttonClass = 'inline-flex items-center h-9 px-3 text-sm border border-gray-300 rounded bg-gray-100 text-gray-900 cursor-pointer hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed';
+const buttonPrimaryClass = 'inline-flex items-center h-9 px-3 text-sm border border-blue-600 rounded bg-blue-600 text-white cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed';
 </script>
 
 <template>
@@ -53,6 +66,14 @@ const metadata = defineMetadata<
           {{ label }}
           <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
           <IconButton v-if="canRemoveItems" icon="minus" tabindex="-1" color="red" :data-testid="`${fieldMetadata.path}-remove-button`" @click="removeItem" />
+          <button
+            v-if="slotProps?.gotoStep"
+            type="button"
+            :data-testid="`${fieldMetadata.path}-goto-first-step-button`"
+            @click="slotProps.gotoStep(0)"
+          >
+            back to start
+          </button>
         </h3>
         <pre class="text-sm whitespace-pre-wrap">{{ fieldMetadata.description }}</pre>
         <span
@@ -66,9 +87,19 @@ const metadata = defineMetadata<
       </div>
     </template>
 
-    <template #heading-array>
-      <!-- Don't show any extra elements for the heading -->
-      <slot />
+    <template #heading-array="{ fieldMetadata, fieldContext: { label }, disabled, canAddItems, addItem, slotProps }">
+      <!--
+        Repeatable heading: render the heading label and an add control once at the array level, then
+        let each occurrence render label-less (mirrors how leaf arrays render through #default-array).
+        Without this, every occurrence would repeat the heading label and offer no way to add another.
+      -->
+      <div v-if="!fieldMetadata.hidden" class="mt-4 flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
+        <h3 v-if="label" class="flex text-xl font-bold gap-2 items-center" :class="{ 'text-gray-500': fieldMetadata.disabled || disabled }">
+          {{ label }}
+          <IconButton v-if="canAddItems" icon="plus" tabindex="-1" :data-testid="`${fieldMetadata.path}-add-button`" @click="addItem" />
+        </h3>
+        <slot :hide-label="true" :level="(slotProps?.level ?? 0) + 1" />
+      </div>
     </template>
 
     <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences }">
@@ -89,6 +120,7 @@ const metadata = defineMetadata<
             v-for="branch in fieldMetadata.choice"
             :key="`${branch.name}-add`"
             type="button"
+            :class="buttonClass"
             :disabled="!canAddChoiceOccurrence(branch.name)"
             :data-testid="`${fieldMetadata.path}.${branch.name}-add-choice-button`"
             @click="addChoiceOccurrence(branch.name)"
@@ -99,6 +131,7 @@ const metadata = defineMetadata<
             v-for="branch in fieldMetadata.choice"
             :key="`${branch.name}-remove`"
             type="button"
+            :class="buttonClass"
             :data-testid="`${fieldMetadata.path}.${branch.name}-remove-choice-button`"
             @click="removeChoiceOccurrence(branch.name)"
           >
@@ -135,6 +168,7 @@ const metadata = defineMetadata<
             v-for="branch in fieldMetadata.choice"
             :key="`${branch.name}-add`"
             type="button"
+            :class="buttonClass"
             :disabled="!canAddChoiceOccurrence(branch.name)"
             :data-testid="`${fieldMetadata.path}.${branch.name}-add-choice-button`"
             @click="addChoiceOccurrence(branch.name)"
@@ -145,6 +179,7 @@ const metadata = defineMetadata<
             v-for="branch in fieldMetadata.choice"
             :key="`${branch.name}-remove`"
             type="button"
+            :class="buttonClass"
             :data-testid="`${fieldMetadata.path}.${branch.name}-remove-choice-button`"
             @click="removeChoiceOccurrence(branch.name)"
           >
@@ -185,6 +220,79 @@ const metadata = defineMetadata<
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <slot :level="(slotProps?.level ?? 0) + 1" />
         </div>
+      </div>
+    </template>
+
+    <!--
+      Wizard container test harness: builds its stepper purely from the `pages` slot prop (never
+      `fieldMetadata.children`), so a stepper/navigation desync would fail any test asserting the
+      rendered step list against actual navigation. Buttons/spans mirror the -choice harness above.
+    -->
+    <template #default-wizard="{ fieldMetadata, fieldContext: { errorMessage, label }, pages, currentStepIndex, pageCount, isFirst, isLast, isValidating, wizardConfig, next, prev, gotoStep, slotProps }">
+      <div class="flex flex-col gap-2">
+        <span>{{ label }}</span>
+        <div class="flex gap-2 flex-wrap">
+          <button
+            v-for="(page, pageIndex) in pages"
+            :key="page.path"
+            type="button"
+            :class="buttonClass"
+            :data-testid="`${fieldMetadata.path}-goto-${pageIndex}-button`"
+            @click="gotoStep(pageIndex)"
+          >
+            {{ page.name }}
+          </button>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" :class="buttonClass" :data-testid="`${fieldMetadata.path}-prev-button`" @click="prev">
+            Previous
+          </button>
+          <button type="button" :class="buttonPrimaryClass" :data-testid="`${fieldMetadata.path}-next-button`" @click="next">
+            Next
+          </button>
+        </div>
+        <span
+          v-if="errorMessage.value"
+          class="text-red-600 text-sm"
+          :data-testid="`${fieldMetadata.path}-error-message`"
+        >{{ errorMessage.value }}</span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 ms-6">
+          <slot :level="(slotProps?.level ?? 0) + 1" />
+        </div>
+        <div>currentStepIndex: <span :data-testid="`${fieldMetadata.path}-currentStepIndex`">{{ currentStepIndex }}</span></div>
+        <div>pageCount: <span :data-testid="`${fieldMetadata.path}-pageCount`">{{ pageCount }}</span></div>
+        <div>isFirst: <span :data-testid="`${fieldMetadata.path}-isFirst`">{{ isFirst }}</span></div>
+        <div>isLast: <span :data-testid="`${fieldMetadata.path}-isLast`">{{ isLast }}</span></div>
+        <div>isValidating: <span :data-testid="`${fieldMetadata.path}-isValidating`">{{ isValidating }}</span></div>
+        <div>allowForwardJump: <span :data-testid="`${fieldMetadata.path}-wizardConfig-allowForwardJump`">{{ wizardConfig.allowForwardJump }}</span></div>
+        <div>validateOnJump: <span :data-testid="`${fieldMetadata.path}-wizardConfig-validateOnJump`">{{ wizardConfig.validateOnJump }}</span></div>
+      </div>
+    </template>
+
+    <!--
+      Wizard page visibility wrapper. The correct implementation gates with v-show (keeps every
+      page mounted so values and validation survive navigation). The wizardPageUseVIf setting flips
+      it to v-if so a playground can show the clear-on-unmount data loss v-show avoids; it defaults
+      off, so tests and every other consumer keep the correct v-show behaviour.
+
+      Binds gotoStep onto its slot (and threads the level convention through) so a page's own
+      content can offer jump-to-step affordances, e.g. edit links on a summary page.
+    -->
+    <template #default-wizard-page="{ fieldMetadata, isCurrent, gotoStep, slotProps, settings: { wizardPageUseVIf } }">
+      <div
+        v-if="!wizardPageUseVIf"
+        v-show="isCurrent"
+        :data-testid="`${fieldMetadata.path}-page`"
+        :data-current="isCurrent"
+      >
+        <slot :goto-step :level="slotProps?.level" />
+      </div>
+      <div
+        v-else-if="isCurrent"
+        :data-testid="`${fieldMetadata.path}-page`"
+        :data-current="isCurrent"
+      >
+        <slot :goto-step :level="slotProps?.level" />
       </div>
     </template>
 
