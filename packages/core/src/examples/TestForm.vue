@@ -63,7 +63,10 @@ const settings = computed(() => ({
   messages: {
     required: '{field} is required',
     minOccurs: 'At least {min} items required',
+    maxOccurs: 'At most {max} items allowed',
     choiceMinOccurs: 'The following fields need to occur at least {min} time(s): {field}',
+    choiceMaxOccurs: 'The following fields may occur at most {max} time(s): {field}',
+    maxOccursTotal: 'This branch may occur at most {max} time(s) in total: {field}',
     minLength: 'The minimum length of {field} is {length}',
     maxLength: 'The maximum length of {field} is {length}',
     length: '{field} must be exactly {length} characters',

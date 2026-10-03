@@ -93,6 +93,8 @@ Maximum number of times this field can be filled in.
 { name: 'readOnly',     maxOccurs: 0 }   // disabled
 ```
 
+Loading or programmatically setting data that already holds more items than `maxOccurs` now also fails `xsd_maxOccurs` validation, not only the "Add" affordance: see [Built-in Rules](/guide/validation#built-in-rules) in the validation guide. A choice branch's own opt-in `maxOccursTotal` cap has a matching validation backstop; see [Capping a branch's total count](/examples/choices#capping-a-branch-s-total-count-maxoccurstotal) in the Choice Fields example.
+
 ### `autoAddMinOccurs`
 
 Type: `boolean` | Default: `true`

@@ -5,10 +5,10 @@ import DynamicForm from '@/components/DynamicForm.vue';
 import { useDynamicForm } from '@/core/useDynamicForm';
 import TestFormTemplate from '@/examples/TestFormTemplate.vue';
 
-function mountForm(metadata: object[]) {
+function mountForm(metadata: object[], initialValues?: Record<string, unknown>) {
   const TestForm = defineComponent({
     setup() {
-      const { validateSection } = useDynamicForm();
+      const { validateSection } = useDynamicForm({ initialValues });
       return { validateSection };
     },
     render() {
@@ -152,6 +152,70 @@ describe('useValidatePartialForm', () => {
       expect(result.results).not.toHaveProperty('personal.phone');
       expect(result.results).not.toHaveProperty('work.company');
       expect(result.results).not.toHaveProperty('work.role');
+    });
+
+    describe('occurrence maximum rules (wizard-step gating)', () => {
+      it('fails the section when an array in it is loaded over its maxOccurs', async () => {
+        const wrapper = mountForm(
+          [{
+            name: 'step1',
+            children: [{ name: 'items', minOccurs: 0, maxOccurs: 2, fieldOptions: { label: 'Items' } }],
+          }],
+          { step1: { items: ['a', 'b', 'c'] } },
+        );
+        await flushPromises();
+
+        const result = await (wrapper.vm as any).validateSection('step1');
+
+        expect(result.valid).toBe(false);
+        expect(result.results).toHaveProperty('step1.items');
+      });
+
+      it('fails the section when a choice in it is loaded over its maxOccurs, via the choice\'s anchored path', async () => {
+        const wrapper = mountForm(
+          [{
+            name: 'step1',
+            children: [{
+              name: 'pick',
+              fieldOptions: { label: 'Pick One' },
+              choice: [
+                { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+                { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+              ],
+            }],
+          }],
+          { step1: { pick: { opt1: 'a', opt2: 'b' } } },
+        );
+        await flushPromises();
+
+        const result = await (wrapper.vm as any).validateSection('step1');
+
+        expect(result.valid).toBe(false);
+      });
+
+      it('fails the section when a choice branch in it breaches its maxOccursTotal', async () => {
+        const wrapper = mountForm(
+          [{
+            name: 'step1',
+            children: [{
+              name: 'pick',
+              minOccurs: 0,
+              maxOccurs: 5,
+              fieldOptions: { label: 'Pick' },
+              choice: [
+                { name: 'branchA', maxOccurs: 3, maxOccursTotal: 1, fieldOptions: { label: 'Branch A' } },
+                { name: 'branchB', fieldOptions: { label: 'Branch B' } },
+              ],
+            }],
+          }],
+          { step1: { pick: { branchA: ['a', 'b', 'c'] } } },
+        );
+        await flushPromises();
+
+        const result = await (wrapper.vm as any).validateSection('step1');
+
+        expect(result.valid).toBe(false);
+      });
     });
   });
 });

@@ -69,8 +69,24 @@ export type DynamicFormSettings<
     required?: ValidationMessage
     /** XSD: minOccurs. Available placeholders: `{field}`, `{0}` or `{min}` (min number of filled items) */
     minOccurs?: ValidationMessage
+    /** XSD: maxOccurs. Available placeholders: `{field}`, `{0}` or `{max}` (max number of allowed items) */
+    maxOccurs?: ValidationMessage
     /** XSD: choiceMinOccurs. Available placeholders: `{field}`, `{0}` or `{min}` (min number of filled items) */
     choiceMinOccurs?: ValidationMessage
+    /** XSD: choiceMaxOccurs. Available placeholders: `{field}`, `{0}` or `{max}` (max number of choice occurrences allowed) */
+    choiceMaxOccurs?: ValidationMessage
+    /**
+     * Non-XSD: maxOccursTotal, a choice branch's opt-in cap on its own total raw occurrence
+     * count. Available placeholders: `{field}`, `{0}` or `{max}` (the offending branch's cap).
+     *
+     * This is a single choice-level aggregate, not a per-branch error: `{field}` resolves to the
+     * choice's own anchor label, never the branch's, so the message cannot name which branch is
+     * over its cap. When several branches breach their own `maxOccursTotal` at once, `{max}`/`{0}`
+     * carry the cap of the first offending branch in declaration order only, not every breached
+     * cap. A single-branch choice skips choice-level validation entirely; there a breach surfaces
+     * as the branch's own `maxOccurs` message instead.
+     */
+    maxOccursTotal?: ValidationMessage
     /** XSD: minLength. Available placeholders: `{field}`, `{0}` or `{length}` (min length) */
     minLength?: ValidationMessage
     /** XSD: maxLength. Available placeholders: `{field}`, `{0}` or `{length}` (max length) */

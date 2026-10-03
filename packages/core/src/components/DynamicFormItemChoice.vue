@@ -3,6 +3,7 @@
   setup
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
+import type { GenericValidateFunction } from 'vee-validate';
 import type { ComputedRef } from 'vue';
 import type { ChoiceOccurrence, LimitedFieldContext } from '@/components/DynamicFormTemplate.vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
@@ -169,6 +170,19 @@ const singleChild = computed(() =>
   (!explicitChoiceSelection && field.value?.choice?.length === 1) ? field.value?.choice[0] as InternalMetadata : undefined,
 );
 
+// The single branch's cap: its declared maxOccurs, tightened by its opt-in maxOccursTotal.
+// Without this the singleChild shortcut would be the one render path where maxOccursTotal is
+// silently ignored, in the UI cap and in validation alike (the branch's own xsd_maxOccurs
+// picks up loaded data over the cap).
+const singleChildMaxOccursOverride = computed(() => {
+  if (_maxOccursOverride.value === 0)
+    return 0;
+  const child = singleChild.value;
+  if (child?.maxOccursTotal === undefined)
+    return _maxOccursOverride.value;
+  return Math.min(child.maxOccursTotal, child.maxOccurs ?? 1);
+});
+
 // --- Occurrence budget calculation ---
 
 /**
@@ -256,7 +270,14 @@ const occurrences = computed(() => {
     const othersAsChildOccurrences = othersChoiceOccurrences * value.childMaxOccurrences;
     const totalChildOccurrences = _maxOccurs * value.childMaxOccurrences;
 
-    let overrideChildMaxOccurrences = totalChildOccurrences - othersAsChildOccurrences;
+    // A budget shortfall caused by siblings may disable an empty branch, but never drops a
+    // branch below its filled item count (which would disable or falsely flag loaded data with
+    // a shifting budget-relative cap, possibly even a negative one). Over-budget states are
+    // reported by the choice-level rules instead.
+    let overrideChildMaxOccurrences = Math.max(
+      totalChildOccurrences - othersAsChildOccurrences,
+      value.childValuesCount,
+    );
 
     // maxOccursTotal is a raw-item cap independent of the shared budget; it can only tighten.
     if (value.maxOccursTotal !== undefined)
@@ -374,9 +395,18 @@ const effectiveValuesCount = computed(() => {
   return valuesCount.value;
 });
 
+// The offending branch's maxOccursTotal cap, or undefined when no branch breaches its own
+// cap. Reads occurrences (already a transitive dependency of combinedValidation below), so this
+// adds no new reactive source. Returns the first offending branch's cap in declaration order:
+// a later breach on a different branch is never reached once an earlier one is found.
+const maxOccursTotalBreach = computed(() =>
+  Object.values(occurrences.value)
+    .find(o => o.maxOccursTotal !== undefined && o.childOccurrences > o.maxOccursTotal)
+    ?.maxOccursTotal,
+);
+
 // --- Vee-Validate field context ---
 
-// Only validate when the total filled choices fall below the minimum required.
 const combinedValidation = computed(() => {
   if (singleChild.value)
     return; // single-child choices are validated by the child itself
@@ -384,11 +414,21 @@ const combinedValidation = computed(() => {
   if (disabled.value)
     return;
 
-  if (effectiveValuesCount.value >= minOccurs.value)
-    return;
-
   const _messages = settings?.value?.messages;
-  return [createValidation('xsd_choiceMinOccurs', minOccurs.value, _messages?.choiceMinOccurs)];
+  const _validations: GenericValidateFunction[] = [];
+
+  // Two independent guards, not else-if: the list shape must be able to hold both rules if the
+  // minOccurs <= maxOccurs invariant is ever relaxed by a caller's metadata.
+  if (effectiveValuesCount.value < minOccurs.value)
+    _validations.push(createValidation('xsd_choiceMinOccurs', minOccurs.value, _messages?.choiceMinOccurs));
+  if (usedChoiceOccurrences.value > maxOccurs.value)
+    _validations.push(createValidation('xsd_choiceMaxOccurs', maxOccurs.value, _messages?.choiceMaxOccurs));
+
+  // Pushed last so a co-occurring choice-occurrence rule above wins the displayed errorMessage.
+  if (maxOccursTotalBreach.value !== undefined)
+    _validations.push(createValidation('vdf_maxOccursTotal', maxOccursTotalBreach.value, _messages?.maxOccursTotal));
+
+  return _validations.length ? _validations : undefined;
 });
 
 // A choice field has no entry in the values tree, so validation anchors to the nearest parent
@@ -489,11 +529,15 @@ function branchIndexOf(branchKey: string): number {
 // Max-occurs override for the single active branch (maxOccurs:1). Only one branch is ever active,
 // so there is no shared budget to contend for, only the branch's own maxOccursTotal. Read from
 // static metadata, not the reactive `occurrences`, so it stays stable as the branch populates
-// (no extra render) while still applying the cap.
+// (no extra render) while still applying the cap. maxOccursTotal can only tighten the branch's
+// declared maxOccurs, never widen it past the XSD ceiling.
 function branchMaxOccursOverride(branchKey: string): number | undefined {
   if (_maxOccursOverride.value === 0)
     return 0; // whole choice disabled
-  return branchByKey(branchKey)?.maxOccursTotal ?? _maxOccursOverride.value;
+  const branch = branchByKey(branchKey);
+  if (branch?.maxOccursTotal === undefined)
+    return _maxOccursOverride.value;
+  return Math.min(branch.maxOccursTotal, branch.maxOccurs ?? 1);
 }
 
 function branchByKey(branchKey: string): InternalMetadata | undefined {
@@ -872,7 +916,7 @@ if (import.meta.env.DEV) {
       :template
       :slot-props
       :min-occurs-override="_minOccursOverride"
-      :max-occurs-override="_maxOccursOverride"
+      :max-occurs-override="singleChildMaxOccursOverride"
       part-of-choice-field
 
       @update:model-value="updateChildValue($event, 0, singleChild!.maxOccurs, true)"

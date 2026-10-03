@@ -129,6 +129,16 @@ export function usedChoiceOccurrences(wrapper: ReturnType<typeof mount>, choiceP
   return span.exists() ? Number(span.text()) : undefined;
 }
 
+/** Reads the number of rules currently present in `combinedValidation` for the choice at `path`. */
+export function combinedValidationCount(wrapper: ReturnType<typeof mount>, path: string): number {
+  return setupState(wrapper, path)?.combinedValidation?.length ?? 0;
+}
+
+/** Reads the `maxOccursTotalBreach` computed (the offending branch's cap, or undefined) for the choice at `path`. */
+export function maxOccursTotalBreach(wrapper: ReturnType<typeof mount>, path: string): number | undefined {
+  return setupState(wrapper, path)?.maxOccursTotalBreach;
+}
+
 /**
  * Reads the `-insertion-order` testid at `occurrencePath` (e.g. `pick.apiEndpoint[0]`), asserting
  * the `*-choice-array-item`/`default-choice-array-item` slot actually received `insertionOrder` as

@@ -50,6 +50,31 @@ describe('validation rules', () => {
     });
   });
 
+  describe('xsd_maxOccurs', () => {
+    it('passes when raw item count equals max', async () => {
+      expect(await passes(['a', 'b'], 'xsd_maxOccurs', [2])).toBe(true);
+    });
+    it('passes when raw item count is below max', async () => {
+      expect(await passes(['a'], 'xsd_maxOccurs', [2])).toBe(true);
+    });
+    it('fails when raw item count exceeds max', async () => {
+      expect(await passes(['a', 'b', 'c'], 'xsd_maxOccurs', [2])).toBe(false);
+    });
+    it('counts empty placeholder items, unlike xsd_minOccurs', async () => {
+      expect(await passes(['a', null], 'xsd_maxOccurs', [2])).toBe(true);
+      expect(await passes(['a', null, null], 'xsd_maxOccurs', [2])).toBe(false);
+    });
+    it('counts complex-type placeholder items the same as any other raw item', async () => {
+      expect(await passes([{ value: null }, 'a', 'b'], 'xsd_maxOccurs', [2])).toBe(false);
+    });
+    it('resolves the default max of 1 when none is declared', async () => {
+      expect(await passes(['a', 'b'], 'xsd_maxOccurs', [1])).toBe(false);
+    });
+    it('passes for a non-array value, unlike xsd_minOccurs', async () => {
+      expect(await passes('not-an-array', 'xsd_maxOccurs', [1])).toBe(true);
+    });
+  });
+
   describe('xsd_minLength', () => {
     it('passes when length equals min', async () => {
       expect(await passes('abc', 'xsd_minLength', [3])).toBe(true);
