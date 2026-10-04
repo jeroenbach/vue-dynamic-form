@@ -1,0 +1,79 @@
+{
+  "name": "@bach.software/vue-dynamic-form-starter",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A portable, Tailwind-free starter form template for Vue Dynamic Form",
+  "author": "Jeroen Bach <jeroen@bach.software> (https://bach.software)",
+  "homepage": "https://github.com/jeroenbach/vue-dynamic-form",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeroenbach/vue-dynamic-form.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jeroenbach/vue-dynamic-form/issues"
+  },
+  "keywords": [
+    "dynamic-form",
+    "starter",
+    "vue",
+    "typescript"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/vue-dynamic-form-starter.es.js",
+      "require": "./dist/vue-dynamic-form-starter.umd.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "main": "./dist/vue-dynamic-form-starter.umd.js",
+  "module": "./dist/vue-dynamic-form-starter.es.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rm -rf dist && vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly && tsc-alias -p tsconfig.build.json",
+    "build:watch": "vite build --watch",
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "test": "vitest run",
+    "ci": "pnpm ci:test && pnpm ci:lint && pnpm ci:typecheck",
+    "ci:test": "TZ=Europe/Amsterdam vitest run",
+    "ci:test:coverage": "TZ=Europe/Amsterdam vitest run --coverage",
+    "ci:lint": "eslint",
+    "ci:typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@bach.software/vue-dynamic-form": "catalog:framework",
+    "vee-validate": "catalog:framework",
+    "vue": "catalog:framework"
+  },
+  "dependencies": {
+    "@lucide/vue": "catalog:framework"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "catalog:dev",
+    "@bach.software/vue-dynamic-form": "workspace:*",
+    "@lucide/vue": "catalog:framework",
+    "@types/node": "catalog:types",
+    "@vitejs/plugin-vue": "catalog:build",
+    "@vitest/coverage-v8": "catalog:test",
+    "@vue/test-utils": "catalog:test",
+    "eslint": "catalog:dev",
+    "eslint-plugin-format": "catalog:dev",
+    "jsdom": "catalog:test",
+    "tsc-alias": "catalog:build",
+    "typescript": "catalog:types",
+    "vee-validate": "catalog:framework",
+    "vite": "catalog:build",
+    "vitest": "catalog:test",
+    "vue": "catalog:framework",
+    "vue-tsc": "catalog:build"
+  }
+}

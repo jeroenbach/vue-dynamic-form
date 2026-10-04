@@ -1,10 +1,17 @@
 @import 'tailwindcss';
+
+/* Loaded into a named layer declared after Tailwind's own (theme/base/components/utilities), so
+   it outranks them. The starter package ships plain, unlayered CSS; without this it would sit in
+   the same (default) layer as the revert-layer rule below and be discarded entirely by it, since
+   revert-layer rolls back past its whole current layer, not just lower-specificity rules in it. */
+@import '@bach.software/vue-dynamic-form-starter/style.css' layer(starter);
+
 @source "./components";
 @variant dark (&:where(.dark, .dark *));
 
-/* VitePress unlayered styles override Tailwind's @layer utilities.
-   revert-layer falls through to Tailwind's utility values since our selector
-   wins over .vp-doc input at equal specificity by loading after VitePress. */
+/* VitePress unlayered styles override Tailwind's @layer utilities (and, now, the "starter" layer).
+   revert-layer falls through to the highest-priority named layer below this one, which is "starter"
+   for form controls the starter package styles, and Tailwind's utilities for everything else. */
 .form-demo input,
 .form-demo select,
 .form-demo textarea,

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "outDir": "dist"
+  },
+  "references": [
+    { "path": "../core" }
+  ],
+  "include": ["vite.config.*", "src/**/*", "src/**/*.vue"],
+  "exclude": ["node_modules", "dist"]
+}

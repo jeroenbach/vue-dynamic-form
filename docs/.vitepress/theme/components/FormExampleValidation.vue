@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
+import type { Metadata } from './AdvancedForm.vue';
 import { useDynamicForm } from '@bach.software/vue-dynamic-form';
 import AdvancedForm from './AdvancedForm.vue';
 
@@ -33,7 +33,8 @@ const startDateValue = useFieldValue('dateRange.startDate');
 const takenEmails = ['admin@example.com', 'test@test.com', 'hello@world.com'];
 
 async function validateEmailAvailability(value: unknown): Promise<true | string> {
-  if (!value) return true;
+  if (!value)
+    return true;
   await new Promise(resolve => setTimeout(resolve, 700));
   return takenEmails.includes(String(value).toLowerCase())
     ? `${value} is already registered`
@@ -44,20 +45,27 @@ async function validateEmailAvailability(value: unknown): Promise<true | string>
 // #region password-validation
 function validatePassword(value: unknown): true | string {
   const str = String(value ?? '');
-  if (!str) return true;
+  if (!str)
+    return true;
   const missing: string[] = [];
-  if (str.length < 8) missing.push('8+ characters');
-  if (!/[A-Z]/.test(str)) missing.push('uppercase letter');
-  if (!/[a-z]/.test(str)) missing.push('lowercase letter');
-  if (!/[0-9]/.test(str)) missing.push('number');
-  if (!/[^A-Za-z0-9]/.test(str)) missing.push('special character');
+  if (str.length < 8)
+    missing.push('8+ characters');
+  if (!/[A-Z]/.test(str))
+    missing.push('uppercase letter');
+  if (!/[a-z]/.test(str))
+    missing.push('lowercase letter');
+  if (!/\d/.test(str))
+    missing.push('number');
+  if (!/[^A-Z0-9]/i.test(str))
+    missing.push('special character');
   return missing.length === 0 ? true : `Needs: ${missing.join(', ')}`;
 }
 // #endregion password-validation
 
 // #region website-validation
 function validateWebsite(value: unknown): true | string {
-  if (!value) return true;
+  if (!value)
+    return true;
   try {
     const url = new URL(String(value));
     return (url.protocol === 'https:' || url.protocol === 'http:') || 'Must be a valid URL';
@@ -112,16 +120,17 @@ const metadata: Metadata[] = [
         fieldOptions: { label: 'Confirm password' },
         description: 'Re-validated automatically whenever the password field changes.',
         validation: (value: unknown) => {
-            if (!value) return true;
-            const pwd = passwordValue.value;
-            return value === pwd || 'Passwords do not match';
+          if (!value)
+            return true;
+          const pwd = passwordValue.value;
+          return value === pwd || 'Passwords do not match';
         },
         computedProps: [
           (_, fieldValue) => {
             if (passwordValue.value && fieldValue.value)
-              validateField('account.confirmPassword')
-          }
-        ]
+              validateField('account.confirmPassword');
+          },
+        ],
       },
       // #endregion cross-field-password
     ],
@@ -182,16 +191,17 @@ const metadata: Metadata[] = [
         placeholder: 'YYYY-MM-DD',
         restriction: { pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
         validation: (value: unknown) => {
-            const start = startDateValue.value;
-            if (!value || !start) return true;
-            return String(value) > String(start) || 'End date must be after start date';
+          const start = startDateValue.value;
+          if (!value || !start)
+            return true;
+          return String(value) > String(start) || 'End date must be after start date';
         },
         computedProps: [
           (_, fieldValue) => {
             if (startDateValue.value && fieldValue.value)
-              validateField('dateRange.endDate')
-          }
-        ]
+              validateField('dateRange.endDate');
+          },
+        ],
       },
       // #endregion cross-field-date
     ],
@@ -231,7 +241,7 @@ const metadata: Metadata[] = [
 
 <template>
   <div class="form-demo flex flex-col gap-6 max-w-3xl mx-auto">
-    <AdvancedForm :metadata class="flex flex-col gap-6"/>
+    <AdvancedForm :metadata class="flex flex-col gap-6" />
     <pre
       class="bg-gray-100 dark:bg-slate-800 p-4 rounded-lg text-sm overflow-auto"
     >

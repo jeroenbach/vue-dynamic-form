@@ -33,4 +33,4 @@ Looking for a one-page checkout instead of a multi-step wizard? See the [Checkou
 
 - [FormExampleClientOnboardingPlanner.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleClientOnboardingPlanner.vue)
 - [FormExampleClientOnboardingPlannerContext.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/context/FormExampleClientOnboardingPlannerContext.vue)
-- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)
+- [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)
