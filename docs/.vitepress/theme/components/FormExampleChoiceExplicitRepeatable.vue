@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
+import type { Metadata } from './AdvancedForm.vue';
 import { useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { computed, ref } from 'vue';
 import AdvancedForm from './AdvancedForm.vue';
-import ToggleSwitch from './ToggleSwitch.vue';
 
 export interface ExplicitChoiceRepeatableValues {
   integrations?: {
@@ -97,12 +96,18 @@ const metadata = computed<Metadata[]>(() => [
       </div>
       <div class="flex items-center gap-3">
         <span class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Persist to values</span>
-        <ToggleSwitch
-          :checked="preserveOrder"
-          label="preserveOrder"
-          dataTestid="preserve-order-toggle"
-          @update:checked="preserveOrder = !!$event"
-        />
+        <label data-testid="preserve-order-toggle" class="relative inline-flex shrink-0 items-center cursor-pointer">
+          <input
+            type="checkbox"
+            class="peer sr-only"
+            data-testid="preserve-order-toggle-input"
+            :checked="preserveOrder"
+            aria-label="preserveOrder"
+            @change="preserveOrder = ($event.target as HTMLInputElement).checked"
+          >
+          <div class="h-6 w-11 rounded-full bg-slate-300 dark:bg-slate-600 transition-colors peer-checked:bg-sky-600 peer-focus-visible:outline peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky-500" />
+          <div class="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white dark:bg-slate-200 shadow transition-transform peer-checked:translate-x-5" />
+        </label>
         <span class="text-sm text-slate-700 dark:text-slate-300">preserveOrder</span>
       </div>
     </div>

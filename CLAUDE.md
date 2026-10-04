@@ -8,7 +8,7 @@ Whenever the user says **"remember this"** (or similar) about an instruction or 
 
 ## Writing Style
 
-- **Never use em dashes (—)** in any text you write: content, copy, descriptions, PR text, etc. Rephrase the sentence or use a comma, colon, or parentheses instead.
+- **Never use em dashes (—) to connect two clauses/sentences** in any text you write: content, copy, descriptions, PR text, etc. Rephrase the sentence or use a comma, colon, or parentheses instead. Other uses of the em-dash character are fine (e.g. a placeholder glyph for a missing value, a literal character being preserved from existing/ported behavior).
 
 ## Code Comments
 

@@ -1,12 +1,11 @@
 <!-- #region client-onboarding-planner-example -->
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
-import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
-import type { TimelineItem } from './SubmissionSuccess.vue';
+import type { ReviewGroupProps, TimelineItem } from '@bach.software/vue-dynamic-form-starter';
+import type { Metadata } from './AdvancedForm.vue';
 import { removeNullValues, useDynamicForm } from '@bach.software/vue-dynamic-form';
+import { SubmissionSuccess } from '@bach.software/vue-dynamic-form-starter';
 import { computed, onMounted, ref, watch } from 'vue';
 import AdvancedForm from './AdvancedForm.vue';
-import SubmissionSuccess from './SubmissionSuccess.vue';
 
 // #region shared-types
 export interface SelectOption {
@@ -310,7 +309,7 @@ const metadata: Metadata[] = [
             name: 'selfServe',
             fieldOptions: { label: 'Self-serve launch' },
             description: 'The client drives the rollout themselves. Fastest path to go-live.',
-            iconName: 'bolt',
+            iconName: 'zap',
             fullWidth: true,
             children: [
               {

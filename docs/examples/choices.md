@@ -48,26 +48,28 @@ With the flag on, no branch renders until your template calls `addChoiceOccurren
 The library ships no picker widget: cards, a `<select>`, or per-branch buttons are all template code built on these props (the cards above come from the docs template's own `ChoiceSectionCard`). A minimal picker in a template looks like this:
 
 ```vue
-<template #default-choice="{ fieldMetadata, addChoiceOccurrence, activeChoiceOccurrences }">
-  <fieldset>
-    <legend>{{ fieldMetadata.fieldOptions?.label }}</legend>
+<DynamicFormTemplate>
+  <template #default-choice="{ fieldMetadata, addChoiceOccurrence, activeChoiceOccurrences }">
+    <fieldset>
+      <legend>{{ fieldMetadata.fieldOptions?.label }}</legend>
 
-    <!-- Nothing selected yet: show the picker. -->
-    <div v-if="!activeChoiceOccurrences.length">
-      <button
-        v-for="branch in fieldMetadata.choice"
-        :key="branch.name"
-        type="button"
-        @click="addChoiceOccurrence(branch.name)"
-      >
-        {{ branch.fieldOptions?.label }}
-      </button>
-    </div>
+      <!-- Nothing selected yet: show the picker. -->
+      <div v-if="!activeChoiceOccurrences.length">
+        <button
+          v-for="branch in fieldMetadata.choice"
+          :key="branch.name"
+          type="button"
+          @click="addChoiceOccurrence(branch.name)"
+        >
+          {{ branch.fieldOptions?.label }}
+        </button>
+      </div>
 
-    <!-- A branch is active: its fields render as the slot's default content. -->
-    <slot v-else />
-  </fieldset>
-</template>
+      <!-- A branch is active: its fields render as the slot's default content. -->
+      <slot v-else />
+    </fieldset>
+  </template>
+</DynamicFormTemplate>
 ```
 
 Picking a branch satisfies the choice's `xsd_choiceMinOccurs` rule immediately; the required fields inside the branch still enforce their own values separately.
@@ -110,32 +112,34 @@ A repeatable choice renders through the `-choice-array` slot family (falling bac
 - `globalIndex`: the occurrence's position across all branches combined, for a continuous "1, 2, 3" badge; it renumbers automatically on removal, so it never leaves a gap
 
 ```vue
-<template #default-choice-array="{ fieldMetadata, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences }">
-  <fieldset>
-    <legend>{{ fieldMetadata.fieldOptions?.label }} ({{ usedChoiceOccurrences }} of {{ fieldMetadata.maxOccurs }})</legend>
+<DynamicFormTemplate>
+  <template #default-choice-array="{ fieldMetadata, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences }">
+    <fieldset>
+      <legend>{{ fieldMetadata.fieldOptions?.label }} ({{ usedChoiceOccurrences }} of {{ fieldMetadata.maxOccurs }})</legend>
 
-    <button
-      v-for="branch in fieldMetadata.choice"
-      :key="branch.name"
-      type="button"
-      :disabled="!canAddChoiceOccurrence(branch.name)"
-      @click="addChoiceOccurrence(branch.name)"
-    >
-      Add {{ branch.fieldOptions?.label }}
-    </button>
+      <button
+        v-for="branch in fieldMetadata.choice"
+        :key="branch.name"
+        type="button"
+        :disabled="!canAddChoiceOccurrence(branch.name)"
+        @click="addChoiceOccurrence(branch.name)"
+      >
+        Add {{ branch.fieldOptions?.label }}
+      </button>
 
-    <!-- Every active occurrence renders here, via default-choice-array-item below. -->
-    <slot />
-  </fieldset>
-</template>
+      <!-- Every active occurrence renders here, via default-choice-array-item below. -->
+      <slot />
+    </fieldset>
+  </template>
 
-<template #default-choice-array-item="{ branchKey, globalIndex, removeItem }">
-  <div>
-    <span>{{ globalIndex + 1 }}. {{ branchKey }}</span>
-    <slot />
-    <button type="button" @click="removeItem">Remove</button>
-  </div>
-</template>
+  <template #default-choice-array-item="{ branchKey, globalIndex, removeItem }">
+    <div>
+      <span>{{ globalIndex + 1 }}. {{ branchKey }}</span>
+      <slot />
+      <button type="button" @click="removeItem">Remove</button>
+    </div>
+  </template>
+</DynamicFormTemplate>
 ```
 
 By default, occurrences render grouped by branch declaration order, not by the order the add buttons were clicked: first all "CRM export" items, then all "API endpoint" items. The next section shows how to opt into click order instead.
@@ -166,12 +170,12 @@ One visible side effect of `preserveOrder`: a freshly added occurrence already h
 As the XSD math above shows, a branch's `maxOccurs` is a batch size, not a ceiling. To enforce "at most 3 of this kind" set `maxOccursTotal` on the branch, a non-XSD opt-in that caps the branch's raw item count across the whole choice:
 
 ```ts
-{
+const crmExportBranch = {
   name: 'crmExport',
   maxOccurs: 1,
   maxOccursTotal: 3,
   fieldOptions: { label: 'CRM export' },
-}
+};
 ```
 
 `canAddChoiceOccurrence` turns `false` for that branch once the cap is reached, regardless of how much of the choice's shared budget remains. The example above uses this: each kind is capped at 3, while the choice allows 5 in total, so an Add button disables at whichever limit hits first. The property works the same way in automatic mode.
@@ -189,6 +193,6 @@ This cap is no longer structural-only: a branch loaded or set programmatically w
 - [FormExampleChoicePreserveOnSwitch.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoicePreserveOnSwitch.vue)
 - [FormExampleChoiceRepeatableBranch.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoiceRepeatableBranch.vue)
 - [FormExampleChoiceExplicitRepeatable.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue)
-- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)
-- [ChoiceSectionCard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/ChoiceSectionCard.vue)
-- [ChoiceArraySectionCard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/ChoiceArraySectionCard.vue)
+- [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)
+- [ChoiceSectionCard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/ChoiceSectionCard.vue)
+- [ChoiceArraySectionCard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/ChoiceArraySectionCard.vue)

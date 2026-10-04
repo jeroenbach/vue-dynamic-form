@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Starter Form Template - design prototype</title>
+<style>
+/* =========================================================================
+   PROTOTYPE HARNESS (not part of the package)
+   Neutral scaffolding: page background, section dividers, annotations.
+   ========================================================================= */
+:root { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #f1f5f9;
+  color: #0f172a;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+html.dark body { background: #020617; color: #e2e8f0; }
+
+.harness {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 32px 20px 120px;
+}
+.harness-head h1 { font-size: 22px; margin: 0 0 4px; }
+.harness-head p { margin: 0; font-size: 14px; color: #64748b; }
+html.dark .harness-head p { color: #94a3b8; }
+
+.divider {
+  margin: 48px 0 20px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #475569;
+}
+html.dark .divider { border-color: #334155; color: #94a3b8; }
+.divider small { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; color: #94a3b8; margin-top: 3px; font-size: 11px; }
+
+.anno {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #94a3b8;
+  margin: 6px 0 14px;
+  font-style: italic;
+}
+.anno code { font-style: normal; background: rgba(148,163,184,0.18); padding: 1px 4px; border-radius: 4px; }
+
+.stack > * + * { margin-top: 16px; }
+.demo-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+.theme-toggle {
+  position: fixed; top: 16px; right: 16px; z-index: 50;
+  border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;
+  border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600;
+  cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+html.dark .theme-toggle { background: #0f172a; color: #e2e8f0; border-color: #334155; }
+
+/* =========================================================================
+   STARTER FORM TEMPLATE PACKAGE STYLES
+   Prototype of the shipped ./style.css. Every class is prefixed `sft-`
+   (starter-form-template), mirroring the element-plus package's `epft-`
+   convention. No Tailwind, no utility classes: plain semantic CSS a consumer
+   can override by cascade.
+
+   Theme-carrying values live in CSS custom properties on `.sft-root`.
+   Dark mode is driven by a `.dark` ANCESTOR class (VitePress puts it on
+   <html>), so the whole dark skin is one block of variable overrides.
+   ========================================================================= */
+.sft-root {
+  /* surfaces */
+  --sft-card-bg: #ffffff;
+  --sft-card-border: #e2e8f0;
+  --sft-card-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  --sft-muted-bg: #f8fafc;
+  --sft-muted-border: #cbd5e1;
+
+  /* text */
+  --sft-text: #0f172a;
+  --sft-text-muted: #475569;
+  --sft-text-subtle: #64748b;
+  --sft-heading: #0f172a;
+  --sft-placeholder: #94a3b8;
+
+  /* inputs */
+  --sft-input-bg: #ffffff;
+  --sft-input-border: #e5e7eb;
+  --sft-input-disabled-bg: #f8fafc;
+  --sft-input-disabled-text: #64748b;
+
+  /* primary / focus accent (sky) */
+  --sft-accent: #0284c7;
+  --sft-accent-hover: #0369a1;
+  --sft-focus-border: #0ea5e9;
+  --sft-focus-ring: rgba(186,230,253,0.9);
+
+  /* choice accent (indigo) */
+  --sft-choice: #4f46e5;
+  --sft-choice-border-hover: #a5b4fc;
+  --sft-choice-ring: rgba(165,180,252,0.6);
+  --sft-choice-grad-top: #eef2ff;
+  --sft-choice-grad-bottom: #ffffff;
+
+  /* accent pill (indigo soft) - intentionally identical in both modes */
+  --sft-pill-bg: #eef2ff;
+  --sft-pill-text: #4338ca;
+
+  /* danger */
+  --sft-danger-border: #ef4444;
+  --sft-danger-text: #dc2626;
+  --sft-danger-ring: rgba(254,202,202,0.9);
+  --sft-danger-soft-bg: #fef2f2;
+  --sft-danger-soft-border: #fecaca;
+  --sft-danger-soft-text: #b91c1c;
+  --sft-danger-soft-hover-bg: #fee2e2;
+
+  /* status */
+  --sft-success: #10b981;
+  --sft-track: #e2e8f0;
+
+  color: var(--sft-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.dark .sft-root {
+  --sft-card-bg: #0f172a;
+  --sft-card-border: #334155;
+  --sft-muted-bg: #1e293b;
+  --sft-muted-border: #475569;
+
+  --sft-text: #f1f5f9;
+  --sft-text-muted: #94a3b8;
+  --sft-text-subtle: #94a3b8;
+  --sft-heading: #f1f5f9;
+  --sft-placeholder: #64748b;
+
+  --sft-input-bg: #0f172a;
+  /* input border deliberately stays light gray: the source has no dark variant
+     for the resting input border. Preserved as a faithful port. */
+  --sft-input-disabled-bg: #1e293b;
+  --sft-input-disabled-text: #94a3b8;
+
+  --sft-choice-border-hover: #4f46e5;
+  --sft-choice-grad-top: #1e1b4b;
+  --sft-choice-grad-bottom: #0f172a;
+
+  --sft-danger-border: #e11d48;
+  --sft-danger-text: #fb7185;
+  --sft-danger-ring: rgba(136,19,55,0.5);
+  --sft-danger-soft-bg: #4c0519;
+  --sft-danger-soft-border: #9f1239;
+  --sft-danger-soft-text: #fb7185;
+  --sft-danger-soft-hover-bg: #881337;
+
+  --sft-track: #334155;
+}
+
+/* ---- section card --------------------------------------------------- */
+.sft-section {
+  border: 1px solid var(--sft-card-border);
+  background: var(--sft-card-bg);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--sft-card-shadow);
+}
+.sft-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.sft-section-title { margin: 0; font-size: 18px; font-weight: 600; color: var(--sft-heading); }
+.sft-section-desc { margin: 2px 0 0; font-size: 14px; line-height: 1.5; color: var(--sft-text-muted); }
+.sft-pill {
+  display: inline-flex; align-items: center; white-space: nowrap;
+  border-radius: 9999px; background: var(--sft-pill-bg); color: var(--sft-pill-text);
+  padding: 2px 10px; font-size: 12px; font-weight: 600;
+}
+/* responsive two-column field grid: one column on small screens,
+   two columns at >=768px. Full-width fields span both via `sft-col-span`. */
+.sft-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 20px; }
+@media (min-width: 768px) {
+  .sft-grid { grid-template-columns: 1fr 1fr; }
+  .sft-col-span { grid-column: span 2; }
+}
+
+/* ---- field wrapper -------------------------------------------------- */
+.sft-field { display: flex; flex-direction: column; gap: 8px; }
+.sft-field.is-disabled { opacity: 0.6; }
+.sft-field-label { display: flex; justify-content: space-between; font-size: 14px; color: var(--sft-text); }
+.sft-field-desc { margin: 0; font-size: 14px; line-height: 1.25; color: var(--sft-text-subtle); }
+.sft-field-control-row { display: flex; align-items: flex-start; gap: 8px; }
+.sft-field-control-row > .sft-field-control { flex: 1 1 auto; }
+
+.sft-tag-optional {
+  display: inline-flex; align-items: center; border-radius: 9999px;
+  background: #f1f5f9; color: #475569; padding: 2px 8px; font-size: 12px; font-weight: 600;
+}
+.dark .sft-tag-optional { background: #334155; color: #94a3b8; }
+.sft-tag-required { color: var(--sft-danger-text); }
+/* repeater/group items hide the per-field optional/required marker */
+.sft-hide-tag .sft-tag-optional, .sft-hide-tag .sft-tag-required { display: none; }
+
+.sft-error { font-size: 14px; color: var(--sft-danger-text); }
+
+.sft-dependent {
+  height: 40px; display: grid; place-items: center;
+  border: 1px dashed var(--sft-muted-border); background: var(--sft-muted-bg);
+  border-radius: 8px; font-size: 12px; color: var(--sft-text-subtle);
+}
+
+/* ---- inputs --------------------------------------------------------- */
+.sft-input, .sft-select {
+  height: 40px; width: 100%; box-sizing: border-box;
+  border: 1px solid var(--sft-input-border); border-radius: 8px;
+  background: var(--sft-input-bg); color: var(--sft-text);
+  padding: 8px 12px; font-size: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sft-input::placeholder { color: var(--sft-placeholder); }
+.sft-input:focus, .sft-select:focus {
+  outline: none; border-color: var(--sft-focus-border);
+  box-shadow: 0 0 0 3px var(--sft-focus-ring);
+}
+.sft-input:disabled, .sft-select:disabled {
+  cursor: not-allowed; background: var(--sft-input-disabled-bg); color: var(--sft-input-disabled-text);
+}
+.sft-input.is-invalid, .sft-select.is-invalid {
+  border-color: var(--sft-danger-border);
+}
+.sft-input.is-invalid:focus, .sft-select.is-invalid:focus {
+  border-color: var(--sft-danger-border); box-shadow: 0 0 0 3px var(--sft-danger-ring);
+}
+
+/* password */
+.sft-password { position: relative; }
+.sft-password .sft-input { padding-right: 40px; }
+.sft-password-toggle {
+  position: absolute; inset: 0 0 0 auto; display: flex; align-items: center;
+  padding-right: 12px; background: none; border: 0; cursor: pointer;
+  color: var(--sft-placeholder);
+}
+.sft-password-toggle:hover { color: var(--sft-text-muted); }
+.sft-strength { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.sft-strength-track { display: flex; gap: 4px; }
+.sft-strength-seg { height: 6px; flex: 1; border-radius: 9999px; background: var(--sft-track); transition: background 0.3s ease; }
+.sft-strength-seg.is-on-weak { background: #ef4444; }
+.sft-strength-seg.is-on-fair { background: #fbbf24; }
+.sft-strength-seg.is-on-good { background: #38bdf8; }
+.sft-strength-seg.is-on-strong { background: #10b981; }
+.sft-strength-label { font-size: 12px; font-weight: 600; }
+.sft-strength-label.is-weak { color: #ef4444; }
+.sft-strength-label.is-fair { color: #f59e0b; }
+.sft-strength-label.is-good { color: #0ea5e9; }
+.sft-strength-label.is-strong { color: #059669; }
+.dark .sft-strength-label.is-strong { color: #34d399; }
+
+/* ---- toggle switch -------------------------------------------------- */
+.sft-switch-field {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 16px; border-radius: 12px; background: var(--sft-muted-bg);
+  border: 1px solid var(--sft-card-border);
+}
+.sft-switch-field.is-invalid { border-color: var(--sft-danger-border); }
+.sft-switch-field.is-disabled { opacity: 0.6; }
+.sft-switch-field-label { font-size: 14px; font-weight: 500; color: var(--sft-text); margin: 0; }
+.sft-switch-field-desc { font-size: 12px; color: var(--sft-text-subtle); margin: 2px 0 0; }
+.sft-switch { position: relative; display: inline-flex; flex-shrink: 0; align-items: center; cursor: pointer; }
+.sft-switch.is-disabled { cursor: not-allowed; opacity: 0.5; }
+.sft-switch-track { height: 24px; width: 44px; border-radius: 9999px; background: #cbd5e1; transition: background 0.2s ease; }
+.dark .sft-switch-track { background: #475569; }
+.sft-switch.is-on .sft-switch-track { background: var(--sft-accent); }
+.sft-switch-thumb {
+  position: absolute; left: 2px; top: 2px; height: 20px; width: 20px;
+  border-radius: 9999px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease;
+}
+.dark .sft-switch-thumb { background: #e2e8f0; }
+.sft-switch.is-on .sft-switch-thumb { transform: translateX(20px); }
+
+/* ---- buttons -------------------------------------------------------- */
+.sft-btn {
+  display: inline-flex; align-items: center; gap: 8px; border-radius: 6px;
+  padding: 8px 12px; font-size: 14px; font-weight: 500; cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  border: 1px solid transparent; background: none;
+}
+.sft-btn:disabled { cursor: not-allowed; opacity: 0.4; }
+.sft-btn-default {
+  border-color: #cbd5e1; background: var(--sft-card-bg); color: var(--sft-text-muted);
+}
+.dark .sft-btn-default { border-color: #475569; color: #cbd5e1; }
+.sft-btn-default:hover { border-color: #94a3b8; background: #f8fafc; }
+.dark .sft-btn-default:hover { border-color: #64748b; background: #1e293b; }
+.sft-btn-primary {
+  border-color: #cbd5e1; background: var(--sft-accent); color: #ffffff;
+}
+.sft-btn-primary:hover { background: var(--sft-accent-hover); }
+.sft-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #7dd3fc; }
+.sft-btn-danger {
+  border-color: #fecaca; background: #fef2f2; color: #b91c1c;
+}
+.dark .sft-btn-danger { border-color: #9f1239; background: #4c0519; color: #fb7185; }
+.sft-btn-danger:hover { border-color: #f87171; background: #fee2e2; }
+.dark .sft-btn-danger:hover { border-color: #e11d48; background: #881337; }
+.sft-btn-danger-light { color: #b91c1c; }
+.dark .sft-btn-danger-light { color: #fb7185; }
+.sft-btn-danger-light:hover { background: #fef2f2; }
+.dark .sft-btn-danger-light:hover { background: #4c0519; }
+.sft-btn-ghost { color: var(--sft-text-subtle); }
+.sft-btn-ghost:hover { background: #f1f5f9; color: var(--sft-text); }
+.dark .sft-btn-ghost:hover { background: #334155; color: #f1f5f9; }
+
+/* ---- repeatable arrays ---------------------------------------------- */
+.sft-repeater {
+  border: 1px solid var(--sft-card-border); background: var(--sft-card-bg);
+  border-radius: 12px; padding: 16px;
+}
+.sft-repeater-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sft-repeater-title-group { display: flex; align-items: center; gap: 8px; }
+.sft-repeater-badge {
+  display: grid; place-items: center; height: 28px; width: 28px; border-radius: 9999px;
+  background: var(--sft-pill-bg); color: var(--sft-pill-text); font-size: 12px; font-weight: 600;
+}
+.sft-repeater-title { font-size: 14px; font-weight: 600; color: var(--sft-text); margin: 0; }
+
+.sft-empty {
+  border: 1px dashed var(--sft-muted-border); background: var(--sft-muted-bg);
+  border-radius: 12px; padding: 32px; text-align: center;
+}
+.sft-empty-icon { color: #94a3b8; margin: 0 auto 8px; display: block; }
+.dark .sft-empty-icon { color: #64748b; }
+.sft-empty-title { font-size: 14px; font-weight: 500; color: var(--sft-text-muted); margin: 0; }
+.dark .sft-empty-title { color: #cbd5e1; }
+.sft-empty-hint { font-size: 12px; color: var(--sft-text-subtle); margin: 4px 0 0; }
+.sft-empty .sft-btn { margin-top: 16px; }
+.sft-array-footer { margin-top: 16px; }
+
+/* ---- choice cards --------------------------------------------------- */
+.sft-choice-grid { display: grid; grid-template-columns: 1fr; gap: 12px; grid-column: span 2; }
+@media (min-width: 768px) { .sft-choice-grid.cols-2 { grid-template-columns: 1fr 1fr; } }
+.sft-choice-card {
+  border: 1px solid var(--sft-card-border); background: var(--sft-card-bg);
+  border-radius: 12px; padding: 16px; text-align: left; cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.sft-choice-card:hover { border-color: var(--sft-choice-border-hover); }
+.sft-choice-card:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--sft-choice-ring); }
+.sft-choice-card.is-selected {
+  border-color: var(--sft-choice);
+  background: linear-gradient(to bottom, var(--sft-choice-grad-top), var(--sft-choice-grad-bottom));
+  box-shadow: 0 0 0 1px var(--sft-choice), var(--sft-card-shadow);
+}
+.sft-choice-body { display: flex; align-items: flex-start; gap: 12px; }
+.sft-choice-radio {
+  margin-top: 2px; display: grid; place-items: center; height: 16px; width: 16px; flex-shrink: 0;
+  border-radius: 9999px; border: 2px solid #cbd5e1; transition: border-color 0.15s ease;
+}
+.dark .sft-choice-radio { border-color: #475569; }
+.sft-choice-card.is-selected .sft-choice-radio { border-color: var(--sft-choice); }
+.sft-choice-radio-dot { height: 8px; width: 8px; border-radius: 9999px; background: var(--sft-choice); transform: scale(0); transition: transform 0.15s ease; }
+.sft-choice-card.is-selected .sft-choice-radio-dot { transform: scale(1); }
+.sft-choice-text { flex: 1; }
+.sft-choice-title-row { display: flex; align-items: center; gap: 8px; }
+.sft-choice-icon { color: var(--sft-pill-text); display: inline-flex; }
+.sft-choice-title { font-size: 14px; font-weight: 600; color: var(--sft-text); margin: 0; }
+.sft-choice-desc { margin: 4px 0 0; font-size: 12px; line-height: 1.6; color: var(--sft-text-muted); }
+
+/* explicit / automatic choice group (dashed container) */
+.sft-choice-group {
+  border: 1px dashed var(--sft-muted-border); background: var(--sft-muted-bg);
+  border-radius: 8px; padding: 16px; grid-column: span 2;
+}
+.sft-choice-group-title { display: block; font-size: 14px; font-weight: 600; color: var(--sft-text); }
+.sft-choice-group-title.is-disabled { color: #94a3b8; }
+.sft-choice-group-desc { font-size: 14px; color: var(--sft-text-muted); margin: 2px 0 0; }
+.sft-choice-group-body { margin-top: 16px; display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 768px) { .sft-choice-group-body { grid-template-columns: 1fr 1fr; } }
+
+/* repeatable choice: add-button bar */
+.sft-choice-addbar { grid-column: span 2; display: flex; flex-wrap: wrap; gap: 16px; }
+.sft-choice-addbar-item { display: flex; flex-direction: column; gap: 4px; }
+.sft-choice-addbar-reason { font-size: 12px; color: var(--sft-text-subtle); margin: 0; }
+
+/* ---- stepper / wizard ----------------------------------------------- */
+.sft-wizard-head { margin-bottom: 24px; }
+.sft-wizard-eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sft-text-subtle); margin: 0; }
+.sft-wizard-title { font-size: 24px; font-weight: 600; color: var(--sft-heading); margin: 2px 0 0; }
+
+.sft-stepper { margin-bottom: 32px; }
+.sft-stepper ol { display: flex; align-items: center; list-style: none; margin: 0; padding: 0; }
+.sft-stepper li { display: flex; align-items: center; }
+.sft-stepper li.grow { flex: 1; }
+.sft-step { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; cursor: pointer; padding: 0; }
+.sft-step:disabled { cursor: not-allowed; }
+.sft-step-dot {
+  display: grid; place-items: center; height: 32px; width: 32px; border-radius: 9999px;
+  font-size: 12px; font-weight: 600; transition: all 0.2s ease;
+  background: #e2e8f0; color: #64748b;
+}
+.dark .sft-step-dot { background: #334155; color: #94a3b8; }
+.sft-step.is-done .sft-step-dot { background: #10b981; color: #fff; }
+.sft-step.is-current .sft-step-dot { background: var(--sft-accent); color: #fff; box-shadow: 0 0 0 4px #e0f2fe; }
+.dark .sft-step.is-current .sft-step-dot { box-shadow: 0 0 0 4px rgba(14,165,233,0.2); }
+.sft-step-label { font-size: 12px; color: #94a3b8; }
+.sft-step.is-done .sft-step-label { color: #059669; }
+.sft-step.is-current .sft-step-label { font-weight: 600; color: var(--sft-text); }
+@media (max-width: 640px) { .sft-step-label { display: none; } }
+.sft-step-connector { margin: 0 8px; height: 2px; flex: 1; background: #e2e8f0; transition: background 0.2s ease; }
+.dark .sft-step-connector { background: #334155; }
+.sft-step-connector.is-done { background: #10b981; }
+
+.sft-wizard-footer { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
+.sft-wizard-footer .is-hidden { visibility: hidden; }
+.sft-wizard-helper { font-size: 12px; color: var(--sft-text-subtle); margin: 0; }
+@media (max-width: 640px) { .sft-wizard-helper { display: none; } }
+
+/* ---- review step ---------------------------------------------------- */
+.sft-review-group {
+  margin-bottom: 16px; overflow: hidden; border: 1px solid var(--sft-card-border); border-radius: 12px;
+  grid-column: span 2;
+}
+.sft-review-header {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--sft-card-border); background: var(--sft-muted-bg); padding: 8px 16px;
+}
+.sft-review-title { font-size: 14px; font-weight: 600; color: var(--sft-text); margin: 0; }
+.sft-review-list { margin: 0; }
+.sft-review-row { display: flex; align-items: flex-start; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--sft-card-border); }
+.sft-review-row:first-child { border-top: 0; }
+.sft-review-key { width: 144px; flex-shrink: 0; font-size: 12px; color: var(--sft-text-subtle); margin: 0; }
+.sft-review-val { font-size: 14px; color: var(--sft-text); margin: 0; }
+.sft-confirm {
+  grid-column: span 2; margin-top: 24px; border-radius: 12px; padding: 16px; font-size: 14px;
+  border: 1px solid #a7f3d0; background: #ecfdf5; color: #064e3b;
+}
+.sft-confirm p { margin: 0; }
+.sft-confirm p + p { margin-top: 2px; }
+.sft-confirm-strong { font-weight: 500; }
+
+/* ---- submission success --------------------------------------------- */
+.sft-success-hero { grid-column: span 2; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.sft-success-badge {
+  display: grid; place-items: center; height: 64px; width: 64px; border-radius: 9999px;
+  background: #d1fae5; color: #059669;
+}
+.sft-success-title { margin: 16px 0 0; font-size: 20px; font-weight: 600; color: var(--sft-heading); }
+.sft-success-ref { margin: 4px 0 0; font-size: 14px; color: var(--sft-text-muted); }
+.sft-success-ref code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 500; color: var(--sft-text); }
+.sft-timeline {
+  grid-column: span 2; margin-top: 32px; border: 1px solid var(--sft-card-border);
+  background: var(--sft-muted-bg); border-radius: 12px; padding: 20px;
+}
+.sft-timeline-title { font-size: 14px; font-weight: 600; color: var(--sft-text); margin: 0 0 12px; }
+.sft-timeline ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.sft-timeline li { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--sft-text); }
+.sft-timeline li.is-pending { color: var(--sft-text-subtle); }
+.sft-timeline-dot { display: grid; place-items: center; height: 20px; width: 20px; flex-shrink: 0; }
+.sft-timeline-dot.is-done { color: #10b981; }
+.sft-timeline-dot.is-pending { color: #94a3b8; }
+.sft-spin { animation: sft-spin 1s linear infinite; }
+@keyframes sft-spin { to { transform: rotate(360deg); } }
+.sft-success-actions { grid-column: span 2; margin-top: 24px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+@media (max-width: 640px) { .sft-success-actions { flex-direction: column-reverse; align-items: stretch; } }
+
+/* ---- icon catalogue demo ------------------------------------------- */
+.sft-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.sft-icon-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px;
+  border: 1px solid var(--sft-card-border); border-radius: 10px; background: var(--sft-card-bg);
+  color: var(--sft-text-muted);
+}
+.sft-icon-cell code { font-size: 11px; color: var(--sft-text-subtle); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" type="button">Switch to dark</button>
+
+<div class="harness">
+  <div class="harness-head">
+    <h1>Starter Form Template</h1>
+    <p>Design prototype for <code>@bach.software/vue-dynamic-form-starter</code>. Same visual language as the live Advanced example, rendered through plain <code>sft-</code> CSS classes instead of Tailwind utilities, with Lucide choice-card icons. Toggle light/dark top right.</p>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="buttons">Buttons
+    <small>Five variants. Maps to AppButton. Icons are Lucide, decorative (aria-hidden).</small>
+  </div>
+  <div class="anno">Hover/focus not demonstrable statically: <code>default</code> darkens its border and background, <code>primary</code> darkens and shows a 2px offset focus ring, <code>danger</code>/<code>danger-light</code> deepen their red wash. Disabled drops to 40% opacity with <code>not-allowed</code> cursor.</div>
+  <div class="sft-root">
+    <div class="demo-row">
+      <button class="sft-btn sft-btn-default" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add item</button>
+      <button class="sft-btn sft-btn-primary" type="button">Continue<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+      <button class="sft-btn sft-btn-danger" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>Remove</button>
+      <button class="sft-btn sft-btn-danger-light" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>Remove</button>
+      <button class="sft-btn sft-btn-ghost" type="button">View JSON</button>
+      <button class="sft-btn sft-btn-default" type="button" disabled>Disabled</button>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="text-field">Plain text field: validation states
+    <small>Maps to FormField + TextInput. The states policy for every input lives here.</small>
+  </div>
+  <div class="anno">States policy, applied everywhere: <strong>pristine</strong> = resting gray border, no message. <strong>invalid</strong> = red/rose border plus an error line below. <strong>valid</strong> = a filled value with no error; the design signals validity by the <em>absence</em> of an error, there is no green success border. <strong>focus</strong> adds a 3px sky ring (rose ring when invalid). <strong>disabled</strong> dims the field to 60% and greys the control. The resting input border is deliberately the same light gray in dark mode (faithful port: the source has no dark variant for it).</div>
+  <div class="sft-root sft-section">
+    <div class="sft-grid">
+      <div class="sft-field">
+        <label class="sft-field-label" for="p1">Company name <span class="sft-tag-required">*</span></label>
+        <div class="sft-field-control-row"><div class="sft-field-control"><input id="p1" class="sft-input" type="text" placeholder="Acme Industries"></div></div>
+        <p class="sft-field-desc">Pristine: resting state, nothing entered yet.</p>
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="p2">Work email <span class="sft-tag-required">*</span></label>
+        <div class="sft-field-control-row"><div class="sft-field-control"><input id="p2" class="sft-input is-invalid" type="text" value="jordan.fay@" aria-invalid="true"></div></div>
+        <span class="sft-error">Work email must be a valid email address</span>
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="p3">Work email <span class="sft-tag-required">*</span></label>
+        <div class="sft-field-control-row"><div class="sft-field-control"><input id="p3" class="sft-input" type="text" value="jordan.fay@acme.example"></div></div>
+        <p class="sft-field-desc">Valid: filled, no error. No green state by design.</p>
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="p4">Phone <span class="sft-tag-optional">Optional</span></label>
+        <div class="sft-field-control-row"><div class="sft-field-control"><input id="p4" class="sft-input" type="text" placeholder="Focus me to see the ring" autofocus></div></div>
+        <p class="sft-field-desc">Optional tag shown via showRequiredOrOptional policy.</p>
+      </div>
+      <div class="sft-field is-disabled">
+        <label class="sft-field-label" for="p5">Account tier</label>
+        <div class="sft-field-control-row"><div class="sft-field-control"><input id="p5" class="sft-input" type="text" value="Enterprise" disabled></div></div>
+        <p class="sft-field-desc">Disabled: dimmed, not editable.</p>
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="p6">Migration deadline</label>
+        <div class="sft-dependent">Available once migration is enabled</div>
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="p7">Primary contact</label>
+        <div class="sft-field-control-row">
+          <div class="sft-field-control"><input id="p7" class="sft-input" type="text" value="Jordan Fay"></div>
+          <button class="sft-btn sft-btn-danger" type="button">Remove</button>
+        </div>
+        <p class="sft-field-desc">Inline remove affordance (array-item context).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="select-field">Select field
+    <small>Maps to SelectInput. Pristine, invalid, disabled.</small>
+  </div>
+  <div class="sft-root sft-section">
+    <div class="sft-grid">
+      <div class="sft-field">
+        <label class="sft-field-label" for="s1">Industry <span class="sft-tag-required">*</span></label>
+        <select id="s1" class="sft-select"><option value="">Select an option</option><option>Software</option><option>Healthcare</option></select>
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="s2">Team size <span class="sft-tag-required">*</span></label>
+        <select id="s2" class="sft-select is-invalid" aria-invalid="true"><option value="">Select an option</option><option>1-10</option></select>
+        <span class="sft-error">Team size is required</span>
+      </div>
+      <div class="sft-field is-disabled">
+        <label class="sft-field-label" for="s3">Region</label>
+        <select id="s3" class="sft-select" disabled><option>EU West</option></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="switch-field">Toggle switch field
+    <small>Maps to CheckboxField + ToggleSwitch. off, on, disabled, invalid.</small>
+  </div>
+  <div class="sft-root sft-section">
+    <div class="sft-grid">
+      <div class="sft-switch-field">
+        <label><p class="sft-switch-field-label">Requires data migration <span class="sft-tag-optional">Optional</span></p><p class="sft-switch-field-desc">Turn on if existing records move over.</p></label>
+        <span class="sft-switch" role="switch" aria-checked="false"><span class="sft-switch-track"></span><span class="sft-switch-thumb"></span></span>
+      </div>
+      <div class="sft-switch-field">
+        <label><p class="sft-switch-field-label">Subscribe to product updates</p><p class="sft-switch-field-desc">On state.</p></label>
+        <span class="sft-switch is-on" role="switch" aria-checked="true"><span class="sft-switch-track"></span><span class="sft-switch-thumb"></span></span>
+      </div>
+      <div class="sft-switch-field is-invalid">
+        <label><p class="sft-switch-field-label">Accept terms <span class="sft-tag-required">*</span></p><span class="sft-error">You must accept the terms</span></label>
+        <span class="sft-switch" role="switch" aria-checked="false"><span class="sft-switch-track"></span><span class="sft-switch-thumb"></span></span>
+      </div>
+      <div class="sft-switch-field is-disabled">
+        <label><p class="sft-switch-field-label">Beta features</p><p class="sft-switch-field-desc">Disabled.</p></label>
+        <span class="sft-switch is-disabled" role="switch" aria-checked="false"><span class="sft-switch-track"></span><span class="sft-switch-thumb"></span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="password-field">Password field with strength bar
+    <small>Maps to PasswordInput + PasswordStrengthBar. Four strength tiers.</small>
+  </div>
+  <div class="anno">The strength bar appears only once the field has a value, then animates between tiers. Show/hide toggle is keyboard-skippable (<code>tabindex="-1"</code>) and aria-labelled.</div>
+  <div class="sft-root sft-section">
+    <div class="sft-grid">
+      <div class="sft-field">
+        <label class="sft-field-label" for="pw1">Password <span class="sft-tag-required">*</span></label>
+        <div class="sft-password">
+          <input id="pw1" class="sft-input" type="password" value="pass">
+          <button class="sft-password-toggle" type="button" tabindex="-1" aria-label="Show password"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+        </div>
+        <div class="sft-strength"><div class="sft-strength-track"><span class="sft-strength-seg is-on-weak"></span><span class="sft-strength-seg"></span><span class="sft-strength-seg"></span><span class="sft-strength-seg"></span></div><p class="sft-strength-label is-weak">Weak</p></div>
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="pw2">Password <span class="sft-tag-required">*</span></label>
+        <div class="sft-password"><input id="pw2" class="sft-input" type="password" value="password1"><button class="sft-password-toggle" type="button" tabindex="-1" aria-label="Show password"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button></div>
+        <div class="sft-strength"><div class="sft-strength-track"><span class="sft-strength-seg is-on-fair"></span><span class="sft-strength-seg is-on-fair"></span><span class="sft-strength-seg"></span><span class="sft-strength-seg"></span></div><p class="sft-strength-label is-fair">Fair</p></div>
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="pw3">Password <span class="sft-tag-required">*</span></label>
+        <div class="sft-password"><input id="pw3" class="sft-input" type="text" value="Passw0rd1"><button class="sft-password-toggle" type="button" tabindex="-1" aria-label="Hide password"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21"/></svg></button></div>
+        <div class="sft-strength"><div class="sft-strength-track"><span class="sft-strength-seg is-on-good"></span><span class="sft-strength-seg is-on-good"></span><span class="sft-strength-seg is-on-good"></span><span class="sft-strength-seg"></span></div><p class="sft-strength-label is-good">Good</p></div>
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="pw4">Password <span class="sft-tag-required">*</span></label>
+        <div class="sft-password"><input id="pw4" class="sft-input" type="password" value="Passw0rd!99"><button class="sft-password-toggle" type="button" tabindex="-1" aria-label="Show password"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button></div>
+        <div class="sft-strength"><div class="sft-strength-track"><span class="sft-strength-seg is-on-strong"></span><span class="sft-strength-seg is-on-strong"></span><span class="sft-strength-seg is-on-strong"></span><span class="sft-strength-seg is-on-strong"></span></div><p class="sft-strength-label is-strong">Strong</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="group">Group field (nested children)
+    <small>Maps to GroupField. A parent node with its own label and a nested two-column grid.</small>
+  </div>
+  <div class="sft-root sft-section">
+    <div class="sft-grid">
+      <section class="sft-field" style="grid-column: span 2; border-top: 1px solid var(--sft-card-border); padding-top: 24px; margin-top: 8px;">
+        <div style="margin-bottom: 16px;">
+          <span class="sft-choice-group-title">Billing address</span>
+          <p class="sft-field-desc">Shown only when a paid tier is selected.</p>
+        </div>
+        <div class="sft-choice-group-body sft-hide-tag">
+          <div class="sft-field"><label class="sft-field-label" for="g1">Street</label><input id="g1" class="sft-input" type="text" value="12 Market Street"></div>
+          <div class="sft-field"><label class="sft-field-label" for="g2">City</label><input id="g2" class="sft-input" type="text" value="Rotterdam"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="array-empty">Repeatable array: empty state
+    <small>Maps to ArraySectionCard. Empty and error states are mandatory; this is the empty.</small>
+  </div>
+  <div class="sft-root sft-section">
+    <div class="sft-section-header">
+      <div><h2 class="sft-section-title">Project contacts</h2><p class="sft-section-desc">People we coordinate the rollout with.</p></div>
+      <span class="sft-pill">0 contacts</span>
+    </div>
+    <div class="sft-grid">
+      <div class="sft-empty sft-col-span">
+        <svg class="sft-empty-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <p class="sft-empty-title">No contacts added yet</p>
+        <p class="sft-empty-hint">Add at least one person we can reach during onboarding.</p>
+        <button class="sft-btn sft-btn-primary" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add a contact</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="array-filled">Repeatable array: with items + error
+    <small>Maps to ArraySectionCard + RepeaterCard. Numbered cards, per-item remove, section-level error.</small>
+  </div>
+  <div class="sft-root sft-section">
+    <div class="sft-section-header">
+      <div><h2 class="sft-section-title">Project contacts</h2><p class="sft-section-desc">People we coordinate the rollout with.</p><span class="sft-error">At least 2 contacts required</span></div>
+      <span class="sft-pill">1 contact</span>
+    </div>
+    <div class="sft-grid">
+      <article class="sft-repeater sft-col-span sft-hide-tag">
+        <header class="sft-repeater-header">
+          <div class="sft-repeater-title-group"><span class="sft-repeater-badge">1</span><p class="sft-repeater-title">Jordan Fay</p></div>
+          <button class="sft-btn sft-btn-danger-light" type="button" aria-label="Remove item 1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>Remove</button>
+        </header>
+        <div class="sft-choice-group-body">
+          <div class="sft-field"><label class="sft-field-label" for="c1">Full name</label><input id="c1" class="sft-input" type="text" value="Jordan Fay"></div>
+          <div class="sft-field"><label class="sft-field-label" for="c2">Email</label><input id="c2" class="sft-input" type="text" value="jordan.fay@acme.example"></div>
+        </div>
+      </article>
+      <div class="sft-array-footer sft-col-span">
+        <button class="sft-btn sft-btn-default" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add another contact</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="choice-explicit">Choice: explicit mode (icon cards)
+    <small>Maps to ChoiceSectionCard + ChoiceCard. Click-to-select radio cards with Lucide icons.</small>
+  </div>
+  <div class="anno">Cards are <code>role="radio"</code> inside a <code>role="radiogroup"</code>. Selected card: indigo border, subtle top-to-bottom indigo gradient, 1px indigo ring, filled radio dot. The icon is pre-selected per branch from the Lucide catalogue (<code>iconName</code>) and inherits <code>currentColor</code>.</div>
+  <div class="sft-root sft-section">
+    <div class="sft-section-header"><div><h2 class="sft-section-title">Launch approach</h2><p class="sft-section-desc">How do you want to go live?</p></div></div>
+    <div class="sft-grid">
+      <div class="sft-choice-grid cols-2">
+        <button class="sft-choice-card is-selected" type="button" role="radio" aria-checked="true">
+          <div class="sft-choice-body">
+            <span class="sft-choice-radio"><span class="sft-choice-radio-dot"></span></span>
+            <div class="sft-choice-text">
+              <div class="sft-choice-title-row"><span class="sft-choice-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><p class="sft-choice-title">Self-serve rollout</p></div>
+              <p class="sft-choice-desc">Your team configures and launches at its own pace.</p>
+            </div>
+          </div>
+        </button>
+        <button class="sft-choice-card" type="button" role="radio" aria-checked="false">
+          <div class="sft-choice-body">
+            <span class="sft-choice-radio"><span class="sft-choice-radio-dot"></span></span>
+            <div class="sft-choice-text">
+              <div class="sft-choice-title-row"><span class="sft-choice-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><p class="sft-choice-title">Guided rollout</p></div>
+              <p class="sft-choice-desc">A specialist plans kickoff, training and go-live with you.</p>
+            </div>
+          </div>
+        </button>
+      </div>
+      <div class="sft-choice-group-body sft-col-span">
+        <div class="sft-field"><label class="sft-field-label" for="ch1">Go-live date</label><input id="ch1" class="sft-input" type="text" value="2026-01-15"></div>
+        <div class="sft-field"><label class="sft-field-label" for="ch2">Internal owner</label><input id="ch2" class="sft-input" type="text" placeholder="Who owns the launch?"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="choice-auto">Choice: automatic mode
+    <small>Maps to ChoiceField. No selector cards; the active branch's fields render in a dashed group.</small>
+  </div>
+  <div class="anno">Automatic mode shows the branch content directly (the engine picks the branch from the data), so there is no card picker. The dashed container reads as a sub-section inside the two-column grid.</div>
+  <div class="sft-root sft-section">
+    <div class="sft-grid">
+      <section class="sft-choice-group">
+        <span class="sft-choice-group-title">Payment method <span class="sft-tag-optional">Optional</span></span>
+        <p class="sft-choice-group-desc">Fields switch automatically with the selected method.</p>
+        <div class="sft-choice-group-body sft-hide-tag">
+          <div class="sft-field"><label class="sft-field-label" for="a1">Card number</label><input id="a1" class="sft-input" type="text" value="4242 4242 4242 4242"></div>
+          <div class="sft-field"><label class="sft-field-label" for="a2">Expiry</label><input id="a2" class="sft-input" type="text" value="04 / 28"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="choice-array">Choice: repeatable branches
+    <small>Maps to ChoiceArraySectionCard. One Add button per branch, count tag, disabled-with-reason.</small>
+  </div>
+  <div class="anno">A disabled Add button exposes its reason as visible helper text tied with <code>aria-describedby</code>, not only a tooltip. The count tag mirrors ArraySectionCard's pill (<code>used of max</code>).</div>
+  <div class="sft-root sft-section">
+    <div class="sft-section-header"><div><h2 class="sft-section-title">Notification channels</h2><p class="sft-section-desc">Add one or more ways to reach the team.</p></div><span class="sft-pill">2 of 3</span></div>
+    <div class="sft-grid">
+      <div class="sft-choice-addbar">
+        <div class="sft-choice-addbar-item"><button class="sft-btn sft-btn-default" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Email</button></div>
+        <div class="sft-choice-addbar-item"><button class="sft-btn sft-btn-default" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add SMS</button></div>
+        <div class="sft-choice-addbar-item"><button class="sft-btn sft-btn-default" type="button" disabled aria-describedby="wh-reason"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Webhook</button><p id="wh-reason" class="sft-choice-addbar-reason">The limit for Webhook has been reached.</p></div>
+      </div>
+      <article class="sft-repeater sft-col-span sft-hide-tag">
+        <header class="sft-repeater-header">
+          <div class="sft-repeater-title-group"><span class="sft-repeater-badge">1</span><p class="sft-repeater-title">Email</p></div>
+          <button class="sft-btn sft-btn-danger-light" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>Remove</button>
+        </header>
+        <div class="sft-choice-group-body"><div class="sft-field"><label class="sft-field-label" for="n1">Address</label><input id="n1" class="sft-input" type="text" value="ops@acme.example"></div></div>
+      </article>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="wizard">Multi-step wizard
+    <small>Maps to FormWizard + Stepper. Done / current / upcoming steps, Back/Continue footer.</small>
+  </div>
+  <div class="anno">Stepper: completed steps are emerald with a check, the current step is sky with a 4px halo ring, upcoming steps are muted and non-clickable (unless the wizard allows forward jumps). Step labels hide below 640px, leaving just the numbered dots. Back is <code>visibility:hidden</code> on the first step so the layout does not jump.</div>
+  <div class="sft-root sft-section">
+    <div class="sft-wizard-head"><p class="sft-wizard-eyebrow">Client Onboarding</p><h1 class="sft-wizard-title">Launch approach</h1></div>
+    <nav class="sft-stepper" aria-label="Progress">
+      <ol>
+        <li class="grow"><button class="sft-step is-done" type="button"><span class="sft-step-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span><span class="sft-step-label">Company</span></button><span class="sft-step-connector is-done"></span></li>
+        <li class="grow"><button class="sft-step is-done" type="button"><span class="sft-step-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span><span class="sft-step-label">Contacts</span></button><span class="sft-step-connector is-done"></span></li>
+        <li class="grow"><button class="sft-step is-current" type="button" aria-current="step"><span class="sft-step-dot">3</span><span class="sft-step-label">Launch</span></button><span class="sft-step-connector"></span></li>
+        <li><button class="sft-step" type="button" disabled><span class="sft-step-dot">4</span><span class="sft-step-label">Review</span></button></li>
+      </ol>
+    </nav>
+    <main>
+      <div class="sft-choice-group-body"><div class="sft-field"><label class="sft-field-label" for="w1">Kickoff date</label><input id="w1" class="sft-input" type="text" value="2026-01-08"></div><div class="sft-field"><label class="sft-field-label" for="w2">Project lead</label><input id="w2" class="sft-input" type="text" placeholder="Name"></div></div>
+    </main>
+    <footer class="sft-wizard-footer">
+      <button class="sft-btn sft-btn-default" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>Back</button>
+      <p class="sft-wizard-helper">Step 3 of 4 &middot; Launch approach</p>
+      <button class="sft-btn sft-btn-primary" type="button">Continue<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </footer>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="review">Wizard review step
+    <small>Maps to ReviewGroup + confirmation banner. Read-back summary with per-group Edit links.</small>
+  </div>
+  <div class="anno">The final wizard page is the review. Each group is a bordered card with an Edit link that jumps the stepper back to that group. The confirmation banner is emerald. Note: the source gives this banner no dark variant, so it stays light green in dark mode (flagged for the architect to decide whether to add a dark variant).</div>
+  <div class="sft-root sft-section">
+    <div class="sft-section-header"><div><h2 class="sft-section-title">Review and submit</h2><p class="sft-section-desc">Check everything before you send it.</p></div></div>
+    <div class="sft-grid">
+      <div class="sft-review-group">
+        <header class="sft-review-header"><p class="sft-review-title">Company</p><button class="sft-btn sft-btn-danger-light" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button></header>
+        <dl class="sft-review-list">
+          <div class="sft-review-row"><dt class="sft-review-key">Company name</dt><dd class="sft-review-val">Acme Industries</dd></div>
+          <div class="sft-review-row"><dt class="sft-review-key">Industry</dt><dd class="sft-review-val">Software</dd></div>
+          <div class="sft-review-row"><dt class="sft-review-key">Team size</dt><dd class="sft-review-val">11-50</dd></div>
+        </dl>
+      </div>
+      <div class="sft-review-group">
+        <header class="sft-review-header"><p class="sft-review-title">Contacts</p><button class="sft-btn sft-btn-danger-light" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button></header>
+        <dl class="sft-review-list">
+          <div class="sft-review-row"><dt class="sft-review-key">Primary contact</dt><dd class="sft-review-val">Jordan Fay</dd></div>
+          <div class="sft-review-row"><dt class="sft-review-key">Email</dt><dd class="sft-review-val">jordan.fay@acme.example</dd></div>
+          <div class="sft-review-row"><dt class="sft-review-key">Secondary contact</dt><dd class="sft-review-val">&mdash;</dd></div>
+        </dl>
+      </div>
+      <div class="sft-confirm"><p class="sft-confirm-strong">Ready to submit?</p><p>We will create your workspace and email the project lead within one business day.</p></div>
+    </div>
+    <footer class="sft-wizard-footer">
+      <button class="sft-btn sft-btn-default" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>Back</button>
+      <p class="sft-wizard-helper">Step 4 of 4 &middot; Review</p>
+      <button class="sft-btn sft-btn-primary" type="submit">Submit<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></button>
+    </footer>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="success">Submission success
+    <small>Maps to SubmissionSuccess. The loading/empty/error policy's "done" terminal state.</small>
+  </div>
+  <div class="anno">Terminal success screen: a timeline shows done items (emerald check) and a still-processing item (spinning loader). This is where the feature's loading state lives: an in-flight step uses the spinner glyph with <code>sft-spin</code>. The success badge circle has no dark variant in the source (stays light emerald); flagged alongside the review banner.</div>
+  <div class="sft-root sft-section">
+    <div class="sft-grid">
+      <div class="sft-success-hero">
+        <div class="sft-success-badge"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <h2 class="sft-success-title">Onboarding submitted</h2>
+        <p class="sft-success-ref">Reference <code>ONB-2026-0417</code></p>
+      </div>
+      <div class="sft-timeline">
+        <p class="sft-timeline-title">What happens next</p>
+        <ul>
+          <li><span class="sft-timeline-dot is-done"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="16 10 11 15 8 12"/></svg></span><span>Request received</span></li>
+          <li><span class="sft-timeline-dot is-done"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="16 10 11 15 8 12"/></svg></span><span>Workspace being provisioned</span></li>
+          <li class="is-pending"><span class="sft-timeline-dot is-pending"><svg class="sft-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span><span>Project lead invitation (in progress)</span></li>
+        </ul>
+      </div>
+      <div class="sft-success-actions">
+        <button class="sft-btn sft-btn-ghost" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>View submitted JSON</button>
+        <button class="sft-btn sft-btn-primary" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Start a new onboarding</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <div class="divider" id="icons">Lucide icon catalogue
+    <small>Replaces the 12-name hand-rolled AppIcon. Default rendering resolves names from a bounded registry; the icon slot is the escape hatch.</small>
+  </div>
+  <div class="anno">The top row carries over the original 12 names (the old AppIcon drew Lucide glyphs already). The second row is a sample of the materially larger catalogue a consumer can now pre-select for choice-card icons. All icons inherit <code>currentColor</code> (no color slot prop), default size 16, default strokeWidth 2, and are <code>aria-hidden="true"</code>.</div>
+  <div class="sft-root sft-section stack">
+    <div class="sft-icon-grid">
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg><code>chevronLeft</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg><code>chevronRight</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg><code>check</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg><code>trash</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><code>plus</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><code>zap</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><code>users</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><code>grid</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><code>pencil</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="16 10 11 15 8 12"/></svg><code>checkCircle</code></div>
+      <div class="sft-icon-cell"><svg class="sft-spin" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><code>loader</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><code>refreshCw</code></div>
+    </div>
+    <div class="sft-icon-grid">
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/></svg><code>building2</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg><code>rocket</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg><code>calendar</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><code>briefcase</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg><code>shield</code></div>
+      <div class="sft-icon-cell"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg><code>sparkles</code></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Mirrors VitePress: toggle the `.dark` class on <html>.
+  const btn = document.getElementById('themeToggle');
+  function sync() {
+    const dark = document.documentElement.classList.contains('dark');
+    btn.textContent = dark ? 'Switch to light' : 'Switch to dark';
+  }
+  btn.addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark');
+    sync();
+  });
+  sync();
+</script>
+</body>
+</html>

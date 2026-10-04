@@ -31,11 +31,11 @@ Wizard page slots gate visibility with `v-show`, never `v-if`. Every page stays 
 The example above is non-linear because it sets `allowForwardJump`. Without it, `wizard: true` gives a linear wizard: `next()` blocks on an invalid step, and the stepper only jumps backward to already-visited steps, so the user must complete each step in order before moving on.
 
 ```ts
-{
+const registration = {
   name: 'registration',
   wizard: true, // linear: next() blocks, stepper is backward-only
   children: [/* ... */],
-}
+};
 ```
 
 `allowForwardJump` makes forward movement non-blocking: both `next()` and forward jumps from the stepper surface the current step's errors but let the user continue anyway. Validation still fires so errors stay visible; to move without validating at all, add `validateOnJump: false` for a silent jump.
@@ -57,6 +57,6 @@ For a production-scale wizard that layers conditional fields, dynamic options, r
 ## Related Source
 
 - [FormExampleWizard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleWizard.vue)
-- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)
-- [FormWizard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormWizard.vue)
-- [Stepper.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/Stepper.vue)
+- [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)
+- [FormWizard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/FormWizard.vue)
+- [Stepper.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/Stepper.vue)

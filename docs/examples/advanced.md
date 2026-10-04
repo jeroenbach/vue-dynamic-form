@@ -30,4 +30,4 @@ A production-style wizard demonstrating the full feature set: multi-step navigat
 
 - [FormExampleClientOnboardingPlanner.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleClientOnboardingPlanner.vue)
 - [FormExampleClientOnboardingPlannerContext.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/context/FormExampleClientOnboardingPlannerContext.vue)
-- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)
+- [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)

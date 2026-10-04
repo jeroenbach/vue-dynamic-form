@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
-import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
+import type { ReviewGroupProps } from '@bach.software/vue-dynamic-form-starter';
+import type { Metadata } from './AdvancedForm.vue';
 import { removeNullValues, useDynamicForm } from '@bach.software/vue-dynamic-form';
+import { SubmissionSuccess } from '@bach.software/vue-dynamic-form-starter';
 import { computed, ref } from 'vue';
 import AdvancedForm from './AdvancedForm.vue';
-import SubmissionSuccess from './SubmissionSuccess.vue';
 
 // #region shared-types
 export interface EventRegistrationValues {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
+import type { Metadata } from './AdvancedForm.vue';
 import { useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { onMounted } from 'vue';
 import AdvancedForm from './AdvancedForm.vue';

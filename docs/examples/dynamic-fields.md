@@ -33,4 +33,4 @@ The context wrapper simulates an external API; replace `loadOptions` with a real
 
 - [FormExampleDynamicFields.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleDynamicFields.vue)
 - [FormExampleDynamicFieldsContext.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/context/FormExampleDynamicFieldsContext.vue)
-- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)
+- [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)
