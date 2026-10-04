@@ -50,7 +50,7 @@ The `validation` function on the password field checks five criteria and lists a
 
 <<< @/.vitepress/theme/components/FormExampleValidation.vue#password-validation{ts} [FormExampleValidation.vue]
 
-The animated strength bar (`PasswordStrengthBar.vue`) is rendered directly inside the custom `#password-input` slot in `AdvancedFormTemplate`. It reads the same `value.value` ref that vee-validate tracks, so the bar updates on every keystroke without any extra wiring.
+The animated strength bar (`PasswordStrengthBar.vue`) is rendered directly inside the custom `#password-input` slot in `StarterFormTemplate`. It reads the same `value.value` ref that vee-validate tracks, so the bar updates on every keystroke without any extra wiring.
 
 The new `password` field type was added to the template by:
 1. Registering `password: string` in `defineMetadata`
@@ -88,6 +88,6 @@ A plain synchronous function validates the URL format. Using the browser's built
 ## Related Source
 
 - [FormExampleValidation.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleValidation.vue)
-- [PasswordStrengthBar.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/PasswordStrengthBar.vue)
-- [PasswordInput.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/PasswordInput.vue)
-- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)
+- [PasswordStrengthBar.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/PasswordStrengthBar.vue)
+- [PasswordInput.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/PasswordInput.vue)
+- [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)

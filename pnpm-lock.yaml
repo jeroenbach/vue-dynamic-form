@@ -29,6 +29,9 @@ catalogs:
       specifier: 1.0.1
       version: 1.0.1
   framework:
+    '@lucide/vue':
+      specifier: '>=1 <2'
+      version: 1.50.0
     '@vee-validate/rules':
       specifier: '>=4.12'
       version: 4.15.1
@@ -160,6 +163,61 @@ importers:
       element-plus:
         specifier: catalog:framework-pinned
         version: 2.14.2(vue@3.5.35(typescript@5.9.2))
+      eslint:
+        specifier: catalog:dev
+        version: 9.33.0
+      eslint-plugin-format:
+        specifier: catalog:dev
+        version: 1.0.1(eslint@9.33.0)
+      jsdom:
+        specifier: catalog:test
+        version: 26.0.0
+      tsc-alias:
+        specifier: catalog:build
+        version: 1.8.17
+      typescript:
+        specifier: catalog:types
+        version: 5.9.2
+      vee-validate:
+        specifier: catalog:framework
+        version: 4.15.1(vue@3.5.35(typescript@5.9.2))
+      vite:
+        specifier: catalog:build
+        version: 7.3.6(@types/node@24.2.1)(yaml@2.8.1)
+      vitest:
+        specifier: catalog:test
+        version: 3.2.6(@types/debug@4.1.12)(@types/node@24.2.1)(jsdom@26.0.0)(yaml@2.8.1)
+      vue:
+        specifier: catalog:framework
+        version: 3.5.35(typescript@5.9.2)
+      vue-tsc:
+        specifier: catalog:build
+        version: 3.0.5(typescript@5.9.2)
+
+  packages/starter:
+    dependencies:
+      '@lucide/vue':
+        specifier: catalog:framework
+        version: 1.50.0(vue@3.5.35(typescript@5.9.2))
+    devDependencies:
+      '@antfu/eslint-config':
+        specifier: catalog:dev
+        version: 5.2.1(@vue/compiler-sfc@3.5.35)(eslint-plugin-format@1.0.1(eslint@9.33.0))(eslint@9.33.0)(typescript@5.9.2)(vitest@3.2.6(@types/debug@4.1.12)(@types/node@24.2.1)(jsdom@26.0.0)(yaml@2.8.1))
+      '@bach.software/vue-dynamic-form':
+        specifier: workspace:*
+        version: link:../core
+      '@types/node':
+        specifier: catalog:types
+        version: 24.2.1
+      '@vitejs/plugin-vue':
+        specifier: catalog:build
+        version: 6.0.1(vite@7.3.6(@types/node@24.2.1)(yaml@2.8.1))(vue@3.5.35(typescript@5.9.2))
+      '@vitest/coverage-v8':
+        specifier: catalog:test
+        version: 3.2.6(vitest@3.2.6(@types/debug@4.1.12)(@types/node@24.2.1)(jsdom@26.0.0)(yaml@2.8.1))
+      '@vue/test-utils':
+        specifier: catalog:test
+        version: 2.4.6
       eslint:
         specifier: catalog:dev
         version: 9.33.0
@@ -660,6 +718,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lucide/vue@1.50.0':
+    resolution: {integrity: sha512-/cYAYqHIMUcVbhGYPk+GqgPqlqTKCFfyGrpXvH/6z5v7sWRoWBHViYwO3cNgmupZCBY+4WB016wN6CkXNcy0Yw==}
+    peerDependencies:
+      vue: '>=3.0.1'
 
   '@manypkg/find-root@1.1.0':
     resolution: {integrity: sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA==}
@@ -3414,6 +3477,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lucide/vue@1.50.0(vue@3.5.35(typescript@5.9.2))':
+    dependencies:
+      vue: 3.5.35(typescript@5.9.2)
 
   '@manypkg/find-root@1.1.0':
     dependencies:

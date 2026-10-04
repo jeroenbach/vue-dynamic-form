@@ -26,6 +26,7 @@ catalogs:
 
   framework:
     '@bach.software/vue-dynamic-form': '>=0.1.0'
+    '@lucide/vue': '>=1 <2'
     '@vee-validate/rules': '>=4.12'
     element-plus: '>=2.0.0'
     vee-validate: '>=4.12'

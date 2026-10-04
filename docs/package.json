@@ -3,25 +3,38 @@
   "type": "module",
   "private": true,
   "description": "VitePress manual for vue-dynamic-form, including interactive demo forms that reuse the repository examples.",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "vitepress dev .",
     "build": "vitepress build .",
-    "preview": "vitepress preview ."
+    "preview": "vitepress preview .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:dogfood": "eslint .vitepress/theme/components/AdvancedForm.vue .vitepress/theme/components/FormExampleArrayFields.vue .vitepress/theme/components/FormExampleBasic.vue .vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue .vitepress/theme/components/FormExampleChoiceExplicitSingle.vue .vitepress/theme/components/FormExampleChoiceFields.vue .vitepress/theme/components/FormExampleChoicePreserveOnSwitch.vue .vitepress/theme/components/FormExampleChoiceRepeatableBranch.vue .vitepress/theme/components/FormExampleClientOnboardingPlanner.vue .vitepress/theme/components/FormExampleDynamicFields.vue .vitepress/theme/components/FormExampleValidation.vue .vitepress/theme/components/FormExampleWizard.vue .vitepress/theme/index.ts .vitepress/theme/custom.css examples/advanced.md examples/arrays-and-groups.md examples/basic.md examples/dynamic-fields.md examples/wizard.md scripts/verifyDogfood.mjs scripts/verifyDogfoodRender.mjs package.json",
+    "typecheck": "vue-tsc --noEmit",
+    "verify:dogfood": "node scripts/verifyDogfood.mjs",
+    "verify:dogfood:render": "node scripts/verifyDogfoodRender.mjs"
   },
   "dependencies": {
     "@bach.software/vue-dynamic-form": "link:../packages/core",
+    "@bach.software/vue-dynamic-form-starter": "link:../packages/starter",
     "@vee-validate/rules": "4.15.1",
     "vee-validate": "4.15.1",
     "vue": "3.5.35"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "5.2.1",
     "@tailwindcss/vite": "4.1.12",
     "@types/node": "24.2.1",
+    "eslint": "9.33.0",
+    "eslint-plugin-format": "1.0.1",
+    "playwright": "1.54.2",
     "tailwindcss": "4.1.12",
+    "typescript": "5.9.2",
     "vite-plugin-vue-devtools": "^7.7.9",
-    "vitepress": "1.6.4"
-  },
-  "engines": {
-    "node": ">=22.13.0"
+    "vitepress": "1.6.4",
+    "vue-tsc": "3.0.5"
   }
 }
