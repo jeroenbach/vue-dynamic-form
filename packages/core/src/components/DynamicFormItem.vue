@@ -15,6 +15,7 @@ import { computed, inject, onBeforeUnmount, onMounted, ref, toValue, watch, watc
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
 import DynamicFormItemWizard from '@/components/DynamicFormItemWizard.vue';
+import { useIsValidationSuppressed } from '@/core/useIsValidationSuppressed';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
@@ -150,6 +151,8 @@ const value = fieldContext.value;
 // FormContext type, so it is read through a loosely typed access rather than a cast to a type
 // that does not carry it.
 const formContext = useFormContext() as { keepValuesOnUnmount?: boolean | (() => boolean) } | undefined;
+
+const isValidationSuppressed = useIsValidationSuppressed(normalizedPath);
 
 // Lazily evaluated — only computed when accessed, safe to use on deep field trees.
 fieldContext.hasValue = computed(() => checkTreeHasValue(value.value));
@@ -399,7 +402,10 @@ watch(
     if (!initialUpdate.value || v) {
       notifyValueUpdate();
 
-      if (shouldValidateOnValueUpdate.value)
+      // Skipped while a programmatic write that asked not to validate is flushing: a
+      // resetForm/resetField (its value change would write the just-cleared errors back)
+      // or a setFieldValue/setValues call with shouldValidate: false.
+      if (shouldValidateOnValueUpdate.value && !isValidationSuppressed())
         fieldContext?.validate();
     }
 

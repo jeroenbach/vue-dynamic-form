@@ -839,4 +839,187 @@ describe('component DynamicFormItemArray', () => {
       expect(message.text().trim()).not.toBe('');
     });
   });
+
+  describe('resetForm', () => {
+    const metadata = [{
+      name: 'items',
+      fieldOptions: { label: 'Items' },
+      minOccurs: 1,
+      maxOccurs: 3,
+    }] as any;
+
+    it('does not show validation errors after resetForm', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata,
+          settings: { messages: { minOccurs: 'At least {min} items required' } },
+        },
+      });
+      await flushPromises(); // allow watchEffect to auto-add items
+
+      await wrapper.find('input').setValue('value');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+
+    it('still validates value changes after a reset', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata,
+          settings: { messages: { minOccurs: 'At least {min} items required' } },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('input').setValue('value');
+      await flushPromises();
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+
+      // Entering and clearing a value again must re-trigger the minOccurs error.
+      await wrapper.find('input').setValue('value');
+      await wrapper.find('input').setValue('');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('At least 1 items required');
+    });
+
+    it('restores non-empty initial values without showing validation errors', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 2,
+            maxOccurs: 3,
+          }] as any,
+          initialValues: { items: ['first', 'second'] },
+          settings: { messages: { minOccurs: 'At least {min} items required' } },
+        },
+      });
+      await flushPromises();
+
+      // Clearing one item drops below minOccurs and triggers the error
+      await wrapper.findAll('input')[1].setValue('');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(true);
+
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+
+      const inputs = wrapper.findAll('input');
+      expect((inputs[0].element as HTMLInputElement).value).toBe('first');
+      expect((inputs[1].element as HTMLInputElement).value).toBe('second');
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+
+    it('does not show validation errors when a reset populates a pristine array', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 2,
+            maxOccurs: 3,
+          }] as any,
+          settings: { messages: { minOccurs: 'At least {min} items required' } },
+        },
+      });
+      await flushPromises(); // allow watchEffect to auto-add items
+
+      // The reset sets the array's first real value, which would otherwise enable
+      // validation mid-reset and show the minOccurs error for the single item.
+      (wrapper.vm as any).$.setupState.resetForm({ values: { items: ['only one'] } });
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+
+    it('keeps errors passed explicitly to resetForm', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata,
+          settings: { messages: { minOccurs: 'At least {min} items required' } },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('input').setValue('value');
+      await flushPromises();
+
+      (wrapper.vm as any).$.setupState.resetForm({ errors: { items: 'Explicit error' } });
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('Explicit error');
+    });
+  });
+
+  describe('setFieldValue', () => {
+    // minOccurs 2 makes a single-item write invalid, so any validation run on the
+    // write is directly observable as an error message.
+    const metadata = [{
+      name: 'items',
+      fieldOptions: { label: 'Items' },
+      minOccurs: 2,
+      maxOccurs: 3,
+    }] as any;
+    const settings = { messages: { minOccurs: 'At least {min} items required' } };
+
+    it('validates the written value by default', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata, settings },
+      });
+      await flushPromises(); // allow watchEffect to auto-add items
+
+      (wrapper.vm as any).$.setupState.setFieldValue('items', ['only one']);
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('At least 2 items required');
+    });
+
+    it('does not validate when called with shouldValidate: false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata, settings },
+      });
+      await flushPromises();
+
+      (wrapper.vm as any).$.setupState.setFieldValue('items', ['only one'], false);
+      await flushPromises();
+
+      expect((wrapper.find('input').element as HTMLInputElement).value).toBe('only one');
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+
+    it('still validates user input after a write with shouldValidate: false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata, settings },
+      });
+      await flushPromises();
+
+      (wrapper.vm as any).$.setupState.setFieldValue('items', ['only one'], false);
+      await flushPromises();
+
+      // Editing an item re-enables normal validation timing.
+      await wrapper.find('input').setValue('changed');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="items-error-message"]').text()).toContain('At least 2 items required');
+    });
+  });
 });

@@ -5,8 +5,10 @@ import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 
+import { useFormContext } from 'vee-validate';
 import { computed, provide } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
+import { trackNonValidatingWrites } from '@/core/useIsValidationSuppressed';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 
 // #region Interfaces
@@ -32,6 +34,10 @@ const settings = computed(() => ({
 }));
 
 provide(dynamicFormSettingsKey, settings);
+
+// Also covers forms created with vee-validate's own useForm instead of useDynamicForm
+// (no-op when useDynamicForm already wrapped the context, or when no form is provided).
+trackNonValidatingWrites(useFormContext());
 
 const metadataAsArray = computed(() =>
   Array.isArray(metadata) ? metadata : [metadata],

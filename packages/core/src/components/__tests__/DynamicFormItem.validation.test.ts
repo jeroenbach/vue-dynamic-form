@@ -1001,4 +1001,198 @@ describe('component DynamicFormItem', () => {
       expect(wrapper.find('[data-testid="text.lang-error-message"]').exists()).toBe(false);
     });
   });
+
+  describe('resetForm', () => {
+    const metadata = [{
+      name: 'text',
+      type: 'text',
+      minOccurs: 1,
+      fieldOptions: { label: 'Text Input' },
+    }] as any;
+
+    it('does not show validation errors after resetForm', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata,
+          settings: { messages: { required: '{field} is required' } },
+        },
+      });
+
+      await wrapper.find('input').setValue('hello');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+
+    it('still validates value changes after a reset', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata,
+          settings: { messages: { required: '{field} is required' } },
+        },
+      });
+
+      await wrapper.find('input').setValue('hello');
+      await flushPromises();
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+
+      // Entering and clearing a value again must re-trigger the required error.
+      await wrapper.find('input').setValue('world');
+      await wrapper.find('input').setValue('');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain('Text Input is required');
+    });
+
+    it('restores non-empty initial values without showing validation errors', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata,
+          initialValues: { text: 'initial' },
+          settings: { messages: { required: '{field} is required' } },
+        },
+      });
+      await flushPromises();
+
+      // Clearing the initial value triggers the required error
+      await wrapper.find('input').setValue('');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(true);
+
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+
+      expect((wrapper.find('input').element as HTMLInputElement).value).toBe('initial');
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+
+    it('does not show validation errors after resetField', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          // maxLength makes a non-empty value invalid, so the reset actually changes
+          // the value (invalid text back to undefined) while an error is showing
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            minOccurs: 1,
+            restriction: { maxLength: 3 },
+            fieldOptions: { label: 'Text Input' },
+          }] as any,
+          settings: { messages: { required: '{field} is required', maxLength: 'Max length of {field} is {length}' } },
+        },
+      });
+
+      await wrapper.find('input').setValue('too long');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain('Max length of Text Input is 3');
+
+      await wrapper.find('[data-testid="resetField"]').trigger('click');
+      await flushPromises();
+
+      expect((wrapper.find('input').element as HTMLInputElement).value).toBe('');
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+
+    it('keeps errors passed explicitly to resetForm', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata,
+          settings: { messages: { required: '{field} is required' } },
+        },
+      });
+
+      await wrapper.find('input').setValue('hello');
+      await flushPromises();
+
+      (wrapper.vm as any).$.setupState.resetForm({ errors: { text: 'Explicit error' } });
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain('Explicit error');
+    });
+  });
+
+  describe('setFieldValue', () => {
+    // maxLength makes the written value itself invalid, so any validation run on the
+    // write is directly observable as an error message.
+    const metadata = [{
+      name: 'text',
+      type: 'text',
+      minOccurs: 1,
+      restriction: { maxLength: 3 },
+      fieldOptions: { label: 'Text Input' },
+    }] as any;
+    const settings = { messages: { required: '{field} is required', maxLength: 'Max length of {field} is {length}' } };
+
+    it('validates the written value by default', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata, settings },
+      });
+      await flushPromises();
+
+      (wrapper.vm as any).$.setupState.setFieldValue('text', 'too long');
+      await flushPromises();
+
+      expect((wrapper.find('input').element as HTMLInputElement).value).toBe('too long');
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain('Max length of Text Input is 3');
+    });
+
+    it('does not validate when called with shouldValidate: false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata, settings },
+      });
+      await flushPromises();
+
+      (wrapper.vm as any).$.setupState.setFieldValue('text', 'too long', false);
+      await flushPromises();
+
+      expect((wrapper.find('input').element as HTMLInputElement).value).toBe('too long');
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+
+    it('still validates user input after a write with shouldValidate: false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata, settings },
+      });
+      await flushPromises();
+
+      (wrapper.vm as any).$.setupState.setFieldValue('text', 'too long', false);
+      await flushPromises();
+
+      await wrapper.find('input').setValue('also too long');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain('Max length of Text Input is 3');
+    });
+
+    it('does not validate setValues called with shouldValidate: false', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata, settings },
+      });
+      await flushPromises();
+
+      (wrapper.vm as any).$.setupState.setValues({ text: 'too long' }, false);
+      await flushPromises();
+
+      expect((wrapper.find('input').element as HTMLInputElement).value).toBe('too long');
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+  });
 });
