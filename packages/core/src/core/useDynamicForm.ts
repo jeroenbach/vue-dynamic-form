@@ -11,6 +11,7 @@ import {
   useFieldValue as _useFieldValue,
   useForm,
 } from 'vee-validate';
+import { trackNonValidatingWrites } from '@/core/useIsValidationSuppressed';
 import { useValidatePartialForm } from '@/core/useValidatePartialForm';
 
 /** Options forwarded directly to vee-validate's `useForm()`. */
@@ -39,6 +40,7 @@ export function useDynamicForm<TValues extends GenericObject = GenericObject>(op
   };
 
   const form = useForm<TValues>(opts);
+  trackNonValidatingWrites(form);
   const { validateSection } = useValidatePartialForm();
 
   return {

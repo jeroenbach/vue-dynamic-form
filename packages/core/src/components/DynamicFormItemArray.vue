@@ -14,6 +14,7 @@ import { useField, useSubmitCount, useValidateField } from 'vee-validate';
 import { computed, inject, ref, watch, watchEffect } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
+import { useIsValidationSuppressed } from '@/core/useIsValidationSuppressed';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { createValidation } from '@/utils/createValidation';
 import { normalizePath } from '@/utils/normalizePath';
@@ -66,6 +67,7 @@ const normalizedPath = computed(() => normalizePath(path.value));
 
 const validate = useValidateField(normalizedPath);
 const { remove, push, fields, update, values, replace } = useFieldArrayExtended(normalizedPath);
+const isValidationSuppressed = useIsValidationSuppressed(normalizedPath);
 
 // --- Occurrence limits ---
 
@@ -166,7 +168,10 @@ const shouldValidateOnValueUpdate = computed(() => {
 watch(
   values,
   (v) => {
-    if (shouldValidateOnValueUpdate.value) {
+    // Skipped while a programmatic write that asked not to validate is flushing: a
+    // resetForm/resetField (its value change would write the just-cleared errors back)
+    // or a setFieldValue/setValues call with shouldValidate: false.
+    if (shouldValidateOnValueUpdate.value && !isValidationSuppressed()) {
       validate();
     }
     emits('update:modelValue', v);
@@ -214,7 +219,7 @@ function guardAndNotifyItemUpdate(value: any, index: number) {
   if (!firstValueSet.value) {
     // Now that a real value exists, enable validation going forward.
     firstValueSet.value = true;
-    if (shouldValidateOnValueUpdate.value) {
+    if (shouldValidateOnValueUpdate.value && !isValidationSuppressed()) {
       validate();
     }
   }

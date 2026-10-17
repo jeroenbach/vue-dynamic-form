@@ -21,7 +21,7 @@ export interface Props {
 
 const { metadata, settings: _settings, initialEdit = true, hideFieldsWithoutValue = false, showDebugState = false, initialValues, keepValuesOnUnmount } = defineProps<Props>();
 
-const { values, handleSubmit, errors, meta } = useDynamicForm({
+const { values, handleSubmit, errors, meta, resetForm, resetField, setFieldValue, setValues } = useDynamicForm({
   initialValues,
   // Passed as a computed ref (not the destructured value directly) so a live toggle of the prop
   // after mount keeps affecting unmount behaviour, instead of freezing whatever it was at setup time.
@@ -83,6 +83,13 @@ const settings = computed(() => ({
   ...(_settings ?? {}),
 }));
 
+function resetFirstField() {
+  resetField(metadata[0].name as any);
+}
+
+// Exposed for tests and test cases that drive programmatic value changes.
+defineExpose({ setFieldValue, setValues });
+
 function submit(e?: Event) {
   handleSubmit(
     (_values) => {
@@ -107,6 +114,12 @@ function submit(e?: Event) {
       </button>
       <button v-if="editMode" type="button" class="cursor-pointer mt-4 bg-gray-200 text-black px-4 py-2 rounded" data-testid="cancel" @click="editMode = false">
         Cancel
+      </button>
+      <button v-if="editMode" type="button" class="cursor-pointer mt-4 bg-gray-200 text-black px-4 py-2 rounded" data-testid="reset" @click="resetForm()">
+        Reset
+      </button>
+      <button v-if="editMode" type="button" class="cursor-pointer mt-4 bg-gray-200 text-black px-4 py-2 rounded" data-testid="resetField" @click="resetFirstField">
+        Reset field
       </button>
     </div>
     <div v-if="Object.values(errors).length" data-testid="errors" class="col-12 text-red-600">

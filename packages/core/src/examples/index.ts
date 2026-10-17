@@ -3,6 +3,7 @@ export * from './__tests__/TestFormTemplate.testcases';
 
 // Example implementation
 export { default as KeepValuesOnUnmountTestCase } from './KeepValuesOnUnmountTestCase.vue';
+export { default as ProgrammaticWritesTestCase } from './ProgrammaticWritesTestCase.vue';
 export { default as TestFormTemplate } from './TestFormTemplate.vue';
 
 // Types
