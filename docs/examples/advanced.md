@@ -1,11 +1,12 @@
 # Advanced: Client Onboarding Wizard
 
-A production-style wizard demonstrating the full feature set: multi-step navigation with per-page validation, conditional required/hidden fields, dynamic option loading, repeatable contacts, a choice-based launch path, and a read-only summary page before submit.
+A production-style wizard demonstrating the full feature set: multi-step navigation with per-page validation, conditional required/hidden fields, dynamic option loading, a repeatable choice of systems kept in the order they were added, repeatable contacts, a choice-based launch path, and a read-only summary page before submit.
 
 ## What It Demonstrates
 
 - Multi-step forms via the [`wizard`](/reference/field-metadata#wizard) metadata property, with `next()` validating the current page before advancing
 - `computedProps` making fields conditionally required or hidden at runtime
+- A repeatable choice (`maxOccurs > 1`) mixing two kinds of systems, with [`displayOrder: 'added'` and `preserveOrder`](/examples/choices#showing-occurrences-in-the-order-they-were-added) so the add order is shown live and written into the submitted values
 - `choice` branches with a custom change handler and icon labels
 - Repeatable array pages (`minOccurs`, `maxOccurs`, `arrayItemName`)
 - Dynamic options loaded from an external source, cascaded between fields

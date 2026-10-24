@@ -54,9 +54,17 @@ export interface ClientOnboardingPlannerValues {
     }
   }
   systems?: {
-    systemName?: string
-    purpose?: string
-  }[]
+    saasTool?: {
+      systemName?: string
+      purpose?: string
+      order?: number
+    }[]
+    apiEndpoint?: {
+      url?: string
+      purpose?: string
+      order?: number
+    }[]
+  }
 }
 // #endregion shared-types
 
@@ -145,6 +153,25 @@ const wizardSummary = computed<ReviewGroupProps[]>(() => {
     return [['Approach', 'Not chosen']];
   };
 
+  // Both branches collapse into one list sorted on the `order` the engine wrote at add time
+  // (preserveOrder), so the summary shows the systems in the sequence they were added.
+  const systemRows = (): ReviewGroupProps['rows'] => {
+    const systems = [
+      ...(values?.systems?.saasTool ?? []).map(s => ({
+        order: s.order ?? 0,
+        text: `${s.systemName || 'Unnamed tool'}${s.purpose ? ` (${s.purpose})` : ''}`,
+      })),
+      ...(values?.systems?.apiEndpoint ?? []).map(s => ({
+        order: s.order ?? 0,
+        text: `${s.url || 'Unnamed API'}${s.purpose ? ` (${s.purpose})` : ''}`,
+      })),
+    ].sort((a, b) => a.order - b.order);
+
+    return systems.length === 0
+      ? [['Systems', 'None']]
+      : systems.map((s, i): [string, string] => [`System ${i + 1}`, s.text]);
+  };
+
   return [
     {
       title: 'Company',
@@ -154,6 +181,10 @@ const wizardSummary = computed<ReviewGroupProps[]>(() => {
         ['Team size', values?.company?.teamSize || '—'],
         ['Data migration', values?.company?.requiresMigration ? `Yes${values?.company?.migrationDeadline ? ` (by ${values.company.migrationDeadline})` : ''}` : 'No'],
       ],
+    },
+    {
+      title: 'Systems',
+      rows: systemRows(),
     },
     {
       title: 'Contacts',
@@ -167,15 +198,6 @@ const wizardSummary = computed<ReviewGroupProps[]>(() => {
     {
       title: 'Launch approach',
       rows: launchRows(),
-    },
-    {
-      title: 'Systems',
-      rows: (values?.systems?.length ?? 0) === 0
-        ? [['Systems', 'None']]
-        : values!.systems!.map((s, i): [string, string] => [
-            `System ${i + 1}`,
-            `${s.systemName || '—'}${s.purpose ? ` — ${s.purpose}` : ''}`,
-          ]),
     },
   ];
 });
@@ -260,6 +282,64 @@ const metadata: Metadata[] = [
             }],
           },
           // #endregion conditional-field
+        ],
+      },
+      {
+        name: 'systems',
+        type: 'heading',
+        fieldOptions: { label: 'Systems to connect' },
+        description: `Add the external tools we'll integrate with, in the order they should be set up. Each one gets a number in the order you add it, and that order is submitted with the data.`,
+        helpText: 'What needs to connect?',
+        minOccurs: 0,
+        maxOccurs: 4,
+        fullWidth: true,
+        explicitChoiceSelection: true,
+        choiceShowChoiceSelect: true,
+        displayOrder: 'added',
+        preserveOrder: true,
+        choice: [
+          {
+            name: 'saasTool',
+            maxOccurs: 1,
+            maxOccursTotal: 3,
+            fullWidth: true,
+            fieldOptions: { label: 'SaaS tool' },
+            description: 'An off-the-shelf tool we connect through an existing integration.',
+            iconName: 'grid',
+            children: [
+              {
+                name: 'systemName',
+                fieldOptions: { label: 'System name' },
+                placeholder: 'e.g. Salesforce, HubSpot',
+              },
+              {
+                name: 'purpose',
+                fieldOptions: { label: 'Purpose in the rollout' },
+                placeholder: 'e.g. source of CRM records',
+              },
+            ],
+          },
+          {
+            name: 'apiEndpoint',
+            maxOccurs: 1,
+            maxOccursTotal: 3,
+            fullWidth: true,
+            fieldOptions: { label: 'Custom API' },
+            description: 'An in-house system we reach through a custom endpoint.',
+            iconName: 'bolt',
+            children: [
+              {
+                name: 'url',
+                fieldOptions: { label: 'Endpoint URL' },
+                placeholder: 'https://example.com/webhook',
+              },
+              {
+                name: 'purpose',
+                fieldOptions: { label: 'Purpose in the rollout' },
+                placeholder: 'e.g. push provisioning events',
+              },
+            ],
+          },
         ],
       },
       {
@@ -370,33 +450,6 @@ const metadata: Metadata[] = [
         ],
       },
       {
-        name: 'systems',
-        type: 'heading',
-        fieldOptions: { label: 'Systems to connect' },
-        description: `Any external tools we'll integrate with during onboarding.`,
-        helpText: 'What needs to connect?',
-        arrayNoItemsMessage: `Skip this step if there's nothing to integrate.`,
-        arrayItemName: 'system',
-        arrayItemNamePlural: 'systems',
-        arrayItemFieldForTitle: 'systemName',
-        minOccurs: 0,
-        maxOccurs: 4,
-        autoAddMinOccurs: false,
-        fullWidth: true,
-        children: [
-          {
-            name: 'systemName',
-            fieldOptions: { label: 'System name' },
-            placeholder: 'e.g. Salesforce, HubSpot',
-          },
-          {
-            name: 'purpose',
-            fieldOptions: { label: 'Purpose in the rollout' },
-            placeholder: 'e.g. source of CRM records',
-          },
-        ],
-      },
-      {
         name: 'summaryPage',
         type: 'wizardSummaryPage',
         fieldOptions: { label: 'Review & submit' },
@@ -421,7 +474,8 @@ watch(submitted, async (submittedValues) => {
   }
 
   const contactCount = submittedValues.projectContacts?.length ?? 0;
-  const systemCount = submittedValues.systems?.length ?? 0;
+  const systemCount = (submittedValues.systems?.saasTool?.length ?? 0)
+    + (submittedValues.systems?.apiEndpoint?.length ?? 0);
 
   timeline.value = [
     { id: 'workspace', label: 'Workspace created', status: 'pending' },
@@ -470,7 +524,7 @@ function onSubmit(event?: Event) {
       </h2>
       <p class="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
         A concrete demo for a SaaS team collecting everything needed to onboard a new client.
-        It highlights reusable templates, grouped fields, repeatable contacts, mutually exclusive launch paths, and computed fields that become required only when they matter.
+        It highlights reusable templates, grouped fields, repeatable contacts, a repeatable choice of systems shown and submitted in the order they were added, mutually exclusive launch paths, and computed fields that become required only when they matter.
       </p>
     </div>
     <AdvancedForm v-if="!submitted" :metadata @submit="onSubmit" />
