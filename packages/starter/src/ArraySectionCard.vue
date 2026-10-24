@@ -10,6 +10,12 @@ export interface Props extends /* @vue-ignore */ SectionCardProps {
   itemsName?: string
   itemsNamePlural?: string
   noItemsMessage?: string
+  /** Empty-state title. Defaults to "No {itemsNamePlural} added yet". */
+  noItemsTitle?: string
+  /** Label of the footer add button. Defaults to "Add {itemsName}". */
+  addButtonText?: string
+  /** Label of the empty-state add button. Defaults to "Add a {itemsName}". */
+  addFirstButtonText?: string
   dataTestid?: string
 }
 
@@ -26,14 +32,14 @@ defineEmits<{ addItem: [] }>();
       <div v-if="itemsCount === 0" class="sft-col-span sft-empty">
         <StarterIcon class="sft-empty-icon" name="grid" :size="32" />
         <p class="sft-empty-title">
-          No {{ itemsNamePlural ?? 'items' }} added yet
+          {{ noItemsTitle ?? `No ${itemsNamePlural ?? 'items'} added yet` }}
         </p>
         <p v-if="noItemsMessage" class="sft-empty-hint">
           {{ noItemsMessage }}
         </p>
         <AppButton variant="primary" :dataTestid="dataTestid ? `${dataTestid}-add-button` : undefined" @click="$emit('addItem')">
           <StarterIcon name="plus" />
-          Add a {{ itemsName ?? 'item' }}
+          {{ addFirstButtonText ?? `Add a ${itemsName ?? 'item'}` }}
         </AppButton>
       </div>
       <slot v-else />
@@ -43,7 +49,7 @@ defineEmits<{ addItem: [] }>();
         <AppButton :disabled="!canAddItems" :dataTestid="dataTestid ? `${dataTestid}-add-button` : undefined" @click="$emit('addItem')">
           <StarterIcon name="plus" />
           <slot name="add-label">
-            Add {{ itemsName ?? 'item' }}
+            {{ addButtonText ?? `Add ${itemsName ?? 'item'}` }}
           </slot>
         </AppButton>
       </div>

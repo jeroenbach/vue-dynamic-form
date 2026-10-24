@@ -8,10 +8,15 @@ export interface Props {
   placeholder?: string
   disabled?: boolean
   errorMessage?: string
+  showPasswordAriaLabel?: string
+  hidePasswordAriaLabel?: string
   dataTestid?: string
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  showPasswordAriaLabel: 'Show password',
+  hidePasswordAriaLabel: 'Hide password',
+});
 const emit = defineEmits<{
   input: [event: Event]
   blur: []
@@ -40,7 +45,7 @@ const showPassword = ref(false);
       tabindex="-1"
       class="sft-password-toggle"
       :data-testid="dataTestid ? `${dataTestid}-toggle` : undefined"
-      :aria-label="showPassword ? 'Hide password' : 'Show password'"
+      :aria-label="showPassword ? hidePasswordAriaLabel : showPasswordAriaLabel"
       @click="showPassword = !showPassword"
     >
       <StarterIcon :name="showPassword ? 'eyeOff' : 'eye'" />

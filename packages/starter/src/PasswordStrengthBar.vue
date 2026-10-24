@@ -3,6 +3,8 @@ import { computed } from 'vue';
 
 const props = defineProps<{
   password?: string | unknown
+  /** Overrides the tier labels shown under the bar. */
+  labels?: { weak?: string, fair?: string, good?: string, strong?: string }
   dataTestid?: string
 }>();
 
@@ -35,10 +37,10 @@ const strength = computed<Strength>(() => {
 const config = computed(() => {
   const map: Record<Strength, { label: string, segments: number, tier: string }> = {
     empty: { label: '', segments: 0, tier: '' },
-    weak: { label: 'Weak', segments: 1, tier: 'weak' },
-    fair: { label: 'Fair', segments: 2, tier: 'fair' },
-    good: { label: 'Good', segments: 3, tier: 'good' },
-    strong: { label: 'Strong', segments: 4, tier: 'strong' },
+    weak: { label: props.labels?.weak ?? 'Weak', segments: 1, tier: 'weak' },
+    fair: { label: props.labels?.fair ?? 'Fair', segments: 2, tier: 'fair' },
+    good: { label: props.labels?.good ?? 'Good', segments: 3, tier: 'good' },
+    strong: { label: props.labels?.strong ?? 'Strong', segments: 4, tier: 'strong' },
   };
   return map[strength.value];
 });
@@ -51,21 +53,23 @@ const labelClass = computed(() => config.value.tier ? `is-${config.value.tier}` 
 </script>
 
 <template>
-  <div v-if="password" :data-testid="dataTestid" class="sft-strength">
-    <div class="sft-strength-track">
-      <span
-        v-for="i in 4"
-        :key="i"
-        class="sft-strength-seg"
-        :class="segmentClass(i)"
-      />
+  <Transition name="sft-fade">
+    <div v-if="password" :data-testid="dataTestid" class="sft-strength">
+      <div class="sft-strength-track">
+        <span
+          v-for="i in 4"
+          :key="i"
+          class="sft-strength-seg"
+          :class="segmentClass(i)"
+        />
+      </div>
+      <p
+        :data-testid="dataTestid ? `${dataTestid}-strength` : undefined"
+        class="sft-strength-label"
+        :class="labelClass"
+      >
+        {{ config.label }}
+      </p>
     </div>
-    <p
-      :data-testid="dataTestid ? `${dataTestid}-strength` : undefined"
-      class="sft-strength-label"
-      :class="labelClass"
-    >
-      {{ config.label }}
-    </p>
-  </div>
+  </Transition>
 </template>

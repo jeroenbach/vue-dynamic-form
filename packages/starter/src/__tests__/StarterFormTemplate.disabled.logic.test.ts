@@ -45,7 +45,7 @@ describe('component StarterFormTemplate - disabled state', () => {
   it('dims a disabled group', async () => {
     const { wrapper } = await mountInForm({ metadata: { ...groupMetadata, disabled: true } });
 
-    expect(wrapper.find('.sft-field').classes()).toContain('is-disabled');
+    expect(wrapper.find('.sft-group').classes()).toContain('is-disabled');
   });
 
   it('dims a disabled inline array', async () => {

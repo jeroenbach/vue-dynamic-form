@@ -11,12 +11,16 @@ export interface Props {
   disabled?: boolean
   required?: boolean
   showRequiredOrOptional?: 'optional' | 'required'
+  optionalText?: string
   dependentOnMessage?: string
   errorMessage?: string
   canRemoveItems?: boolean
+  removeButtonText?: string
   dataTestid?: string
 }
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  removeButtonText: 'Remove',
+});
 defineEmits<{
   removeItem: []
 }>();
@@ -30,7 +34,7 @@ defineEmits<{
   >
     <label class="sft-field-label" :for="inputId">
       {{ label }}
-      <OptionalRequiredTag :required :show-required-or-optional />
+      <OptionalRequiredTag :required :show-required-or-optional :optionalText />
     </label>
     <div v-if="dependentOnMessage" class="sft-dependent">
       {{ dependentOnMessage }}
@@ -41,7 +45,7 @@ defineEmits<{
       </div>
       <AppButton
         v-if="canRemoveItems"
-        label="Remove"
+        :label="removeButtonText"
         variant="danger"
         :dataTestid="dataTestid ? `${dataTestid}-remove-button` : undefined"
         @click="$emit('removeItem')"

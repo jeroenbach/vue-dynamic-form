@@ -8,6 +8,7 @@ export interface Props {
   description?: string
   required?: boolean
   showRequiredOrOptional?: 'optional' | 'required'
+  optionalText?: string
   disabled?: boolean
   errorMessage?: string
   dataTestid?: string
@@ -20,7 +21,7 @@ defineProps<Props>();
   <section :data-testid="dataTestid" class="sft-choice-group">
     <span class="sft-choice-group-title" :class="{ 'is-disabled': disabled }">
       {{ label }}
-      <OptionalRequiredTag :required :show-required-or-optional />
+      <OptionalRequiredTag :required :show-required-or-optional :optionalText />
     </span>
     <p v-if="description" class="sft-choice-group-desc">
       {{ description }}

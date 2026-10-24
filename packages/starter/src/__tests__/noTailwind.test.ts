@@ -47,7 +47,7 @@ describe('tailwind removal', () => {
     const classNames = [...selectors.matchAll(/\.([a-z_][\w-]*)/gi)].map(match => match[1]);
     // `dark` is the ancestor class VitePress toggles on <html>; `grow`/`cols-2` are
     // structural qualifiers on the prototype's own markup, not Tailwind utilities.
-    const knownNonPrefixed = new Set(['dark', 'grow', 'cols-2']);
+    const knownNonPrefixed = new Set(['dark', 'grow', 'cols-2', 'cols-3']);
     const foreign = classNames.filter(name => !name.startsWith('sft-') && !name.startsWith('is-') && !knownNonPrefixed.has(name));
     expect(foreign).toEqual([]);
   });

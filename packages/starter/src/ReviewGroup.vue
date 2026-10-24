@@ -5,10 +5,13 @@ import StarterIcon from '@/StarterIcon.vue';
 export interface Props {
   title: string
   rows: [label: string, value: string][]
+  editButtonText?: string
   dataTestid?: string
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  editButtonText: 'Edit',
+});
 defineEmits<{ edit: [] }>();
 </script>
 
@@ -20,7 +23,7 @@ defineEmits<{ edit: [] }>();
       </p>
       <AppButton variant="danger-light" :dataTestid="dataTestid ? `${dataTestid}-edit-button` : undefined" @click="$emit('edit')">
         <StarterIcon name="pencil" :size="13" />
-        Edit
+        {{ editButtonText }}
       </AppButton>
     </header>
     <dl class="sft-review-list">

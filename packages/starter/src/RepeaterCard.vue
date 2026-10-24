@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MaybeRefOrGetter } from 'vue';
+import { computed } from 'vue';
 import AppButton from '@/AppButton.vue';
 import StarterIcon from '@/StarterIcon.vue';
 
@@ -10,18 +11,26 @@ interface Props {
   title?: MaybeRefOrGetter<string | undefined>
   placeholderTitle?: string
   canRemove?: boolean
+  removeButtonText?: string
+  /** Aria label of the remove button; `{number}` is replaced by the item number. */
+  removeAriaLabel?: string
   dataTestid?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   title: '',
   placeholderTitle: 'New item',
   canRemove: true,
+  removeButtonText: 'Remove',
+  removeAriaLabel: 'Remove item {number}',
 });
 
 defineEmits<{
   remove: []
 }>();
+
+const removeLabel = computed(() =>
+  props.removeAriaLabel.replace('{number}', String(props.displayNumber ?? props.index + 1)));
 </script>
 
 <template>
@@ -39,11 +48,11 @@ defineEmits<{
         variant="danger-light"
         :disabled="!canRemove"
         :dataTestid="dataTestid ? `${dataTestid}-remove-button` : undefined"
-        :aria-label="`Remove item ${displayNumber ?? index + 1}`"
+        :aria-label="removeLabel"
         @click="$emit('remove')"
       >
         <StarterIcon name="trash" />
-        Remove
+        {{ removeButtonText }}
       </AppButton>
     </header>
     <div class="sft-grid">
