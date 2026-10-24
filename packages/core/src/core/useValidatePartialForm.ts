@@ -2,6 +2,7 @@ import type { FormValidationResult, GenericObject, Path } from 'vee-validate';
 import type { InjectionKey } from 'vue';
 import { FormContextKey } from 'vee-validate';
 import { getCurrentInstance, inject } from 'vue';
+import { isPathInSection } from '@/utils/isPathInSection';
 
 type FormCtx = typeof FormContextKey extends InjectionKey<infer T> ? T : never;
 
@@ -29,9 +30,8 @@ export function useValidatePartialForm() {
   const form = getFormContext()!;
 
   /**
-   * Validates all vee-validate fields whose path equals or starts with `sectionPath`.
-   * Matches `sectionPath` itself, `sectionPath.child`, and `sectionPath[0]` — but not
-   * unrelated paths that happen to share a prefix string.
+   * Validates all vee-validate fields whose path falls at or under `sectionPath`
+   * (see `isPathInSection`).
    *
    * @param sectionPath - Dot-notated path prefix (e.g. `'address'` or `'steps[0]'`)
    * @returns A `FormValidationResult` shaped identically to vee-validate's `validate()` return value,
@@ -40,9 +40,7 @@ export function useValidatePartialForm() {
   async function validateSection(sectionPath: string): Promise<FormValidationResult<GenericObject>> {
     const fieldPaths = form.getAllPathStates()
       .map(state => state.path)
-      .filter(path => path === sectionPath
-        || path.startsWith(`${sectionPath}.`)
-        || path.startsWith(`${sectionPath}[`));
+      .filter(path => isPathInSection(path, sectionPath));
 
     const validationResults = await Promise.all(
       fieldPaths.map(async path => ({

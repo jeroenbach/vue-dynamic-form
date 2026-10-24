@@ -6,7 +6,8 @@ Split a long form into ordered steps. Steps validate as the user moves through t
 
 - The [`wizard`](/reference/field-metadata#wizard) metadata property: the marked node's `children` become the steps, in declaration order
 - A non-linear wizard (`allowForwardJump`): `next()` and stepper jumps surface each step's errors but never block, so the user can move freely and fix things in any order
-- A stepper that reflects the current step and jumps to any step, forward or back
+- A stepper that reflects the current step, jumps to any step, forward or back, and turns a step red when it has validation errors
+- A final step whose submit button is disabled while any step still has errors, with a message pointing at the red steps
 - A [`wizardSummaryPage`](/reference/field-metadata#wizard) step that reviews the collected values with per-section edit links
 - `submitButtonText` for the label on the final step's submit button
 
@@ -39,6 +40,16 @@ The example above is non-linear because it sets `allowForwardJump`. Without it, 
 ```
 
 `allowForwardJump` makes forward movement non-blocking: both `next()` and forward jumps from the stepper surface the current step's errors but let the user continue anyway. Validation still fires so errors stay visible; to move without validating at all, add `validateOnJump: false` for a silent jump.
+
+## Showing Step Errors
+
+A non-linear wizard lets the user walk past invalid steps, so the stepper doubles as the error overview: a step whose fields have validation errors turns red, and the final step's submit button is disabled (with a message) until every error is fixed.
+
+The engine does not track per-step validity; the template derives it. Each page in the `pages` slot prop carries its `path`, and vee-validate exposes all current errors keyed by field path via `useFormErrors()`, so the template marks a step as erroneous when any error path falls at or under the page's path (the exported `isPathInSection` helper does that matching, the same one `validateSection` uses internally):
+
+<<< @/.vitepress/theme/components/AdvancedFormTemplate.vue#wizard-step-errors{ts} [AdvancedFormTemplate.vue]
+
+Errors only exist once a field has been validated, so steps turn red exactly as validation surfaces them: when `next()` or a forward jump validates the page being left, or when a submit attempt validates the whole form. A not-yet-visited step is never falsely red, and a red step clears as soon as its fields are fixed, re-enabling the submit button.
 
 ## The Review Page
 
