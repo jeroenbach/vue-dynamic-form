@@ -26,6 +26,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const currentStep = computed(() => props.steps?.[props.currentStepIndex]);
+const hasStepErrors = computed(() => props.steps?.some(step => step.hasError) ?? false);
 const helperText = computed(() =>
   [`Step ${props.currentStepIndex + 1} of ${props.steps?.length ?? 0}`, currentStep.value?.description || currentStep.value?.title].join(' · '));
 </script>
@@ -58,7 +59,16 @@ const helperText = computed(() =>
       <slot />
     </main>
 
-    <footer class="mt-8 flex items-center justify-between">
+    <p
+      v-if="isLast && hasStepErrors"
+      role="alert"
+      class="mt-8 rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 p-3 text-sm text-red-700 dark:text-red-300"
+      :data-testid="dataTestid ? `${dataTestid}-step-errors-message` : undefined"
+    >
+      Some steps still contain errors. Fix the steps marked in red before submitting.
+    </p>
+
+    <footer class="flex items-center justify-between" :class="isLast && hasStepErrors ? 'mt-4' : 'mt-8'">
       <AppButton
         type="button"
         :dataTestid="dataTestid ? `${dataTestid}-back-button` : undefined"
@@ -78,6 +88,7 @@ const helperText = computed(() =>
         v-if="isLast"
         variant="primary"
         type="submit"
+        :disabled="hasStepErrors"
         :dataTestid="dataTestid ? `${dataTestid}-submit-button` : undefined"
       >
         {{ submitButton }}

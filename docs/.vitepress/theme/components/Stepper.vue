@@ -2,6 +2,8 @@
 export interface Step {
   title: string
   description?: string
+  /** When true, the step's fields have validation errors and the step renders in red. */
+  hasError?: boolean
 }
 interface Props {
   steps: Step[]
@@ -14,8 +16,36 @@ interface Emits {
   (e: 'goto', step: number): void
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 defineEmits<Emits>();
+
+type StepState = 'error' | 'errorCurrent' | 'completed' | 'current' | 'upcoming';
+
+function stepState(step: Step, i: number): StepState {
+  if (step.hasError)
+    return i === props.currentStep ? 'errorCurrent' : 'error';
+  if (i < props.currentStep)
+    return 'completed';
+  if (i === props.currentStep)
+    return 'current';
+  return 'upcoming';
+}
+
+const circleClasses: Record<StepState, string> = {
+  error: 'bg-red-500 text-white',
+  errorCurrent: 'bg-red-500 text-white ring-4 ring-red-100 dark:ring-red-900',
+  completed: 'bg-emerald-500 text-white',
+  current: 'bg-sky-600 text-white ring-4 ring-sky-100',
+  upcoming: 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
+};
+
+const titleClasses: Record<StepState, string> = {
+  error: 'text-red-600 dark:text-red-400',
+  errorCurrent: 'font-semibold text-red-600 dark:text-red-400',
+  completed: 'text-emerald-600',
+  current: 'font-semibold text-slate-900 dark:text-slate-100',
+  upcoming: 'text-slate-400 dark:text-slate-500',
+};
 </script>
 
 <template>
@@ -31,23 +61,19 @@ defineEmits<Emits>();
           type="button"
           :data-testid="dataTestid ? `${dataTestid}-step-${i}` : undefined"
           :disabled="!allowForwardJump && i > currentStep"
-          :aria-label="`Step ${i + 1}: ${step.title}`"
+          :aria-label="`Step ${i + 1}: ${step.title}${step.hasError ? ' (contains errors)' : ''}`"
           :aria-current="i === currentStep ? 'step' : undefined"
+          :aria-invalid="step.hasError || undefined"
           class="flex flex-col items-center gap-1 focus:outline-none disabled:cursor-not-allowed cursor-pointer"
           @click="$emit('goto', i)"
         >
           <span
             class="grid h-8 w-8 place-items-center rounded-full text-xs font-semibold transition-all"
-            :class="
-              i < currentStep
-                ? 'bg-emerald-500 text-white'
-                : i === currentStep
-                  ? 'bg-sky-600 text-white ring-4 ring-sky-100'
-                  : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-            "
+            :class="circleClasses[stepState(step, i)]"
           >
+            <span v-if="step.hasError" aria-hidden="true">!</span>
             <svg
-              v-if="i < currentStep"
+              v-else-if="i < currentStep"
               width="14" height="14" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="3"
               stroke-linecap="round" stroke-linejoin="round"
@@ -58,13 +84,7 @@ defineEmits<Emits>();
           </span>
           <span
             class="hidden text-xs sm:block"
-            :class="
-              i < currentStep
-                ? 'text-emerald-600'
-                : i === currentStep
-                  ? 'font-semibold text-slate-900 dark:text-slate-100'
-                  : 'text-slate-400 dark:text-slate-500'
-            "
+            :class="titleClasses[stepState(step, i)]"
           >
             {{ step.title }}
           </span>

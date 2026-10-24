@@ -2,7 +2,8 @@
 import type { GetDynamicFormSettingsType, GetMetadataType, WizardGotoStepOptions } from '@bach.software/vue-dynamic-form';
 import type { AppIconName } from './AppIcon.vue';
 import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
-import { defineMetadata, DynamicFormTemplate } from '@bach.software/vue-dynamic-form';
+import { defineMetadata, DynamicFormTemplate, isPathInSection } from '@bach.software/vue-dynamic-form';
+import { useFormErrors } from 'vee-validate';
 import { toValue } from 'vue';
 import ArrayField from './ArrayField.vue';
 import ArraySectionCard from './ArraySectionCard.vue';
@@ -25,6 +26,17 @@ import ToggleSwitch from './ToggleSwitch.vue';
 const nextButton = 'Continue';
 const prevButton = 'Back';
 const submitButton = 'Submit';
+
+// #region wizard-step-errors
+const formErrors = useFormErrors();
+
+// A wizard page is in error when any registered field at or under its path currently has a
+// validation error.
+function pageHasErrors(pagePath: string): boolean {
+  return Object.entries(formErrors.value).some(([path, message]) =>
+    !!message && isPathInSection(path, pagePath));
+}
+// #endregion wizard-step-errors
 
 // #region template-metadata-contract
 export type Metadata = GetMetadataType<typeof metadata>;
@@ -81,7 +93,7 @@ const metadata = defineMetadata<
         :subTitle="fieldMetadata.description"
         :error-message="errorMessage.value"
         :dataTestid="fieldMetadata.path"
-        :steps="pages.map(x => ({ title: toValue(x.fieldOptions?.label) ?? x.name, description: x.helpText }))"
+        :steps="pages.map(x => ({ title: toValue(x.fieldOptions?.label) ?? x.name, description: x.helpText, hasError: pageHasErrors(x.path) }))"
         :currentStepIndex
         :isFirst
         :isLast

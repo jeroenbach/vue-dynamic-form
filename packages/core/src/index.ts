@@ -23,6 +23,7 @@ export * from '@/types/ValidationMessage';
 
 // Utils
 export * from '@/utils/checkTreeHasValue';
+export * from '@/utils/isPathInSection';
 export * from '@/utils/mapEachMetadataItem';
 export * from '@/utils/removeNullValues';
 export * from '@/utils/setInPath';
