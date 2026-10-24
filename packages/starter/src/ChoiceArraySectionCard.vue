@@ -23,9 +23,16 @@ export interface Props extends /* @vue-ignore */ SectionCardProps {
   usedChoiceOccurrences?: number
   /** The choice's own maxOccurs, shown as the total in the count tag. */
   maxOccurs?: number
+  /** Label of a branch's add button; `{option}` is replaced by the branch title. */
+  addButtonText?: string
+  /** Helper text next to a disabled add button; `{option}` is replaced by the branch title. */
+  limitReachedText?: string
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  addButtonText: 'Add {option}',
+  limitReachedText: 'The limit for {option} has been reached.',
+});
 
 const countTag = computed(() =>
   props.maxOccurs !== undefined ? `${props.usedChoiceOccurrences ?? 0} of ${props.maxOccurs}` : undefined);
@@ -40,6 +47,10 @@ function dataTestidFor(value: string): string | undefined {
 
 function addOptionReasonId(value: string): string | undefined {
   return dataTestidFor(value) ? `${dataTestidFor(value)}-reason` : undefined;
+}
+
+function optionText(template: string, option: ChoiceOption): string {
+  return template.replace('{option}', option.title ?? option.value);
 }
 </script>
 
@@ -59,14 +70,14 @@ function addOptionReasonId(value: string): string | undefined {
           @click="addChoiceOccurrence?.(option.value)"
         >
           <StarterIcon name="plus" />
-          Add {{ option.title ?? option.value }}
+          {{ optionText(addButtonText, option) }}
         </AppButton>
         <p
           v-if="!canAdd(option.value)"
           :id="addOptionReasonId(option.value)"
           class="sft-choice-addbar-reason"
         >
-          The limit for {{ option.title ?? option.value }} has been reached.
+          {{ optionText(limitReachedText, option) }}
         </p>
       </div>
     </div>

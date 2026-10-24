@@ -13,13 +13,22 @@ export interface TimelineItem {
 export interface Props {
   title?: string
   referenceCode?: string
+  referenceLabel?: string
   timelineTitle?: string
   timeline?: TimelineItem[]
   submittedJson?: string
+  viewJsonText?: string
+  hideJsonText?: string
+  resetButtonText?: string
   dataTestid?: string
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  referenceLabel: 'Reference',
+  viewJsonText: 'View submitted JSON',
+  hideJsonText: 'Hide submitted JSON',
+  resetButtonText: 'Start a new onboarding',
+});
 defineEmits<{ reset: [] }>();
 
 const showJson = ref(false);
@@ -35,7 +44,7 @@ const showJson = ref(false);
         {{ title }}
       </h2>
       <p class="sft-success-ref">
-        Reference
+        {{ referenceLabel }}
         <code>{{ referenceCode }}</code>
       </p>
     </div>
@@ -57,14 +66,18 @@ const showJson = ref(false);
 
     <div class="sft-success-actions">
       <AppButton variant="ghost" :dataTestid="dataTestid ? `${dataTestid}-toggle-json-button` : undefined" @click="showJson = !showJson">
-        <StarterIcon name="chevronRight" :size="14" />
-        {{ showJson ? 'Hide' : 'View' }} submitted JSON
+        <span class="sft-json-chevron" :class="{ 'is-open': showJson }">
+          <StarterIcon name="chevronRight" :size="14" />
+        </span>
+        {{ showJson ? hideJsonText : viewJsonText }}
       </AppButton>
       <AppButton variant="primary" :dataTestid="dataTestid ? `${dataTestid}-reset-button` : undefined" @click="$emit('reset')">
         <StarterIcon name="refreshCw" />
-        Start a new onboarding
+        {{ resetButtonText }}
       </AppButton>
     </div>
-    <pre v-if="showJson" class="sft-col-span">{{ submittedJson }}</pre>
+    <Transition name="sft-reveal">
+      <pre v-if="showJson" class="sft-col-span sft-json">{{ submittedJson }}</pre>
+    </Transition>
   </SectionCard>
 </template>

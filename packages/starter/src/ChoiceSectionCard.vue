@@ -35,11 +35,22 @@ export interface Props extends /* @vue-ignore */ SectionCardProps {
   activeChoiceOccurrences?: ActiveChoiceOccurrence[]
   /** Marks a branch active, deselecting any previously active one. */
   addChoiceOccurrence?: (branchKey: string) => void
+  /** Aria label of the radiogroup when no label is given. */
+  ariaLabel?: string
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  ariaLabel: 'Choose an option',
+});
 
-const gridCols = computed(() => ((props.options?.length ?? 0) > 1 ? 'cols-2' : ''));
+const gridCols = computed(() => {
+  const n = props.options?.length ?? 0;
+  if (n > 0 && n % 3 === 0)
+    return 'cols-3';
+  if (n > 0 && n % 2 === 0)
+    return 'cols-2';
+  return '';
+});
 
 /**
  * Derived from the engine's own `activeChoiceOccurrences`, not local component state, so an
@@ -60,7 +71,7 @@ function isActive(value: string): boolean {
       class="sft-choice-grid"
       :class="gridCols"
       role="radiogroup"
-      :aria-label="toValue(props.label) ?? 'Choose an option'"
+      :aria-label="toValue(props.label) ?? ariaLabel"
     >
       <ChoiceCard
         v-for="option in options"

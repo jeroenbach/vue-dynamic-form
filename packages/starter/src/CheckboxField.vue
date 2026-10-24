@@ -9,6 +9,7 @@ export interface Props {
   inputId?: string
   required?: boolean
   showRequiredOrOptional?: 'optional' | 'required'
+  optionalText?: string
   disabled?: boolean
   errorMessage?: string
   dataTestid?: string
@@ -31,7 +32,7 @@ const emits = defineEmits<Emits>();
     <label :for="inputId" @click="emits('click')">
       <p class="sft-switch-field-label">
         {{ label }}
-        <OptionalRequiredTag :required :show-required-or-optional />
+        <OptionalRequiredTag :required :show-required-or-optional :optionalText />
       </p>
       <p v-if="description" class="sft-switch-field-desc">
         {{ description }}

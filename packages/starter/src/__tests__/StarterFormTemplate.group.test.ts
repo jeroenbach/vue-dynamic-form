@@ -65,7 +65,7 @@ describe('component StarterFormTemplate - group field chrome', () => {
   it('dims the group when disabled', async () => {
     const { wrapper } = await mountInForm({ metadata: { ...groupMetadata, disabled: true } });
 
-    expect(wrapper.find('.sft-field').classes()).toContain('is-disabled');
+    expect(wrapper.find('.sft-group').classes()).toContain('is-disabled');
   });
 
   it('falls back to FormField for a heading-typed field with no children', async () => {

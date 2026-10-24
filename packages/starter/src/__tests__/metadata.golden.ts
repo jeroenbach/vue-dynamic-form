@@ -18,7 +18,16 @@ export interface GoldenFieldProperties {
   arrayItemNamePlural?: string
   arrayItemFieldForTitle?: string
   arrayNoItemsMessage?: string
+  arrayNoItemsTitle?: string
+  arrayAddButtonText?: string
+  arrayAddFirstButtonText?: string
+  arrayNewItemTitle?: string
+  arrayRemoveButtonText?: string
+  arrayRemoveAriaLabel?: string
   choiceShowChoiceSelect?: boolean
+  choiceAddButtonText?: string
+  choiceLimitReachedText?: string
+  choiceAriaLabel?: string
   iconName?: string
   dependentOnMessage?: string
   placeholder?: string
@@ -27,10 +36,19 @@ export interface GoldenFieldProperties {
   disabled?: boolean
   hide?: boolean
   showStrengthBar?: boolean
+  passwordStrengthLabels?: { weak?: string, fair?: string, good?: string, strong?: string }
+  showPasswordAriaLabel?: string
+  hidePasswordAriaLabel?: string
   falseAsUndefined?: boolean
-  wizardSummary?: { title: string, rows: [label: string, value: string][], dataTestid?: string }[]
+  wizardSummary?: { title: string, rows: [label: string, value: string][], editButtonText?: string, dataTestid?: string }[]
   wizardSummaryConfirmation?: string
+  wizardSummaryConfirmationTitle?: string
   submitButtonText?: string
+  nextButtonText?: string
+  prevButtonText?: string
+  stepText?: string
+  stepperAriaLabel?: string
+  stepAriaLabel?: string
 }
 
 /** Independently written slot properties of the built-in catalogue. */
@@ -41,6 +59,7 @@ export interface GoldenSlotProperties {
 /** Independently written settings properties of the built-in catalogue. */
 export interface GoldenSettingsProperties {
   showRequiredOrOptional?: 'optional' | 'required'
+  optionalText?: string
 }
 
 type IsEqual<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;

@@ -11,6 +11,9 @@ interface Props {
   currentStep: number
   /** When true, the wizard is non-linear: every step is clickable, not just the current and visited ones. */
   allowForwardJump?: boolean
+  ariaLabel?: string
+  /** Aria label per step button; `{number}` and `{title}` are replaced by the step number and title. */
+  stepAriaLabel?: string
   dataTestid?: string
 }
 
@@ -18,12 +21,21 @@ interface Emits {
   (e: 'goto', step: number): void
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  ariaLabel: 'Progress',
+  stepAriaLabel: 'Step {number}: {title}',
+});
 defineEmits<Emits>();
+
+function stepLabel(index: number): string {
+  return props.stepAriaLabel
+    .replace('{number}', String(index + 1))
+    .replace('{title}', props.steps[index]?.title ?? '');
+}
 </script>
 
 <template>
-  <nav :data-testid="dataTestid" aria-label="Progress" class="sft-stepper">
+  <nav :data-testid="dataTestid" :aria-label="ariaLabel" class="sft-stepper">
     <ol>
       <li
         v-for="(step, i) in steps"
@@ -36,7 +48,7 @@ defineEmits<Emits>();
           :class="{ 'is-done': i < currentStep, 'is-current': i === currentStep }"
           :data-testid="dataTestid ? `${dataTestid}-step-${i}` : undefined"
           :disabled="!allowForwardJump && i > currentStep"
-          :aria-label="`Step ${i + 1}: ${step.title}`"
+          :aria-label="stepLabel(i)"
           :aria-current="i === currentStep ? 'step' : undefined"
           @click="$emit('goto', i)"
         >

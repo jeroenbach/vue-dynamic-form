@@ -6,14 +6,21 @@ import ErrorMessage from '@/ErrorMessage.vue';
 export interface Props {
   label?: MaybeRefOrGetter<string | undefined>
   itemsLength?: number
+  itemsName?: string
+  itemsNamePlural?: string
   description?: string
   disabled?: boolean
   canAddItems?: boolean
+  addButtonText?: string
   errorMessage?: string
   dataTestid?: string
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  itemsName: 'item',
+  itemsNamePlural: 'items',
+  addButtonText: 'Add another',
+});
 
 defineEmits<{
   add: []
@@ -36,17 +43,17 @@ defineEmits<{
         </p>
       </div>
       <span :data-testid="dataTestid ? `${dataTestid}-count` : undefined" class="sft-pill">
-        {{ itemsLength }} {{ itemsLength === 1 ? 'item' : 'items' }}
+        {{ itemsLength }} {{ itemsLength === 1 ? itemsName : itemsNamePlural }}
       </span>
     </header>
 
-    <div class="sft-grid">
+    <div class="sft-grid sft-array-items">
       <slot />
     </div>
     <div class="sft-array-footer">
       <AppButton
         v-if="canAddItems"
-        label="Add another"
+        :label="addButtonText"
         :dataTestid="dataTestid ? `${dataTestid}-add-button` : undefined"
         @click="$emit('add')"
       />

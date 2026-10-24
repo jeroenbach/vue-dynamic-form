@@ -49,10 +49,6 @@ const props = defineProps<{
 defineSlots<StarterFormTemplateSlots<TMetadataConfiguration>>();
 const slots = useSlots();
 
-const wizardNextButton = 'Continue';
-const wizardPrevButton = 'Back';
-const wizardSubmitButton = 'Submit';
-
 // The fallback markup is written against the built-in catalogue; the generic only widens the slot scopes consumers see.
 const metadata = (props.metadataConfiguration ?? starterMetadata) as typeof starterMetadata;
 
@@ -84,9 +80,12 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :description="s.fieldMetadata.description"
           :required="s.required"
           :show-required-or-optional="s.settings.showRequiredOrOptional"
+          :optionalText="s.settings.optionalText"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :canAddItems="s.canAddItems"
           :canRemoveItems="s.canRemoveItems"
+          :addButtonText="s.fieldMetadata.arrayAddButtonText"
+          :removeButtonText="s.fieldMetadata.arrayRemoveButtonText"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
           @add="s.addItem"
@@ -107,6 +106,8 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :label="s.fieldContext.label"
           :required="s.required"
           :show-required-or-optional="s.settings.showRequiredOrOptional"
+          :optionalText="s.settings.optionalText"
+          :removeButtonText="s.fieldMetadata.arrayRemoveButtonText"
           :dependentOnMessage="s.fieldMetadata.dependentOnMessage"
           :errorMessage="s.fieldContext.errorMessage.value"
         >
@@ -151,12 +152,15 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
       <slot name="default-array" v-bind="s">
         <ArrayField
           v-show="!s.fieldMetadata.hide"
-          :class="{ 'sft-col-span': s.fieldMetadata.fullWidth }"
+          class="sft-col-span"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :canAddItems="s.canAddItems"
           :itemsLength="(s.fieldContext.value.value as unknown[] | undefined)?.length ?? 0"
+          :itemsName="s.fieldMetadata.arrayItemName"
+          :itemsNamePlural="s.fieldMetadata.arrayItemNamePlural"
+          :addButtonText="s.fieldMetadata.arrayAddButtonText"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
           @add="s.addItem"
@@ -171,15 +175,19 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
     <template #heading-array="s">
       <slot name="heading-array" v-bind="s">
         <ArraySectionCard
+          class="sft-col-span"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :noItemsMessage="s.fieldMetadata.arrayNoItemsMessage"
+          :noItemsTitle="s.fieldMetadata.arrayNoItemsTitle"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
           :canAddItems="s.canAddItems"
           :itemsCount="(s.fieldContext.value.value as unknown[] | undefined)?.length ?? 0"
           :itemsName="s.fieldMetadata.arrayItemName"
           :itemsNamePlural="s.fieldMetadata.arrayItemNamePlural"
+          :addButtonText="s.fieldMetadata.arrayAddButtonText"
+          :addFirstButtonText="s.fieldMetadata.arrayAddFirstButtonText"
           @addItem="s.addItem"
         >
           <slot name="input" v-bind="s.slotProps ?? {}">
@@ -196,8 +204,10 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           class="sft-hide-tag"
           :index="s.index"
           :title="s.fieldMetadata.arrayItemFieldForTitle && (s.fieldContext.value.value as any)?.[s.fieldMetadata.arrayItemFieldForTitle]"
-          :placeholderTitle="`New ${s.fieldMetadata.arrayItemName}`"
+          :placeholderTitle="s.fieldMetadata.arrayNewItemTitle ?? `New ${s.fieldMetadata.arrayItemName}`"
           :canRemove="s.canRemoveItems"
+          :removeButtonText="s.fieldMetadata.arrayRemoveButtonText"
+          :removeAriaLabel="s.fieldMetadata.arrayRemoveAriaLabel"
           :dataTestid="s.fieldMetadata.path"
           @remove="s.removeItem"
         >
@@ -217,6 +227,7 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :description="s.fieldMetadata.description"
           :required="s.required"
           :show-required-or-optional="s.settings.showRequiredOrOptional"
+          :optionalText="s.settings.optionalText"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
@@ -239,6 +250,7 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :options="s.fieldMetadata.choiceShowChoiceSelect ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
           :activeChoiceOccurrences="s.activeChoiceOccurrences"
           :addChoiceOccurrence="s.addChoiceOccurrence"
+          :ariaLabel="s.fieldMetadata.choiceAriaLabel"
         >
           <slot name="input" :selectedOption v-bind="s.slotProps ?? {}">
             <slot :selectedOption v-bind="s.slotProps ?? {}" />
@@ -250,6 +262,7 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
     <template #heading-choice-array="s">
       <slot name="heading-choice-array" v-bind="s">
         <ChoiceArraySectionCard
+          class="sft-col-span"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :errorMessage="s.fieldContext.errorMessage.value"
@@ -259,6 +272,8 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :canAddChoiceOccurrence="s.canAddChoiceOccurrence"
           :usedChoiceOccurrences="s.usedChoiceOccurrences"
           :maxOccurs="s.fieldMetadata.maxOccurs"
+          :addButtonText="s.fieldMetadata.choiceAddButtonText"
+          :limitReachedText="s.fieldMetadata.choiceLimitReachedText"
         >
           <slot name="input" v-bind="s.slotProps ?? {}">
             <slot v-bind="s.slotProps ?? {}" />
@@ -275,8 +290,10 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :index="s.index"
           :displayNumber="s.globalIndex + 1"
           :title="s.fieldContext.label"
-          :placeholderTitle="`New ${s.branchKey}`"
+          :placeholderTitle="s.fieldMetadata.arrayNewItemTitle ?? `New ${s.branchKey}`"
           :canRemove="s.canRemoveItems"
+          :removeButtonText="s.fieldMetadata.arrayRemoveButtonText"
+          :removeAriaLabel="s.fieldMetadata.arrayRemoveAriaLabel"
           :dataTestid="s.fieldMetadata.path"
           @remove="s.removeItem"
         >
@@ -297,6 +314,7 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :description="s.fieldMetadata.description"
           :required="s.required"
           :show-required-or-optional="s.settings.showRequiredOrOptional"
+          :optionalText="s.settings.optionalText"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
@@ -330,6 +348,7 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :dataTestid="`${s.fieldMetadata.path}-input`"
           :value="s.fieldContext.value.value"
           :options="s.fieldMetadata.options"
+          :placeholder="s.fieldMetadata.placeholder"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :errorMessage="s.fieldContext.errorMessage.value"
           @change="s.fieldContext.handleChange"
@@ -361,6 +380,8 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :errorMessage="s.fieldContext.errorMessage.value"
           :placeholder="s.fieldMetadata.placeholder"
+          :showPasswordAriaLabel="s.fieldMetadata.showPasswordAriaLabel"
+          :hidePasswordAriaLabel="s.fieldMetadata.hidePasswordAriaLabel"
           @input="s.fieldContext.handleChange"
           @blur="s.fieldContext.handleBlur"
         />
@@ -368,6 +389,7 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           v-if="s.fieldMetadata.showStrengthBar"
           :dataTestid="`${s.fieldMetadata.path}-input`"
           :password="s.fieldContext.value.value"
+          :labels="s.fieldMetadata.passwordStrengthLabels"
         />
       </slot>
     </template>
@@ -387,9 +409,12 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           :next="s.next"
           :prev="s.prev"
           :gotoStep="s.gotoStep"
-          :nextButton="wizardNextButton"
-          :prevButton="wizardPrevButton"
-          :submitButton="s.fieldMetadata.submitButtonText ?? wizardSubmitButton"
+          :nextButton="s.fieldMetadata.nextButtonText"
+          :prevButton="s.fieldMetadata.prevButtonText"
+          :submitButton="s.fieldMetadata.submitButtonText"
+          :stepText="s.fieldMetadata.stepText"
+          :stepperAriaLabel="s.fieldMetadata.stepperAriaLabel"
+          :stepAriaLabel="s.fieldMetadata.stepAriaLabel"
         >
           <slot name="input" v-bind="s.slotProps ?? {}">
             <slot v-bind="s.slotProps ?? {}" />
@@ -436,7 +461,7 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           />
           <div v-if="s.fieldMetadata.wizardSummaryConfirmation" class="sft-confirm">
             <p class="sft-confirm-strong">
-              Ready to submit?
+              {{ s.fieldMetadata.wizardSummaryConfirmationTitle ?? 'Ready to submit?' }}
             </p>
             <p>
               {{ s.fieldMetadata.wizardSummaryConfirmation }}
