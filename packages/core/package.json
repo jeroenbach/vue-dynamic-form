@@ -4,6 +4,7 @@
   "version": "0.7.0",
   "description": "A simple yet highly extendable dynamic form system, inspired by the flexibility of XSD and powered by Vee-Validate.",
   "author": "Jeroen Bach <jeroen@bach.software> (https://bach.software)",
+  "license": "MIT",
   "homepage": "https://github.com/jeroenbach/dynamic-form",
   "repository": {
     "type": "git",

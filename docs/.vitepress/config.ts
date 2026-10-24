@@ -25,6 +25,7 @@ export default defineConfig({
   },
   themeConfig: {
     nav: [
+      { text: 'Why', link: '/guide/why' },
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Reference', link: '/reference/' },
       { text: 'Examples', link: '/examples/' },
@@ -35,6 +36,7 @@ export default defineConfig({
         {
           text: 'Guide',
           items: [
+            { text: 'Why Vue Dynamic Form', link: '/guide/why' },
             { text: 'Getting Started', link: '/guide/getting-started' },
             { text: '1. Define Your Field Types', link: '/guide/define-metadata' },
             { text: '2. Build a Template', link: '/guide/building-templates' },
