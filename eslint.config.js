@@ -12,5 +12,6 @@ export default antfu({
   files: ['docs/**/*.vue'],
   rules: {
     'vue/attribute-hyphenation': 'off',
+    'vue/v-on-event-hyphenation': 'off',
   },
 });
