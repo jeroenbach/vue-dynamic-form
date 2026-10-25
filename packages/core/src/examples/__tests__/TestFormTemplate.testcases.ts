@@ -541,6 +541,28 @@ export const preserveOnSwitchSampleValues = {
   preserveSection: { contact: { email: { address: 'restore@example.com' } } },
 };
 
+export const choiceSelectionResetTestCase = createTestCase([
+  {
+    name: 'resetSection',
+    fieldOptions: { label: 'Explicit Choice vs. Form Reset' },
+    type: 'heading',
+    children: [
+      { name: 'contact', fieldOptions: { label: 'Contact method' }, fullWidth: true, explicitChoiceSelection: true, preserveOnSwitch: true, description: 'With sample data loaded, Email starts selected from the initial values. Switch to Phone, then press Reset: Email must be the only selected branch again (a stale Phone selection must not stay active alongside it), and re-selecting Phone afterwards starts empty because the reset also drops the preserve-on-switch stash.', choice: [
+        { name: 'email', type: 'group', fieldOptions: { label: 'Email' }, children: [
+          { name: 'address', fullWidth: true, fieldOptions: { label: 'Email address' } },
+        ] },
+        { name: 'phone', type: 'group', fieldOptions: { label: 'Phone' }, children: [
+          { name: 'number', fullWidth: true, fieldOptions: { label: 'Phone number' } },
+        ] },
+      ] },
+    ],
+  },
+]);
+
+export const choiceSelectionResetSampleValues = {
+  resetSection: { contact: { email: { address: 'initial@example.com' } } },
+};
+
 export const explicitRepeatableChoiceTestCase = createTestCase([
   {
     name: 'integrationsSection',
