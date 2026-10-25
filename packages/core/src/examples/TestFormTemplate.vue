@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import type { ChoiceOccurrence } from '@/components/DynamicFormTemplate.vue';
 import type { WizardGotoStepOptions } from '@/types/FieldMetadata';
 import type { GetDynamicFormSettingsType } from '@/types/GetDynamicFormSettingsType';
 import type { GetMetadataType } from '@/types/GetMetadataType';
@@ -56,6 +57,12 @@ const metadata = defineMetadata<
 // Shared harness-button styling; the primary variant only swaps the color tokens.
 const buttonClass = 'inline-flex items-center h-9 px-3 text-sm border border-gray-300 rounded bg-gray-100 text-gray-900 cursor-pointer hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed';
 const buttonPrimaryClass = 'inline-flex items-center h-9 px-3 text-sm border border-blue-600 rounded bg-blue-600 text-white cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed';
+
+// The add-choice button turns primary while its branch has at least one active occurrence, so
+// the selected branch is visible at a glance in the button row itself.
+function addChoiceButtonClass(activeChoiceOccurrences: ChoiceOccurrence[], branchName: string | undefined): string {
+  return activeChoiceOccurrences.some(occurrence => occurrence.branchKey === branchName) ? buttonPrimaryClass : buttonClass;
+}
 </script>
 
 <template>
@@ -102,7 +109,7 @@ const buttonPrimaryClass = 'inline-flex items-center h-9 px-3 text-sm border bor
       </div>
     </template>
 
-    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences }">
+    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences, activeChoiceOccurrences }">
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled }">
           {{ label }}
@@ -120,7 +127,7 @@ const buttonPrimaryClass = 'inline-flex items-center h-9 px-3 text-sm border bor
             v-for="branch in fieldMetadata.choice"
             :key="`${branch.name}-add`"
             type="button"
-            :class="buttonClass"
+            :class="addChoiceButtonClass(activeChoiceOccurrences, branch.name)"
             :disabled="!canAddChoiceOccurrence(branch.name)"
             :data-testid="`${fieldMetadata.path}.${branch.name}-add-choice-button`"
             @click="addChoiceOccurrence(branch.name)"
@@ -155,7 +162,7 @@ const buttonPrimaryClass = 'inline-flex items-center h-9 px-3 text-sm border bor
       dispatch through the -choice-array slot family. Identical markup and testids so tests
       drive both modes through the same selectors.
     -->
-    <template #default-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences }">
+    <template #default-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, slotProps, settings: { showOptionalInsteadOfRequired }, addChoiceOccurrence, removeChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences, activeChoiceOccurrences }">
       <div v-if="!fieldMetadata.hidden" class="flex flex-col gap-2" :class="{ 'md:col-span-2': fieldMetadata.fullWidth }">
         <span class="flex gap-2 items-center" :class="{ 'text-gray-500': disabled }">
           {{ label }}
@@ -168,7 +175,7 @@ const buttonPrimaryClass = 'inline-flex items-center h-9 px-3 text-sm border bor
             v-for="branch in fieldMetadata.choice"
             :key="`${branch.name}-add`"
             type="button"
-            :class="buttonClass"
+            :class="addChoiceButtonClass(activeChoiceOccurrences, branch.name)"
             :disabled="!canAddChoiceOccurrence(branch.name)"
             :data-testid="`${fieldMetadata.path}.${branch.name}-add-choice-button`"
             @click="addChoiceOccurrence(branch.name)"

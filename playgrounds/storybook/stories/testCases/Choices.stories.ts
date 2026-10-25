@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { choiceDisplayOrderAddedSampleValues, choiceDisplayOrderAddedTestCase, choiceMaxOccursSampleValues, choiceMaxOccursTestCase, choiceOccurrenceSampleValues, choiceOccurrenceTestCase, choicePreserveOrderSampleValues, choicePreserveOrderScalarBranchSampleValues, choicePreserveOrderScalarBranchTestCase, choicePreserveOrderTestCase, choiceSampleValues, choiceTestCase, explicitChoiceSampleValues, explicitChoiceTestCase, explicitRepeatableChoiceSampleValues, explicitRepeatableChoiceTestCase, preserveOnSwitchSampleValues, preserveOnSwitchTestCase } from '@bach.software/vue-dynamic-form/examples';
+import { choiceDisplayOrderAddedSampleValues, choiceDisplayOrderAddedTestCase, choiceMaxOccursSampleValues, choiceMaxOccursTestCase, choiceOccurrenceSampleValues, choiceOccurrenceTestCase, choicePreserveOrderSampleValues, choicePreserveOrderScalarBranchSampleValues, choicePreserveOrderScalarBranchTestCase, choicePreserveOrderTestCase, choiceSampleValues, choiceSelectionResetSampleValues, choiceSelectionResetTestCase, choiceTestCase, explicitChoiceSampleValues, explicitChoiceTestCase, explicitRepeatableChoiceSampleValues, explicitRepeatableChoiceTestCase, preserveOnSwitchSampleValues, preserveOnSwitchTestCase } from '@bach.software/vue-dynamic-form/examples';
 import { sampleDataStory } from './sampleDataStory';
 
 const meta = {
@@ -28,6 +28,9 @@ export const ExplicitChoice: Story = sampleDataStory(explicitChoiceTestCase, exp
 
 /** explicitChoiceSelection + preserveOnSwitch: switching away stashes the branch values, switching back restores them. Toggle "Load sample data" to pre-fill it. */
 export const PreserveOnSwitch: Story = sampleDataStory(preserveOnSwitchTestCase, preserveOnSwitchSampleValues);
+
+/** A form reset re-derives the explicit selection from the freshly reset values, like a fresh mount. Turn on "Load sample data" (Email starts selected from the initial values), switch to Phone, then press Reset: only Email is selected again, and re-selecting Phone starts empty because the reset also drops the preserve-on-switch stash. */
+export const SelectionResetOnFormReset: Story = sampleDataStory(choiceSelectionResetTestCase, choiceSelectionResetSampleValues);
 
 /** Repeatable explicit choice (maxOccurs 5) with per-branch maxOccursTotal caps, rendered through the choice-array slot family. Loading sample data shows a mix of both kinds. */
 export const ExplicitRepeatableChoice: Story = sampleDataStory(explicitRepeatableChoiceTestCase, explicitRepeatableChoiceSampleValues);

@@ -14,6 +14,7 @@ import { useField, useFieldValue, useFormContext } from 'vee-validate';
 import { computed, inject, ref, watch } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
+import { useIsResetPending } from '@/core/useIsResetPending';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
@@ -452,6 +453,26 @@ watch(field, (_field) => {
       updateChildValue(undefined, index, child.maxOccurs);
   });
 }, { immediate: true });
+
+// A form reset (resetForm, or resetField aimed at this choice's anchor path) restores values
+// without going through addChoiceOccurrence, the only place the explicit selection state is
+// otherwise reconciled. Left alone, a pre-reset selection of one branch combines with another
+// branch's restored initial values into two active branches at once on a maxOccurs:1 choice.
+// Re-derive from the fresh values instead: selection becomes purely value-driven again (a branch
+// holding restored data reads as selected on its own, an empty one deselects, matching a fresh
+// mount), and the preserve-on-switch stash is dropped so data discarded by the reset cannot
+// resurface on a later switch-back. Detected via vee-validate's pendingReset flag on the anchor
+// path, which is raised synchronously for the whole reset flush (see useIsResetPending).
+if (explicitChoiceSelection) {
+  const isResetPending = useIsResetPending(normalizedPath);
+  watch(isResetPending, (pending) => {
+    if (!pending)
+      return;
+
+    explicitlySelectedBranch.value = null;
+    stashedBranchValues.value = {};
+  });
+}
 
 // Repeatable case: keep childValues in sync with each branch's field array so the occurrences /
 // valuesCount machinery (and the shared budget it feeds) reflects reality without every

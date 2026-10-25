@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 import { setupState } from './DynamicFormItem.test-helpers';
-import { setupState as setupChoiceState } from './DynamicFormItemChoice.test-helpers';
+import { activeChoiceOccurrences, enablePreserveOnSwitch, explicitlySelectedBranch, setupState as setupChoiceState, stashedBranchValues } from './DynamicFormItemChoice.test-helpers';
 
 // These tests exercise the full vee-validate form API (resetForm, resetField, setFieldValue,
 // setValues, validate, validateField, setFieldError, setErrors, submitCount, meta) against a
@@ -259,7 +259,7 @@ describe('component DynamicFormItemChoice form API', () => {
   // resetForm after switching branches
   // ─────────────────────────────────────────────────────────────────────────
   describe('resetForm after switching branches', () => {
-    it('clears values back to initial, with no stale branch value or error left over', async () => {
+    it('returns the choice to its initial selection state, with no stale branch value or error left over', async () => {
       const wrapper = mountExplicitChoice();
       await flushPromises();
 
@@ -280,11 +280,106 @@ describe('component DynamicFormItemChoice form API', () => {
       // selfServe was switched away from before the reset: it stays deselected, its old value
       // does not leak back.
       expect(wrapper.find('[id="pick.selfServe"]').exists()).toBe(false);
-      // Switching branches is local UI state (explicitlySelectedBranch), not form data, so
-      // resetForm does not touch which branch is selected; it only resets guidedRollout's own
-      // value back to its original (empty) initial value, with no stale error.
-      expect((wrapper.find('[id="pick.guidedRollout"]').element as HTMLInputElement).value).toBe('');
+      // A reset re-derives the selection from the freshly reset values, exactly like a fresh
+      // mount: with no initial value in any branch, nothing stays selected, so the explicit
+      // guidedRollout selection does not survive. No stale error either.
+      expect(wrapper.find('[id="pick.guidedRollout"]').exists()).toBe(false);
+      expect(explicitlySelectedBranch(wrapper, 'pick')).toBe(null);
       expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+    });
+
+    it('does not leave two branches selected when initial values preselect a different branch than the one explicitly chosen', async () => {
+      // The checkout regression: initial values preselect `manual` (value-driven), the shopper
+      // explicitly switches to the childless `express` branch (whose computedProps writes a
+      // marker value the way a real template satisfies the branch's required check), submits,
+      // and the app calls resetForm() for the next order. The restored initial values make
+      // `manual` active again; the stale explicit `express` selection must not stay active
+      // alongside it, and express's computedProps must not re-write its marker into the
+      // freshly reset values before the branch unmounts.
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            preserveOnSwitch: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              {
+                name: 'express',
+                fieldOptions: { label: 'Express' },
+                computedProps: [(_thisField: unknown, fieldValue: { value: unknown }) => {
+                  if (fieldValue.value == null)
+                    fieldValue.value = true;
+                }],
+              },
+              {
+                name: 'manual',
+                fieldOptions: { label: 'Manual' },
+                children: [{ name: 'email', fieldOptions: { label: 'Email' } }],
+              },
+            ],
+          }],
+          initialValues: { pick: { manual: { email: 'anna@example.com' } } },
+        },
+      });
+      await flushPromises();
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'manual', index: 0 }]);
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'express', index: 0 }]);
+
+      const formContext = formContextOf(wrapper);
+      formContext.resetForm();
+      await flushPromises();
+      await nextTick();
+      await flushPromises();
+
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'manual', index: 0 }]);
+      expect(explicitlySelectedBranch(wrapper, 'pick')).toBe(null);
+      expect((formContext.values as any).pick.express).toBeUndefined();
+      expect((wrapper.find('[id="pick.manual.email"]').element as HTMLInputElement).value).toBe('anna@example.com');
+    });
+
+    it('drops the preserve-on-switch stash, so a branch filled before the reset re-selects empty afterwards', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: enablePreserveOnSwitch([{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'selfServe', fieldOptions: { label: 'Self Serve' } },
+              { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+            ],
+          }], 'pick'),
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="pick.selfServe"]').setValue('hello');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.guidedRollout-add-choice-button"]').trigger('click');
+      await flushPromises();
+      expect(stashedBranchValues(wrapper, 'pick')).toEqual({ selfServe: 'hello' });
+
+      const formContext = formContextOf(wrapper);
+      formContext.resetForm();
+      await flushPromises();
+      await nextTick();
+      await flushPromises();
+      expect(stashedBranchValues(wrapper, 'pick')).toEqual({});
+
+      // Re-selecting the branch after the reset starts empty: the reset discarded its data, so
+      // nothing pre-reset may be restored from the stash.
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+      expect((wrapper.find('[id="pick.selfServe"]').element as HTMLInputElement).value).toBe('');
     });
   });
 
