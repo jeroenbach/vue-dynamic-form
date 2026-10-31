@@ -81,6 +81,7 @@ export default defineConfig({
             { text: 'Checkout', link: '/examples/checkout' },
             { text: 'Inbox Rules Builder', link: '/examples/inbox-rules' },
             { text: 'Workout Plan Builder', link: '/examples/workout-plan' },
+            { text: 'Run of Show Builder', link: '/examples/run-of-show' },
             { text: 'Client Onboarding Wizard', link: '/examples/advanced' },
           ],
         },
