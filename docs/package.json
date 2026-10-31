@@ -7,7 +7,8 @@
     "dev": "vitepress dev .",
     "build": "vitepress build .",
     "preview": "vitepress preview .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "ci:test": "TZ=Europe/Amsterdam vitest run"
   },
   "dependencies": {
     "@bach.software/vue-dynamic-form": "link:../packages/core",

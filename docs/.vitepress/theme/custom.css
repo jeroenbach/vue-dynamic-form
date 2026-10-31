@@ -66,11 +66,13 @@
   --vp-home-hero-image-filter: blur(44px);
 }
 
-/* The checkout example (/examples/checkout) sets `aside: false` so the two-column
-   form-plus-cart layout can use the space the "On this page" outline normally occupies.
-   Widening the content column itself, rather than relying on the absence of that outline,
-   keeps the layout comfortable at medium viewport widths too. */
-.checkout-page .VPDoc .content-container {
+/* The checkout and workout-plan examples set `aside: false` so their two-column
+   layouts (form-plus-cart, blocks-plus-summary) can use the space the "On this page"
+   outline normally occupies. Widening the content column itself, rather than relying
+   on the absence of that outline, keeps the layout comfortable at medium viewport
+   widths too. */
+.checkout-page .VPDoc .content-container,
+.workout-plan-page .VPDoc .content-container {
   max-width: 1100px;
 }
 

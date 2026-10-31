@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FEAT-009 Workout Plan Builder — design prototype</title>
+<style>
+/* ============================================================
+   Design tokens. Mirror the docs site: VitePress --vp-c-* feel,
+   sky brand, slate neutrals, emerald/amber/rose state colors,
+   indigo position badges. Light is :root, dark is .dark on <html>
+   (exactly how VitePress drives its class-based dark mode).
+   Lifted verbatim from the checkout components and the FEAT-006
+   prototype so this page reads as the same design system.
+   ============================================================ */
+:root {
+  --page-bg: #ffffff;
+  --card-bg: #ffffff;
+  --panel-bg: #f8fafc;        /* slate-50 */
+  --border: #e2e8f0;          /* slate-200 */
+  --border-strong: #cbd5e1;   /* slate-300 */
+  --border-dashed: #cbd5e1;
+  --text: #1e293b;            /* slate-800 */
+  --text-strong: #0f172a;     /* slate-900 */
+  --text-muted: #64748b;      /* slate-500 */
+  --text-faint: #94a3b8;      /* slate-400 */
+  --brand: #0284c7;           /* sky-600 (text/links/labels) */
+  --brand-hover: #0369a1;     /* sky-700 */
+  --btn-bg: #0284c7;          /* solid button bg, white text, both modes */
+  --btn-bg-hover: #0369a1;
+  --brand-ring: #bae6fd;      /* sky-200 */
+  --brand-border: #38bdf8;    /* sky-400 */
+  --badge-bg: #eef2ff;        /* indigo-50 */
+  --badge-text: #4338ca;      /* indigo-700 */
+  --chip-bg: #f1f5f9;         /* slate-100 */
+  --chip-text: #334155;       /* slate-700 */
+  --ok-bg: #ecfdf5; --ok-border: #a7f3d0; --ok-text: #065f46;      /* emerald */
+  --warn-bg: #fffbeb; --warn-border: #fcd34d; --warn-text: #92400e;/* amber */
+  --err-bg: #fef2f2; --err-border: #fca5a5; --err-text: #991b1b;   /* red/rose */
+  --valid-border: #6ee7b7;    /* emerald-300, subtle valid border */
+  --code-bg: #f1f5f9;         /* slate-100 */
+  --shadow: 0 1px 2px 0 rgba(0,0,0,.05);
+  --anno: #94a3b8;
+}
+.dark {
+  --page-bg: #1b1b1f;
+  --card-bg: #0f172a;         /* slate-900 */
+  --panel-bg: #131a2a;
+  --border: #334155;          /* slate-700 */
+  --border-strong: #475569;   /* slate-600 */
+  --border-dashed: #475569;
+  --text: #e2e8f0;            /* slate-200 */
+  --text-strong: #f1f5f9;     /* slate-100 */
+  --text-muted: #94a3b8;      /* slate-400 */
+  --text-faint: #64748b;      /* slate-500 */
+  --brand: #38bdf8;           /* sky-400 for readable text on dark */
+  --brand-hover: #0ea5e9;
+  --btn-bg: #0284c7;          /* solid button stays sky-600 in dark too */
+  --btn-bg-hover: #0369a1;
+  --brand-ring: #0c4a6e;      /* sky-900 */
+  --brand-border: #0ea5e9;
+  --badge-bg: #312e81;        /* indigo-900 */
+  --badge-text: #c7d2fe;      /* indigo-200 */
+  --chip-bg: #1e293b;         /* slate-800 */
+  --chip-text: #cbd5e1;       /* slate-300 */
+  --ok-bg: #022c22; --ok-border: #065f46; --ok-text: #a7f3d0;
+  --warn-bg: #451a03; --warn-border: #b45309; --warn-text: #fde68a;
+  --err-bg: #4c0519; --err-border: #be123c; --err-text: #fecdd3;
+  --valid-border: #065f46;
+  --code-bg: #0b1222;
+  --shadow: 0 1px 2px 0 rgba(0,0,0,.4);
+  --anno: #64748b;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--page-bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+  transition: background .2s, color .2s;
+}
+.wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 120px; }
+
+h1 { font-size: 2rem; font-weight: 700; color: var(--text-strong); margin: 0 0 .5rem; }
+h2 { font-size: 1.4rem; font-weight: 700; color: var(--text-strong); margin: 0 0 .5rem; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--text-strong); margin: 1.5rem 0 .5rem; }
+p { margin: 0 0 1rem; }
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .85em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+strong { color: var(--text-strong); }
+
+/* Section dividers so every screen is clearly separated and anchored. */
+.divider {
+  margin: 56px 0 24px; padding-top: 10px;
+  border-top: 2px dashed var(--border-strong);
+  display: flex; align-items: center; gap: 10px;
+}
+.divider .tag {
+  font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-faint); background: var(--panel-bg);
+  border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px;
+}
+.divider .id { font-family: monospace; font-size: .72rem; color: var(--anno); }
+
+.anno {
+  font-size: .72rem; color: var(--anno); font-style: italic;
+  display: block; margin: 4px 0 12px;
+}
+.anno::before { content: "↳ "; }
+
+/* Toggle button */
+.theme-toggle {
+  position: fixed; top: 16px; right: 16px; z-index: 50;
+  background: var(--card-bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 999px; padding: 8px 14px; font-size: .8rem; font-weight: 600;
+  cursor: pointer; box-shadow: var(--shadow); display: inline-flex; gap: 6px; align-items: center;
+}
+.theme-toggle:hover { border-color: var(--border-strong); }
+
+/* Callouts (VitePress ::: tip / warning) */
+.callout { border-radius: 8px; padding: 14px 16px; margin: 0 0 20px; font-size: .9rem; border: 1px solid; }
+.callout .title { font-weight: 700; display: block; margin-bottom: 4px; }
+.callout.tip { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok-text); }
+.callout.warning { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-text); }
+.callout.info { background: var(--badge-bg); border-color: var(--border); color: var(--text); }
+
+/* Cards */
+.card {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 24px; box-shadow: var(--shadow);
+}
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.card-head h2 { font-size: 1.15rem; margin: 0; }
+.card-head p { font-size: .85rem; color: var(--text-muted); margin: 2px 0 0; }
+.count-tag {
+  flex: none; background: var(--badge-bg); color: var(--badge-text);
+  border-radius: 999px; padding: 2px 10px; font-size: .72rem; font-weight: 700; white-space: nowrap;
+}
+
+/* Two-column layout (block list + summary rail). Mirrors checkout-layout. */
+.layout { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 24px; align-items: start; }
+.rail { position: sticky; top: 24px; }
+@media (max-width: 1023px) {
+  .layout { grid-template-columns: 1fr; }
+  .rail { position: static; }
+  .rail-slot { order: -1; }   /* summary lifts above the list on collapse, like the checkout cart rail */
+}
+
+/* Add-block toolbar */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;
+  padding: 8px 12px; font-size: .82rem; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--card-bg); color: var(--text);
+  transition: background .15s, border-color .15s;
+}
+.btn:hover { border-color: var(--text-faint); background: var(--panel-bg); }
+.btn.primary { background: var(--btn-bg); border-color: var(--btn-bg); color: #fff; }
+.btn.primary:hover { background: var(--btn-bg-hover); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn .ico { font-size: 1rem; line-height: 1; }
+
+/* Block row */
+.blocks { display: flex; flex-direction: column; gap: 14px; }
+.block {
+  display: flex; gap: 16px; align-items: flex-start;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+}
+.block.is-warn { border-color: var(--warn-border); }
+.block.is-blocked { border-color: var(--err-border); }
+.block-order { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: none; }
+.badge {
+  display: grid; place-items: center; height: 28px; width: 28px; border-radius: 999px;
+  background: var(--badge-bg); color: var(--badge-text); font-size: .75rem; font-weight: 700;
+}
+.reorder { display: flex; flex-direction: column; gap: 2px; }
+.icon-btn {
+  display: grid; place-items: center; height: 24px; width: 24px; border: none; border-radius: 6px;
+  background: transparent; color: var(--text-muted); cursor: pointer; font-size: .9rem; line-height: 1;
+}
+.icon-btn:hover { background: var(--panel-bg); color: var(--text-strong); }
+.icon-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+.block-body { flex: 1 1 auto; min-width: 0; }
+.block-kind { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--brand); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .field-grid { grid-template-columns: 1fr; } }
+.field-grid.single { grid-template-columns: 1fr; max-width: 260px; }
+.span-2 { grid-column: 1 / -1; }
+
+.remove-btn {
+  flex: none; display: grid; place-items: center; height: 32px; width: 32px; border-radius: 6px;
+  background: transparent; border: none; color: var(--err-text); cursor: pointer; font-size: 1rem;
+}
+.remove-btn:hover { background: var(--err-bg); }
+.remove-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* Form fields */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: .82rem; font-weight: 600; color: var(--text); display: flex; justify-content: space-between; }
+.field label .req { font-size: .7rem; font-weight: 500; color: var(--text-faint); }
+.field label .req.required { color: var(--err-text); }
+.input, .select {
+  height: 40px; width: 100%; border-radius: 8px; padding: 8px 12px; font-size: .88rem;
+  background: var(--card-bg); color: var(--text-strong); border: 1px solid var(--border-strong);
+  transition: border-color .15s, box-shadow .15s;
+}
+.input::placeholder { color: var(--text-faint); }
+.input:focus, .select:focus { outline: none; border-color: var(--brand-border); box-shadow: 0 0 0 3px var(--brand-ring); }
+.input.is-valid { border-color: var(--valid-border); }
+.input.is-invalid { border-color: var(--err-border); box-shadow: 0 0 0 3px var(--err-bg); }
+.input:disabled, .select:disabled { background: var(--panel-bg); color: var(--text-faint); cursor: not-allowed; }
+.field-err { font-size: .76rem; color: var(--err-text); }
+.field-hint { font-size: .76rem; color: var(--text-muted); }
+.unit-row { display: grid; grid-template-columns: 1fr 72px; gap: 8px; align-items: center; }
+.unit-row .suffix { font-size: .82rem; color: var(--text-muted); }
+
+/* Empty block list */
+.empty-state {
+  display: grid; place-items: center; text-align: center; gap: 4px;
+  border: 1px dashed var(--border-dashed); border-radius: 12px; background: var(--panel-bg);
+  padding: 32px 24px; color: var(--text-muted); font-size: .9rem;
+}
+
+/* Summary rail (model: OrderSummary.vue) */
+.summary { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.summary h3 { margin: 0 0 2px; font-size: 1rem; }
+.summary .sub { font-size: .76rem; color: var(--text-muted); margin: 0 0 14px; }
+.summary-sec { padding: 12px 0; border-top: 1px solid var(--border); }
+.summary-sec:first-of-type { border-top: none; padding-top: 0; }
+.summary-sec h4 { margin: 0 0 8px; font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); }
+.total-row { display: flex; justify-content: space-between; align-items: baseline; }
+.total-row .big { font-size: 1.6rem; font-weight: 700; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.total-row .unit { font-size: .8rem; color: var(--text-muted); }
+.profile { display: flex; flex-direction: column; gap: 5px; font-size: .82rem; }
+.profile .row { display: flex; justify-content: space-between; color: var(--text); }
+.profile .row .k { color: var(--text-muted); }
+.profile .row .v { font-variant-numeric: tabular-nums; }
+/* intensity dot sequence (Q5 optional visual, shown muted as what a small visual would add) */
+.dots { display: inline-flex; gap: 3px; vertical-align: middle; }
+.dot { height: 9px; width: 9px; border-radius: 999px; background: var(--border-strong); }
+.dot.low { background: #93c5fd; }      /* blue-300 */
+.dot.mod { background: #fbbf24; }      /* amber-400 */
+.dot.high { background: #fb7185; }     /* rose-400 */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--chip-bg); color: var(--chip-text); border-radius: 999px; padding: 3px 10px; font-size: .74rem; font-weight: 600; }
+.chip.empty { background: transparent; color: var(--text-faint); font-style: italic; font-weight: 400; padding-left: 0; }
+
+/* Violations list */
+.viol { display: flex; gap: 8px; align-items: flex-start; font-size: .8rem; padding: 7px 0; }
+.viol + .viol { border-top: 1px dashed var(--border); }
+.viol .mark { flex: none; line-height: 1.4; }
+.viol.ok { color: var(--ok-text); }
+.viol.warn .mark { color: var(--warn-text); }
+.viol.warn .txt strong { color: var(--text-strong); }
+.viol .ref { color: var(--badge-text); background: var(--badge-bg); border-radius: 4px; padding: 0 5px; font-weight: 700; font-size: .72rem; }
+
+/* Inline row warning badge */
+.inline-badge {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;
+  padding: 3px 9px; font-size: .72rem; font-weight: 600; margin-top: 8px;
+}
+.inline-badge.warn { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
+.inline-badge.err { background: var(--err-bg); color: var(--err-text); border: 1px solid var(--err-border); }
+.block-banner {
+  display: flex; align-items: flex-start; gap: 10px; border-radius: 8px; padding: 12px 14px;
+  background: var(--err-bg); border: 1px solid var(--err-border); color: var(--err-text); font-size: .85rem;
+  margin-top: 16px;
+}
+
+/* Submit zone */
+.submit-zone { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+.submit-btn {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px;
+  background: var(--btn-bg); color: #fff; border: none; border-radius: 8px;
+  padding: 12px 20px; font-size: .9rem; font-weight: 700; cursor: pointer;
+}
+.submit-btn:hover { background: var(--btn-bg-hover); }
+.submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+.success-banner {
+  display: flex; align-items: center; gap: 10px; border-radius: 12px; padding: 14px 16px;
+  background: var(--ok-bg); border: 1px solid var(--ok-border); color: var(--ok-text); font-size: .9rem;
+}
+
+/* State gallery grid */
+.states-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 680px) { .states-grid { grid-template-columns: 1fr; } }
+.state-cell { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: var(--card-bg); }
+.state-cell .state-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); margin-bottom: 10px; }
+
+/* Code block for metadata walkthrough */
+pre.code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; overflow: auto; font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: .78rem; line-height: 1.55; color: var(--text); margin: 0 0 16px;
+}
+.file-label { font-size: .72rem; color: var(--text-faint); font-family: monospace; margin-bottom: -8px; }
+ul.spaced li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+  <span id="toggleIcon">🌙</span><span id="toggleText">Dark</span>
+</button>
+
+<div class="wrap">
+
+  <!-- ============================================================
+       SECTION 1: NARRATIVE INTRO
+       ============================================================ -->
+  <div class="divider" style="margin-top:0;border-top:none;">
+    <span class="tag">Section 1 — Narrative intro</span><span class="id">#page-intro</span>
+  </div>
+  <section id="page-intro">
+    <h1>Workout Plan Builder</h1>
+    <p class="anno">Working slug <code>/examples/workout-plan</code>, working title "Workout Plan Builder" (Open question 1; nav placement relative to Choices / Checkout / FEAT-006 / FEAT-008 still Jeroen's). Page sets <code>aside:false</code> and a <code>pageClass</code>, widening the content column to ~1100px, exactly like the checkout page.</p>
+    <p>
+      A good session is not just a bag of exercises, it is an <strong>order</strong>. You warm up before you
+      lift. You train the big compound movements while you are freshest, then the smaller isolation work.
+      You finish with a cooldown. Shuffle those blocks and you have not just rearranged a list, you have
+      changed the workout. The order <em>is</em> the plan.
+    </p>
+    <p>
+      The builder below is a single repeatable ordered <code>choice</code>: one metadata tree, one template,
+      no bespoke engine code. Each row is a block, with genuinely different fields per block type. Move a
+      block up or down and the live summary on the right recomputes, and the convention checks below flag or
+      clear a violation, from the reorder alone, with no field edit.
+    </p>
+    <div class="callout info">
+      <span class="title">Where these rules come from</span>
+      The ordering conventions this page checks (warm up first, compound movements before isolation
+      movements, do the most demanding work while freshest, cool down last) are common published coaching
+      guidance, cited below the way the checkout cites Baymard and Shopify. One deliberate, published
+      exception, pre-exhaustion training, is called out honestly next to the compound-before-isolation rule.
+    </div>
+    <div class="callout warning">
+      <span class="title">Not training advice</span>
+      This is a library demo, not a coach. The conventions reflect common convention, not a guarantee of a
+      correct or safe program for any individual. Nothing you build here is saved anywhere: no account, no
+      storage, no history. It lives only in the form's own in-memory values.
+    </div>
+    <p class="anno">Two VitePress callouts: an <code>info</code> block sourcing the rules (mirrors checkout's Baymard/Shopify sourcing) and a <code>warning</code> block carrying the medical + no-persistence disclaimers from the spec's Disclaimers paragraph.</p>
+  </section>
+
+  <!-- ============================================================
+       SECTION 2: THE LIVE FORM (block list + summary rail)
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 2 — The live builder</span><span class="id">#live-form</span>
+  </div>
+  <p class="anno">Two-column grid: block list (fluid) + summary rail (340px, sticky). Collapses to one column below 1024px; the summary then lifts above the list (<code>order:-1</code>), exactly as the checkout lifts its cart rail, so the reorder payoff stays visible. Default state below shows a clean six-block plan with no violations.</p>
+
+  <section id="live-form" class="layout">
+    <!-- LEFT: block list -->
+    <div>
+      <div class="card" style="padding:20px;">
+        <div class="card-head">
+          <div>
+            <h2>Your plan</h2>
+            <p>Performed top to bottom. Reorder blocks with the up and down controls.</p>
+          </div>
+          <span class="count-tag">6 of 12</span>
+        </div>
+
+        <p class="anno">Add-block toolbar: one button per block type (model: ChoiceArraySectionCard's one-Add-per-branch). Each calls <code>addChoiceOccurrence(branchKey)</code>, appending a block at the end. Buttons disable when the shared choice budget is exhausted, or (working assumption, Open question 3) when a per-type cap is reached: at most one Warm-up and one Cooldown via <code>maxOccursTotal: 1</code>.</p>
+        <div class="toolbar">
+          <button class="btn primary"><span class="ico">+</span> Warm-up</button>
+          <button class="btn primary"><span class="ico">+</span> Strength exercise</button>
+          <button class="btn primary"><span class="ico">+</span> Cardio</button>
+          <button class="btn primary"><span class="ico">+</span> Cooldown / stretch</button>
+        </div>
+
+        <p class="anno">Each block: position badge (engine <code>globalIndex + 1</code>), up/down reorder (ghost icon buttons, boundary buttons disabled), the fields for that block type, and a remove button. Reorder writes the two affected occurrences' <code>order</code> values directly, exactly as SplitPaymentLedgerRow does. No per-block "action" footer, unlike the inbox-rules sibling: a workout block has no "then".</p>
+
+        <div class="blocks">
+          <!-- Block 1: Warm-up (childful, single duration) -->
+          <article class="block">
+            <div class="block-order">
+              <span class="badge">1</span>
+              <div class="reorder">
+                <button class="icon-btn" disabled aria-label="Move block up">▲</button>
+                <button class="icon-btn" aria-label="Move block down">▼</button>
+              </div>
+            </div>
+            <div class="block-body">
+              <div class="block-kind">🔥 Warm-up</div>
+              <div class="field-grid single">
+                <div class="field">
+                  <label>Duration <span class="req required">required</span></label>
+                  <div class="unit-row">
+                    <input class="input is-valid" type="number" value="10">
+                    <span class="suffix">min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove block">🗑</button>
+          </article>
+
+          <!-- Block 2: Strength (compound) -->
+          <article class="block">
+            <div class="block-order">
+              <span class="badge">2</span>
+              <div class="reorder">
+                <button class="icon-btn" aria-label="Move block up">▲</button>
+                <button class="icon-btn" aria-label="Move block down">▼</button>
+              </div>
+            </div>
+            <div class="block-body">
+              <div class="block-kind">🏋️ Strength exercise</div>
+              <div class="field-grid">
+                <div class="field span-2">
+                  <label>Exercise name <span class="req required">required</span></label>
+                  <input class="input is-valid" type="text" value="Barbell back squat">
+                </div>
+                <div class="field">
+                  <label>Muscle group <span class="req required">required</span></label>
+                  <select class="select"><option>Legs</option><option>Chest</option><option>Back</option><option>Shoulders</option><option>Arms</option><option>Core</option></select>
+                </div>
+                <div class="field">
+                  <label>Movement type <span class="req required">required</span></label>
+                  <select class="select"><option>Compound</option><option>Isolation</option></select>
+                </div>
+                <div class="field">
+                  <label>Sets <span class="req required">required</span></label>
+                  <input class="input is-valid" type="number" value="4">
+                </div>
+                <div class="field">
+                  <label>Reps <span class="req required">required</span></label>
+                  <input class="input is-valid" type="number" value="6">
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove block">🗑</button>
+          </article>
+
+          <!-- Block 3: Strength (compound) -->
+          <article class="block">
+            <div class="block-order">
+              <span class="badge">3</span>
+              <div class="reorder">
+                <button class="icon-btn" aria-label="Move block up">▲</button>
+                <button class="icon-btn" aria-label="Move block down">▼</button>
+              </div>
+            </div>
+            <div class="block-body">
+              <div class="block-kind">🏋️ Strength exercise</div>
+              <div class="field-grid">
+                <div class="field span-2">
+                  <label>Exercise name <span class="req required">required</span></label>
+                  <input class="input is-valid" type="text" value="Bench press">
+                </div>
+                <div class="field">
+                  <label>Muscle group <span class="req required">required</span></label>
+                  <select class="select"><option>Chest</option><option>Legs</option><option>Back</option><option>Shoulders</option><option>Arms</option><option>Core</option></select>
+                </div>
+                <div class="field">
+                  <label>Movement type <span class="req required">required</span></label>
+                  <select class="select"><option>Compound</option><option>Isolation</option></select>
+                </div>
+                <div class="field">
+                  <label>Sets <span class="req required">required</span></label>
+                  <input class="input is-valid" type="number" value="4">
+                </div>
+                <div class="field">
+                  <label>Reps <span class="req required">required</span></label>
+                  <input class="input is-valid" type="number" value="8">
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove block">🗑</button>
+          </article>
+
+          <!-- Block 4: Strength (isolation) -->
+          <article class="block">
+            <div class="block-order">
+              <span class="badge">4</span>
+              <div class="reorder">
+                <button class="icon-btn" aria-label="Move block up">▲</button>
+                <button class="icon-btn" aria-label="Move block down">▼</button>
+              </div>
+            </div>
+            <div class="block-body">
+              <div class="block-kind">🏋️ Strength exercise</div>
+              <div class="field-grid">
+                <div class="field span-2">
+                  <label>Exercise name <span class="req required">required</span></label>
+                  <input class="input is-valid" type="text" value="Seated leg curl">
+                </div>
+                <div class="field">
+                  <label>Muscle group <span class="req required">required</span></label>
+                  <select class="select"><option>Hamstrings</option><option>Legs</option><option>Chest</option><option>Back</option><option>Arms</option><option>Core</option></select>
+                </div>
+                <div class="field">
+                  <label>Movement type <span class="req required">required</span></label>
+                  <select class="select"><option>Isolation</option><option>Compound</option></select>
+                </div>
+                <div class="field">
+                  <label>Sets <span class="req required">required</span></label>
+                  <input class="input is-valid" type="number" value="3">
+                </div>
+                <div class="field">
+                  <label>Reps <span class="req required">required</span></label>
+                  <input class="input is-valid" type="number" value="12">
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove block">🗑</button>
+          </article>
+
+          <!-- Block 5: Cardio -->
+          <article class="block">
+            <div class="block-order">
+              <span class="badge">5</span>
+              <div class="reorder">
+                <button class="icon-btn" aria-label="Move block up">▲</button>
+                <button class="icon-btn" aria-label="Move block down">▼</button>
+              </div>
+            </div>
+            <div class="block-body">
+              <div class="block-kind">🚴 Cardio</div>
+              <div class="field-grid">
+                <div class="field">
+                  <label>Type <span class="req required">required</span></label>
+                  <select class="select"><option>Rowing</option><option>Running</option><option>Cycling</option><option>Elliptical</option><option>Jump rope</option></select>
+                </div>
+                <div class="field">
+                  <label>Intensity <span class="req required">required</span></label>
+                  <select class="select"><option>Moderate</option><option>Low</option><option>High</option></select>
+                </div>
+                <div class="field">
+                  <label>Duration <span class="req required">required</span></label>
+                  <div class="unit-row">
+                    <input class="input is-valid" type="number" value="15">
+                    <span class="suffix">min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove block">🗑</button>
+          </article>
+
+          <!-- Block 6: Cooldown -->
+          <article class="block">
+            <div class="block-order">
+              <span class="badge">6</span>
+              <div class="reorder">
+                <button class="icon-btn" aria-label="Move block up">▲</button>
+                <button class="icon-btn" disabled aria-label="Move block down">▼</button>
+              </div>
+            </div>
+            <div class="block-body">
+              <div class="block-kind">🧘 Cooldown / stretch</div>
+              <div class="field-grid single">
+                <div class="field">
+                  <label>Duration <span class="req required">required</span></label>
+                  <div class="unit-row">
+                    <input class="input is-valid" type="number" value="8">
+                    <span class="suffix">min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove block">🗑</button>
+          </article>
+        </div>
+
+        <div class="submit-zone">
+          <p class="anno">Submit gated on the form's aggregate <code>meta.valid</code> (field-level validity only), trustworthy since FEAT-010 landed. The five ordering conventions are order-only and, under the working assumption (Open question 2), non-blocking: they warn in the summary rail and on the row, they do not disable this button. The blocking alternative is shown for reference in Section 4.</p>
+          <button class="submit-btn">Save plan</button>
+          <pre class="code" style="font-size:.72rem;margin-top:4px;">// form values (live), order is real submitted data (preserveOrder: true):
+{
+  "plan": {
+    "warmUp":   [{ "order": 1, "duration": 10 }],
+    "strength": [
+      { "order": 2, "name": "Barbell back squat", "muscle": "legs",       "type": "compound", "sets": 4, "reps": 6 },
+      { "order": 3, "name": "Bench press",         "muscle": "chest",      "type": "compound", "sets": 4, "reps": 8 },
+      { "order": 4, "name": "Seated leg curl",     "muscle": "hamstrings", "type": "isolation","sets": 3, "reps": 12 }
+    ],
+    "cardio":   [{ "order": 5, "kind": "rowing", "intensity": "moderate", "duration": 15 }],
+    "cooldown": [{ "order": 6, "duration": 8 }]
+  }
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: live summary rail -->
+    <aside class="rail rail-slot" id="plan-summary">
+      <div class="summary">
+        <h3>Plan summary</h3>
+        <p class="sub">Computed live from the blocks in their current order. Recomputes on every add, edit, remove, or reorder.</p>
+
+        <div class="summary-sec">
+          <h4>Total duration</h4>
+          <div class="total-row">
+            <span class="big">33</span>
+            <span class="unit">min timed · 6 blocks</span>
+          </div>
+          <p class="field-hint" style="margin-top:4px;">Sum of blocks that carry a duration (warm-up, cardio, cooldown). Strength blocks are counted but not timed.</p>
+        </div>
+
+        <div class="summary-sec">
+          <h4>Intensity profile</h4>
+          <div class="profile">
+            <div class="row"><span class="k">Warm-up</span><span class="v">1 · low</span></div>
+            <div class="row"><span class="k">Strength</span><span class="v">3 blocks</span></div>
+            <div class="row"><span class="k">Cardio</span><span class="v">1 · moderate</span></div>
+            <div class="row"><span class="k">Cooldown</span><span class="v">1 · low</span></div>
+          </div>
+          <p class="anno" style="margin-top:8px;">Q5 working assumption: text-only (counts + labels). A small visual, a low→high dot sequence in session order, would make the rise-and-fall of effort legible at a glance; shown muted below as the opt-in a story could add, not the baseline.<span class="dots" style="margin-left:8px;"><span class="dot low"></span><span class="dot high"></span><span class="dot high"></span><span class="dot high"></span><span class="dot mod"></span><span class="dot low"></span></span></p>
+        </div>
+
+        <div class="summary-sec">
+          <h4>Muscle coverage</h4>
+          <div class="chips">
+            <span class="chip">Legs</span>
+            <span class="chip">Chest</span>
+            <span class="chip">Hamstrings</span>
+          </div>
+          <p class="field-hint" style="margin-top:6px;">Distinct muscle groups across strength blocks.</p>
+        </div>
+
+        <div class="summary-sec">
+          <h4>Convention checks</h4>
+          <div class="viol ok">
+            <span class="mark">✓</span>
+            <span class="txt">All five ordering conventions satisfied.</span>
+          </div>
+        </div>
+      </div>
+      <p class="anno">Summary rail reuses the OrderSummary card shell (bordered, sticky). Default plan is intentionally clean so a reader starts from a valid state and breaks it by reordering. The "Convention checks" block flips to the violations list (Section 4) the instant a rule is violated.</p>
+    </aside>
+  </section>
+
+  <!-- ============================================================
+       SECTION 3: FIELD & BLOCK STATES POLICY
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 3 — States policy</span><span class="id">#block-states</span>
+  </div>
+  <p class="anno">One states policy applied everywhere in the feature. Hover/focus are annotated where they cannot be shown statically. Every colored state uses the shared tokens so light and dark both carry through.</p>
+
+  <section id="block-states">
+    <div class="states-grid">
+      <div class="state-cell">
+        <div class="state-label">Field — pristine</div>
+        <div class="field">
+          <label>Exercise name <span class="req required">required</span></label>
+          <input class="input" type="text" placeholder="e.g. Barbell back squat">
+        </div>
+        <p class="anno">Untouched: neutral border, no success or error color. Placeholder in faint text.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Field — focus</div>
+        <div class="field">
+          <label>Exercise name <span class="req required">required</span></label>
+          <input class="input" style="border-color:var(--brand-border);box-shadow:0 0 0 3px var(--brand-ring);" type="text" value="Romanian deadlift">
+        </div>
+        <p class="anno">Simulated focus ring (sky). Real focus is the browser default plus this ring; keyboard focus is identical.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Field — invalid (xsd_required)</div>
+        <div class="field">
+          <label>Duration <span class="req required">required</span></label>
+          <div class="unit-row">
+            <input class="input is-invalid" type="number" value="">
+            <span class="suffix">min</span>
+          </div>
+          <span class="field-err">Enter a duration in minutes.</span>
+        </div>
+        <p class="anno">Touched + failing: rose border + message below. Duration also fails <code>xsd_minInclusive</code> (must be at least 1) if set to 0 or negative.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Field — valid</div>
+        <div class="field">
+          <label>Reps <span class="req required">required</span></label>
+          <input class="input is-valid" type="number" value="8">
+        </div>
+        <p class="anno">Touched + passing: subtle emerald border, no message. Same convention the checkout template introduced.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Field — disabled</div>
+        <div class="field">
+          <label style="opacity:.6;">Intensity <span class="req">optional</span></label>
+          <select class="select" disabled><option>Moderate</option></select>
+        </div>
+        <p class="anno">No field in this feature is conditionally hidden, so disabled is only used for reorder-boundary buttons and budget-exhausted add buttons. Shown here on a select for completeness.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Reorder controls — boundary</div>
+        <div style="display:flex;gap:16px;align-items:center;">
+          <div class="block-order"><span class="badge">1</span>
+            <div class="reorder">
+              <button class="icon-btn" disabled>▲</button>
+              <button class="icon-btn">▼</button>
+            </div>
+          </div>
+          <span class="field-hint">Top block: up disabled. Bottom block: down disabled.</span>
+        </div>
+        <p class="anno">Hover: ghost buttons tint their background (panel) and darken the glyph. Disabled at 30% opacity, not clickable, never hidden, so the control's position never shifts.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Add toolbar — caps reached</div>
+        <div class="toolbar" style="margin:0;">
+          <button class="btn primary" disabled><span class="ico">+</span> Warm-up</button>
+          <button class="btn primary"><span class="ico">+</span> Strength exercise</button>
+        </div>
+        <span class="count-tag">12 of 12</span>
+        <p class="anno">Two disable reasons, both via <code>canAddChoiceOccurrence</code>: the shared choice budget is full (every button disables, count tag at max), or a per-type cap is reached (Warm-up / Cooldown capped at one each, Open question 3). A disabled button exposes its reason as helper text tied via <code>aria-describedby</code>, exactly as ChoiceArraySectionCard does.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Submitting / loading</div>
+        <button class="submit-btn" disabled>
+          <span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:999px;"></span>
+          Saving…
+        </button>
+        <p class="anno">Spinner reuses the checkout's submit-button pattern. The form itself has no network load state (all data is in-memory); "loading" only ever means the save action.</p>
+      </div>
+    </div>
+
+    <h3>Empty state (no blocks yet)</h3>
+    <p class="anno">Empty state is mandatory. Dashed panel inside the plan card, mirroring the split-payment ledger's empty state. The add toolbar stays visible above it, and the summary rail reads "Add a block to start" with every check neutral.</p>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start;max-width:860px;">
+      <div class="card" style="padding:20px;">
+        <div class="card-head">
+          <div><h2>Your plan</h2><p>Performed top to bottom. Reorder blocks with the up and down controls.</p></div>
+          <span class="count-tag">0 of 12</span>
+        </div>
+        <div class="toolbar">
+          <button class="btn primary"><span class="ico">+</span> Warm-up</button>
+          <button class="btn primary"><span class="ico">+</span> Strength exercise</button>
+          <button class="btn primary"><span class="ico">+</span> Cardio</button>
+          <button class="btn primary"><span class="ico">+</span> Cooldown / stretch</button>
+        </div>
+        <div class="empty-state">
+          <strong style="color:var(--text);">No blocks yet</strong>
+          <span>Add a block above to start building your plan.</span>
+        </div>
+      </div>
+      <div class="summary">
+        <h3>Plan summary</h3>
+        <p class="sub">Add a block to start.</p>
+        <div class="summary-sec"><h4>Total duration</h4><div class="total-row"><span class="big" style="color:var(--text-faint);">0</span><span class="unit">min · 0 blocks</span></div></div>
+        <div class="summary-sec"><h4>Muscle coverage</h4><div class="chips"><span class="chip empty">No strength blocks yet</span></div></div>
+        <div class="summary-sec"><h4>Convention checks</h4><div class="viol ok"><span class="mark">—</span><span class="txt" style="color:var(--text-muted);">Nothing to check yet.</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SECTION 4: CONVENTION-VIOLATION SURFACING
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 4 — Convention-violation surfacing</span><span class="id">#violations</span>
+  </div>
+  <p class="anno">The five order-only rules surface in two coordinated places: the summary rail's "Convention checks" list (names the rule and the offending block by displayed position) and an amber badge on each offending row. Open question 2 decides blocking vs warning; the working assumption below is non-blocking (a plan is not "invalid data"), with the blocking alternative shown for reference.</p>
+
+  <section id="violations">
+    <h3>The five conventions checked</h3>
+    <ul class="spaced" style="font-size:.9rem;">
+      <li><strong>Warm-up first</strong> — a Warm-up block must be the first block (boundary rule).</li>
+      <li><strong>Cooldown last</strong> — a Cooldown / stretch block must be the last block (boundary rule).</li>
+      <li><strong>Compound before isolation</strong> — no compound strength exercise may appear after any isolation strength exercise, anywhere in the list (position-class rule over the whole list).</li>
+      <li><strong>No back-to-back same muscle group</strong> — two consecutive strength exercises must not target the same muscle group.</li>
+      <li><strong>No adjacent high-intensity cardio</strong> — two cardio blocks that are both high intensity must not be adjacent.</li>
+    </ul>
+    <div class="callout warning">
+      <span class="title">One honest exception</span>
+      The compound-before-isolation rule has a well-known, deliberate exception: <strong>pre-exhaustion</strong>
+      training intentionally isolates a muscle first, then hits it with a compound movement. The page names this
+      exception in copy, the same candour the checkout uses for its "ordering is UI-level, not XSD" caveat, so the
+      rule reads as convention with a known override, not an absolute law.
+    </div>
+
+    <h3>Variant A — non-blocking warnings (working assumption)</h3>
+    <p class="anno">An out-of-convention plan is dead-lifting-in-the-wrong-order, not corrupt data, so a warning reads better than a hard error. Submit stays enabled. Only derived display flags are needed, no real <code>validation</code> rules. This is the working assumption pending Open question 2.</p>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start;">
+      <div class="blocks">
+        <!-- Offending: compound after isolation + warm-up no longer first -->
+        <article class="block is-warn">
+          <div class="block-order"><span class="badge">1</span>
+            <div class="reorder"><button class="icon-btn" disabled>▲</button><button class="icon-btn">▼</button></div>
+          </div>
+          <div class="block-body">
+            <div class="block-kind">🏋️ Strength exercise</div>
+            <div class="field-grid">
+              <div class="field span-2"><label>Exercise name</label><input class="input is-valid" value="Seated leg curl"></div>
+              <div class="field"><label>Muscle group</label><select class="select"><option>Hamstrings</option></select></div>
+              <div class="field"><label>Movement type</label><select class="select"><option>Isolation</option></select></div>
+            </div>
+            <span class="inline-badge warn">⚠ A Warm-up should be the first block.</span>
+          </div>
+          <button class="remove-btn">🗑</button>
+        </article>
+        <article class="block is-warn">
+          <div class="block-order"><span class="badge">2</span>
+            <div class="reorder"><button class="icon-btn">▲</button><button class="icon-btn">▼</button></div>
+          </div>
+          <div class="block-body">
+            <div class="block-kind">🏋️ Strength exercise</div>
+            <div class="field-grid">
+              <div class="field span-2"><label>Exercise name</label><input class="input is-valid" value="Bench press"></div>
+              <div class="field"><label>Muscle group</label><select class="select"><option>Chest</option></select></div>
+              <div class="field"><label>Movement type</label><select class="select"><option>Compound</option></select></div>
+            </div>
+            <span class="inline-badge warn">⚠ Compound movement after an isolation movement (block 1).</span>
+          </div>
+          <button class="remove-btn">🗑</button>
+        </article>
+      </div>
+
+      <div class="summary">
+        <h3>Plan summary</h3>
+        <p class="sub">2 conventions need attention.</p>
+        <div class="summary-sec">
+          <h4>Convention checks</h4>
+          <div class="viol warn">
+            <span class="mark">⚠</span>
+            <span class="txt"><strong>Warm-up first.</strong> No Warm-up at the top of the plan. <span class="ref">block 1</span></span>
+          </div>
+          <div class="viol warn">
+            <span class="mark">⚠</span>
+            <span class="txt"><strong>Compound before isolation.</strong> "Bench press" (compound) follows "Seated leg curl" (isolation). <span class="ref">block 2</span></span>
+          </div>
+        </div>
+        <p class="anno" style="margin:10px 0 0;">Each violation names the rule in bold, the plain-language reason, and the offending block by displayed position. A story deep-links the rail via <code>#plan-summary</code>.</p>
+      </div>
+    </div>
+
+    <h3>Variant B — blocking error (alternative)</h3>
+    <p class="anno">If Jeroen decides some conventions must block (e.g. only the two boundary rules, mirroring the checkout's blocking coverage gate), the offending row border and badge turn rose and a banner gates submit. This needs a real hidden-vehicle-leaf <code>validation</code> rule per blocking convention; Variant A needs only derived display flags. Shown so architecture can cost both, and so Open question 2 can be answered per-rule (e.g. boundary rules block, the rest warn).</p>
+    <div class="blocks" style="max-width:640px;">
+      <article class="block is-blocked">
+        <div class="block-order"><span class="badge">6</span>
+          <div class="reorder"><button class="icon-btn">▲</button><button class="icon-btn" disabled>▼</button></div>
+        </div>
+        <div class="block-body">
+          <div class="block-kind">🏋️ Strength exercise</div>
+          <div class="field-grid">
+            <div class="field span-2"><label>Exercise name</label><input class="input is-valid" value="Bicep curl"></div>
+            <div class="field"><label>Muscle group</label><select class="select"><option>Arms</option></select></div>
+            <div class="field"><label>Movement type</label><select class="select"><option>Isolation</option></select></div>
+          </div>
+          <span class="inline-badge err">⛔ A Cooldown / stretch must be the last block.</span>
+        </div>
+        <button class="remove-btn">🗑</button>
+      </article>
+    </div>
+    <div class="block-banner" style="max-width:640px;">
+      <span>⛔</span>
+      <div><strong>Plan ends on a working set.</strong> Move the Cooldown / stretch block to the end to save this plan.</div>
+    </div>
+    <button class="submit-btn" disabled style="margin-top:12px;">Save plan</button>
+  </section>
+
+  <!-- ============================================================
+       SECTION 5: THE REORDER PAYOFF (before / after)
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 5 — The reorder payoff</span><span class="id">#reorder-payoff</span>
+  </div>
+  <p class="anno">The page's whole point, shown as a before/after. Moving the isolation "Seated leg curl" above the compound "Bench press" breaks the compound-before-isolation convention, from the reorder alone, no field edit. In the live form this is one click of a chevron; the engine's <code>renderedChoiceOccurrences</code> re-sorts with no remount and the summary recomputes.</p>
+
+  <section id="reorder-payoff" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="summary">
+      <h3>Before — compounds first</h3>
+      <p class="sub">Order: squat (C), bench (C), leg curl (I).</p>
+      <div class="profile" style="margin-bottom:12px;">
+        <div class="row"><span class="k">Block 2</span><span class="v">Bench press · compound</span></div>
+        <div class="row"><span class="k">Block 3</span><span class="v">Seated leg curl · isolation</span></div>
+      </div>
+      <div class="viol ok"><span class="mark">✓</span><span class="txt">Compound before isolation: satisfied.</span></div>
+    </div>
+    <div class="summary">
+      <h3>After — leg curl moved up</h3>
+      <p class="sub">Order: squat (C), leg curl (I), bench (C).</p>
+      <div class="profile" style="margin-bottom:12px;">
+        <div class="row"><span class="k">Block 2</span><span class="v">Seated leg curl · isolation</span></div>
+        <div class="row"><span class="k">Block 3</span><span class="v">Bench press · compound</span></div>
+      </div>
+      <div class="viol warn"><span class="mark">⚠</span><span class="txt"><strong>Compound before isolation.</strong> "Bench press" now follows an isolation movement. <span class="ref">block 3</span></span></div>
+    </div>
+  </section>
+  <p class="anno" style="margin-top:12px;">Same blocks, same field values, different order, different validity. The "order is the plan" claim becomes concrete here. Because every branch declares at least a duration child, <code>preserveOrder: true</code> applies and the order survives reload as real submitted data; nothing in this design depends visually on that choice.</p>
+
+  <!-- ============================================================
+       SECTION 6: METADATA WALKTHROUGH
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 6 — Metadata walkthrough</span><span class="id">#metadata-walkthrough</span>
+  </div>
+  <p class="anno">Below the live form, matching the structure of /examples/checkout and /examples/advanced: short in-page nav (because aside:false removes the outline), region excerpts via VitePress <code>&lt;&lt;&lt;</code>, then What It Demonstrates / How It Works / Related Source. Rendered here as static mock-ups of those blocks.</p>
+
+  <section id="metadata-walkthrough">
+    <h2>One metadata tree, one template</h2>
+    <p>Everything above is declarative. The engine walks the tree, classifies each node by its shape, and renders it through the neutral template. This section walks the metadata behind it.</p>
+
+    <ul class="spaced" style="font-size:.9rem;">
+      <li><a href="#the-plan-choice">The plan, a repeatable ordered choice</a></li>
+      <li><a href="#block-branches">Four block types, four shapes</a></li>
+      <li><a href="#reorder-control">The reorder control</a></li>
+      <li><a href="#summary-module">The live summary module</a></li>
+      <li><a href="#convention-checks">The convention checks</a></li>
+    </ul>
+
+    <h3 id="the-plan-choice">The plan, a repeatable ordered choice</h3>
+    <p>The whole form is one node: <code>maxOccurs &gt; 1</code> combined with a <code>choice</code>, in explicit selection mode, rendered in add-order with a persisted <code>order</code> the reorder control can write.</p>
+    <div class="file-label">WorkoutPlanExample.vue</div>
+    <pre class="code">{
+  name: 'plan',
+  minOccurs: 0,                  // an empty plan is a valid, mandatory empty state (Q3)
+  maxOccurs: 12,                 // a reasonable ceiling (Q3)
+  explicitChoiceSelection: true,
+  displayOrder: 'added',         // render in session add-order
+  preserveOrder: true,           // every branch has children, so order is persisted data
+  fieldOptions: { label: 'Your plan' },
+  choice: [ warmUp, strength, cardio, cooldown ],
+}</pre>
+
+    <h3 id="block-branches">Four block types, four shapes</h3>
+    <p>Each branch is a genuinely different block, not a cosmetic relabel: two single-duration branches, a five-field strength branch, and a three-field cardio branch. All four declare <code>children</code>, so <code>preserveOrder</code> stays on for the whole choice.</p>
+    <div class="file-label">WorkoutPlanExample.vue</div>
+    <pre class="code">const warmUp = {
+  name: 'warmUp', fieldOptions: { label: 'Warm-up' },
+  maxOccursTotal: 1,             // at most one Warm-up (Q3)
+  children: [
+    { name: 'duration', type: 'number', validation: ['xsd_required'],
+      restriction: { minInclusive: 1 } },
+  ],
+};
+
+const strength = {
+  name: 'strength', fieldOptions: { label: 'Strength exercise' },
+  children: [
+    { name: 'name',   type: 'text',   validation: ['xsd_required'] },
+    { name: 'muscle', type: 'select', fieldOptions: { options: MUSCLE_GROUPS },
+      validation: ['xsd_required'] },
+    { name: 'type',   type: 'select', fieldOptions: { options: ['compound', 'isolation'] },
+      validation: ['xsd_required'] },
+    { name: 'sets',   type: 'number', validation: ['xsd_required'], restriction: { minInclusive: 1 } },
+    { name: 'reps',   type: 'number', validation: ['xsd_required'], restriction: { minInclusive: 1 } },
+  ],
+};
+
+const cardio = {
+  name: 'cardio', fieldOptions: { label: 'Cardio' },
+  children: [
+    { name: 'kind',      type: 'select', fieldOptions: { options: CARDIO_TYPES }, validation: ['xsd_required'] },
+    { name: 'intensity', type: 'select', fieldOptions: { options: ['low', 'moderate', 'high'] }, validation: ['xsd_required'] },
+    { name: 'duration',  type: 'number', validation: ['xsd_required'], restriction: { minInclusive: 1 } },
+  ],
+};
+
+const cooldown = {
+  name: 'cooldown', fieldOptions: { label: 'Cooldown / stretch' },
+  maxOccursTotal: 1,             // at most one Cooldown (Q3)
+  children: [
+    { name: 'duration', type: 'number', validation: ['xsd_required'], restriction: { minInclusive: 1 } },
+  ],
+};</pre>
+    <p class="anno">Note for the architect: no branch field is named <code>order</code>, so there is no collision with <code>preserveOrder</code>'s written <code>order</code> child (the dev-mode warning never fires). Units are minutes only (Open question 4). Per-type caps (<code>maxOccursTotal: 1</code> on Warm-up and Cooldown) are the working assumption for Open question 3.</p>
+
+    <h3 id="reorder-control">The reorder control</h3>
+    <p>The up/down buttons write the two affected occurrences' <code>order</code> values directly through <code>useFormContext().setFieldValue</code>, exactly as <code>SplitPaymentLedgerRow</code> does. The engine's <code>renderedChoiceOccurrences</code> re-sorts with no remount.</p>
+
+    <h3 id="summary-module">The live summary module</h3>
+    <p>A small, pure, synchronous TypeScript module (model: <code>splitPaymentLedgerMath.ts</code>) takes the blocks in displayed order and returns the summary figures and the violations. A template-level computed reads the form's values through vee-validate's own context, not <code>computedProps</code>, and feeds the summary rail.</p>
+    <div class="file-label">workoutPlanMath.ts</div>
+    <pre class="code">export function summarizePlan(blocks: Block[]): PlanSummary {
+  return {
+    totalDuration: blocks.reduce((m, b) => m + (b.duration ?? 0), 0),
+    profile:       countByTypeAndIntensity(blocks),
+    muscleGroups:  distinctMuscles(blocks),   // strength blocks only
+    violations:    checkConventions(blocks),  // order-only rules, see below
+  };
+}
+
+export function checkConventions(blocks: Block[]): Violation[] {
+  const v: Violation[] = [];
+  if (blocks.length &amp;&amp; blocks[0].kind !== 'warmUp')
+    v.push({ rule: 'warmUpFirst', atIndex: 0 });
+  // ...cooldownLast, compoundBeforeIsolation (scan for first isolation,
+  //    flag any later compound), noBackToBackMuscle, noAdjacentHighCardio
+  return v;
+}</pre>
+
+    <h3 id="convention-checks">The convention checks</h3>
+    <p>Five order-only checks, each reorder-fixable. Under the working assumption (Open question 2) they are derived display flags surfaced in the summary rail and on the offending rows; they do not block submit. If a rule must block, it becomes a hidden-leaf <code>validation</code> rule re-triggered the way the checkout's <code>splitPaymentCoverage</code> is (its <code>createTransitionTracker</code> helper is gone since FEAT-010, so avoid validating an empty required field at mount). Submit itself is gated only on the form's aggregate <code>meta.valid</code> (field-level validity), trustworthy since FEAT-010.</p>
+
+    <h2 style="margin-top:32px;">What It Demonstrates</h2>
+    <ul class="spaced" style="font-size:.92rem;">
+      <li>A repeatable ordered <code>choice</code> (<code>maxOccurs &gt; 1</code> + <code>explicitChoiceSelection</code> + <code>displayOrder: 'added'</code> + <code>preserveOrder</code>) as the entire form, not a footnote.</li>
+      <li>Four block types with genuinely different field shapes, all childful.</li>
+      <li>Per-type caps via <code>maxOccursTotal</code> (one Warm-up, one Cooldown) alongside the shared choice budget.</li>
+      <li>Position badges from <code>globalIndex + 1</code>, and up/down reordering that writes the affected <code>order</code> values directly.</li>
+      <li>A live summary rail (duration, intensity profile, muscle coverage, violations) that recomputes on every reorder.</li>
+      <li>Five cross-row, order-only convention checks that a reorder alone satisfies or violates.</li>
+    </ul>
+
+    <h2>How It Works</h2>
+    <p style="font-size:.92rem;">The plan is a <code>choice</code> with <code>maxOccurs &gt; 1</code> and <code>explicitChoiceSelection</code>. Each Add button pushes an occurrence into its branch's field array; reordering rewrites two <code>order</code> values and the engine re-sorts <code>renderedChoiceOccurrences</code> with no remount. The summary and the violations come from a pure module read through vee-validate's <code>useFormContext</code>, not <code>computedProps</code>. Submit is gated on the form's aggregate <code>meta.valid</code>, trustworthy since FEAT-010. No new engine primitive is involved.</p>
+
+    <h2>Related Source</h2>
+    <ul class="spaced" style="font-size:.92rem;">
+      <li>WorkoutPlanExample.vue (the metadata tree + host)</li>
+      <li>WorkoutPlanTemplate.vue (this page's own neutral template)</li>
+      <li>WorkoutBlockRow.vue (the order badge + up/down reorder + remove row)</li>
+      <li>workoutPlanMath.ts (the pure summary + convention module)</li>
+      <li><a href="#">/examples/choices</a> for the repeatable ordered choice mechanics this page specializes</li>
+      <li><a href="#">/examples/checkout</a> split-payment section, the other existing demonstration of the shape</li>
+    </ul>
+    <p class="anno">Cross-links are one-directional from this new page only; they do not modify FEAT-001/FEAT-002 artifacts. Relationship and cross-linking to FEAT-006 (inbox rules) and FEAT-008 (wedding run-of-show) in nav and copy is Open question 6.</p>
+  </section>
+
+</div>
+
+<script>
+  // Light/dark toggle, driving the .dark class on <html> exactly like VitePress.
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('themeToggle');
+    var icon = document.getElementById('toggleIcon');
+    var text = document.getElementById('toggleText');
+    function apply(dark) {
+      root.classList.toggle('dark', dark);
+      icon.textContent = dark ? '☀️' : '🌙';
+      text.textContent = dark ? 'Light' : 'Dark';
+    }
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    apply(prefersDark);
+    btn.addEventListener('click', function () {
+      apply(!root.classList.contains('dark'));
+    });
+  })();
+</script>
+</body>
+</html>

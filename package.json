@@ -3,7 +3,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "postinstall": "(cd docs && pnpm i) & (cd playgrounds/storybook && pnpm i)",
+    "postinstall": "(cd docs && pnpm i) & (cd playgrounds/storybook && pnpm i) & wait",
     "dev": "pnpm build:watch & pnpm --prefix playgrounds/storybook dev",
     "storybook": "pnpm --prefix playgrounds/storybook dev",
     "docs:dev": "pnpm --prefix docs dev",
@@ -15,10 +15,10 @@
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "ci": "pnpm -r ci",
+    "ci": "pnpm -r ci && pnpm --prefix docs ci:test",
     "ci:lint": "pnpm -r ci:lint",
-    "ci:test": "pnpm -r ci:test",
-    "ci:test:coverage": "pnpm -r ci:test:coverage",
+    "ci:test": "pnpm -r ci:test && pnpm --prefix docs ci:test",
+    "ci:test:coverage": "pnpm -r ci:test:coverage && pnpm --prefix docs ci:test",
     "ci:typecheck": "pnpm -r ci:typecheck",
     "ci:build": "pnpm -r ci:build",
     "changeset": "changeset"
