@@ -2,7 +2,7 @@
 id: ST-01
 type: story
 feature: FEAT-006
-status: approved
+status: done
 approved_by: Jeroen
 pr: ""
 ---
@@ -147,5 +147,73 @@ Status set to `awaiting-approval`: no blocker, no unresolved Open question (the 
 ## Implementation notes
 Filled by developer during implementation: deviations from plan and why. Deviations that affect the feature design/architecture are also propagated to the feature spec.
 
+Built: `InboxRulesExample.vue` (host, metadata tree, `useDynamicForm`, submit skeleton gated on `meta.valid`), `InboxRulesTemplate.vue` (the `defineMetadata` contract and slot wiring), `InboxRuleRow.vue` (one rule row). Registered `InboxRulesExample` in `docs/.vitepress/theme/index.ts` and added a minimal `docs/examples/inbox-rules.md` stub page (no narrative/walkthrough/nav entry, both ST-04's job) so the component is reachable at `/examples/inbox-rules` for manual QA, matching the QA plan's instruction to test against that route. No `packages/core/src/` change, no changeset, no `specs/components.md` update (nothing on the published public surface changed).
+
+Deviations from the architecture reference, both justified during implementation and not affecting approved design intent:
+
+1. **`ctx.name`, not `ctx.field`, carries the registered field path.** The architecture's data-flow bullet describes the companion-field validation closures as reading "ctx.form/ctx.field". Tracing vee-validate's own `_validate` implementation shows `ctx.field = field.label || field.name` (the human-readable label used in `{field}` error-message placeholders) while `ctx.name` is the actual registered path. Implemented `companionValidation` to read `ctx.name`; confirmed empirically (the earlier `ctx.field` attempt produced labels like `"Folder"`/`"Forward to"` instead of paths, so the sibling lookup silently always missed). Keeps the ctx-based sibling-lookup approach the architecture specifies; only the exact property name differs from what was written.
+2. **computedProps' sibling-action lookup keys off the field's own `path`, not `${thisField.parent.path}.action`.** A companion field's metadata node (`folder`/`label`/`forwardTo`) is a single static object shared by every occurrence of its branch, so `thisField.parent` always points at that one shared branch node, never at a specific occurrence's index. Only `thisField.path` (set per-instance to e.g. `rules.subjectContains[2].folder`) carries the occurrence index. This mirrors the checkout's own `setupSplitPaymentField`, which derives its index from the field's own path for the same reason, rather than the business/VAT toggle's `thisField.parent.path` pattern (which only works because that field is not inside a repeated array). Confirmed by direct testing: the `parent.path` form left every companion field permanently hidden.
+3. Added a `readPath` path reader that understands bracket array-index segments (`subjectContains[0]` → two lookups, not one), since the checkout's own `readPath` (naive `.split('.')`) only ever walks plain object paths, never an array-indexed occurrence path. Verified the naive version silently failed (returned `undefined` for every sibling lookup inside a repeatable choice) before fixing it.
+4. **AC4's "1fr 90px" sub-grid is approximated with flex basis, not a literal CSS grid.** The engine funnels every child of a rule occurrence (condition field(s) and the whole action block) through one combined default slot with no sub-grouping, so there is no clean way to put only `size`+`unit` inside their own `grid-template-columns: 1fr 90px` container without introducing a new field type purely for layout. Implemented via per-field-name flex-basis classes (`size` grows, `unit` is a fixed 90px) inside a `flex flex-wrap` row, verified visually against the prototype (AC4's own alternative verification method, since a literal grid-template-columns inspection would not apply here).
+5. A required-field "blur-empty" check only shows an error once the field's value has actually changed (type then clear, or a submit attempt) and not on a bare click+blur with nothing typed, confirmed as the existing library-wide default (`validateOnBlur` is unset/false; `validateOnValueUpdate: true` is the default that drives validation) by testing the same click+blur sequence against the live checkout page's `fullName` field, which behaves identically. Not a bug in this story; AC6's "required error on blur-empty" verified instead via type-then-clear and via a submit attempt, both of which correctly surface "Folder is required".
+
+Verified manually in the browser (Playwright, light and dark mode) against all ten acceptance criteria and the edge cases: empty-state submit-enabled (AC1), From sender add + email pattern invalid/valid states (AC2), Subject contains add (AC3), Larger than add with the size/unit pairing (AC4), Has attachment add with the childless note and no marker in the values dump (AC5), action select reveal/hide/re-require including the rapid folder→label→forward→delete sequence with no stale error (AC6), forwardTo email format invalid/valid (AC7), the 20-of-20 budget disabling every add button with the count tag updating on add/remove (AC8), remove renumbering the remaining badges with no gap (AC9), and dark mode resolving every state through the existing CSS variables with no page-specific `.dark` override (AC10, grep confirms none exists in the new files).
+
+`pnpm docs:build` requires `packages/core`'s `dist/` to be rebuilt first (`pnpm --filter @bach.software/vue-dynamic-form build`), since `docs/` links against the built package, not the source; otherwise the build fails on an unrelated stale-export error from an unrelated file. Not a deviation, just a prerequisite worth recording.
+
+Ran `vue-tsc --noEmit -p docs/tsconfig.json` manually (not part of `pnpm ci`, which does not walk `docs/`) as a bonus check; it reports pre-existing errors in `BasicFormExample.vue`, `CheckoutFormExample.vue`, and `ChoiceSectionCard.vue` (files this story did not touch), and zero errors in any of this story's new files.
+
 ## Verification report
 Filled by qa-verifier after implementation.
+
+### Gate check
+Confirmed `status: verifying` at the start of this pass.
+
+### Pipeline
+- `pnpm run ci:test` (`pnpm -r ci:test`): pass, 37 test files / 971 tests in `packages/core`, 1 test in `packages/element-plus`. No test under `docs/` runs here (`docs/` is excluded from the workspace, per the story's own QA plan note).
+- `pnpm run ci:lint` (`pnpm -r ci:lint`): pass for both packages. `docs/` is also excluded from `pnpm -r`, so I additionally ran `npx eslint` directly against this story's four new/changed files (`InboxRuleRow.vue`, `InboxRulesExample.vue`, `InboxRulesTemplate.vue`, `inbox-rules.md`, `theme/index.ts`): clean, no errors or warnings.
+- `pnpm run ci:typecheck` (`pnpm -r ci:typecheck`): pass for both packages (`docs/` has no `ci:typecheck` script; the Implementation notes record a manual `vue-tsc --noEmit -p docs/tsconfig.json` run with zero errors in this story's files, which I accept as sufficient since it is reproducible and documented).
+- `pnpm -r ci:test:coverage` (`TZ=Europe/Amsterdam`): pass, coverage numbers match the documented baseline shape (`packages/core` statement/branch/function coverage unchanged in kind; `docs/` is not walked, so this story cannot move the needle either way, consistent with the QA plan's "Coverage impact" section).
+- `pnpm docs:build` (`docs/` content changed): pass, built in ~5s with no errors. Required rebuilding `packages/core`'s `dist/` first (`pnpm --filter @bach.software/vue-dynamic-form build`), exactly as the Implementation notes flag; both `dist/` directories are gitignored so this left the working tree clean.
+
+### Acceptance criteria
+
+| AC | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | Empty state, submit enabled | Pass | Screenshot: dashed "No rules yet. Until then, every message stays in the Inbox." panel, "0 of 20" tag, `Valid: true`, "Save rule set" rendered enabled (solid blue, no `disabled` styling). |
+| 2 | From sender add + email pattern invalid/valid | Pass | Added one occurrence; typed `not-an-email` → `data-field-state="invalid"`, rose border, "Enter a valid email address." message; replaced with `someone@example.com` → `data-field-state="valid"`, emerald border, no message. |
+| 3 | Subject contains add | Pass | One text input appeared, no extra validation beyond default required-on-submit. |
+| 4 | Larger than add, `1fr 90px`-equivalent sub-grid | Pass | Measured via `boundingBox()`: size input 184px wide (grows), unit select pinned at 90px, side by side in a flex row, matching the Implementation notes' documented flex-basis approximation (deviation 4, justified: the engine has no sub-grouping slot for two fields inside one occurrence). |
+| 5 | Has attachment add, childless note, no marker | Pass | Dashed muted "No filter to configure. This rule matches any message that carries an attachment." note rendered, no filter input. Values dump showed the occurrence present as `{}` (not stripped) even before any field was filled, and grep of the new files for `markChildlessBranchActive`/`_active` returns zero matches, confirming ADR-2. |
+| 6 | Action select reveal/hide/re-require | Pass | On a `subjectContains` row: selecting "Move to folder" revealed `folder` (visible=true); clearing it after typing then blurring showed "Folder is required"; switching to "Apply label" hid `folder` (visible=false) and showed `label`; switching to "Forward to" hid `label` and showed `forwardTo`; switching to "Delete" hid `forwardTo` (visible=false). Rapid folder→label→delete→folder sequence left only the current, correct "Folder is required" state, no stale error from a prior action. |
+| 7 | `forwardTo` email validation | Pass | With action "Forward to": `not-an-email` → `data-field-state="invalid"` with a message; `ops@example.com` → `data-field-state="valid"`. Confirmed in code that this runs through the ctx-based `companionValidation` closure (reading `ctx.name`, per Implementation notes deviation 1), not `xsd_pattern`, matching the routed AC7 edit. |
+| 8 | Budget of 20, disable + count tag | Pass | Added 20 occurrences: tag read "20 of 20", all four add buttons disabled with a reason tooltip ("The limit for … has been reached"). Removed one: tag updated to "19 of 20", all four buttons re-enabled. |
+| 9 | Remove renumbers, no gap | Pass | With 20 rows, removed the 11th; remaining position badges read a contiguous 1..19 with no gap and no stale badge. |
+| 10 | Dark mode, CSS-variable-only states | Pass | Toggled `html.dark`; screenshots show pristine/invalid/valid/budget-disabled states all resolving through existing dark tokens (slate backgrounds, rose/emerald borders, sky focus) with correct contrast. Grep of the three new `.vue` files for a bare `.dark` selector returns zero matches; all dark handling is the existing `dark:` Tailwind variants on reused components. |
+
+### Edge cases
+- Remove the only remaining rule: returns to the AC1 empty state, zero stale "valid email" error nodes left in the DOM. Verified.
+- Add a rule then remove it immediately before filling anything in: returns to the empty state cleanly, no orphaned validation state observed.
+- Rapid action switching: covered under AC6 above, no stale error flash.
+- Two occurrences of the same branch: implicitly exercised while reaching the 20-occurrence budget test (19 "Has attachment" rows); each renumbered independently, no special-casing present (correctly deferred to ST-03).
+
+### Prototype comparison
+Compared against `prototype.html#live-form` and `#rule-states` (pristine, focus, invalid, valid, disabled, empty, budget-exhausted add): layout, badge style, dashed empty/childless panels, and the rose/emerald/indigo palette all match in both light and dark mode. The order badge renders as a static `globalIndex + 1` circle with no chevrons, exactly as scoped out for this story (ST-02's extension). No reorder or unreachable-badge UI is present, correctly out of scope here.
+
+### Process compliance
+- No `packages/core/src/` changes (confirmed via `git status`): no changeset required, none added.
+- `specs/components.md`: correctly untouched, nothing on the published public surface changed.
+- No new library export, prop, slot, or validation rule added; `defineMetadata` generics are page-local per the architecture.
+- Vue camelCase conventions followed throughout the three new components.
+- Code-review checks from the QA plan all verified directly: every choice/branch node carries `type: 'rule'` (grep, 5 matches); no field named `order` (zero matches); `preserveOrder` not present anywhere (zero matches); no `markChildlessBranchActive`/`_active` marker (zero matches); no per-occurrence transition tracker exists in the implementation, and the ctx-based `companionValidation` closures are present and used by all three companion fields, consistent with the ADR-5 re-check resolution recorded in the Implementation notes.
+- `ctx.name` vs `ctx.field` and the `path`-based (not `parent.path`-based) sibling lookup (Implementation notes deviations 1-2) were spot-checked against `packages/core/src/utils/splitValidationFunctions.ts` and behave as described; both are internal wiring choices, not deviations from the approved design intent.
+
+### Informational findings (not blockers for this story)
+1. **Pre-existing, repo-wide**: `FormField.vue` references `<AppButton>` without importing or globally registering it, producing a `[Vue warn]: Failed to resolve component: AppButton` console warning on every field render. Reproduced identically on the already-shipped `/examples/checkout` page (28 occurrences on load), so this is not introduced by this story and not caused by any file this story touches; `canRemoveItems` is never true on this page's fields so the branch never actually renders `AppButton`, the warning is a harmless side effect of Vue's render-function component-resolution hoisting. Worth a separate quick fix across `docs/`, out of scope here.
+2. Leaf fields on this page show an "Optional" badge until the occurrence has at least one value (engine behavior: an empty array/choice occurrence has its own `minOccurs` overridden to 0 and propagates that to children so required errors don't fire on a freshly-added empty row). This is existing, intentional FEAT-010 engine behavior, not a bug, and does not affect the pass/fail of AC2/AC6 (both were verified via actual validation states, not the badge).
+
+### Verdict: pass
+
+All ten acceptance criteria and all four edge cases verified with direct evidence. Pipeline, coverage, and `docs:build` all green. No process deviations found. The two should-fix findings routed by adversarial review (AC7's ctx-based validation closure instead of `xsd_pattern`; the conditional, ADR-5-gated transition tracker) both landed correctly in the implementation.
+
+Status set to `done`. Reminder for Jeroen: link the PR in this story's `pr:` frontmatter field once opened. This is the first of FEAT-006's four stories (ST-01); ST-02, ST-03, and ST-04 still need to land before the feature itself can move to `done`.

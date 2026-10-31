@@ -73,3 +73,9 @@
 .checkout-page .VPDoc .content-container {
   max-width: 1100px;
 }
+
+/* The inbox rules example (/examples/inbox-rules) needs the same widened content column for its
+   rule-list-plus-test-inbox two-column layout, for the same reason the checkout page does. */
+.inbox-rules-page .VPDoc .content-container {
+  max-width: 1100px;
+}

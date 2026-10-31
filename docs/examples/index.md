@@ -11,6 +11,7 @@ Runnable examples that cover the main features. Each page embeds the live compon
 - [Validation](/examples/validation): restrictions, async checks, password strength, and cross-field rules
 - [Wizard](/examples/wizard): multi-step form with per-step validation and a review page
 - [Checkout](/examples/checkout): a complete one-page webshop checkout with a split-payment finale
+- [Inbox Rules Builder](/examples/inbox-rules): a reorderable, ordered list of rules where order is the whole point
 - [Advanced Wizard](/examples/advanced): full-featured client onboarding wizard
 
 ## Quick Overview

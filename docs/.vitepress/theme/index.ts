@@ -10,6 +10,7 @@ import FormExampleChoicePreserveOnSwitch from './components/FormExampleChoicePre
 import FormExampleChoiceRepeatableBranch from './components/FormExampleChoiceRepeatableBranch.vue';
 import FormExampleValidation from './components/FormExampleValidation.vue';
 import FormExampleWizard from './components/FormExampleWizard.vue';
+import InboxRulesExample from './components/InboxRulesExample.vue';
 import FormExampleClientOnboardingPlannerContext from './context/FormExampleClientOnboardingPlannerContext.vue';
 import FormExampleDynamicFieldsContext from './context/FormExampleDynamicFieldsContext.vue';
 import './custom.css';
@@ -29,5 +30,6 @@ export default {
     app.component('FormExampleClientOnboardingPlannerContext', FormExampleClientOnboardingPlannerContext);
     app.component('FormExampleDynamicFieldsContext', FormExampleDynamicFieldsContext);
     app.component('CheckoutFormExample', CheckoutFormExample);
+    app.component('InboxRulesExample', InboxRulesExample);
   },
 } satisfies Theme;

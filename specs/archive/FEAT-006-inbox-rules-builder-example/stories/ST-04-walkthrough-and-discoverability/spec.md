@@ -2,7 +2,7 @@
 id: ST-04
 type: story
 feature: FEAT-006
-status: approved
+status: done
 approved_by: Jeroen
 pr: ""
 ---
@@ -113,5 +113,57 @@ Verification done: `docs/package.json` pins `vitepress@1.6.4`; `ignoreDeadLinks`
 ## Implementation notes
 Filled by developer during implementation: deviations from plan and why. Deviations that affect the feature design/architecture are also propagated to the feature spec.
 
+Built: replaced the ST-01 stub `docs/examples/inbox-rules.md` with the full page (intro, `#live-form` heading plus disclaimer, `#metadata-walkthrough` with six `###` subsections mirroring the prototype's own in-page nav, What It Demonstrates, How It Works, Related Source). Added one entry each to `docs/examples/index.md`'s Available Demos list and `docs/.vitepress/config.ts`'s `/examples/` sidebar, both between Checkout and Client Onboarding Wizard, per the feature's decided Q4.
+
+Added named `// #region` / `<!-- #region -->` anchors to the ST-01/ST-02/ST-03 source so the page's `<<<` excerpts have something stable to target: `InboxRulesExample.vue` (`action-reveal`, `live-routing`, and a `hasattachment-branch` region nested inside the existing `metadata` region), `InboxRulesTemplate.vue` (`rule-list-slots`), `InboxRuleRow.vue` (`reorder-plan`, `unreachable-badge`), `inboxRoutingMath.ts` (`matches`, `route-inbox`, `plan-reorder-swap`, `find-unreachable-rules`), `TestInboxPanel.vue` (`routed-badge`). Every addition is a comment-only insertion; no logic, markup, or behavior in any of those five files changed, confirmed by using Edit's exact-match replacement (which fails if the surrounding code does not match verbatim) and by `pnpm run ci:test` passing unchanged.
+
+Deviation, disclosed: the QA plan's Regression risk section describes these five files as "read-only dependencies" this story "must not edit", and proposes `git diff --stat docs/.vitepress/theme/components/` reporting no changes as the guard. Taken fully literally that check cannot pass, since the task explicitly directs this story to add named region anchors to the example source (the only way `<<<` excerpts work), and all five files are new/untracked from ST-01-03 (no commits exist yet in this interactive session), so `git diff` cannot see them either way. Read sensibly, the intent of that check is that the two other example pages (`choices.md`, `checkout.md`) and their own components stay untouched, which I verified directly: `git status --porcelain -- docs/examples/choices.md docs/examples/checkout.md` reports nothing, and `git diff --stat docs/.vitepress/theme/components/` (tracked files only) reports nothing, confirming no file belonging to another example was touched. The five Inbox files themselves only grew comment-only region markers, verified by inspection, not by a diff check that cannot apply to untracked files.
+
+Cross-links: a sentence in the intro references both `/examples/choices` and `/examples/checkout#split-payment`/Related Source; `Related Source` carries the full explanatory sentences the acceptance criterion asks for. Verified via Playwright that both links resolve to the correct page and the checkout link lands on the real `#split-payment` anchor (not just the page top).
+
+No `packages/core/src/` change, no changeset, no `specs/components.md` update: nothing on the published public surface changed, this story is prose, region comments, and navigation only.
+
+Verified manually in the browser (Playwright, light and dark mode) against the built `/examples/inbox-rules` page (`packages/core`'s dist rebuilt first, same prerequisite the prior three stories recorded): the intro's tip callout, the sidebar position between Checkout and Client Onboarding Wizard, the Available Demos entry, all eleven `<<<` excerpts (balanced, syntax-highlighted, correct in both color modes), and both cross-links (including the checkout anchor landing mid-page, not at the top) all render and resolve as specified. No console errors on load.
+
 ## Verification report
 Filled by qa-verifier after implementation.
+
+### Pipeline results
+
+- `pnpm run ci:test` (`pnpm -r ci:test`): pass, 37 test files / 971 tests in `packages/core`, 1 test in `packages/element-plus`.
+- `pnpm run ci:lint` (`pnpm -r ci:lint`): pass, no errors in either workspace package.
+- `pnpm run ci:typecheck` (`pnpm -r ci:typecheck`): pass, `vue-tsc --noEmit` clean in both packages.
+- `TZ=Europe/Amsterdam pnpm -r ci:test:coverage`: pass. `packages/core` 98.51% stmts / 92.91% branch / 98.36% funcs / 98.51% lines, matching the pre-story baseline (no file under `packages/core/src/` changed by this story, confirmed by `git status --porcelain -- packages/core/src/` returning nothing).
+- `pnpm docs:test`: pass, 2 test files / 48 tests (`inboxRoutingMath.test.ts`, `inboxRoutingMath.logic.test.ts`). These belong to ST-02/ST-03, not this story, but they still gate the working tree.
+- `pnpm build` (core rebuilt first, since docs consumes `packages/core` via `link:*` dist) then `pnpm docs:build`: pass, no dead-link warnings, no build errors. Confirms all 11 `<<<` region excerpts resolve and `/examples/choices` resolves as a page path.
+
+### Acceptance criteria
+
+| # | Criterion | Verdict | Evidence |
+|---|---|---|---|
+| 1 | `#page-intro`: title, "first match wins" lede with a named mental model, one-tree-plus-one-template reveal, `tip` callout (fixed demo data, nothing sent) | Pass | Rendered page inspected via Playwright (light and dark, screenshots below). Lede opens with "Gmail filters, firewall ACLs, routing tables: they all do the same thing... first match wins." Reveal sentence: "The form below is one repeatable ordered `choice`: a single metadata tree, rendered through one template, with no bespoke engine code behind the reorder-and-reroute effect." `::: tip What you are looking at` callout states the inbox is "six fixed, fictional messages, routed entirely in your browser... no rule or message is ever sent anywhere." Confirmed the callout closes correctly: the next paragraph ("This page specializes a shape...") renders as normal body text outside the tip box, not swallowed into it. |
+| 2 | `#metadata-walkthrough`: `<<<` region excerpts, What It Demonstrates, How It Works, Related Source, matching `/examples/checkout` / `/examples/advanced` structure | Pass | All 11 named regions exist with matching names in the 5 source files (verified by grep) and all 11 render as syntax-highlighted code block divs on the page (Playwright DOM count: 11). Section order (`#metadata-walkthrough` in-page nav list -> 6 subsections -> `## What It Demonstrates` -> `## How It Works` -> `## Related Source`) matches `docs/examples/checkout.md`'s heading structure exactly (`## Metadata walkthrough` -> subsections -> `## What It Demonstrates` -> `## How It Works` -> `## Related Source`). |
+| 3 | One-directional cross-links to `/examples/choices` and `/examples/checkout#split-payment`, each with an explanatory sentence | Pass | Playwright click-through: the `/examples/choices` link navigates to `http://localhost:5173/examples/choices` (200, correct page); the `/examples/checkout#split-payment` link lands with `window.scrollY = 8577` and the `#split-payment` heading ("Split payment, the finale") visible in viewport, not at page top, confirming the real anchor resolves. Explanatory sentences present both in the intro paragraph and in the Related Source bullets ("the repeatable ordered choice mechanics this page specializes...", "the other existing demonstration... there as an opt-in finale rather than the whole page"). Edge case verified: `git status --porcelain -- docs/examples/choices.md docs/examples/checkout.md` is empty and `git diff --stat -- docs/.vitepress/theme/components/` shows no tracked-file changes, so neither page nor any existing component was touched. |
+| 4 | `docs/examples/index.md` and sidebar: slug `/examples/inbox-rules`, title "Inbox Rules Builder", between Checkout and Client Onboarding Wizard | Pass | `git diff -- docs/.vitepress/config.ts` shows exactly one added line, `{ text: 'Inbox Rules Builder', link: '/examples/inbox-rules' }`, positioned directly after `Checkout` and before `Client Onboarding Wizard`, zero lines removed or reordered. `git diff -- docs/examples/index.md` shows exactly one added bullet in matching style, same position. Rendered sidebar screenshot confirms the visual position; clicking it in Playwright resolves to `/examples/inbox-rules` with HTTP 200, no 404. |
+| 5 | Plain-language disclaimer near `#live-form`, distinct from the `#page-intro` tip | Pass | Body copy under "The rule list, live" reads: "no rule set is ever saved anywhere outside your browser tab, and the 'mailbox' on the right stays fixed demo data, never a real inbox, no matter what you add." Distinct wording from the intro tip, same required content (fixed demo data, not real, nothing sent). |
+
+### Prototype / sibling comparison
+
+Compared `#page-intro` and `#metadata-walkthrough` against `prototype.html` and against the live `/examples/checkout` and `/examples/advanced` pages. Section order, heading levels, in-page nav substitute (since `aside: false`), and the three closing subsections (What It Demonstrates / How It Works / Related Source) all match the sibling pages' established pattern. No new design language introduced, consistent with the story's Design reference. Light and dark mode both verified via Playwright screenshots (intro, callout, code-block syntax highlighting, metadata-walkthrough section); no light-only or dark-only rendering issues found. No responsive annotation applies to this story (prose only, no new layout).
+
+### Process compliance
+
+- No `packages/core/src/` change (`git status --porcelain -- packages/core/src/` empty). No changeset required or added, consistent with the story's architecture reference.
+- No `specs/components.md` update: correct, nothing on the published public surface changed.
+- Writing style: no em dashes found in any new or touched prose, comments, or region names (grepped `docs/examples/inbox-rules.md`, `docs/examples/index.md`, `docs/.vitepress/config.ts`, and all five touched source files). No `FEAT-`, `ST-`, `ADR-`, `AC[0-9]`, or "QA plan" references found in any code comment, region name, or page copy (the only grep hits were false positives on the English words "specializes"/"specific").
+- Region markers are comment-only insertions. Spot-checked `InboxRulesExample.vue`'s surrounding code (constants, `live-routing` computed) for evidence of no logic change; combined with `pnpm run ci:test` passing unchanged and `vue-tsc`/eslint both clean, this is sufficient corroboration without re-diffing files that were never tracked before this session.
+- Disclosed deviation (QA plan's `git diff --stat docs/.vitepress/theme/components/` check): judged reasonable. The literal check cannot apply to untracked files in this uncommitted working tree, and the developer's substitute (`git status --porcelain` on `choices.md`/`checkout.md`, `git diff --stat` on the tracked component directory) verifies the actual intent of the guard (siblings untouched) just as directly. Independently re-ran both commands myself with the same empty result. No concern.
+- Test naming: `docs/.vitepress/theme/components/__tests__/inboxRoutingMath.test.ts` and `inboxRoutingMath.logic.test.ts` follow repo convention, but both belong to ST-02/ST-03's scope, not this story; this story adds no test files of its own, matching its QA plan's documented rationale ("Why this story has no `*.test.ts` files").
+
+### Overall verdict: pass
+
+All five acceptance criteria pass with evidence. Pipeline is fully green (test, lint, typecheck, coverage unchanged, docs:test, docs:build with strict dead-link check). Edge cases (choices.md/checkout.md untouched, exactly one sidebar/index line added) verified directly. No deviations beyond the one already disclosed and judged reasonable above.
+
+This is the last story of FEAT-006 (ST-01 through ST-03 are `done`). With ST-04 now `done`, the feature has no open stories and can move to `done`.
+
+Reminder for Jeroen: link the PR in this story's `pr:` frontmatter field once opened.
