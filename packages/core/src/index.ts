@@ -14,6 +14,7 @@ export * from '@/core/useValidatePartialForm';
 // Types
 export * from '@/types/DynamicFormItemProps';
 export * from '@/types/DynamicFormSettings';
+export * from '@/types/DynamicFormTemplateComponent';
 export * from '@/types/FieldMetadata';
 export * from '@/types/GetDynamicFormSettingsType';
 export * from '@/types/GetMetadataType';

@@ -32,13 +32,9 @@ Pass the template to `DynamicForm`. No wrapper is needed, and this gives you the
 
 ```vue
 <script lang="ts" setup>
-import type { DefineComponent } from 'vue';
 import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { StarterFormTemplate } from '@bach.software/vue-dynamic-form-starter';
 import '@bach.software/vue-dynamic-form-starter/style.css';
-
-// `StarterFormTemplate` is a generic component, which `vue-tsc` does not accept for the `template` prop as is.
-const template = StarterFormTemplate as unknown as DefineComponent<object, object, any>;
 
 const metadata = [
   { name: 'firstName', fieldOptions: { label: 'First name' }, placeholder: 'Enter your first name' },
@@ -52,7 +48,7 @@ const onSubmit = handleSubmit(values => console.log(values));
 
 <template>
   <form novalidate @submit.prevent="onSubmit">
-    <DynamicForm :metadata="metadata" :template="template" />
+    <DynamicForm :metadata="metadata" :template="StarterFormTemplate" />
     <button type="submit">
       Submit
     </button>

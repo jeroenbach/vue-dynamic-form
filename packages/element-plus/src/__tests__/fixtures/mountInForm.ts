@@ -1,3 +1,4 @@
+import type { DynamicFormTemplateComponent } from '@bach.software/vue-dynamic-form';
 import type { Component } from 'vue';
 import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { flushPromises, mount } from '@vue/test-utils';
@@ -6,19 +7,19 @@ import ElementPlusFormTemplate from '@/ElementPlusFormTemplate.vue';
 
 interface MountInFormOptions {
   metadata: unknown
-  template?: Component
+  template?: DynamicFormTemplateComponent
   settings?: Record<string, unknown>
   initialValues?: Record<string, unknown>
   stubs?: Record<string, Component>
 }
 
 /** Mounts a form that renders the given template, exposing the form values and validation. */
-export async function mountInForm({ metadata, template = ElementPlusFormTemplate as unknown as Component, settings, initialValues, stubs }: MountInFormOptions) {
+export async function mountInForm({ metadata, template = ElementPlusFormTemplate, settings, initialValues, stubs }: MountInFormOptions) {
   const Host = defineComponent({
     setup(_, { expose }) {
       const form = useDynamicForm({ initialValues });
       expose({ values: form.values, validate: form.validate });
-      return () => h(DynamicForm, { metadata: metadata as any, template: template as any, settings });
+      return () => h(DynamicForm, { metadata: metadata as any, template, settings });
     },
   });
 

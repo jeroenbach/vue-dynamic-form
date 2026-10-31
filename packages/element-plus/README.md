@@ -50,15 +50,11 @@ A complete example:
 
 ```vue
 <script lang="ts" setup>
-import type { DefineComponent } from 'vue';
 import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { ElementPlusFormTemplate } from '@bach.software/vue-dynamic-form-element-plus';
 import { ElButton } from 'element-plus';
 import 'element-plus/dist/index.css';
 import '@bach.software/vue-dynamic-form-element-plus/style.css';
-
-// `ElementPlusFormTemplate` is a generic component, which `vue-tsc` does not accept for the `template` prop as is.
-const template = ElementPlusFormTemplate as unknown as DefineComponent<object, object, any>;
 
 const metadata = [
   { name: 'firstName', label: 'First name', placeholder: 'Enter your first name' },
@@ -73,7 +69,7 @@ const onSubmit = handleSubmit(values => console.log(values));
 
 <template>
   <form novalidate @submit.prevent="onSubmit">
-    <DynamicForm :metadata="metadata" :template="template" />
+    <DynamicForm :metadata="metadata" :template="ElementPlusFormTemplate" />
     <ElButton type="primary" nativeType="submit">
       Submit
     </ElButton>

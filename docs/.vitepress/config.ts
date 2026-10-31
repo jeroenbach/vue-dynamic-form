@@ -36,6 +36,7 @@ export default defineConfig({
           text: 'Guide',
           items: [
             { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'The Starter Template', link: '/guide/starter-template' },
             { text: '1. Define Your Field Types', link: '/guide/define-metadata' },
             { text: '2. Build a Template', link: '/guide/building-templates' },
             { text: '3. Wire Up a Form', link: '/guide/your-first-form' },
@@ -69,6 +70,7 @@ export default defineConfig({
             { text: 'Dynamic Fields', link: '/examples/dynamic-fields' },
             { text: 'Validation', link: '/examples/validation' },
             { text: 'Wizard', link: '/examples/wizard' },
+            { text: 'Extending The Starter Template', link: '/examples/extending-starter' },
             { text: 'Advanced example', link: '/examples/advanced' },
           ],
         },

@@ -2,6 +2,7 @@
 import type { DefineComponent } from 'vue';
 
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
+import type { DynamicFormTemplateComponent } from '@/types/DynamicFormTemplateComponent';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 
@@ -16,7 +17,7 @@ export interface DynamicFormProps<Metadata extends FieldMetadata> {
   /** One or more field descriptors. Pass an array for multiple top-level fields. */
   metadata: Metadata | Metadata[]
   /** A `DynamicFormTemplate`-based component that exposes the named slots used for rendering. */
-  template: DefineComponent<object, object, any>
+  template: DynamicFormTemplateComponent
   /** Overrides for the library defaults; partial — missing keys fall back to built-in defaults. */
   settings?: DynamicFormSettings
 }

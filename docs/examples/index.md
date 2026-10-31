@@ -10,6 +10,7 @@ Runnable examples that cover the main features. Each page embeds the live compon
 - [Dynamic Fields](/examples/dynamic-fields): options loaded from an external source
 - [Validation](/examples/validation): restrictions, async checks, password strength, and cross-field rules
 - [Wizard](/examples/wizard): multi-step form with per-step validation and a review page
+- [Extending The Starter Template](/examples/extending-starter): project-specific field types on top of the starter template
 - [Advanced Wizard](/examples/advanced): full-featured client onboarding wizard
 
 ## Quick Overview

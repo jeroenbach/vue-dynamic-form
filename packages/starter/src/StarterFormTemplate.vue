@@ -66,6 +66,39 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
     return slots.input ? 'default' : '';
   return slots[name] ? name : '';
 }
+
+// Every name the explicit blocks below consult, plus the reserved names: `input` and
+// `attributes` carry the engine's renders, `icon` is the wrapper-only glyph override.
+const handledSlotNames = new Set([
+  'default',
+  'heading',
+  'checkbox',
+  'default-array',
+  'heading-array',
+  'heading-array-item',
+  'default-choice',
+  'heading-choice',
+  'heading-choice-array',
+  'default-choice-array-item',
+  'default-input',
+  'select-input',
+  'checkbox-input',
+  'password-input',
+  'default-wizard',
+  'default-wizard-page',
+  'wizardSummaryPage',
+  'input',
+  'attributes',
+  'icon',
+]);
+
+// Any other consumer slot (a per-type slot like `richText-input`, or a dedicated slot for a
+// built-in type like `text-input`) must be handed to the dispatcher itself, or it would never
+// be considered and the field would silently fall back to the built-in markup. Resolved at
+// render time, so a slot the consumer adds after mounting is picked up too.
+function passthroughSlotNames() {
+  return Object.keys(slots).filter(name => !handledSlotNames.has(name));
+}
 </script>
 
 <template>
@@ -469,6 +502,10 @@ function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
           </div>
         </SectionCard>
       </slot>
+    </template>
+
+    <template v-for="name in passthroughSlotNames()" :key="name" #[name]="s">
+      <slot :name="name" v-bind="s" />
     </template>
   </DynamicFormTemplate>
 </template>
