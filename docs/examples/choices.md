@@ -102,6 +102,8 @@ When the choice itself has `maxOccurs > 1`, selecting a branch adds one occurren
 
 <<< @/.vitepress/theme/components/FormExampleChoiceExplicitRepeatable.vue#metadata{ts} [FormExampleChoiceExplicitRepeatable.vue]
 
+See the [Run of Show Builder](/examples/run-of-show) example for this mechanism carried through a whole page, where reordering changes a computed clock and whether the program is valid.
+
 A repeatable choice renders through the `-choice-array` slot family (falling back to the `-choice` slots when none is defined), and each active occurrence renders through `-choice-array-item`. On top of the picker props above, the item slot receives:
 
 - `branchKey`: which kind this occurrence is

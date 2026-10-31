@@ -791,7 +791,8 @@ Valid: {{ meta.valid }}
 
 .cart-rail {
   position: sticky;
-  top: 24px;
+  /* Offset by the fixed VitePress navbar so the panel does not slide under it. */
+  top: calc(var(--vp-nav-height) + 24px);
 }
 
 @media (max-width: 1279px) {

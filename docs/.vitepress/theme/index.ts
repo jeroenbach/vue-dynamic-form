@@ -12,6 +12,7 @@ import FormExampleValidation from './components/FormExampleValidation.vue';
 import FormExampleWizard from './components/FormExampleWizard.vue';
 import InboxRulesExample from './components/InboxRulesExample.vue';
 import WorkoutPlanExample from './components/WorkoutPlanExample.vue';
+import RunOfShowExample from './components/RunOfShowExample.vue';
 import FormExampleClientOnboardingPlannerContext from './context/FormExampleClientOnboardingPlannerContext.vue';
 import FormExampleDynamicFieldsContext from './context/FormExampleDynamicFieldsContext.vue';
 import './custom.css';
@@ -33,5 +34,6 @@ export default {
     app.component('CheckoutFormExample', CheckoutFormExample);
     app.component('InboxRulesExample', InboxRulesExample);
     app.component('WorkoutPlanExample', WorkoutPlanExample);
+    app.component('RunOfShowExample', RunOfShowExample);
   },
 } satisfies Theme;

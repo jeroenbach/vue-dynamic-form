@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FEAT-008 Run of Show Builder — design prototype</title>
+<style>
+  /* ---------------------------------------------------------------------------
+     Design tokens. Mirrors the docs site's Tailwind slate/indigo/sky/emerald/
+     amber/rose usage, mapped onto CSS variables so the .dark toggle flips the
+     whole page the way VitePress drives its own dark mode (a class on <html>).
+     Production components use the Tailwind utilities directly, not these vars;
+     this prototype reproduces the same resolved colors with zero build steps.
+  --------------------------------------------------------------------------- */
+  :root {
+    --bg:#ffffff; --bg-soft:#f6f6f7; --bg-mute:#f1f5f9;
+    --card:#ffffff; --border:#e2e8f0; --border-strong:#cbd5e1;
+    --text:#0f172a; --text-2:#475569; --text-3:#94a3b8;
+    --rail:#cbd5e1;
+    --accent:#4338ca; --accent-bg:#eef2ff;
+    --primary:#0284c7; --primary-h:#0369a1;
+    --ok-text:#047857; --ok-bg:#ecfdf5; --ok-border:#a7f3d0;
+    --warn-text:#b45309; --warn-bg:#fffbeb; --warn-border:#fcd34d;
+    --err-text:#b91c1c; --err-bg:#fef2f2; --err-border:#fca5a5;
+    --shadow:0 1px 2px rgba(15,23,42,.06), 0 1px 3px rgba(15,23,42,.04);
+    --anno:#8b8f98;
+  }
+  html.dark {
+    --bg:#1b1b1f; --bg-soft:#202127; --bg-mute:#2a2a32;
+    --card:#202127; --border:#2e2e38; --border-strong:#3a3a45;
+    --text:#f1f5f9; --text-2:#c2c6cf; --text-3:#8b8f98;
+    --rail:#3a3a45;
+    --accent:#c7d2fe; --accent-bg:#1e1b4b;
+    --primary:#38bdf8; --primary-h:#7dd3fc;
+    --ok-text:#6ee7b7; --ok-bg:#042f23; --ok-border:#0b5e45;
+    --warn-text:#fcd34d; --warn-bg:#2b1d02; --warn-border:#6e4a0a;
+    --err-text:#fca5a5; --err-bg:#2a0d0d; --err-border:#7f1d1d;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+    --anno:#7a7e87;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0;
+    background:var(--bg-soft);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.55;
+  }
+  .page { max-width:1040px; margin:0 auto; padding:32px 24px 120px; }
+
+  h1 { font-size:30px; line-height:1.2; margin:0 0 12px; letter-spacing:-.01em; }
+  h2 { font-size:22px; margin:0 0 10px; letter-spacing:-.01em; }
+  h3 { font-size:17px; margin:0 0 6px; }
+  p  { margin:0 0 14px; color:var(--text-2); }
+  a  { color:var(--primary); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.86em;
+         background:var(--bg-mute); padding:.1em .35em; border-radius:4px; color:var(--text); }
+
+  /* Section dividers that label each slice of the feature. Stories deep-link to
+     the stable anchor id on the wrapping <section>. */
+  .divider { margin:56px 0 20px; display:flex; align-items:center; gap:12px; }
+  .divider::before { content:""; height:1px; flex:1; background:var(--border); }
+  .divider::after  { content:""; height:1px; flex:1; background:var(--border); }
+  .divider span {
+    font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--text-3); white-space:nowrap;
+  }
+
+  /* Small gray annotation labels for spacing / responsive / interaction notes. */
+  .anno { font-size:12px; color:var(--anno); font-style:italic; margin:6px 0 0; }
+  .anno::before { content:"\25B8  "; font-style:normal; }
+
+  /* Cards: rounded-xl border bg-white shadow-sm p-6. */
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    box-shadow:var(--shadow); padding:24px;
+  }
+  .card + .card { margin-top:16px; }
+
+  /* VitePress-style callout boxes. */
+  .callout { border-radius:8px; padding:14px 16px; margin:16px 0; font-size:14px; border:1px solid; }
+  .callout p:last-child { margin-bottom:0; }
+  .callout .ttl { font-weight:700; margin-bottom:4px; }
+  .callout.tip  { background:var(--accent-bg); border-color:transparent; }
+  .callout.tip .ttl { color:var(--accent); }
+  .callout.warn { background:var(--warn-bg); border-color:var(--warn-border); color:var(--warn-text); }
+
+  /* ---- form controls ---- */
+  label.fld { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:600; color:var(--text-2); }
+  .fld input, .fld select {
+    font:inherit; font-weight:400; color:var(--text);
+    background:var(--card); border:1px solid var(--border-strong); border-radius:8px;
+    padding:8px 10px; width:100%;
+  }
+  .fld input:focus, .fld select:focus { outline:none; border-color:var(--primary);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 30%, transparent); }
+  .fld.invalid input, .fld.invalid select { border-color:var(--err-border); }
+  .fld .err { font-weight:400; font-size:12px; color:var(--err-text); }
+  .fld.valid input { border-color:var(--ok-border); }
+  .hint { font-size:12px; color:var(--text-3); font-weight:400; }
+
+  /* focus-ring demo (static) */
+  .focus-demo input { border-color:var(--primary);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 30%, transparent); }
+
+  /* toggle switch */
+  .switch { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text-2); }
+  .switch .track { width:38px; height:22px; border-radius:999px; background:var(--border-strong); position:relative; transition:background .15s; }
+  .switch .track .knob { position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:var(--shadow); transition:left .15s; }
+  .switch.on .track { background:var(--primary); }
+  .switch.on .track .knob { left:18px; }
+
+  /* buttons */
+  .btn { font:inherit; font-size:13px; font-weight:600; border-radius:8px; border:1px solid var(--border-strong);
+         background:var(--card); color:var(--text); padding:8px 12px; cursor:pointer;
+         display:inline-flex; align-items:center; gap:6px; }
+  .btn:hover { background:var(--bg-mute); }
+  .btn svg { width:15px; height:15px; }
+  .btn.primary { background:var(--primary); border-color:var(--primary); color:#fff; padding:11px 18px; font-size:14px; }
+  .btn.primary:hover { background:var(--primary-h); }
+  .btn.ghost { border-color:transparent; background:transparent; padding:5px; color:var(--text-2); }
+  .btn.ghost:hover { background:var(--bg-mute); }
+  .btn.danger { border-color:transparent; background:transparent; color:var(--err-text); padding:5px; }
+  .btn.danger:hover { background:var(--err-bg); }
+  .btn[disabled] { opacity:.4; cursor:not-allowed; }
+  .btn[disabled]:hover { background:var(--card); }
+  .btn.primary[disabled]:hover { background:var(--primary); }
+
+  /* count tag / pills */
+  .tag { display:inline-flex; align-items:center; border-radius:999px; background:var(--accent-bg);
+         color:var(--accent); font-size:12px; font-weight:700; padding:2px 10px; white-space:nowrap; }
+  .pill { display:inline-flex; align-items:center; gap:5px; border-radius:999px; font-size:11px; font-weight:700;
+          padding:2px 9px; border:1px solid; }
+  .pill.amp { color:var(--accent); background:var(--accent-bg); border-color:transparent; }
+  .pill.warn { color:var(--warn-text); background:var(--warn-bg); border-color:var(--warn-border); }
+  .pill.err  { color:var(--err-text);  background:var(--err-bg);  border-color:var(--err-border); }
+
+  /* ---- the live demo split layout: builder + sticky summary ---- */
+  .demo-layout { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:24px; align-items:start; }
+  .summary-rail { position:sticky; top:24px; }
+  @media (max-width:1100px) {
+    .demo-layout { grid-template-columns:1fr; }
+    .summary-rail { position:static; order:-1; }
+  }
+
+  /* ---- schedule anchors (the three editable time leaves) ---- */
+  .anchors { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:560px){ .anchors { grid-template-columns:1fr; } }
+
+  /* ---- add-item toolbar ---- */
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; }
+
+  /* ---- the vertical timeline ---- */
+  .timeline { position:relative; display:flex; flex-direction:column; }
+  .tl-row { position:relative; display:grid; grid-template-columns:44px minmax(0,1fr); gap:14px; padding-bottom:14px; }
+  /* rail line runs through the node column, connecting consecutive nodes */
+  .tl-row::before {
+    content:""; position:absolute; left:21px; top:6px; bottom:-14px; width:2px; background:var(--rail);
+  }
+  .tl-row:last-of-type::before { display:none; }
+  .tl-node {
+    position:relative; z-index:1; width:44px; height:44px; border-radius:50%;
+    display:grid; place-items:center; font-size:19px; border:2px solid var(--card);
+    box-shadow:var(--shadow);
+  }
+  /* per-kind tints on the icon node */
+  .k-speech { background:#eef2ff; } html.dark .k-speech { background:#1e1b4b; }
+  .k-dinner { background:#fffbeb; } html.dark .k-dinner { background:#3a2a05; }
+  .k-band   { background:#f5f3ff; } html.dark .k-band   { background:#2e1065; }
+  .k-dance  { background:#fdf2f8; } html.dark .k-dance  { background:#500724; }
+  .k-cake   { background:#fff1f2; } html.dark .k-cake   { background:#4c0519; }
+  .k-break  { background:#f1f5f9; } html.dark .k-break  { background:#2a2a32; }
+
+  .tl-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; box-shadow:var(--shadow); }
+  .tl-card.err  { border-color:var(--err-border); }
+  .tl-card.warn { border-color:var(--warn-border); }
+  .tl-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .pos-badge { display:grid; place-items:center; min-width:22px; height:22px; padding:0 5px;
+               border-radius:999px; background:var(--accent-bg); color:var(--accent); font-size:12px; font-weight:700; }
+  .tl-kind { font-size:14px; font-weight:700; color:var(--text); }
+  .tl-time { margin-left:auto; font-size:13px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums;
+             background:var(--bg-mute); border-radius:6px; padding:2px 8px; }
+  .tl-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }
+  .tl-fields.one { grid-template-columns:1fr; }
+  @media (max-width:560px){ .tl-fields { grid-template-columns:1fr; } }
+  .tl-foot { display:flex; align-items:center; gap:6px; margin-top:12px; }
+  .tl-msg { font-size:12px; margin-top:8px; display:flex; gap:6px; align-items:flex-start; }
+  .tl-msg.err  { color:var(--err-text); }
+  .tl-msg.warn { color:var(--warn-text); }
+  .reorder { display:flex; gap:2px; margin-left:auto; }
+
+  /* curfew marker line inside the timeline */
+  .curfew-mark { display:flex; align-items:center; gap:10px; margin:0 0 14px 58px; }
+  .curfew-mark .line { flex:1; height:0; border-top:2px dashed var(--err-border); }
+  .curfew-mark .lab { font-size:11px; font-weight:700; color:var(--err-text); white-space:nowrap;
+                      background:var(--err-bg); border:1px solid var(--err-border); border-radius:999px; padding:2px 10px; }
+
+  /* empty state */
+  .empty { border:1px dashed var(--border-strong); border-radius:12px; background:var(--bg-mute);
+           padding:28px; text-align:center; color:var(--text-3); font-size:14px; }
+
+  /* ---- summary panel ---- */
+  .sum h3 { margin-bottom:12px; }
+  .sum-tl { display:flex; flex-direction:column; gap:1px; font-size:13px; }
+  .sum-tl .r { display:flex; justify-content:space-between; gap:10px; padding:3px 0; color:var(--text-2); }
+  .sum-tl .r .t { font-variant-numeric:tabular-nums; color:var(--text-3); }
+  .sum-tl .r.cross { color:var(--err-text); font-weight:600; }
+  .sum-block { margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
+  .status-row { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; padding:4px 0; }
+  .status-banner { border-radius:8px; border:1px solid; padding:10px 12px; font-size:13px; margin-top:6px; }
+  .status-banner.ok  { background:var(--ok-bg);  border-color:var(--ok-border);  color:var(--ok-text); }
+  .status-banner.err { background:var(--err-bg); border-color:var(--err-border); color:var(--err-text); }
+  .status-banner.warn{ background:var(--warn-bg);border-color:var(--warn-border);color:var(--warn-text); }
+  .counts { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .count-chip { font-size:11px; font-weight:600; color:var(--text-2); background:var(--bg-mute);
+                border-radius:999px; padding:2px 9px; }
+
+  /* submit bar states */
+  .spinner { width:15px; height:15px; border-radius:50%; border:2px solid rgba(255,255,255,.4); border-top-color:#fff;
+             display:inline-block; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .success { display:flex; gap:10px; align-items:center; background:var(--ok-bg); border:1px solid var(--ok-border);
+             color:var(--ok-text); border-radius:12px; padding:14px 16px; font-size:14px; }
+
+  /* metadata walkthrough code block */
+  pre.src { background:var(--bg-mute); border:1px solid var(--border); border-radius:8px; padding:14px 16px;
+            overflow:auto; font-size:12.5px; line-height:1.5; color:var(--text); }
+  pre.src .c { color:var(--text-3); }
+  ul.demolist { color:var(--text-2); font-size:14px; padding-left:20px; }
+  ul.demolist li { margin:4px 0; }
+
+  /* light/dark toggle button */
+  #themeToggle { position:fixed; top:16px; right:16px; z-index:50; width:40px; height:40px; border-radius:50%;
+                 border:1px solid var(--border); background:var(--card); color:var(--text); cursor:pointer;
+                 box-shadow:var(--shadow); font-size:17px; display:grid; place-items:center; }
+  .stcategory { display:grid; gap:16px; }
+  @media (min-width:760px){ .stcategory.two { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+<button id="themeToggle" title="Toggle light / dark" aria-label="Toggle light and dark mode">🌙</button>
+
+<div class="page">
+
+  <!-- =====================================================================
+       SECTION: narrative intro
+  ====================================================================== -->
+  <section id="intro">
+    <h1>Plan the reception: a run-of-show builder</h1>
+    <p>
+      One typed metadata tree, one template. The planner builds the evening as an ordered list of
+      program items: speeches, dinner courses, a band set, open dancing, cake, breaks. Nobody types
+      a clock time. Each row carries only a <strong>duration</strong>, and the engine computes every
+      row's start and end from the event's start plus the sum of every duration above it. The same
+      running-fold cascade the <a href="#">split-payment ledger</a> proves on the Checkout page,
+      with time instead of money.
+    </p>
+    <p>
+      The payoff is the <strong>amplified-music curfew</strong>. Whether a band set or the dance
+      floor ends before the curfew depends only on what sits above it, so dragging it earlier can
+      fix a violation and pushing a long dinner course above it can create one. Order changes the
+      clock, and the clock decides what is valid.
+    </p>
+
+    <div class="callout tip">
+      <p class="ttl">What you are looking at</p>
+      <p>Everything in the live form below is rendered from one metadata tree through one neutrally
+      styled template. Clock times are computed, never entered.</p>
+    </div>
+
+    <div class="callout warn">
+      <p class="ttl">Reordering is UI-level, not XSD</p>
+      <p>The display order and the per-row <code>order</code> value it writes are library behavior
+      layered on the repeatable choice; they have no equivalent in <code>&lt;xs:choice&gt;</code>
+      occurrence semantics. See the <a href="#">Choices</a> page for the generic mechanics this page
+      specializes, and the <a href="#">Inbox Rules Builder</a> for the other order-as-the-subject
+      showcase.</p>
+    </div>
+    <p class="anno">Copy framing of the FEAT-006 / Choices relationship depends on Open question 5; venue-overflow candor box mirrors Checkout's, pending Open question 4.</p>
+  </section>
+
+
+  <!-- =====================================================================
+       SECTION: the live form, full composition (builder + summary)
+  ====================================================================== -->
+  <div class="divider"><span>The run of show, live</span></div>
+
+  <div class="demo-layout">
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <!-- schedule anchors -->
+      <section id="schedule-anchors" class="card">
+        <h3>Schedule anchors</h3>
+        <p style="margin-bottom:14px; font-size:13px;">Three editable times. Change any one and every row's clock time
+        and the curfew check recompute live, without touching the program's order or content.</p>
+        <div class="anchors">
+          <label class="fld"><span>Event start</span><input type="time" value="18:00" /></label>
+          <label class="fld"><span>Amplified-music curfew</span><input type="time" value="23:00" /></label>
+          <label class="fld"><span>Venue closes</span><input type="time" value="01:00" /></label>
+        </div>
+        <p class="anno">24-hour display assumed (Open question 6). Three scalar leaves above the program, not inside it.</p>
+      </section>
+
+      <!-- add-item toolbar -->
+      <section id="add-toolbar" class="card">
+        <header style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
+          <h3 style="margin:0;">Program</h3>
+          <span class="tag">8 of 20</span>
+        </header>
+        <p style="font-size:13px; margin-bottom:14px;">Add an item to the end of the list, then reorder with the arrows on each row.</p>
+        <div class="toolbar">
+          <button class="btn"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Speech / toast</button>
+          <button class="btn"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Dinner course</button>
+          <button class="btn"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Band / DJ set</button>
+          <button class="btn"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Open dance floor</button>
+          <button class="btn"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Cake cutting</button>
+          <button class="btn"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Break / room turn</button>
+        </div>
+        <p class="anno">The count tag ("8 of 20") is the choice-level budget, shown via the existing ChoiceArraySectionCard count tag. maxOccurs cap per Open question 7.</p>
+      </section>
+
+      <!-- the timeline -->
+      <section id="program-timeline" class="card">
+        <div class="timeline">
+
+          <!-- 1 speech, mic'd => amplified, OK -->
+          <div class="tl-row">
+            <div class="tl-node k-speech">🎤</div>
+            <div class="tl-card">
+              <div class="tl-head">
+                <span class="pos-badge">1</span>
+                <span class="tl-kind">Speech / toast</span>
+                <span class="pill amp">Amplified</span>
+                <span class="tl-time">18:00&ndash;18:10</span>
+              </div>
+              <div class="tl-fields">
+                <label class="fld"><span>Speaker</span><input value="Father of the bride" /></label>
+                <label class="fld"><span>Duration</span>
+                  <select><option>5 min</option><option selected>10 min</option><option>15 min</option><option>20 min</option></select>
+                </label>
+              </div>
+              <div class="tl-foot">
+                <span class="switch on"><span class="track"><span class="knob"></span></span> On the mic</span>
+                <span class="reorder">
+                  <button class="btn ghost" disabled aria-label="Move up"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg></button>
+                  <button class="btn ghost" aria-label="Move down"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg></button>
+                  <button class="btn danger" aria-label="Remove"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></button>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2 dinner starter -->
+          <div class="tl-row">
+            <div class="tl-node k-dinner">🍽️</div>
+            <div class="tl-card">
+              <div class="tl-head">
+                <span class="pos-badge">2</span>
+                <span class="tl-kind">Dinner course</span>
+                <span class="tl-time">18:10&ndash;18:40</span>
+              </div>
+              <div class="tl-fields">
+                <label class="fld"><span>Course</span>
+                  <select><option selected>Starter</option><option>Main</option><option>Dessert</option></select>
+                </label>
+                <label class="fld"><span>Duration</span>
+                  <select><option>20 min</option><option selected>30 min</option><option>45 min</option><option>60 min</option></select>
+                </label>
+              </div>
+              <div class="tl-foot"><span class="reorder">
+                <button class="btn ghost" aria-label="Move up"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg></button>
+                <button class="btn ghost" aria-label="Move down"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg></button>
+                <button class="btn danger" aria-label="Remove"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></button>
+              </span></div>
+            </div>
+          </div>
+
+          <!-- 3 dinner main -->
+          <div class="tl-row">
+            <div class="tl-node k-dinner">🍽️</div>
+            <div class="tl-card">
+              <div class="tl-head">
+                <span class="pos-badge">3</span>
+                <span class="tl-kind">Dinner course</span>
+                <span class="tl-time">18:40&ndash;19:25</span>
+              </div>
+              <div class="tl-fields">
+                <label class="fld"><span>Course</span>
+                  <select><option>Starter</option><option selected>Main</option><option>Dessert</option></select>
+                </label>
+                <label class="fld"><span>Duration</span>
+                  <select><option>20 min</option><option>30 min</option><option selected>45 min</option><option>60 min</option></select>
+                </label>
+              </div>
+              <div class="tl-foot"><span class="reorder">
+                <button class="btn ghost" aria-label="Move up"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg></button>
+                <button class="btn ghost" aria-label="Move down"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg></button>
+                <button class="btn danger" aria-label="Remove"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></button>
+              </span></div>
+            </div>
+          </div>
+
+          <!-- 4 band set, amplified, OK -->
+          <div class="tl-row">
+            <div class="tl-node k-band">🎸</div>
+            <div class="tl-card">
+              <div class="tl-head">
+                <span class="pos-badge">4</span>
+                <span class="tl-kind">Band / DJ set</span>
+                <span class="pill amp">Amplified</span>
+                <span class="tl-time">19:25&ndash;20:55</span>
+              </div>
+              <div class="tl-fields">
+                <label class="fld"><span>Act</span><input value="The Night Owls" /></label>
+                <label class="fld"><span>Duration</span>
+                  <select><option>60 min</option><option selected>90 min</option><option>120 min</option></select>
+                </label>
+              </div>
+              <div class="tl-foot"><span class="reorder">
+                <button class="btn ghost" aria-label="Move up"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg></button>
+                <button class="btn ghost" aria-label="Move down"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg></button>
+                <button class="btn danger" aria-label="Remove"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></button>
+              </span></div>
+            </div>
+          </div>
+
+          <!-- 5 cake -->
+          <div class="tl-row">
+            <div class="tl-node k-cake">🎂</div>
+            <div class="tl-card">
+              <div class="tl-head">
+                <span class="pos-badge">5</span>
+                <span class="tl-kind">Cake cutting</span>
+                <span class="tl-time">20:55&ndash;21:05</span>
+              </div>
+              <div class="tl-fields">
+                <label class="fld"><span>Duration</span>
+                  <select><option selected>10 min</option><option>15 min</option></select>
+                </label>
+                <label class="fld"><span>Note <span class="hint">(optional)</span></span><input value="Sparklers from the staff" /></label>
+              </div>
+              <div class="tl-foot"><span class="reorder">
+                <button class="btn ghost" aria-label="Move up"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg></button>
+                <button class="btn ghost" aria-label="Move down"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg></button>
+                <button class="btn danger" aria-label="Remove"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></button>
+              </span></div>
+            </div>
+          </div>
+
+          <!-- curfew marker: clock passes 23:00 here -->
+          <div class="curfew-mark"><span class="lab">Amplified-music curfew &middot; 23:00</span><span class="line"></span></div>
+
+          <!-- 6 open dance floor, amplified, VIOLATES curfew (the payoff) -->
+          <div class="tl-row">
+            <div class="tl-node k-dance">🪩</div>
+            <div class="tl-card err">
+              <div class="tl-head">
+                <span class="pos-badge">6</span>
+                <span class="tl-kind">Open dance floor</span>
+                <span class="pill amp">Amplified</span>
+                <span class="tl-time" style="color:var(--err-text); background:var(--err-bg);">21:05&ndash;23:35</span>
+              </div>
+              <div class="tl-fields">
+                <label class="fld"><span>Duration</span>
+                  <select><option>60 min</option><option>90 min</option><option selected>150 min</option></select>
+                </label>
+                <label class="fld"><span>Music style</span><input value="Disco &amp; pop" /></label>
+              </div>
+              <div class="tl-msg err">
+                <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8"/><path d="M10 6v5M10 14h.01"/></svg>
+                <span>Ends 23:35, 35 minutes after the 23:00 curfew. Move this item earlier, or shorten an item above it.</span>
+              </div>
+              <div class="tl-foot"><span class="reorder">
+                <button class="btn ghost" aria-label="Move up"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg></button>
+                <button class="btn ghost" disabled aria-label="Move down"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg></button>
+                <button class="btn danger" aria-label="Remove"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></button>
+              </span></div>
+            </div>
+          </div>
+
+        </div>
+        <p class="anno">Rail connects per-kind icon nodes; position badge renumbers live on add / remove / reorder. The curfew marker sits where the computed clock crosses the curfew time, so it moves as durations above it change. Carried over from the cancelled FEAT-007 timeline design.</p>
+      </section>
+    </div>
+
+    <!-- live summary panel -->
+    <aside id="summary-panel" class="summary-rail">
+      <div class="card sum">
+        <h3>Evening at a glance</h3>
+        <div class="sum-tl">
+          <div class="r"><span>Welcome speech</span><span class="t">18:00</span></div>
+          <div class="r"><span>Starter</span><span class="t">18:10</span></div>
+          <div class="r"><span>Main course</span><span class="t">18:40</span></div>
+          <div class="r"><span>The Night Owls</span><span class="t">19:25</span></div>
+          <div class="r"><span>Cake cutting</span><span class="t">20:55</span></div>
+          <div class="r cross"><span>Open dance floor</span><span class="t">21:05</span></div>
+        </div>
+
+        <div class="sum-block">
+          <div class="status-row"><span>Program ends</span><strong style="font-variant-numeric:tabular-nums;">23:35</strong></div>
+          <div class="status-row"><span>Venue closes</span><strong style="font-variant-numeric:tabular-nums;">01:00</strong></div>
+          <div class="status-banner ok">Within venue hours (85 minutes to spare).</div>
+          <p class="anno" style="margin-top:8px;">Venue overflow is a duration total, never an order effect. Indicator only, never blocking (Open question 4 / candor box).</p>
+        </div>
+
+        <div class="sum-block">
+          <div class="status-banner err">
+            <strong>Curfew exceeded.</strong> Open dance floor (position 6) ends 23:35, after the 23:00 curfew.
+          </div>
+          <p class="anno" style="margin-top:8px;">Hard-blocking (Open question 4 fixes curfew as the star rule). Names offending item(s) by position.</p>
+        </div>
+
+        <div class="sum-block">
+          <div style="font-size:12px; font-weight:700; color:var(--text-2); text-transform:uppercase; letter-spacing:.06em;">Program mix</div>
+          <div class="counts">
+            <span class="count-chip">1 speech</span>
+            <span class="count-chip">2 dinner courses</span>
+            <span class="count-chip">1 band set</span>
+            <span class="count-chip">1 dance floor</span>
+            <span class="count-chip">1 cake</span>
+            <span class="count-chip">0 breaks</span>
+          </div>
+        </div>
+      </div>
+      <p class="anno">On screens below 1100px the summary stacks above the builder (order:-1), matching Checkout's cart rail.</p>
+    </aside>
+  </div>
+
+
+  <!-- =====================================================================
+       SECTION: submit bar states
+  ====================================================================== -->
+  <div class="divider"><span>Submit bar &mdash; all states</span></div>
+  <section id="submit-bar" style="display:flex; flex-direction:column; gap:14px;">
+    <div class="card">
+      <button class="btn primary">Save run of show</button>
+      <p class="anno">Enabled: live aggregate <code>meta.valid</code> is true (no curfew violation). Hover darkens to sky-700.</p>
+    </div>
+    <div class="card">
+      <button class="btn primary" disabled>Save run of show</button>
+      <p style="font-size:13px; color:var(--err-text); margin:10px 0 0;">Resolve the curfew violation on position 6 before saving.</p>
+      <p class="anno">Disabled: a hard-blocking rule (curfew) fails. Mirrors Checkout's coverage gate; submit reads <code>meta.valid</code> directly (no formIsComplete workaround).</p>
+    </div>
+    <div class="card">
+      <button class="btn primary" disabled><span class="spinner"></span> Saving&hellip;</button>
+      <p class="anno">Submitting: the only genuine loading state on this page (there is no async data).</p>
+    </div>
+    <div class="card">
+      <div class="success">
+        <span>✅</span>
+        <span><strong>Run of show saved.</strong> 6 items, 18:00 to 23:35. (Demo only: nothing was stored.)
+          <a href="#" style="margin-left:4px;">Start a new program</a></span>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =====================================================================
+       SECTION: row state gallery (states policy, per row)
+  ====================================================================== -->
+  <div class="divider"><span>Program row &mdash; every state</span></div>
+  <section id="row-states">
+    <p>One states policy applies to every row kind. Error = rose border + inline message + rose time chip
+    (hard rules). Warning = amber border + inline message, non-blocking (domain conventions). Amplified kinds
+    carry the indigo badge. Field validation follows pristine &rarr; invalid-with-message &rarr; valid.</p>
+
+    <div class="stcategory two">
+
+      <!-- default / pristine -->
+      <div>
+        <div class="tl-card">
+          <div class="tl-head"><span class="pos-badge">2</span><span class="tl-kind">Break / room turn</span><span class="tl-time">20:00&ndash;20:15</span></div>
+          <div class="tl-fields one">
+            <label class="fld"><span>Duration</span><select><option>10 min</option><option selected>15 min</option><option>30 min</option></select></label>
+          </div>
+        </div>
+        <p class="anno">Default, pristine. Break is the thinnest branch (duration only), already one child field, so preserveOrder qualifies (Open question 2).</p>
+      </div>
+
+      <!-- focus (static demo) -->
+      <div>
+        <div class="tl-card focus-demo">
+          <div class="tl-head"><span class="pos-badge">1</span><span class="tl-kind">Speech / toast</span><span class="pill amp">Amplified</span><span class="tl-time">18:00&ndash;18:15</span></div>
+          <div class="tl-fields">
+            <label class="fld"><span>Speaker</span><input value="Best man" /></label>
+            <label class="fld"><span>Duration</span><select><option>10 min</option><option selected>15 min</option></select></label>
+          </div>
+        </div>
+        <p class="anno">Focus state (shown statically): sky-600 border + 3px focus ring. Cannot be captured in a still otherwise.</p>
+      </div>
+
+      <!-- invalid field -->
+      <div>
+        <div class="tl-card">
+          <div class="tl-head"><span class="pos-badge">1</span><span class="tl-kind">Speech / toast</span><span class="pill amp">Amplified</span><span class="tl-time">18:00&ndash;18:10</span></div>
+          <div class="tl-fields">
+            <label class="fld invalid"><span>Speaker</span><input value="" placeholder="e.g. Maid of honour" /><span class="err">A speaker name is required.</span></label>
+            <label class="fld"><span>Duration</span><select><option selected>10 min</option></select></label>
+          </div>
+        </div>
+        <p class="anno">Invalid field: rose input border + message below, per-occurrence (speech[0] validates independently of speech[1]).</p>
+      </div>
+
+      <!-- valid field -->
+      <div>
+        <div class="tl-card">
+          <div class="tl-head"><span class="pos-badge">1</span><span class="tl-kind">Speech / toast</span><span class="pill amp">Amplified</span><span class="tl-time">18:00&ndash;18:10</span></div>
+          <div class="tl-fields">
+            <label class="fld valid"><span>Speaker</span><input value="Maid of honour" /></label>
+            <label class="fld"><span>Duration</span><select><option selected>10 min</option></select></label>
+          </div>
+        </div>
+        <p class="anno">Valid field: emerald input border, no message.</p>
+      </div>
+
+      <!-- curfew error row -->
+      <div>
+        <div class="tl-card err">
+          <div class="tl-head"><span class="pos-badge">6</span><span class="tl-kind">Band / DJ set</span><span class="pill amp">Amplified</span><span class="tl-time" style="color:var(--err-text); background:var(--err-bg);">22:30&ndash;00:00</span></div>
+          <div class="tl-fields"><label class="fld"><span>Act</span><input value="The Night Owls" /></label><label class="fld"><span>Duration</span><select><option selected>90 min</option></select></label></div>
+          <div class="tl-msg err"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="8"/><path d="M10 6v5M10 14h.01"/></svg><span>Ends 00:00, 60 minutes after the 23:00 curfew.</span></div>
+        </div>
+        <p class="anno">Hard-blocking curfew error (the star rule). Backed by a hidden vehicle leaf + validateField retrigger, as Checkout's splitPaymentCoverage.</p>
+      </div>
+
+      <!-- warning: cake before dinner -->
+      <div>
+        <div class="tl-card warn">
+          <div class="tl-head"><span class="pos-badge">2</span><span class="tl-kind">Cake cutting</span><span class="pill warn">Convention</span><span class="tl-time">18:10&ndash;18:20</span></div>
+          <div class="tl-fields"><label class="fld"><span>Duration</span><select><option selected>10 min</option></select></label><label class="fld"><span>Note <span class="hint">(optional)</span></span><input value="" /></label></div>
+          <div class="tl-msg warn"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3L2 17h16L10 3zM10 8v4M10 15h.01"/></svg><span>Cake cutting usually comes after every dinner course.</span></div>
+        </div>
+        <p class="anno">Non-blocking warning (if Open question 4 keeps rules 2 and 3 as conventions). Amber, derived display flag only, no hidden leaf.</p>
+      </div>
+
+      <!-- warning: leading break -->
+      <div>
+        <div class="tl-card warn">
+          <div class="tl-head"><span class="pos-badge">1</span><span class="tl-kind">Break / room turn</span><span class="pill warn">Convention</span><span class="tl-time">18:00&ndash;18:15</span></div>
+          <div class="tl-fields one"><label class="fld"><span>Duration</span><select><option selected>15 min</option></select></label></div>
+          <div class="tl-msg warn"><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3L2 17h16L10 3zM10 8v4M10 15h.01"/></svg><span>The program usually does not open with a break.</span></div>
+        </div>
+        <p class="anno">No-leading-break convention warning. If Open question 4 makes rules 2 or 3 hard-block instead, they flip to the rose error style above.</p>
+      </div>
+
+      <!-- disabled remove (minOccurs floor) + ends-of-list reorder -->
+      <div>
+        <div class="tl-card">
+          <div class="tl-head"><span class="pos-badge">1</span><span class="tl-kind">Dinner course</span><span class="tl-time">18:00&ndash;18:30</span></div>
+          <div class="tl-fields"><label class="fld"><span>Course</span><select><option selected>Main</option></select></label><label class="fld"><span>Duration</span><select><option selected>30 min</option></select></label></div>
+          <div class="tl-foot"><span class="reorder">
+            <button class="btn ghost" disabled aria-label="Move up"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5-5 5 5"/></svg></button>
+            <button class="btn ghost" disabled aria-label="Move down"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l5 5 5-5"/></svg></button>
+            <button class="btn danger" disabled aria-label="Remove"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></button>
+          </span></div>
+        </div>
+        <p class="anno">Disabled controls: up disabled at top, down disabled at bottom, remove disabled when a single item sits at the minOccurs floor (Open question 7).</p>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- =====================================================================
+       SECTION: add-toolbar cap-reached state
+  ====================================================================== -->
+  <div class="divider"><span>Add toolbar &mdash; budget reached</span></div>
+  <section id="add-toolbar-full" class="card">
+    <header style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
+      <h3 style="margin:0;">Program</h3><span class="tag">20 of 20</span>
+    </header>
+    <div class="toolbar">
+      <button class="btn" disabled><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Speech / toast</button>
+      <button class="btn" disabled><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Dinner course</button>
+      <button class="btn" disabled><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Band / DJ set</button>
+      <button class="btn" disabled><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Open dance floor</button>
+      <button class="btn" disabled><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Cake cutting</button>
+      <button class="btn" disabled><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4v12M4 10h12"/></svg>Break / room turn</button>
+    </div>
+    <p style="font-size:12px; color:var(--text-3); margin:10px 0 0;">The program is full (20 of 20 items). Remove an item to add another.</p>
+    <p class="anno">All Add buttons disable once the choice-level budget is exhausted. The reason is tied to each button via aria-describedby (ChoiceArraySectionCard convention).</p>
+  </section>
+
+
+  <!-- =====================================================================
+       SECTION: empty program
+  ====================================================================== -->
+  <div class="divider"><span>Empty program</span></div>
+  <section id="empty-program">
+    <div class="demo-layout">
+      <div class="card">
+        <div class="empty">
+          No items yet. Use <strong>Add</strong> above to build the evening's program.
+          Every item's clock time is computed from the event start and the durations above it.
+        </div>
+      </div>
+      <aside class="summary-rail">
+        <div class="card sum">
+          <h3>Evening at a glance</h3>
+          <div class="empty" style="padding:18px; font-size:13px;">The timeline appears here as you add items.</div>
+          <div class="sum-block">
+            <div class="status-banner ok">No amplified items yet, so nothing can breach the curfew.</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <p class="anno">minOccurs: 0 makes an empty program a valid state (Open question 7), mirroring FEAT-006's mandatory empty-state precedent. Empty and curfew-OK states are both shown.</p>
+  </section>
+
+
+  <!-- =====================================================================
+       SECTION: summary panel, venue-overflow variant
+  ====================================================================== -->
+  <div class="divider"><span>Summary panel &mdash; overflow &amp; all-clear variants</span></div>
+  <section id="summary-variants" class="stategory two">
+    <div>
+      <div class="card sum">
+        <h3>Evening at a glance</h3>
+        <div class="status-row"><span>Program ends</span><strong style="font-variant-numeric:tabular-nums;">01:40</strong></div>
+        <div class="status-row"><span>Venue closes</span><strong style="font-variant-numeric:tabular-nums;">01:00</strong></div>
+        <div class="status-banner warn">Program runs 40 minutes past venue close. This is a duration total, not an order problem: reordering cannot fix it.</div>
+      </div>
+      <p class="anno">Venue overflow: amber indicator, explicitly non-blocking, with the candor sentence inline.</p>
+    </div>
+    <div>
+      <div class="card sum">
+        <h3>Evening at a glance</h3>
+        <div class="status-row"><span>Program ends</span><strong style="font-variant-numeric:tabular-nums;">22:40</strong></div>
+        <div class="status-row"><span>Venue closes</span><strong style="font-variant-numeric:tabular-nums;">01:00</strong></div>
+        <div class="status-banner ok">Within venue hours.</div>
+        <div class="sum-block"><div class="status-banner ok">All amplified items end before the 23:00 curfew.</div></div>
+      </div>
+      <p class="anno">All-clear: both indicators emerald, submit enabled.</p>
+    </div>
+  </section>
+
+
+  <!-- =====================================================================
+       SECTION: metadata walkthrough (the prose structure below the form)
+  ====================================================================== -->
+  <div class="divider"><span>Metadata walkthrough (below the live form)</span></div>
+  <section id="metadata-walkthrough">
+    <h2>One metadata tree, one template</h2>
+    <p>Everything above is declarative. The engine walks the tree, classifies each node by its shape,
+    and renders it through the neutral template. The page then walks the metadata the way the other
+    advanced examples do: VitePress <code>&lt;&lt;&lt;</code> region excerpts, "What It Demonstrates",
+    "How It Works", "Related Source".</p>
+
+    <h3 style="margin-top:20px;">The repeatable ordered choice</h3>
+    <pre class="src"><span class="c">// one occurrence per program item; six branches, genuinely different fields</span>
+program: {
+  maxOccurs: 20,                      <span class="c">// Open question 7</span>
+  minOccurs: 0,                       <span class="c">// empty program is valid</span>
+  explicitChoiceSelection: true,
+  displayOrder: 'added',
+  preserveOrder: true,                <span class="c">// every branch declares children (Q2)</span>
+  choice: {
+    speech:  { children: { speaker, duration, onMic } },
+    dinner:  { children: { course, duration } },
+    band:    { children: { act, duration } },        <span class="c">// amplified by definition</span>
+    dance:   { children: { duration, musicStyle } }, <span class="c">// amplified by definition</span>
+    cake:    { children: { duration, note } },        <span class="c">// note added so preserveOrder applies</span>
+    break:   { children: { duration } },
+  },
+}</pre>
+    <p class="anno">Exact field names / option increments are architecture's to finalize (Open question 3). preserveOrder requires every branch to have children (Open question 2).</p>
+
+    <h3 style="margin-top:20px;">The computed clock cascade</h3>
+    <pre class="src"><span class="c">// each row's start = event start + sum of every duration above it.</span>
+<span class="c">// a running fold over the rendered (reordered) occurrences, read live off</span>
+<span class="c">// the form's own values via useFormContext, NOT computedProps.</span>
+<span class="c">// structurally identical to splitPaymentLedgerMath's remaining-amount fold.</span></pre>
+
+    <h3 style="margin-top:20px;">What It Demonstrates</h3>
+    <ul class="demolist">
+      <li>A repeatable ordered <code>choice</code> (<code>maxOccurs &gt; 1</code> + <code>choice</code>) as the page's whole subject, with six branch flavours</li>
+      <li>Template-driven reordering: up/down buttons writing two <code>order</code> values through <code>useFormContext().setFieldValue</code></li>
+      <li>A computed clock cascade: durations in, clock times out, read live off form values</li>
+      <li>A hard-blocking, order-sensitive curfew rule reusing the hidden-vehicle-leaf + <code>validateField</code> pattern</li>
+      <li>A live summary panel: timeline, end vs venue close, curfew status by position, counts per kind</li>
+    </ul>
+
+    <h3 style="margin-top:20px;">Related Source</h3>
+    <ul class="demolist">
+      <li>RunOfShowExample.vue (the metadata tree) &middot; RunOfShowTemplate.vue (the neutral template)</li>
+      <li><a href="#">Choices</a> for the repeatable ordered choice mechanics</li>
+      <li><a href="#">Checkout &rarr; Split payment</a> for the running-cascade prior art</li>
+      <li><a href="#">Inbox Rules Builder</a> for the sibling order-as-subject showcase</li>
+    </ul>
+    <p class="anno">Final component names are architecture's; this mirrors Checkout's Related Source block.</p>
+  </section>
+
+</div>
+
+<script>
+  // Drive dark mode exactly as VitePress does: a .dark class on <html>.
+  var root = document.documentElement;
+  var btn = document.getElementById('themeToggle');
+  function sync() { btn.textContent = root.classList.contains('dark') ? '☀️' : '🌙'; }
+  btn.addEventListener('click', function () { root.classList.toggle('dark'); sync(); });
+  sync();
+</script>
+</body>
+</html>
