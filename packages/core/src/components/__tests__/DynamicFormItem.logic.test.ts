@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { toRaw } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 import { formValues, setupState } from './DynamicFormItem.test-helpers';
@@ -645,6 +645,206 @@ describe('component DynamicFormItem - logic', () => {
 
       expect(findDynamicFormItemByPath(wrapper, 'person.address').props('slotProps')).toEqual({ level: 1 });
       expect(findDynamicFormItemByPath(wrapper, 'person.address.street').props('slotProps')).toEqual({ level: 2 });
+    });
+  });
+
+  describe('a group\'s own meta.valid stays live as its subtree changes', () => {
+    it('refreshes via a silent validate on a descendant fill, surfacing no error and leaving touched/validated unchanged', async () => {
+      // A plain xsd_required container passes on any object, including { firstName: undefined },
+      // so it would already read valid at mount regardless of the fix. A cross-field validation
+      // reading the child's own value is what can genuinely be invalid at mount and flip to valid
+      // once the child fills in, which is what this watcher is for.
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            fieldOptions: { label: 'Person' },
+            minOccurs: 0,
+            validation: (value: unknown) => !!(value as { firstName?: string })?.firstName || 'First name required',
+            children: [
+              { name: 'firstName', type: 'text', minOccurs: 0, fieldOptions: { label: 'First Name' } },
+            ],
+          }] as any,
+        },
+      });
+      await flushPromises();
+
+      const fieldContext = setupState(wrapper, 'person')?.fieldContext;
+      const validateSpy = vi.spyOn(fieldContext, 'validate');
+      const touchedBefore = fieldContext.meta.touched;
+      const validatedBefore = fieldContext.meta.validated;
+      expect(fieldContext.meta.valid).toBe(false);
+
+      await wrapper.find('#person\\.firstName').setValue('John');
+      await flushPromises();
+
+      expect(validateSpy).toHaveBeenCalledWith({ mode: 'silent' });
+      expect(fieldContext.meta.valid).toBe(true);
+      expect(wrapper.find('[data-testid="person-error-message"]').exists()).toBe(false);
+      expect(fieldContext.meta.touched).toBe(touchedBefore);
+      expect(fieldContext.meta.validated).toBe(validatedBefore);
+    });
+
+    it('skips the silent validate while a reset or a shouldValidate: false write is suppressing validation, and resumes on the next real change', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            children: [{ name: 'firstName', type: 'text', minOccurs: 0 }],
+          }] as any,
+        },
+      });
+      await flushPromises();
+
+      const fieldContext = setupState(wrapper, 'person')?.fieldContext;
+      const validateSpy = vi.spyOn(fieldContext, 'validate');
+
+      (wrapper.vm as any).$.setupState.setFieldValue('person.firstName', 'suppressed', false);
+      await flushPromises();
+      expect(validateSpy).not.toHaveBeenCalledWith({ mode: 'silent' });
+
+      validateSpy.mockClear();
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+      expect(validateSpy).not.toHaveBeenCalledWith({ mode: 'silent' });
+
+      validateSpy.mockClear();
+      await wrapper.find('#person\\.firstName').setValue('real change');
+      await flushPromises();
+      expect(validateSpy).toHaveBeenCalledWith({ mode: 'silent' });
+    });
+  });
+
+  describe('stale registration across a choice-anchor unmount', () => {
+    function mountNestedChoiceInBranch() {
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'outer',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Outer Choice' },
+            choice: [
+              {
+                name: 'branchA',
+                fieldOptions: { label: 'Branch A' },
+                explicitChoiceSelection: true,
+                choice: [
+                  { name: 'a1', fieldOptions: { label: 'A1' } },
+                  { name: 'a2', fieldOptions: { label: 'A2' } },
+                ],
+              },
+              { name: 'branchB', fieldOptions: { label: 'Branch B' } },
+            ],
+          }] as any,
+        },
+      });
+    }
+
+    it('switching away from a branch with a nested choice still allows a later valid submit', async () => {
+      const wrapper = mountNestedChoiceInBranch();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="outer.branchA-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="outer.branchA.a1-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="outer.branchA.a1"]').setValue('hello');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="outer.branchB-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="outer.branchB"]').setValue('world');
+      await flushPromises();
+
+      // Nothing visible reports a problem before the submit attempt.
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      // The deselected branchA no longer leaves behind a registration with a frozen required
+      // check, so the submit succeeds once every rendered field is valid.
+      expect(wrapper.find('[data-testid="isSubmitted"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+
+    it('selecting a presence-marked branch in a form with no other field flips meta.valid to true', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'express', presenceValue: true, fieldOptions: { label: 'Express Checkout' } },
+              { name: 'email', fieldOptions: { label: 'Email' } },
+            ],
+          }] as any,
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect((wrapper.vm as any).$.setupState.meta.valid).toBe(true);
+    });
+
+    it('still runs a choice-hosting branch\'s own validation rule after it is folded into the choice', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'outer',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Outer Choice' },
+            choice: [
+              {
+                name: 'branchA',
+                fieldOptions: { label: 'Branch A' },
+                explicitChoiceSelection: true,
+                // A cross-field rule declared directly on the branch, unrelated to the nested
+                // choice's own occurrence rules: it reads the branch's own aggregated value.
+                validation: (value: any) => value?.a1 === 'secret' ? true : 'branchA needs its secret value',
+                choice: [
+                  { name: 'a1', fieldOptions: { label: 'A1' } },
+                  { name: 'a2', fieldOptions: { label: 'A2' } },
+                ],
+              },
+              { name: 'branchB', fieldOptions: { label: 'Branch B' } },
+            ],
+          }] as any,
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="outer.branchA-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="outer.branchA.a1-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[id="outer.branchA.a1"]').setValue('wrong');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="isSubmitted"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="outer.branchA-error-message"]').text())
+        .toContain('branchA needs its secret value');
+
+      await wrapper.find('[id="outer.branchA.a1"]').setValue('secret');
+      await flushPromises();
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="isSubmitted"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
     });
   });
 });

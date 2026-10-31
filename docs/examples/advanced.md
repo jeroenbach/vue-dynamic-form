@@ -2,6 +2,8 @@
 
 A production-style wizard demonstrating the full feature set: multi-step navigation with per-page validation, conditional required/hidden fields, dynamic option loading, a repeatable choice of systems kept in the order they were added, repeatable contacts, a choice-based launch path, and a read-only summary page before submit.
 
+Looking for a one-page checkout instead of a multi-step wizard? See the [Checkout](/examples/checkout) example.
+
 ## What It Demonstrates
 
 - Multi-step forms via the [`wizard`](/reference/field-metadata#wizard) metadata property, with `next()` validating the current page before advancing

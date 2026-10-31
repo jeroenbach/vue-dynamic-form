@@ -230,6 +230,38 @@ export type FieldMetadata<
   wizard?: boolean | WizardConfig
 
   /**
+   * The value stored in the form when the user selects this choice branch.
+   *
+   * Normally a branch has fields, and filling those in is what marks the branch as selected.
+   * A branch without any fields has nothing to fill in, so without help its value stays
+   * `undefined`: validation thinks nothing was selected, and the selection is lost when the
+   * form values are submitted or loaded back in. Set `presenceValue` to fix that: the moment
+   * the user picks the branch, this value is written as the branch's value, so the selection
+   * validates and survives a save/reload round-trip.
+   *
+   * Any JSON-serializable value works (`true`, `'selected'`, `{}`, ...), except `null` and the
+   * empty string: those read as selected but still fail the branch's own required check, so the
+   * selection would show an error. When the form loads existing values, the branch shows as
+   * selected whenever its value is not `undefined`.
+   *
+   * Selecting the branch is a session action: `resetForm()` clears a marker written by a click
+   * this session and deselects the branch, while a marker that was part of the loaded values is
+   * restored and keeps the branch selected.
+   *
+   * Only useful on a non-repeatable (`maxOccurs: 1`) branch without `children`, inside a
+   * `choice` with `explicitChoiceSelection: true`. On other branches it is ignored, because
+   * their values already show that they were selected (a repeated branch has its occurrences,
+   * a branch with children has its filled-in fields). Using it on a branch with `children`
+   * logs a development warning.
+   *
+   * Two things to keep in mind:
+   * - Prefer a non-empty value: if you clean up the submitted values with `removeNullValues`,
+   *   an empty `{}` or `[]` marker is removed and the selection is lost.
+   * - This is static metadata only; `computedProps` cannot set or change it at runtime.
+   */
+  presenceValue?: unknown
+
+  /**
    * Attributes are additional metadata that can be attached to a field.
    * These attributes can be used to provide extra information about the field,
    * such as for example whether the data is verified.
@@ -359,6 +391,10 @@ export type ComputedPropsFieldType<
       // Static, render-mode-defining metadata: flipping this via computedProps would change
       // which component renders the node mid-form.
       | 'wizard'
+      // Static branch metadata read directly off the choice's own `choice` array (itself
+      // already excluded): a computedProps function has no channel to flip a branch's presence
+      // marker mid-form.
+      | 'presenceValue'
     > & Readonly<{
       // Add the name & path back as not optional and Readonly
       name: string

@@ -41,7 +41,7 @@ const showPassword = ref(false);
       type="button"
       tabindex="-1"
       :data-testid="dataTestid ? `${dataTestid}-toggle` : undefined"
-      class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+      class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
       :aria-label="showPassword ? 'Hide password' : 'Show password'"
       @click="showPassword = !showPassword"
     >

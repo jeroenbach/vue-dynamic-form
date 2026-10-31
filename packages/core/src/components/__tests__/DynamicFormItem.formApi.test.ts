@@ -699,4 +699,59 @@ describe('vee-validate form API surface', () => {
       expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
     });
   });
+
+  describe('meta.valid (live aggregate for group/choice/array shapes)', () => {
+    it.each([
+      {
+        shape: 'a plain group',
+        metadata: [{
+          name: 'person',
+          type: 'heading',
+          children: [{ name: 'firstName', type: 'text', minOccurs: 1, fieldOptions: { label: 'First Name' } }],
+        }],
+        fill: async (wrapper: ReturnType<typeof mount>) => {
+          await wrapper.find('#person\\.firstName').setValue('Ada');
+        },
+      },
+      {
+        shape: 'a choice anchor',
+        metadata: [{
+          name: 'pick',
+          fieldOptions: { label: 'Pick One' },
+          choice: [
+            { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+            { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+          ],
+        }],
+        fill: async (wrapper: ReturnType<typeof mount>) => {
+          await wrapper.find('[id="pick.opt1"]').setValue('hello');
+        },
+      },
+      {
+        shape: 'an array',
+        metadata: [{
+          name: 'items',
+          type: 'text',
+          minOccurs: 1,
+          maxOccurs: 3,
+          fieldOptions: { label: 'Items' },
+        }],
+        fill: async (wrapper: ReturnType<typeof mount>) => {
+          await wrapper.find('input[id="items[0]"]').setValue('first');
+        },
+      },
+    ])('flips the form-level meta.valid true on the last fill-in under $shape, with no prior validate()/handleSubmit() call', async ({ metadata, fill }) => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: { metadata: metadata as any },
+      });
+      await flushPromises();
+      expect((wrapper.vm as any).$.setupState.meta.valid).toBe(false);
+
+      await fill(wrapper);
+      await flushPromises();
+
+      expect((wrapper.vm as any).$.setupState.meta.valid).toBe(true);
+    });
+  });
 });

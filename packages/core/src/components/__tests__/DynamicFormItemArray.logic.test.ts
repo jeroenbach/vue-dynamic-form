@@ -1,8 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { toRaw } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 import { formValues, setupState } from './DynamicFormItem.test-helpers';
+import { arrayMetaValid, setupState as arraySetupState } from './DynamicFormItemArray.test-helpers';
 
 function addButton(wrapper: ReturnType<typeof mount>, path: string) {
   return wrapper.find(`[data-testid="${path}-add-button"]`);
@@ -757,6 +758,123 @@ describe('component DynamicFormItemArray - logic', () => {
       await flushPromises();
 
       expect(wrapper.find('input[id="items[0]"]').exists()).toBe(false);
+    });
+  });
+
+  describe('own meta.valid stays live independent of validateOnValueUpdate', () => {
+    function mountRequiredArray() {
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 1,
+            maxOccurs: 3,
+          }] as any,
+          settings: { validateOnValueUpdate: false },
+        },
+      });
+    }
+
+    it('flips true on a value fill and back false on a remove, add, and value change, without ever surfacing an error', async () => {
+      const wrapper = mountRequiredArray();
+      await flushPromises();
+
+      // Auto-added empty placeholder: minOccurs is unmet, but nothing is shown yet.
+      expect(arrayMetaValid(wrapper, 'items')).toBe(false);
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+
+      // Add a second occurrence so the first remains removable once filled (below, the array
+      // enforces at least minOccurs items, so removing the only item is blocked).
+      await addButton(wrapper, 'items').trigger('click');
+      await flushPromises();
+      expect(arrayMetaValid(wrapper, 'items')).toBe(false);
+
+      await wrapper.find('input[id="items[0]"]').setValue('first');
+      await flushPromises();
+      expect(arrayMetaValid(wrapper, 'items')).toBe(true);
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+
+      await removeButton(wrapper, 'items[0]').trigger('click');
+      await flushPromises();
+      expect(arrayMetaValid(wrapper, 'items')).toBe(false);
+      // The invalid transition is caught silently too: no visible error despite validateOnValueUpdate: false.
+      expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
+      expect(arraySetupState(wrapper, 'items')?.errors).toEqual([]);
+    });
+  });
+
+  describe('suppression guard skips the own-meta.valid silent validate during a reset or a shouldValidate: false write', () => {
+    it('does not call the silent validate while suppressed, and resumes on the next real change', async () => {
+      // validateOnValueUpdate is off so the silent pass is the one path keeping meta.valid live
+      // here; with it on, the full validate takes over instead (covered separately below).
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 1,
+            maxOccurs: 3,
+          }] as any,
+          settings: { validateOnValueUpdate: false },
+        },
+      });
+      await flushPromises();
+
+      const state = arraySetupState(wrapper, 'items');
+      const validateSpy = vi.spyOn(state!.arrayField, 'validate');
+
+      (wrapper.vm as any).$.setupState.setFieldValue('items[0]', 'suppressed', false);
+      await flushPromises();
+      expect(validateSpy).not.toHaveBeenCalledWith({ mode: 'silent' });
+
+      validateSpy.mockClear();
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+      expect(validateSpy).not.toHaveBeenCalledWith({ mode: 'silent' });
+
+      validateSpy.mockClear();
+      await wrapper.find('input[id="items[0]"]').setValue('real value');
+      await flushPromises();
+      expect(validateSpy).toHaveBeenCalledWith({ mode: 'silent' });
+    });
+  });
+
+  describe('the silent validate is skipped when the full validate already runs on value update', () => {
+    it('runs only the full validate with validateOnValueUpdate: true, and the array\'s own meta.valid still refreshes', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 1,
+            maxOccurs: 3,
+          }] as any,
+          settings: { validateOnValueUpdate: true },
+        },
+      });
+      await flushPromises();
+
+      const state = arraySetupState(wrapper, 'items');
+      const validateSpy = vi.spyOn(state!.arrayField, 'validate');
+
+      // The first fill still goes through the silent pass: the array's values watcher runs
+      // before the per-item guard flips firstValueSet, so the full validate is not active yet.
+      await wrapper.find('input[id="items[0]"]').setValue('filled');
+      await flushPromises();
+      validateSpy.mockClear();
+
+      await wrapper.find('input[id="items[0]"]').setValue('changed');
+      await flushPromises();
+
+      expect(validateSpy).not.toHaveBeenCalledWith({ mode: 'silent' });
+      expect(arrayMetaValid(wrapper, 'items')).toBe(true);
     });
   });
 });

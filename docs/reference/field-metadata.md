@@ -241,38 +241,29 @@ Opts a `choice` field into selection-first rendering: no branch renders until th
 }
 ```
 
-### `displayOrder`
+### `presenceValue`
 
-Type: `'grouped' | 'added'` | Default: `'grouped'` (absent)
+Type: `unknown` | Default: none
 
-For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Selects the render order of its occurrences: `'grouped'` is the default (grouped by branch declaration order, same as `activeChoiceOccurrences`), `'added'` interleaves occurrences by the order their `addChoiceOccurrence` press happened. Reactive: changing it in the metadata re-sorts the occurrence list in place, without a remount, and the session's add history survives the flip. Display only, never written to `values`. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
+The value stored in the form when the user selects this choice branch. Normally a branch has fields, and filling those in is what marks the branch as selected. A branch without any fields has nothing to fill in, so without help its value stays `undefined`: validation thinks nothing was selected, and the selection is lost when the form values are submitted or loaded back in. Set `presenceValue` to fix that: the moment the user picks the branch, this value is written as the branch's value, so the selection validates and survives a save/reload round-trip.
 
-```ts
-{
-  name: 'integrations',
-  maxOccurs: 5,
-  explicitChoiceSelection: true,
-  displayOrder: 'added',
-  choice: [/* ... */],
-}
-```
+Any JSON-serializable value works (`true`, `'selected'`, `{}`, ...), except `null` and the empty string: those read as selected but still fail the branch's own required check, so the selection would show an error. When the form loads existing values, the branch shows as selected whenever its value is not `undefined`. Selecting the branch is a session action: `resetForm()` clears a marker written by a click this session and deselects the branch, while a marker that was part of the loaded values is restored and keeps the branch selected.
 
-### `preserveOrder`
-
-Type: `boolean` | Default: `false` (absent)
-
-For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). The values stay contiguous `1..N` at all times: loaded data with missing or gapped `order` is normalized at mount (preserving its relative order) and removing an occurrence renumbers the survivors. Reactive: flipping it on mid-session seeds `order` into existing occurrences, flipping it off strips `order` from all of them; mounting with the flag absent never touches loaded data. Requires every branch to have `children`: one scalar-leaf branch disables it for the whole choice, with a development warning. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
+Only useful on a non-repeatable (`maxOccurs: 1`) branch without `children`, inside a `choice` with `explicitChoiceSelection: true`. On other branches it is ignored, because their values already show that they were selected (a repeated branch has its occurrences, a branch with children has its filled-in fields). Using it on a branch with `children` logs a development warning. Prefer a non-empty value: if you clean up submitted values with `removeNullValues`, an empty `{}` or `[]` marker is removed and the selection is lost. Static metadata only: `computedProps` cannot set or change it at runtime.
 
 ```ts
 {
-  name: 'integrations',
-  maxOccurs: 5,
+  name: 'checkoutMethod',
   explicitChoiceSelection: true,
-  displayOrder: 'added',
-  preserveOrder: true,
-  choice: [/* ... */],
+  choice: [
+    // No fields to fill in, so it marks selection via presenceValue
+    { name: 'express', presenceValue: true, fieldOptions: { label: 'Express checkout' } },
+    { name: 'manual', children: [/* ... */], fieldOptions: { label: 'Enter details manually' } },
+  ],
 }
 ```
+
+See [Express vs. manual checkout](/examples/checkout#express-vs-manual) in the Checkout example for this pattern in a full form.
 
 ### `displayOrder`
 

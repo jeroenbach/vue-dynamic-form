@@ -10,19 +10,21 @@ import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
 import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { ComputedPropsFieldOf, FieldMetadata, ReadOnlyFieldOf } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
-import { useField, useFormContext, useSubmitCount } from 'vee-validate';
+import { useField, useFieldValue, useFormContext, useSubmitCount } from 'vee-validate';
 import { computed, inject, onBeforeUnmount, onMounted, ref, toValue, watch, watchEffect } from 'vue';
 import DynamicFormItemArray from '@/components/DynamicFormItemArray.vue';
 import DynamicFormItemChoice from '@/components/DynamicFormItemChoice.vue';
 import DynamicFormItemWizard from '@/components/DynamicFormItemWizard.vue';
 import { useIsValidationSuppressed } from '@/core/useIsValidationSuppressed';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
+import { buildRestrictionValidations } from '@/utils/buildRestrictionValidations';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
+import { deepCloneValue } from '@/utils/deepCloneValue';
+import { deepEqual } from '@/utils/deepEqual';
 import { hashField } from '@/utils/hashField';
 import { normalizePath } from '@/utils/normalizePath';
 import { overridePath } from '@/utils/overridePath';
-import { splitToValidationFunctions } from '@/utils/splitValidationFunctions';
 
 // #region Interfaces
 export interface Emit {
@@ -52,6 +54,7 @@ let _analytics_fieldChangedCount = 0;
 let _analytics_fieldComputeCount = 0;
 let _analytics_valueChangedCount = 0;
 let _analytics_notifyValueUpdateCount = 0;
+let _analytics_subtreeValidateCount = 0;
 
 // Detects non-idempotent writes inside computedProps that would cause an infinite recomputation
 // loop. Loops that stay inside one reactive flush are already broken by Vue's own recursive-update
@@ -128,6 +131,12 @@ const isArray = computed(() => {
   return (field.value?.maxOccurs ?? 1) > 1;
 });
 
+// A choice-hosting field is rendered entirely by a nested DynamicFormItemChoice, which anchors
+// its own vee-validate registration at this same path (a choice node has no path of its own).
+// Read here, at setup time, rather than inside the "Field type flags" section below, because
+// the useField call site right underneath needs it before that section runs.
+const isChoice = computed(() => !!field.value?.choice?.length);
+
 // --- Vee-Validate field context ---
 
 // Initialized empty; populated by the watchEffect below.
@@ -135,12 +144,31 @@ const isArray = computed(() => {
 //   combinedValidation → computedField → value → fieldContext → combinedValidation
 const combinedValidation = ref<GenericValidateFunction[]>([]);
 
-const fieldContext = !isArray.value
-  ? useField(normalizedPath, combinedValidation, {
+// Each field shape gets a different kind of field context (called synchronously during setup,
+// so the vee-validate composables inside still bind to this component instance).
+function createFieldContext(): FieldContext {
+  // A choice-hosting field must not register its own useField here: the nested
+  // DynamicFormItemChoice already registers one at the identical path, and vee-validate does not
+  // merge two registrations sharing a path (only checkbox/radio get that treatment), so the one
+  // registered first never cleanly unregisters when it unmounts. Its own restriction/validation
+  // rules are folded into DynamicFormItemChoice's own validation instead; its value is read here
+  // through the read-only accessor rather than owned by a second registration.
+  if (isChoice.value)
+    return { value: useFieldValue(normalizedPath) } as unknown as FieldContext;
+
+  // An array field also skips useField: the nested DynamicFormItemArray owns the field array,
+  // and its value arrives here through updateArrayValue instead.
+  if (isArray.value)
+    return { value: ref(undefined) } as FieldContext;
+
+  // A regular field registers itself with vee-validate.
+  return useField(normalizedPath, combinedValidation, {
     ...(field.value?.fieldOptions ?? {}),
     validateOnValueUpdate: false, // validation timing is owned by this component
-  }) as FieldContext
-  : { value: ref(undefined) } as FieldContext;
+  }) as FieldContext;
+}
+
+const fieldContext = createFieldContext();
 
 const value = fieldContext.value;
 
@@ -175,7 +203,6 @@ fieldContext.handleChange = function (e: unknown, shouldValidate?: boolean | und
 
 const isWizard = computed(() => !!field.value?.wizard);
 const isParent = computed(() => !!field.value?.children?.length);
-const isChoice = computed(() => !!field.value?.choice?.length);
 // An input is any leaf field — not a repeating array, not a branching choice, not a parent group,
 // and not a wizard (a wizard always has its own delegated rendering, even with no children yet).
 const isInput = computed(() => !isArray.value && !isChoice.value && !isParent.value && !isWizard.value);
@@ -316,57 +343,58 @@ const showAttributes = computed(
 
 // #region Watchers and lifecycle events
 
+// Equality-guard state for the rules watchEffect below. Plain variables, not refs: comparing
+// against the previous run must not itself be a reactive dependency of the effect.
+let _hasBuiltCombinedValidation = false;
+let _previousRestriction: NonNullable<FieldMetadata['restriction']> = {};
+let _previousValidation: FieldMetadata['validation'];
+let _previousRequired = false;
+let _previousMessages: DynamicFormSettings['messages'];
+
 // Build the validation array reactively so it stays in sync with field metadata and settings.
 // watchEffect (rather than computed) is used here to avoid the circular dependency described
-// at the combinedValidation declaration above.
+// at the combinedValidation declaration above. restriction/validation/required are read off
+// computedField (rather than the raw field prop) so a computedProps function that swaps either
+// one is actually validated against. computedField recomputes with a fresh identity on every
+// keystroke it subscribes to, so this effect would otherwise re-run (and rebuild) on every such
+// keystroke; the equality guard below only rebuilds, and only counts, when something that
+// actually affects the rule set changed.
 watchEffect(() => {
-  _analytics_constructValidationCount++;
-
-  const _validations: GenericValidateFunction[] = [];
-  const _restriction = field.value.restriction ?? {};
+  const _restriction = computedField.value.restriction ?? {};
+  const _validation = computedField.value.validation;
+  const _required = required.value;
   const _messages = settings?.value?.messages;
 
-  if (required.value)
-    _validations.push(createValidation('xsd_required', undefined, _messages?.required));
+  // Compared by content (deepEqual) rather than by reference: computedProps functions commonly
+  // rebuild restriction/validation on every run even when nothing actually changed, and only a
+  // real change should rebuild the rules. Validation functions are compared by reference, which
+  // is the only meaningful comparison for functions.
+  if (
+    _hasBuiltCombinedValidation
+    && deepEqual(_restriction, _previousRestriction)
+    && deepEqual(_validation, _previousValidation)
+    && _required === _previousRequired
+    && _messages === _previousMessages
+  ) {
+    return;
+  }
 
-  if (_restriction.minLength != null)
-    _validations.push(createValidation('xsd_minLength', _restriction.minLength, _messages?.minLength));
+  _hasBuiltCombinedValidation = true;
+  // Cloned rather than assigned by reference: a computedProps function that mutates the
+  // restriction or validation in place would otherwise also change these snapshots, so the
+  // comparison above would never see a difference.
+  _previousRestriction = deepCloneValue(_restriction);
+  _previousValidation = deepCloneValue(_validation);
+  _previousRequired = _required;
+  _previousMessages = _messages;
 
-  if (_restriction.maxLength != null)
-    _validations.push(createValidation('xsd_maxLength', _restriction.maxLength, _messages?.maxLength));
+  _analytics_constructValidationCount++;
 
-  if (_restriction.length != null)
-    _validations.push(createValidation('xsd_length', _restriction.length, _messages?.length));
+  const _validations = buildRestrictionValidations(_restriction, _validation, _messages);
 
-  if (_restriction.pattern != null)
-    _validations.push(createValidation('xsd_pattern', _restriction.pattern, _messages?.pattern));
-
-  if (_restriction.minInclusive != null)
-    _validations.push(createValidation('xsd_minInclusive', _restriction.minInclusive, _messages?.minInclusive));
-
-  if (_restriction.maxInclusive != null)
-    _validations.push(createValidation('xsd_maxInclusive', _restriction.maxInclusive, _messages?.maxInclusive));
-
-  if (_restriction.minExclusive != null)
-    _validations.push(createValidation('xsd_minExclusive', _restriction.minExclusive, _messages?.minExclusive));
-
-  if (_restriction.maxExclusive != null)
-    _validations.push(createValidation('xsd_maxExclusive', _restriction.maxExclusive, _messages?.maxExclusive));
-
-  if (_restriction.enumeration != null)
-    _validations.push(createValidation('xsd_enumeration', _restriction.enumeration, _messages?.enumeration));
-
-  if (_restriction.whiteSpace != null)
-    _validations.push(createValidation('xsd_whiteSpace', _restriction.whiteSpace, _messages?.whiteSpace));
-
-  if (_restriction.fractionDigits != null)
-    _validations.push(createValidation('xsd_fractionDigits', _restriction.fractionDigits, _messages?.fractionDigits));
-
-  if (_restriction.totalDigits != null)
-    _validations.push(createValidation('xsd_totalDigits', _restriction.totalDigits, _messages?.totalDigits));
-
-  if (field.value?.validation)
-    _validations.push(...splitToValidationFunctions(field.value?.validation));
+  // The required rule goes first, so an empty field reports "required" before any other error.
+  if (_required)
+    _validations.unshift(createValidation('xsd_required', undefined, _messages?.required));
 
   combinedValidation.value = _validations;
 });
@@ -416,6 +444,21 @@ watch(
   },
 );
 
+// Re-validate a group/choice whenever a field inside it changes, so its own meta.valid stays
+// up to date. The value watcher above can't do this: a group's value is one object that keeps
+// the same reference while its children change, so that watcher misses those edits. The
+// childValueReactivity counter does go up on every child change, so we watch that instead.
+// Validation on mount is already handled by vee-validate; this watcher only fires on changes.
+if (!isInput.value) {
+  watch(childValueReactivity, () => {
+    if (isValidationSuppressed())
+      return;
+
+    _analytics_subtreeValidateCount++;
+    fieldContext.validate?.({ mode: 'silent' });
+  });
+}
+
 // Emit the initial computedField after mounting (children mount before parents, so the parent
 // template listener is already in place). Then watch for hash changes to keep the parent in sync.
 // Deferring to onMounted avoids accessing computedField during setup, which would make it a
@@ -437,6 +480,12 @@ onBeforeUnmount(() => {
   // would write back to form.values at the (now-removed) index, causing useFieldArray's sync
   // watcher to detect a mismatch and re-add the entry via initFields().
   if (props.partOfArrayField)
+    return;
+
+  // A choice-hosting field has no vee-validate registration of its own, so its value here is
+  // read-only (see the fieldContext setup above) and there is nothing for it to write back.
+  // Clearing a deselected branch's value is already handled explicitly by the choice itself.
+  if (isChoice.value)
     return;
 
   // Attribute fields are conditionally mounted based on whether the owning field has a value.

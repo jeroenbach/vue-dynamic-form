@@ -1,13 +1,15 @@
 <script lang="ts" setup>
-export type AppIconName = 'chevronLeft' | 'chevronRight' | 'check' | 'bin' | 'plus' | 'bolt' | 'users' | 'grid' | 'edit' | 'checkCircle' | 'spinner' | 'refresh';
+export type AppIconName = 'chevronLeft' | 'chevronRight' | 'chevronUp' | 'chevronDown' | 'check' | 'bin' | 'plus' | 'bolt' | 'users' | 'grid' | 'edit' | 'checkCircle' | 'spinner' | 'refresh';
 
-withDefaults(defineProps<{ name: AppIconName; size?: number }>(), { size: 16 });
+withDefaults(defineProps<{ name: AppIconName, size?: number }>(), { size: 16 });
 </script>
 
 <template>
   <svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <polyline v-if="name === 'chevronLeft'" points="15 18 9 12 15 6" />
     <polyline v-else-if="name === 'chevronRight'" points="9 18 15 12 9 6" />
+    <polyline v-else-if="name === 'chevronUp'" points="18 15 12 9 6 15" />
+    <polyline v-else-if="name === 'chevronDown'" points="6 9 12 15 18 9" />
     <polyline v-else-if="name === 'check'" points="20 6 9 17 4 12" />
     <template v-else-if="name === 'bin'">
       <polyline points="3 6 5 6 21 6" />

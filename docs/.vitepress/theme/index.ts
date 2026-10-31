@@ -1,5 +1,6 @@
 import type { Theme } from 'vitepress';
 import DefaultTheme from 'vitepress/theme';
+import CheckoutFormExample from './components/CheckoutFormExample.vue';
 import FormExampleArrayFields from './components/FormExampleArrayFields.vue';
 import FormExampleBasic from './components/FormExampleBasic.vue';
 import FormExampleChoiceExplicitRepeatable from './components/FormExampleChoiceExplicitRepeatable.vue';
@@ -27,5 +28,6 @@ export default {
     app.component('FormExampleWizard', FormExampleWizard);
     app.component('FormExampleClientOnboardingPlannerContext', FormExampleClientOnboardingPlannerContext);
     app.component('FormExampleDynamicFieldsContext', FormExampleDynamicFieldsContext);
+    app.component('CheckoutFormExample', CheckoutFormExample);
   },
 } satisfies Theme;

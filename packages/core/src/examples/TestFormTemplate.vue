@@ -88,7 +88,12 @@ function addChoiceButtonClass(activeChoiceOccurrences: ChoiceOccurrence[], branc
           class="text-red-600 text-sm"
           :data-testid="`${fieldMetadata.path}-error-message`"
         >{{ errorMessage.value }}</span>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!--
+          Gated on children: a childless heading (e.g. a presenceValue choice branch) renders only
+          its label and description; without the guard the slot would fall through to default-input
+          and expose the raw presence marker in a text input.
+        -->
+        <div v-if="fieldMetadata.children?.length" class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <slot :level="(slotProps?.level ?? 0) + 1" />
         </div>
       </div>

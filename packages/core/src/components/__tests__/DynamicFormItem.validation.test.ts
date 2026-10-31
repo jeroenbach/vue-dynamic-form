@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { configure } from 'vee-validate';
 import { afterEach, describe, expect, it } from 'vitest';
+import { ref } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 
 describe('component DynamicFormItem', () => {
@@ -208,6 +209,119 @@ describe('component DynamicFormItem', () => {
       await flushPromises();
 
       expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain(expected);
+    });
+  });
+
+  describe('computedProps-driven rule rebuild', () => {
+    it('validates against a computedProps-swapped restriction once it actually changes', async () => {
+      const maxLength = ref(10);
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            fieldOptions: { label: 'Text Input' },
+            minOccurs: 0,
+            computedProps: [(field) => {
+              field.restriction = { maxLength: maxLength.value };
+            }],
+          }],
+          settings: {
+            messages: { maxLength: 'Max length of {field} is {length}' },
+          },
+        },
+      });
+      await flushPromises();
+
+      // Six characters is valid under the initial maxLength of 10.
+      await wrapper.find('input').setValue('123456');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+
+      // computedProps swaps the restriction in response to another field's value.
+      maxLength.value = 5;
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain('Max length of Text Input is 5');
+    });
+
+    it('validates against a restriction mutated in place by computedProps once it actually changes', async () => {
+      const maxLength = ref(10);
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            fieldOptions: { label: 'Text Input' },
+            minOccurs: 0,
+            restriction: { maxLength: 10 },
+            computedProps: [(field) => {
+              field.restriction!.maxLength = maxLength.value;
+            }],
+          }],
+          settings: {
+            messages: { maxLength: 'Max length of {field} is {length}' },
+          },
+        },
+      });
+      await flushPromises();
+
+      // Six characters is valid under the initial maxLength of 10.
+      await wrapper.find('input').setValue('123456');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+
+      // computedProps mutates the restriction object in place rather than assigning a new one.
+      maxLength.value = 5;
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain('Max length of Text Input is 5');
+    });
+
+    it('validates against a computedProps-swapped validation once it actually changes', async () => {
+      const requireHelloPrefix = ref(false);
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            fieldOptions: { label: 'Text Input' },
+            minOccurs: 0,
+            computedProps: [(field) => {
+              field.validation = requireHelloPrefix.value
+                ? (v: unknown) => String(v ?? '').startsWith('hello') || 'Must start with hello'
+                : undefined;
+            }],
+          }],
+          settings: {},
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('input').setValue('world');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
+
+      // computedProps swaps the validation in response to another field's value.
+      requireHelloPrefix.value = true;
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="text-error-message"]').text()).toContain('Must start with hello');
     });
   });
 
@@ -1193,6 +1307,167 @@ describe('component DynamicFormItem', () => {
       expect((wrapper.find('input').element as HTMLInputElement).value).toBe('too long');
       expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
       expect(wrapper.find('[data-testid="errors"]').exists()).toBe(false);
+    });
+  });
+
+  describe('live form-level meta.valid for group/array shapes', () => {
+    function formMetaValid(wrapper: ReturnType<typeof mount>): boolean {
+      return (wrapper.vm as any).$.setupState.meta.valid;
+    }
+
+    it('a cross-field validation container flips the form-level meta.valid back to false on a fill-then-clear, with no submit', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            minOccurs: 0,
+            validation: (value: unknown) => !!(value as { firstName?: string })?.firstName || 'First name required',
+            children: [{ name: 'firstName', type: 'text', minOccurs: 0 }],
+          }] as any,
+        },
+      });
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(false);
+
+      await wrapper.find('#person\\.firstName').setValue('Ada');
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(true);
+
+      await wrapper.find('#person\\.firstName').setValue('');
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(false);
+    });
+
+    it('a group whose computedProps swaps a cross-field validation stays live against both the swap and a child fill, with no submit', async () => {
+      const requireFirstName = ref(true);
+      const validateRequireFirstName = (value: unknown) => !!(value as { firstName?: string })?.firstName || 'First name required';
+      const validateAlwaysPasses = () => true;
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            minOccurs: 0,
+            computedProps: [(field) => {
+              field.validation = requireFirstName.value ? validateRequireFirstName : validateAlwaysPasses;
+            }],
+            children: [{ name: 'firstName', type: 'text', minOccurs: 0 }],
+          }],
+        },
+      });
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(false);
+
+      // Fill under the currently active swapped validation: exercises the subtree watcher.
+      await wrapper.find('#person\\.firstName').setValue('Ada');
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(true);
+
+      // Swap the active validation with the value unchanged: exercises the guarded rule rebuild.
+      requireFirstName.value = false;
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(true);
+
+      await wrapper.find('#person\\.firstName').setValue('');
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(true);
+
+      // Swap back while empty, then fill again: both mechanisms acting together.
+      requireFirstName.value = true;
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(false);
+
+      await wrapper.find('#person\\.firstName').setValue('Ada');
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(true);
+    });
+
+    it('a required array flips the form-level meta.valid back to false once cleared below minOccurs, with no submit', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            type: 'text',
+            minOccurs: 1,
+            maxOccurs: 3,
+          }] as any,
+        },
+      });
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(false);
+
+      await wrapper.find('input[id="items[0]"]').setValue('first');
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(true);
+
+      await wrapper.find('input[id="items[0]"]').setValue('');
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(false);
+    });
+
+    it('a plain-required group with only optional children stays meta.valid: true after a touch-then-clear, by design: xsd_required passes any object', async () => {
+      // Pinned so a future reader does not mistake this for a regression: a container's own
+      // xsd_required check is `value !== null && value !== undefined && value !== ''`, which any
+      // object satisfies, including one whose only child is undefined or absent.
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            children: [{ name: 'firstName', type: 'text', minOccurs: 0 }],
+          }] as any,
+        },
+      });
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(true);
+
+      await wrapper.find('#person\\.firstName').setValue('Ada');
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(true);
+
+      await wrapper.find('#person\\.firstName').setValue('');
+      await flushPromises();
+      expect(formMetaValid(wrapper)).toBe(true);
+    });
+  });
+
+  describe('a leaf field needs no dedicated live-validity watcher', () => {
+    it('a filled leaf\'s own meta.valid, and the form-level aggregate, go live immediately regardless of validateOnValueUpdate', async () => {
+      // DynamicFormItem hardcodes vee-validate's own validateOnValueUpdate option to false on every
+      // useField call ("validation timing is owned by this component") and its handleChange
+      // override always calls the original handler with shouldValidate effectively false. vee-
+      // validate's own setValue still runs a silent validate in that case (it never skips
+      // validating outright), so a leaf's own meta.valid is live independent of the
+      // settings.validateOnValueUpdate value: only the VISIBLE error message is actually deferred
+      // to submit, which is the pre-existing, separately covered behaviour ("does not validate on
+      // value change when validateOnValueUpdate is false" above).
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            minOccurs: 1,
+            fieldOptions: { label: 'Text Input' },
+          }] as any,
+          settings: { validateOnValueUpdate: false, messages: { required: '{field} is required' } },
+        },
+      });
+      await flushPromises();
+      expect((wrapper.vm as any).$.setupState.meta.valid).toBe(false);
+
+      await wrapper.find('input').setValue('filled in');
+      await flushPromises();
+
+      expect((wrapper.vm as any).$.setupState.meta.valid).toBe(true);
+      // No submit was needed to get there, and the visible error stays deferred regardless.
+      expect(wrapper.find('[data-testid="text-error-message"]').exists()).toBe(false);
     });
   });
 });

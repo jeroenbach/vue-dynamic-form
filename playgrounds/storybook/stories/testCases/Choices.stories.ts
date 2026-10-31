@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { choiceDisplayOrderAddedSampleValues, choiceDisplayOrderAddedTestCase, choiceMaxOccursSampleValues, choiceMaxOccursTestCase, choiceOccurrenceSampleValues, choiceOccurrenceTestCase, choicePreserveOrderSampleValues, choicePreserveOrderScalarBranchSampleValues, choicePreserveOrderScalarBranchTestCase, choicePreserveOrderTestCase, choiceSampleValues, choiceSelectionResetSampleValues, choiceSelectionResetTestCase, choiceTestCase, explicitChoiceSampleValues, explicitChoiceTestCase, explicitRepeatableChoiceSampleValues, explicitRepeatableChoiceTestCase, preserveOnSwitchSampleValues, preserveOnSwitchTestCase } from '@bach.software/vue-dynamic-form/examples';
+import { choiceDisplayOrderAddedSampleValues, choiceDisplayOrderAddedTestCase, choiceMaxOccursSampleValues, choiceMaxOccursTestCase, choiceOccurrenceSampleValues, choiceOccurrenceTestCase, choicePreserveOrderSampleValues, choicePreserveOrderScalarBranchSampleValues, choicePreserveOrderScalarBranchTestCase, choicePreserveOrderTestCase, choiceSampleValues, choiceSelectionResetSampleValues, choiceSelectionResetTestCase, choiceTestCase, explicitChoiceSampleValues, explicitChoiceTestCase, explicitRepeatableChoiceSampleValues, explicitRepeatableChoiceTestCase, presenceValueSampleValues, presenceValueTestCase, preserveOnSwitchSampleValues, preserveOnSwitchTestCase } from '@bach.software/vue-dynamic-form/examples';
 import { sampleDataStory } from './sampleDataStory';
 
 const meta = {
@@ -25,6 +25,9 @@ export const OverLimitData: Story = sampleDataStory(choiceMaxOccursTestCase, cho
 
 /** explicitChoiceSelection: no branch renders until one is added; switching clears the other branch. Loading sample data auto-selects the branch that carries a value. */
 export const ExplicitChoice: Story = sampleDataStory(explicitChoiceTestCase, explicitChoiceSampleValues);
+
+/** presenceValue: the Express checkout branch has nothing to fill in, so selecting it renders a confirmation heading instead of an input. With "Load sample data" off, click "Add express" and submit: no required error, and the submitted/debug values show the marker at the branch path. With "Load sample data" on, it reads as already selected on mount with no click. */
+export const PresenceValue: Story = sampleDataStory(presenceValueTestCase, presenceValueSampleValues);
 
 /** explicitChoiceSelection + preserveOnSwitch: switching away stashes the branch values, switching back restores them. Toggle "Load sample data" to pre-fill it. */
 export const PreserveOnSwitch: Story = sampleDataStory(preserveOnSwitchTestCase, preserveOnSwitchSampleValues);

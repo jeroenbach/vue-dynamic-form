@@ -65,3 +65,11 @@
     radial-gradient(circle at 70% 40%, rgba(29, 78, 216, 0.18), transparent 35%);
   --vp-home-hero-image-filter: blur(44px);
 }
+
+/* The checkout example (/examples/checkout) sets `aside: false` so the two-column
+   form-plus-cart layout can use the space the "On this page" outline normally occupies.
+   Widening the content column itself, rather than relying on the absence of that outline,
+   keeps the layout comfortable at medium viewport widths too. */
+.checkout-page .VPDoc .content-container {
+  max-width: 1100px;
+}

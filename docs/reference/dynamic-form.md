@@ -51,6 +51,8 @@ const country = useFieldValue('address.country');
 
 `validateSection(path)` validates only the vee-validate fields registered under the given path prefix, returning the same `FormValidationResult` shape as `validate()`. See [useValidatePartialForm](/reference/use-validate-partial-form) for the full API and a wizard example.
 
+The standard vee-validate utilities keep their usual contract. In particular, `setFieldValue(path, value, false)` and `setValues(fields, false)` (passing `shouldValidate: false`) suppress validation end-to-end: the library's own validation-timing watchers honor the flag too, so programmatic writes do not surface errors the caller asked to defer. The same holds when `resetForm()` or `resetField()` clears values: the reset itself does not re-trigger validation. This works regardless of whether the form context was created with `useDynamicForm()` or vee-validate's raw `useForm()`.
+
 ### Options
 
 `useDynamicForm()` accepts an optional `FormOptions` object forwarded directly to vee-validate's `useForm()`:
@@ -121,6 +123,10 @@ Defaults to `false` to stay consistent with vee-validate's out-of-the-box behavi
 
 ::: tip Recommended combination
 `validateOnValueUpdate: false` + `validateOnValueUpdateAfterSubmit: true` gives the cleanest UX: no errors on first fill-in, live feedback after the first submit.
+:::
+
+::: info Aggregate validity of groups, choices, and arrays stays live
+The timing settings above control when validation *errors are shown* for input fields. A container's own aggregate validity (the `meta.valid` of a group, choice, or array node) is kept current independently of them: whenever a value anywhere underneath the container changes, the engine re-checks the container silently, updating `meta.valid` without surfacing an error message. A template that reads `meta.valid` on a container (for example to enable a submit button) therefore always sees an up-to-date value, even with `validateOnValueUpdate: false`.
 :::
 
 #### `validateOnBlur`

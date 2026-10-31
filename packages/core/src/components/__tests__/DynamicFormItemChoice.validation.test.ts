@@ -938,6 +938,63 @@ describe('component DynamicFormItemChoice', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
+  // 9a2. presenceValue: effectiveValuesCount sourced from activeChoiceOccurrences
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('presenceValue: xsd_choiceMinOccurs on reload', () => {
+    function mountPresenceValueChoice(initialValues?: Record<string, any>) {
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'express', presenceValue: true, fieldOptions: { label: 'Express Checkout' } },
+              { name: 'email', type: 'group', fieldOptions: { label: 'Email' }, children: [
+                { name: 'address', fieldOptions: { label: 'Email address' } },
+              ] },
+            ],
+          }],
+          settings: { messages: { choiceMinOccurs: 'Pick at least {min} in {field}' } },
+          initialValues,
+        },
+      });
+    }
+
+    it('a reloaded presence-marked branch (explicitlySelectedBranch still null) counts toward xsd_choiceMinOccurs and submits without error', async () => {
+      const wrapper = mountPresenceValueChoice({ pick: { express: true } });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+    });
+
+    it('is a no-op for the same-session click-selected path, identical to before this story', async () => {
+      const wrapper = mountPresenceValueChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+    });
+
+    it('still shows the choice-required error when nothing is selected and nothing is loaded', async () => {
+      const wrapper = mountPresenceValueChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
   // 9b. Explicit selection — xsd_choiceMinOccurs counts in choice-occurrence units
   // ─────────────────────────────────────────────────────────────────────────
   describe('explicit selection — xsd_choiceMinOccurs counts in choice-occurrence units', () => {
@@ -1728,6 +1785,34 @@ describe('component DynamicFormItemChoice', () => {
       expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
     });
 
+    it('singleChild: a validation rule declared on the hosting field itself still runs, even though the choice-level rules are bypassed', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            validation: (value: any) => value?.only === 'secret' ? true : 'pick needs its secret value',
+            choice: [{ name: 'only', fieldOptions: { label: 'Only Option' } }],
+          }] as any,
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[id="pick.only"]').setValue('wrong');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').text()).toContain('pick needs its secret value');
+
+      await wrapper.find('[id="pick.only"]').setValue('secret');
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="isSubmitted"]').exists()).toBe(true);
+    });
+
     it('a disabled choice (maxOccurs:0) stays inert for maxOccursTotal, even loaded past a branch\'s declared cap', async () => {
       const wrapper = mount(TestForm, {
         attachTo: document.body,
@@ -1988,6 +2073,48 @@ describe('component DynamicFormItemChoice', () => {
       const message = wrapper.find('[data-testid="pick-error-message"]');
       expect(message.exists()).toBe(true);
       expect(message.text().trim()).not.toBe('');
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // A choice's own validity already stays live as its occurrence count
+  // changes, with no dedicated watcher needed beyond what useField already
+  // provides: its combinedValidation computed reacts to effectiveValuesCount/
+  // usedChoiceOccurrences, and vee-validate's own rules watcher re-validates
+  // whenever that computed's output actually changes.
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('own validity already stays live as occurrence counts change', () => {
+    it('reflects a later fill and a later clear immediately, with no further submit after the first', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'opt1', fieldOptions: { label: 'Option 1' } },
+              { name: 'opt2', fieldOptions: { label: 'Option 2' } },
+            ],
+          }],
+          settings: { messages: { choiceMinOccurs: 'Pick at least {min} in {field}' } },
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
+      expect((wrapper.vm as any).$.setupState.meta.valid).toBe(false);
+
+      await wrapper.find('[id="pick.opt1"]').setValue('hello');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+      expect((wrapper.vm as any).$.setupState.meta.valid).toBe(true);
+
+      await wrapper.find('[id="pick.opt1"]').setValue('');
+      await flushPromises();
+      expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(true);
+      expect((wrapper.vm as any).$.setupState.meta.valid).toBe(false);
     });
   });
 });
