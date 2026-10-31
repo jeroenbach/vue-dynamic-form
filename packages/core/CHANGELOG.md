@@ -1,5 +1,35 @@
 # @bach.software/vue-dynamic-form
 
+## 0.8.0
+
+### Minor Changes
+
+- a1ad130: Closes three gaps in the validation engine that previously forced template authors into workarounds:
+
+  - A childless branch of an `explicitChoiceSelection: true` choice (an "Express checkout" or "PayPal" option with nothing to fill in) can now declare a `presenceValue` marker (any value you choose, e.g. `true` or `'express'`). Selecting that branch writes the marker into its own value, so its own required check actually passes, and the selection persists into submitted values and reads back as selected on reload, with no hidden marker field of your own.
+  - A `computedProps` function can now swap a field's `restriction` or `validation` in response to another field's value (a per-country postal pattern, a toggled character limit) and have the field actually validated against the new rules. Previously the engine kept building the validation ruleset from the original, static field metadata, so a swapped `restriction`/`validation` had no effect and template authors had to route around it with a closure over mutable module-level state plus a manual `validateField()` call. The ruleset only rebuilds (and revalidates) when the swap actually changes something rule-relevant, so an unrelated keystroke elsewhere in the form causes no extra validation work.
+  - The form's own aggregate `meta.valid` (read off `useDynamicForm`/vee-validate's `useForm()`) is now a live, trustworthy signal for group, choice, and array fields: it flips to `true` as soon as every field underneath is actually valid, with no prior full `validate()`/`handleSubmit()` call needed to drive a submit button or a completeness indicator. **If your code currently works around a `meta.valid` that stays stuck `false` even once everything is filled in** (a hand-rolled completeness check, a submit button gated on something other than `meta.valid`), that workaround was compensating for this bug; re-check it now that the aggregate is accurate.
+
+- 9f710cc: Template authors who need to derive per-section state (for example marking a wizard step red when any of its fields has a validation error) no longer have to hand-roll path-prefix matching: the new `isPathInSection(path, sectionPath)` export tells whether a field path falls at or under a section path. It is the same matching `validateSection` uses internally, so it matches the section itself, `section.child`, and `section[0]`, but not unrelated paths that merely share a prefix string (like `addressLine` vs `address`).
+
+### Patch Changes
+
+- a1ad130: Fixed a bug where a form containing a choice-hosting field (a choice branch that itself declares a nested choice, or a plain choice field with no other field in the form) could get stuck invalid for no visible reason. Two symptoms are fixed:
+
+  - Filling in a branch that has its own nested choice, switching away from it to a different branch, then submitting could be silently refused even though every rendered field was valid and no error was shown anywhere.
+  - Selecting a childless, `presenceValue`-marked branch in a form with nothing else in it could leave the form's aggregate `meta.valid` stuck `false` forever, even though the selection was complete.
+
+  The cause was an internal double vee-validate registration at the same field path for any choice-hosting field (its own and the nested choice's), which only let the second registration unregister cleanly; the first became a permanent, un-revalidated ghost that could drag the whole form invalid. A choice-hosting field's own `restriction`/`validation` rules (if it declares any directly on itself, independent of the nested choice) keep running exactly as before.
+
+- 7ba2df0: Resetting a form now also resets which branch of an explicit choice is selected, so a reset-and-start-over flow (for example "place another order" after a checkout) can no longer end up with two branches of a `maxOccurs: 1` choice shown as selected at the same time. Previously the explicitly selected branch was kept across `resetForm()`, and when the reset restored initial values into a different branch, both that branch (value-driven) and the stale explicit selection rendered as active. After a reset the selection is now derived purely from the freshly reset values, exactly like a fresh mount: a branch holding restored initial data reads as selected, an empty one deselects. The `preserveOnSwitch` stash is dropped on reset as well, so values the reset discarded can no longer resurface when the shopper switches back to that branch afterwards.
+- a1ad130: Two new example test cases make the latest validation-engine capabilities easy to try out in the Storybook playground: `dynamicRulesTestCase` shows `computedProps` swapping a field's `restriction` (a per-country postal code pattern) and `validation` (a VAT rule that only applies to business orders) at runtime, and `liveValidityTestCase` shows the form-level `meta.valid` flipping live, with no submit, as a cross-field group rule is satisfied or broken.
+- a1ad130: The presenceValue demo no longer undermines its own point: selecting the Express branch in the example TestFormTemplate used to render a bare text input exposing the raw presence marker (true), even though the branch is meant to have nothing to fill in. A childless heading now renders only its label and description, so the selected branch reads as a confirmation instead of an editable field.
+- a1ad130: A "start over" reset now behaves predictably around `presenceValue` choice branches, and two smaller rough edges around the marker are polished away:
+
+  - `resetForm()` now clears a presence marker the user selected this session and deselects the branch, returning the form to how it was loaded. Previously the marker could survive a reset (it was silently staged as the field's reset baseline), leaving the branch selected on a form the user expected to be blank. A marker that was part of the loaded values still restores and keeps its branch selected, like any other loaded data.
+  - `presenceValue` is now fully inert on a choice without `explicitChoiceSelection`, as documented: a loaded empty-object value on a presence-marked branch no longer reads back as a selected occurrence in auto mode.
+  - The docs now call out that `null` and the empty string do not work as markers (they read as selected but fail the branch's own required check), and arrays no longer run a redundant second validation pass per value change when `validateOnValueUpdate` is on.
+
 ## 0.7.0
 
 ### Minor Changes
