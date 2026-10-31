@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vitepress dev .",
     "build": "vitepress build .",
-    "preview": "vitepress preview ."
+    "preview": "vitepress preview .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@bach.software/vue-dynamic-form": "link:../packages/core",
@@ -19,7 +20,8 @@
     "@types/node": "24.2.1",
     "tailwindcss": "4.1.12",
     "vite-plugin-vue-devtools": "^7.7.9",
-    "vitepress": "1.6.4"
+    "vitepress": "1.6.4",
+    "vitest": "3.2.6"
   },
   "engines": {
     "node": ">=22.13.0"

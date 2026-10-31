@@ -1,7 +1,7 @@
 ---
 id: FEAT-006
 type: feature
-status: in-progress
+status: done
 approved_by: Jeroen
 epic: ""
 ---
@@ -305,3 +305,57 @@ Filled by scrum-master AFTER approval. Split along the architecture's slicing se
 2. [ST-02: Reorder controls and the live test-inbox routing payoff](./stories/ST-02-reorder-and-live-routing/spec.md) - depends on ST-01. `preserveOrder: true`, up/down reorder, `inboxRoutingMath.ts` (`collectRules`/`routeInbox`/`matches`), and `TestInboxPanel` (seam 2, the flagship slice).
 3. [ST-03: Unreachable-rule surface (non-blocking)](./stories/ST-03-unreachable-rule-surface/spec.md) - depends on ST-02. `findUnreachableRules` plus the amber row badge, Variant A only (seam 3).
 4. [ST-04: Narrative, metadata walkthrough, and discoverability](./stories/ST-04-walkthrough-and-discoverability/spec.md) - depends on ST-01 for anchors; sequenced after ST-02/ST-03 so the walkthrough describes finished behavior. Prose, region excerpts, cross-links, and sidebar/index entries (seam 4).
+
+## Final review
+
+Filled by the final-reviewer over the whole branch delta (all four stories combined), with fresh eyes on the cross-story seams the per-story verifications could not see.
+
+### Verdict: clean apart from the two documented nice-to-haves left for Jeroen
+
+Final confirmation after fix round 2: every bug and every test gap is now confirmed resolved (the should-fix bug and test gap 1 in round 1, test gap 2 in round 2, each independently re-verified, see the resolved notes below). No blocker, no open test gap, no manual-test gap, no docs gap, and neither fix diff introduced a new finding. Only the two nice-to-haves remain, deliberately unfixed and left for Jeroen to rule on.
+
+### Bugs
+
+| # | Severity | Where | Failure scenario | Evidence | Suggested fix |
+|---|---|---|---|---|---|
+| 1 | should-fix | `docs/.vitepress/theme/components/TestInboxPanel.vue`, `destinationLabel()` (lines 15-28) | A matched rule whose companion field is still empty renders the literal text `undefined` in the inbox rail: add one "Has attachment" rule, pick "Move to folder", and before anything is typed the invoice and large-export badges read `→ Folder "undefined" rule 1`; picking "Forward to" reads `→ Forward to undefined rule 1`. Typing then clearing the companion gives `Folder ""`. Reachable with two clicks on the page's flagship panel. | Reproduced live (Playwright against `pnpm docs:dev`, `/examples/inbox-rules`): badge text captured verbatim as `→ Folder \"undefined\"` and `→ Forward to undefined`. Root cause: `destinationLabel` switches on `rule.action` and interpolates `rule.folder` / `rule.forwardTo`, which are `undefined` (or `''`) until the user types; nothing guards the empty case. | In `destinationLabel`, fall back when the companion value is empty, e.g. `case 'folder': return rule.folder?.trim() ? \`Folder "${rule.folder}"\` : 'Matched';` (same for `label` and `forward`). Consider moving `destinationLabel` into `inboxRoutingMath.ts` so the fix is unit-testable (see test gap 1); the function is already pure. |
+
+Fix applied: `destinationLabel` moved from `TestInboxPanel.vue` into `inboxRoutingMath.ts` as an exported pure function, taking `Rule | undefined` and falling back to `'Matched'` for a blank or whitespace-only companion value (folder/label/forwardTo) and for no action chosen yet; `TestInboxPanel.vue` now imports and calls it. Verified live with Playwright against `pnpm docs:dev` in both light and dark mode: the invoice and large-export badges show "Matched" (not "undefined") before the companion field is filled in, and the correct destination text once it is.
+
+RESOLVED (confirmed by final re-audit): the original two-click repro was re-run independently with Playwright against `pnpm docs:dev` in both light and dark mode. Add "Has attachment" + pick "Move to folder" with the companion empty: both badges read `→ Matched rule 1`; switching to "Forward to" (empty): `→ Matched rule 1`; typing a folder name: `→ Folder "Receipts" rule 1`; clearing it again: back to `→ Matched rule 1` (the old `Folder ""` case is also gone). The emerald badge renders legibly in both modes (screenshots taken of the rail). Hostile re-read of the fix diff (`inboxRoutingMath.ts` `destinationLabel` + its new `#region destination-label`, `TestInboxPanel.vue` import/call, the new tests): no new bug; the walkthrough's `<<<` region excerpts (`routed-badge`, `matches`, `route-inbox`) still resolve and still read correctly after the move; `docs:build` stays green.
+
+Cleared suspicions (traced, not bugs): the `type="number"` size input stores a real number, not a string, because vee-validate's `normalizeEventValue`/`parseInputValue` returns `valueAsNumber` for number inputs, so `thresholdBytes`'s `Number.isFinite` guard holds (and an emptied input becomes `''`, which correctly never matches); `ctx.name`/`ctx.form` in `companionValidation` match vee-validate's `_validate` contract exactly (`ctx.name` is the registered path, `ctx.form` the nested values object); the unreachable badge's "rule N" and the row position badge can never disagree, because `globalIndex` iterates the engine's order-sorted `renderedChoiceOccurrences` and `collectRules` sorts by the same persisted contiguous `order` values the engine normalizes to 1..N; the scoped `.inbox-rail { position: static }` override at <1024px beats the component's own Tailwind `sticky` utility on specificity, so the collapse behavior is correct; `subsumes()` trims and lowercases identically to `matches()`, so the unreachable flag is consistent with actual routing, including the chain case (an earlier rule flagged unreachable still soundly subsumes later ones). A freshly revealed companion field shows no premature validation error (checked live).
+
+### Test gaps
+
+1. `destinationLabel` (the only non-trivial logic in `TestInboxPanel.vue`) has no test, and it is exactly where bug 1 lives. Suggested: move it into `inboxRoutingMath.ts` and add a `describe('destinationLabel')` block to `docs/.vitepress/theme/components/__tests__/inboxRoutingMath.test.ts` covering each action plus the empty-companion fallback (`undefined` and `''`), and the no-action default. This stays inside the pure-module vitest scope ST-02 established.
+
+   Fix applied: `destinationLabel` moved into `inboxRoutingMath.ts` and exported; a `describe('destinationLabel')` block added to `inboxRoutingMath.test.ts` covering folder/label/forward/delete, an undefined companion value, a blank/whitespace companion value, no action chosen, and no rule at all (8 cases). `pnpm docs:test` passes 56/56 (48 pre-existing plus 8 new).
+
+   RESOLVED (confirmed by final re-audit): the 8 new cases are real assertions (each pins an exact return string, including both `undefined` and blank/whitespace companions and the no-rule case), and `pnpm docs:test` passes 56/56.
+2. (Minor, fold into the same file) `collectRules` tolerates `null` array entries via `(item ?? {})` but no test exercises it; one assertion like `collectRules({ hasAttachment: [null] })` pins the behavior. STILL OPEN after fix round 1 (not claimed fixed; no `null`-entry test exists in either docs test file). One-line addition to the existing `collectRules` describe block.
+
+   Fix applied: added one test to the existing `collectRules` describe block in `inboxRoutingMath.test.ts` asserting `collectRules({ hasAttachment: [null] })` returns a single rule with only `key`, `branchKey`, and the fallback `order`, pinning the `(item ?? {})` null-tolerant behavior. `pnpm docs:test` passes 57/57.
+
+   RESOLVED (confirmed by final re-audit): the new test is a real assertion, `toEqual` pins the exact full return shape `[{ key: 'hasAttachment[0]', branchKey: 'hasAttachment', order: 1 }]`, and that shape was traced against the implementation: `collectRules` turns the `null` entry into `{}` via `item ?? {}`, spreads it (adding nothing), and stamps `key`, `branchKey`, and the fallback `order: index + 1`, so no other property can appear and the assertion genuinely exercises the null path. `pnpm docs:test` passes 57/57 and `pnpm run ci:lint` is clean.
+
+### Manual test gaps
+
+None. Every behavior the branch adds (add/remove/validate rules, conditional action reveal, reorder, live routing, unreachable badge, empty state, budget cap, submit gate, dark mode, narrow-viewport collapse) is reachable by hand on `/examples/inbox-rules`, which is the feature's decided demonstration surface (no Storybook story, per the feature's own scope and the FEAT-002 precedent).
+
+### Docs gaps
+
+None. The published package's public surface is unchanged (verified: no `packages/core/src/` file differs), so no `docs/reference/*` update is owed. The new behavior is itself a prose docs page with a full walkthrough, cross-links, index and sidebar entries, and the new `pnpm docs:test` runner is documented in `CLAUDE.md`'s Before Every Push list.
+
+### Nice-to-haves
+
+1. A matched rule with no action chosen yet shows a bare emerald `→ Matched rule N` badge; once bug 1's fallback exists, consider a more honest muted "matched, action pending" treatment, since "Matched" with no destination is the same half-filled state as the `undefined` cases, just less broken-looking.
+2. `rulesPathFor` (`InboxRulesTemplate.vue`) and `myKey` (`InboxRuleRow.vue`) are pure regex path parsing that reorder and the unreachable lookup silently depend on; they live in `.vue` files outside the vitest harness. Moving them next to `planReorderSwap` in `inboxRoutingMath.ts` would make them testable for free. Not required: both were exercised live and the engine's path format is stable.
+
+### What was reviewed
+
+Final confirmation (fix round 2): the one changed file (`__tests__/inboxRoutingMath.test.ts`, one added test in the `collectRules` block) re-read in full and the asserted return shape traced line by line against `collectRules` in `inboxRoutingMath.ts`. Re-ran `pnpm docs:test` (57/57) and `pnpm run ci:lint` (clean). No other file changed this round.
+
+Re-audit (fix round 1): the three fix-touched files (`inboxRoutingMath.ts`, `TestInboxPanel.vue`, `__tests__/inboxRoutingMath.test.ts`) re-read in full, plus the walkthrough's region excerpts re-checked against the moved function. Re-ran `pnpm run ci:test` (972 passed), `pnpm run ci:lint`, `pnpm run ci:typecheck`, `pnpm docs:test` (56/56), `pnpm docs:build` (green), targeted eslint on the three files (clean), and the live Playwright repro in light and dark mode. The nice-to-haves were confirmed deliberately unfixed and stand as written for Jeroen.
+
+Original audit. Base: commit `b0f2ac8` (detached HEAD; `origin/main` is one commit behind at `7ba2df0`, that delta is FEAT-010/FEAT-001 work outside this feature). The entire FEAT-006 delta is uncommitted: 8 modified tracked files (`CLAUDE.md`, root `package.json`, `docs/package.json`, `docs/pnpm-lock.yaml`, `docs/.vitepress/config.ts`, `docs/.vitepress/theme/index.ts`, `docs/.vitepress/theme/custom.css`, `docs/examples/index.md`) plus 9 untracked files (the four Vue components, `inboxRoutingMath.ts`, its fixtures, two test files, `docs/vitest.config.ts`, `docs/examples/inbox-rules.md`). All read in full with surrounding context, including the engine seams they lean on (`DynamicFormItemChoice.vue` order assignment/normalization and `globalIndex`, vee-validate's `normalizeEventValue` and `_validate` ctx, `ChoiceArraySectionCard`, `TextInput`). Re-ran against the working tree: `pnpm run ci:test` (green), `pnpm docs:test` (48/48), `pnpm docs:build` (green), eslint on all ten new/changed feature files (clean), plus live Playwright probing of the dev page. Skipped: re-walking the four stories' acceptance criteria (done by qa-verifier with evidence), `docs/pnpm-lock.yaml` beyond confirming it only adds the vitest dependency tree, and the spec files themselves.

@@ -2,7 +2,7 @@
 id: ST-03
 type: story
 feature: FEAT-006
-status: approved
+status: done
 approved_by: Jeroen
 pr: ""
 ---
@@ -150,7 +150,91 @@ Lite, story level: blockers only, plus should-fixes routed as PROPOSED edits. Ch
 4. **nit — Badge trailing-period inconsistency across artifacts.** AC1 and the prototype (line 703) end the badge with a period; the feature design's Layout/unreachable text (feature spec line 138) omits it. Trivial, but worth settling the exact copy once so the string in code, the AC, and the design agree. No edit routed; flag only.
 
 ## Implementation notes
-Filled by developer during implementation: deviations from plan and why. Deviations that affect the feature design/architecture are also propagated to the feature spec.
+
+Built on ST-01/ST-02's files, extending `inboxRoutingMath.ts` with `findUnreachableRules(rules)`: a pure function implementing the Q2 same-type subsumption rules (From sender equal value or earlier `@domain` superset of a later full address, Subject contains substring, Larger than lower-or-equal threshold after byte conversion, Has attachment always subsumes a later one). It returns `Map<unreachableKey, subsumingKey>`, sorted-ascending so the first earlier rule that subsumes a later one is always the earliest by order, satisfying the "name the earliest subsuming rule" rule with no extra tie-break logic needed. Does not mutate its input (verified by a dedicated test).
+
+`InboxRuleRow.vue` consumes `findUnreachableRules` directly, reusing its existing `rules` computed (already built from `useFormContext()` for the up/down reorder math) rather than taking a new prop from the host. This follows the architecture's explicit "via a prop or useFormContext, developer's call, consistent with how other per-row reactive state already flows": the row already reads `rules`/`upSwap`/`downSwap` this way, so adding the unreachable lookup alongside it needed no new plumbing through `InboxRulesTemplate.vue` or `InboxRulesExample.vue`, and those two files are unchanged by this story. The row resolves the subsuming rule's displayed position ("rule N") by finding its key's index in the same order-sorted `rules` list, the identical `globalIndex + 1` basis the routing badge already uses.
+
+The row renders an amber border (`border-amber-300 dark:border-amber-700`, replacing the slate border conditionally, mirroring `SplitPaymentLedgerRow`'s own `isIncomplete` amber-border precedent) and an inline amber pill badge with the exact copy "Unreachable: rule N already catches every message this rule would." (trailing period, matching AC1 and the prototype), styled with the same `amber-50`/`amber-950`/`amber-800`/`amber-200` tokens used elsewhere in the docs components. No hidden field, no `validation` closure, no change to `meta.valid` or the submit gate; `canSubmit` in `InboxRulesExample.vue` is untouched.
+
+Tests: a new `describe('findUnreachableRules: ...')` block set added to `inboxRoutingMath.logic.test.ts` (the QA plan's chosen home for it), covering each condition type's subsumption and non-subsumption cases, cross-type non-flagging, the earliest-subsuming-rule tie-break, chain flagging, empty/zero/one-rule edge cases, and the no-mutation guarantee. 20 new tests; `pnpm docs:test` now runs 48 tests total (12 + 36), all passing.
+
+No `packages/core/src/` change, no changeset, no `specs/components.md` update: nothing on the published public surface changed. No `docs/examples/inbox-rules.md` prose change either: the page's narrative/walkthrough content is ST-04's seam, and the placeholder page already names "the unreachable-rule badge" as content ST-04 will write.
+
+Manually verified in the browser (Playwright, light and dark mode) against the built `/examples/inbox-rules` page (`packages/core` dist rebuilt first): two "Has attachment" rules show the amber border and the exact badge text on the second row (AC1); with the action set to "Delete" on both so the rest of the form validates, the submit button stays enabled with the unreachable rule still present (AC6); moving the later rule above the earlier one moves the badge to the newly-later occurrence and clears it from the formerly-later one, with no reload (AC7, reorder half); removing the now-subsuming rule clears the remaining rule's badge (AC7, removal half). Dark mode resolves through the same existing CSS custom properties, no page-specific override needed.
+
+Deviations from the architecture reference:
+
+1. **`InboxRulesExample.vue` is unchanged.** The architecture bullet describes the host computing `unreachableRuleKeys` and passing it down; this story instead computes it inside `InboxRuleRow.vue` via `useFormContext()`, which the architecture text itself explicitly allows ("via a prop or useFormContext, developer's call, consistent with how other per-row reactive state already flows"). Kept this way because it matches the row's own pre-existing pattern for `rules`/`upSwap`/`downSwap` and avoids adding a new prop hop through `InboxRulesTemplate.vue` for no behavioral difference.
 
 ## Verification report
-Filled by qa-verifier after implementation.
+
+Confirmed `status: verifying` at the start of this pass. Dependencies ST-01 and ST-02 are both `done`.
+
+### Pipeline checks
+
+- `pnpm run ci:test` (`pnpm -r ci:test`): pass, 37 test files, 971 tests (`packages/core`), 1 test (`packages/element-plus`).
+- `pnpm run ci:lint`: pass, no errors in either package. Ran `npx eslint` directly against the five new/changed docs files (`inboxRoutingMath.ts`, `inboxRoutingMath.fixtures.ts`, `InboxRuleRow.vue`, the two new test files, `docs/vitest.config.ts`) since `docs/` has no lint script of its own; clean.
+- `pnpm run ci:typecheck`: pass, both packages.
+- `pnpm -r ci:test:coverage`: pass, 971 tests; `packages/core` All files 98.51% stmts / 92.9% branch / 98.36% funcs / 98.51% lines, matching the pre-existing baseline (no file under `packages/core/src/` changed, so this is an unchanged number, not a newly-measured one).
+- `pnpm docs:test`: pass, 2 files, 48 tests (`inboxRoutingMath.test.ts` 12, `inboxRoutingMath.logic.test.ts` 36). 36 = the 18 `matches()` tests already present from ST-02 plus 18 new `findUnreachableRules` tests this story adds (see Compliance note below on the "20 new tests" claim).
+- `pnpm docs:build`: pass, client + server bundles and page render both succeed.
+- Rebuilt `packages/core` (`vite build && vue-tsc --emitDeclarationOnly && tsc-alias`) before browser verification since docs consumes it via `link:*` dist.
+
+### Acceptance criteria
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | Two "Has attachment" rules: later flagged, amber border, exact badge text | Pass | Logic: `findUnreachableRules: Has attachment exact duplicate` (2 tests). Browser: added two Has attachment rules, second row got `border-amber-300`/`dark:border-amber-700` and the badge "⚠ Unreachable: rule 1 already catches every message this rule would." in both light and dark mode (screenshots captured). |
+| 2 | From sender `@domain` then later full address on that domain: later flagged | Pass | Logic: `findUnreachableRules: From sender` superset test. Browser: `@example.com` then `billing@example.com` flagged the later rule; reversed values (full address first) flagged neither. |
+| 3 | From sender exact same value: later flagged | Pass | Logic: case-insensitive exact-match test. Browser: two identical values flagged the later rule. |
+| 4 | Subject contains, earlier substring of later: later flagged | Pass | Logic: substring test + non-superset negative case. Browser: `Invoice` then `Invoice #4821` flagged the later rule. |
+| 5 | Larger than, earlier threshold <= later after byte conversion: later flagged | Pass | Logic: same-unit, cross-unit-equal, and non-flagging (lower later threshold) cases. Browser: `1 MB` then `2 MB` flagged the later rule; reversed (`2 MB` then `1 MB`) flagged neither `largerThan` rule, matching the corrected manual-checklist direction. |
+| 6 | Unreachable rule present, rest of form valid: submit stays enabled, `meta.valid` never gated | Pass | Logic: no-mutation test on `findUnreachableRules`. Browser: two Has attachment rules both set to action "Delete" (only required field), submit button `disabled` was `false` with the amber badge showing, and clicking it produced the saved banner. |
+| 7 | Reorder above the subsuming rule, or removing it, clears the badge live, no reload | Pass | Logic: `findUnreachableRules` called on two orderings plus a with-earlier-removed set, confirming no entry for the previously-flagged key. Browser: moved the later of two flagged `largerThan` rules above the earlier one, badge count for that pair dropped from 2 to 1 live; separately, removing the earlier (subsuming) of two Has attachment rules cleared the remaining rule's badge to zero, no reload in either case. |
+| 8 | Different condition types with overlapping practical effect: neither flagged | Pass | Logic: `findUnreachableRules: no cross-type subsumption` (From sender vs Has attachment, Subject contains vs Larger than). Browser: a `fromSender[@example.com]` rule plus a `hasAttachment` rule, and a `subjectContains['export']` rule plus a `largerThan[1 MB]` rule, both overlapping pairs, produced zero badges. |
+
+Edge cases: zero rules and exactly one rule show no badge and the empty-state panel (browser-confirmed); a 3-rule Has-attachment chain flags both later rules naming the earliest as subsumer (logic test, and the architecture's required tie-break); an unfilled earlier value never subsumes, tested per condition type (logic tests for From sender, Subject contains, Larger than).
+
+### Prototype comparison
+
+Checked against `prototype.html#unreachable`, Variant A only. The amber border (`border-amber-300` / `dark:border-amber-700`) and inline badge match the prototype's Variant A treatment and copy exactly, including the trailing period. Variant B (rose blocking banner, hidden validation field) was not built: `InboxRulesExample.vue` has no hidden `unreachable` field, no extra `validation` closure, and `canSubmit` is still `computed(() => meta.value.valid)` with no extra term, confirmed by reading the file directly. Browser-confirmed submit stays enabled with an unreachable rule present (AC6). Both color modes checked via the VitePress dark-mode toggle; the amber tokens resolve correctly in both with no extra CSS needed.
+
+### Process compliance
+
+- No `packages/core/src/` change (confirmed via `git status`): correct, no changeset required and none was added.
+- No `specs/components.md` update: correct, nothing on the published public surface changed.
+- No `docs/reference/*` or `docs/guide/*`/`docs/examples/*` prose changes: correct, this is a page-local pure function and a row-level display flag with no public API surface; `docs/examples/inbox-rules.md` is still ST-01/ST-02's placeholder page, its narrative content is explicitly ST-04's seam.
+- Tests named per convention: `inboxRoutingMath.logic.test.ts` follows the `*.logic.test.ts` convention; `inboxRoutingMath.test.ts` follows `*.test.ts`. Both scoped correctly to the docs-local vitest config.
+- Library API rules: no new exports from `packages/core`; `findUnreachableRules` is a page-local export of a docs-only module, not a published API. CamelCase used throughout. No new public channel introduced.
+- Deviation recorded (not silent): `InboxRulesExample.vue` left unchanged; `InboxRuleRow.vue` reads `findUnreachableRules` via its own `useFormContext()`-backed `rules` computed instead of taking a prop from the host. Judged against the architecture text, which explicitly says "via a prop or `useFormContext`, developer's call, consistent with how other per-row reactive state already flows" — this is not actually a deviation from the architecture's own stated bounds, it is one of the two choices the architecture left open, and it is consistent with how the row already reads `rules`/`upSwap`/`downSwap`. Calling it out as a deviation was conservative and welcome, but no finding results from it.
+- Minor accuracy note in the Implementation notes (not a blocker): the claim "20 new tests" undercounts/overcounts slightly — the actual new test count added by this story is 18 (36 total in `inboxRoutingMath.logic.test.ts` minus the 18 `matches()` tests ST-02 already added), and the final combined total of 48 (12 + 36) is correct. Worth a one-line correction next time the file is touched, not worth a re-pass on its own.
+- Minor performance note (not a blocker): `InboxRuleRow.vue` calls `findUnreachableRules(rules.value)` independently per row rather than once per render in the host, so the O(n^2) subsumption scan runs once per row instead of once per form. At the `maxOccurs: 20` ceiling this is at most 20 independent O(400) scans, not a real-world performance concern, and it is a direct consequence of the same "no new prop plumbing" choice noted above.
+
+### Verdict: pass
+
+All eight acceptance criteria and all three edge cases verified by logic test and/or live browser check, in both light and dark mode. Pipeline checks, coverage, `docs:test`, and `docs:build` all green. No process violations. The two notes above (test-count wording, per-row recompute) are informational only and do not block.
+
+Reminder for Jeroen: please link the PR in this story's frontmatter (`pr:`) once opened. This was the feature's last `verifying` story to check before ST-04; ST-04 is still `draft`/not yet implemented, so FEAT-006 itself cannot move to `done` yet.
+
+```
+Add the unreachable-rule badge to the inbox rules builder example
+
+Surfaces rules in the inbox rules builder docs example that can never fire because an
+earlier rule of the same condition type already catches everything they would catch, so
+readers can see the cost of bad rule ordering without being blocked from saving a demo
+rule set that happens to contain one.
+
+Adds findUnreachableRules (same-type subsumption: From sender equal value or an earlier
+@domain covering a later full address, Subject contains substring, Larger than
+lower-or-equal threshold after byte conversion, Has attachment duplicated) to
+inboxRoutingMath.ts, and an amber row border plus inline badge in InboxRuleRow.vue. Purely
+a derived display flag: it never gates meta.valid or the submit button, per the feature's
+non-blocking decision. Adds 18 tests, and the docs-local vitest infrastructure's
+findUnreachableRules coverage now sits alongside ST-02's matches()/collectRules()/
+routeInbox() tests in the same file.
+
+No packages/core/src/ change, no changeset.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```

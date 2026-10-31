@@ -79,6 +79,7 @@ export default defineConfig({
             { text: 'Validation', link: '/examples/validation' },
             { text: 'Wizard', link: '/examples/wizard' },
             { text: 'Checkout', link: '/examples/checkout' },
+            { text: 'Inbox Rules Builder', link: '/examples/inbox-rules' },
             { text: 'Client Onboarding Wizard', link: '/examples/advanced' },
           ],
         },

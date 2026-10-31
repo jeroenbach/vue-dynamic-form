@@ -20,6 +20,9 @@ importers:
       '@vee-validate/rules':
         specifier: ^4.15.1
         version: 4.15.1(vue@3.5.18(typescript@5.9.2))
+      '@vue/shared':
+        specifier: 3.5.18
+        version: 3.5.18
       element-plus:
         specifier: 2.14.2
         version: 2.14.2(vue@3.5.18(typescript@5.9.2))
@@ -2054,6 +2057,9 @@ packages:
   vue-component-type-helpers@2.2.12:
     resolution: {integrity: sha512-YbGqHZ5/eW4SnkPNR44mKVc6ZKQoRs/Rux1sxC6rdwXb4qpbOSYfDr9DsTHolOTGmIKgM9j141mZbBeg05R1pw==}
 
+  vue-component-type-helpers@3.3.13:
+    resolution: {integrity: sha512-02KCxSmKDhIITjKyJ4QT5csP6L0WoRborLqY/34a40+S9uvMvdNgMV0yVjO3p2Gkz3ZoPmFz/0JsGHacwJYTxw==}
+
   vue-component-type-helpers@3.3.5:
     resolution: {integrity: sha512-Fe1jyPJoUGpJOYKOri44jduR7My4yYINOMJISuMAbmrs+L5LbIDUc8NTWZYY3EJLK0yPLuCmcd5zoCsE4k2/KA==}
 
@@ -2585,7 +2591,7 @@ snapshots:
       storybook: 9.1.2(@testing-library/dom@10.4.1)(vite@7.1.2(jiti@2.5.1)(lightningcss@1.30.1))
       type-fest: 2.19.0
       vue: 3.5.18(typescript@5.9.2)
-      vue-component-type-helpers: 3.3.5
+      vue-component-type-helpers: 3.3.13
 
   '@sxzz/popperjs-es@2.11.8': {}
 
@@ -4070,6 +4076,8 @@ snapshots:
       typescript: 5.9.2
 
   vue-component-type-helpers@2.2.12: {}
+
+  vue-component-type-helpers@3.3.13: {}
 
   vue-component-type-helpers@3.3.5: {}
 

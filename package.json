@@ -9,6 +9,7 @@
     "docs:dev": "pnpm --prefix docs dev",
     "docs:build": "pnpm --prefix docs build",
     "docs:preview": "pnpm --prefix docs preview",
+    "docs:test": "pnpm --prefix docs test",
     "build": "pnpm -r build",
     "build:watch": "pnpm -r build && pnpm -r --parallel build:watch",
     "test": "pnpm -r test",
