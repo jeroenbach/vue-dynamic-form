@@ -12,6 +12,7 @@ Runnable examples that cover the main features. Each page embeds the live compon
 - [Wizard](/examples/wizard): multi-step form with per-step validation and a review page
 - [Checkout](/examples/checkout): a complete one-page webshop checkout with a split-payment finale
 - [Inbox Rules Builder](/examples/inbox-rules): a reorderable, ordered list of rules where order is the whole point
+- [Workout Plan Builder](/examples/workout-plan): a repeatable ordered choice where reordering alone satisfies or breaks published coaching conventions
 - [Advanced Wizard](/examples/advanced): full-featured client onboarding wizard
 
 ## Quick Overview

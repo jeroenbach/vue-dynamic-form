@@ -80,6 +80,7 @@ export default defineConfig({
             { text: 'Wizard', link: '/examples/wizard' },
             { text: 'Checkout', link: '/examples/checkout' },
             { text: 'Inbox Rules Builder', link: '/examples/inbox-rules' },
+            { text: 'Workout Plan Builder', link: '/examples/workout-plan' },
             { text: 'Client Onboarding Wizard', link: '/examples/advanced' },
           ],
         },
