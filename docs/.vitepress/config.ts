@@ -16,6 +16,13 @@ export default defineConfig({
       alias: {
         '@': coreSrcDir,
       },
+      // `@bach.software/vue-dynamic-form` is a workspace symlink into `packages/core`, which has
+      // its own separate pnpm-resolved copy of `vee-validate` (a different physical install than
+      // this site's own). Without deduping, the production build bundles both copies, each with
+      // its own `Symbol()` form-context key, so a component calling `useFormContext()` directly
+      // (bypassing the library's own re-export) injects against the wrong symbol and gets
+      // `undefined`. Deduping forces every resolution to the one copy actually installed here.
+      dedupe: ['vee-validate'],
     },
     server: {
       fs: {
@@ -71,7 +78,8 @@ export default defineConfig({
             { text: 'Dynamic Fields', link: '/examples/dynamic-fields' },
             { text: 'Validation', link: '/examples/validation' },
             { text: 'Wizard', link: '/examples/wizard' },
-            { text: 'Advanced example', link: '/examples/advanced' },
+            { text: 'Checkout', link: '/examples/checkout' },
+            { text: 'Client Onboarding Wizard', link: '/examples/advanced' },
           ],
         },
       ],

@@ -132,10 +132,15 @@ const combinedValidation = computed<GenericValidateFunction[]>(() => {
   return _validations;
 });
 
-const { label, errors, errorMessage, handleBlur } = useField(normalizedPath, combinedValidation, {
+// Kept as its own binding, read from live (rather than destructuring its validate up front), so
+// the array's own meta.valid stays reachable and its field-level validate (distinct from the
+// zero-argument validate above, and the one that accepts { mode: 'silent' }) keeps resolving
+// through this same object even if it is ever replaced on the instance.
+const arrayField = useField(normalizedPath, combinedValidation, {
   ...(field.value?.fieldOptions ?? {}),
   validateOnValueUpdate: false, // validation timing is owned by this component
 });
+const { label, errors, errorMessage, handleBlur } = arrayField;
 const fieldContext: LimitedFieldContext = { label, errors, errorMessage, value: values };
 
 // Delay validation until after the first real value is set — empty placeholder items
@@ -171,8 +176,17 @@ watch(
     // Skipped while a programmatic write that asked not to validate is flushing: a
     // resetForm/resetField (its value change would write the just-cleared errors back)
     // or a setFieldValue/setValues call with shouldValidate: false.
-    if (shouldValidateOnValueUpdate.value && !isValidationSuppressed()) {
-      validate();
+    if (!isValidationSuppressed()) {
+      if (shouldValidateOnValueUpdate.value) {
+        validate();
+      }
+      else {
+        // Keeps the array's own meta.valid live on every add/remove/value change even when
+        // validateOnValueUpdate is off: this field has no fieldContext in DynamicFormItem (it is
+        // a stub there), so nothing else refreshes its validity once the mount-time check has
+        // run. The full validate above already refreshes meta.valid, so only one of the two runs.
+        arrayField.validate({ mode: 'silent' });
+      }
     }
     emits('update:modelValue', v);
   },

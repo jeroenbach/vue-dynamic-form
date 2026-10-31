@@ -3,6 +3,7 @@ export interface Props {
   title?: string
   description?: string
   selected?: boolean
+  disabled?: boolean
   dataTestid?: string
 }
 
@@ -16,13 +17,18 @@ defineEmits<{ select: [] }>();
     role="radio"
     :data-testid="dataTestid"
     :aria-checked="selected"
-    class="rounded-xl border bg-white dark:bg-slate-900 p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer"
-    :class="selected
-      ? 'border-indigo-600 bg-gradient-to-b from-indigo-50 dark:from-indigo-950 to-white dark:to-slate-900 shadow-sm ring-1 ring-indigo-600'
-      : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'"
+    :disabled="disabled"
+    class="flex items-start rounded-xl border bg-white dark:bg-slate-900 p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-indigo-300"
+    :class="[
+      selected
+        ? 'border-indigo-600 bg-gradient-to-b from-indigo-50 dark:from-indigo-950 to-white dark:to-slate-900 shadow-sm ring-1 ring-indigo-600'
+        : 'border-slate-200 dark:border-slate-700',
+      disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+      !disabled && !selected ? 'hover:border-indigo-300' : '',
+    ]"
     @click="$emit('select')"
   >
-    <div class="flex items-start gap-3">
+    <div class="flex w-full items-start gap-3">
       <span
         class="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 transition-colors"
         :class="selected ? 'border-indigo-600' : 'border-slate-300 dark:border-slate-600'"

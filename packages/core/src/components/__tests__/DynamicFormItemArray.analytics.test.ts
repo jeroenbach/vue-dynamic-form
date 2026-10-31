@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { renderCount } from './DynamicFormItem.test-helpers';
-import { arrayConstructValidationCount as constructValidationCount } from './DynamicFormItemArray.test-helpers';
+import { arrayMetaValid, arrayConstructValidationCount as constructValidationCount } from './DynamicFormItemArray.test-helpers';
 
 describe('component DynamicFormItemArray - analytics', () => {
   describe('render count', () => {
@@ -142,6 +142,31 @@ describe('component DynamicFormItemArray - analytics', () => {
 
       expect(wrapper.find('[data-testid="items-error-message"]').exists()).toBe(false);
       expect(wrapper.find('input[id="items[0]"]').element).toBe(survivingInput);
+    });
+  });
+
+  describe('own live meta.valid is orthogonal to the construct-validation count', () => {
+    it('does not affect combinedValidation recompute count when a fill keeps the array\'s own meta.valid live', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'items',
+            fieldOptions: { label: 'Items' },
+            minOccurs: 1,
+            maxOccurs: 3,
+          }] as any,
+        },
+      });
+      await flushPromises();
+      const countBefore = constructValidationCount(wrapper, 'items');
+      expect(arrayMetaValid(wrapper, 'items')).toBe(false);
+
+      await wrapper.find('input[id="items[0]"]').setValue('filled');
+      await flushPromises();
+
+      expect(arrayMetaValid(wrapper, 'items')).toBe(true);
+      expect(constructValidationCount(wrapper, 'items')).toBe(countBefore);
     });
   });
 });

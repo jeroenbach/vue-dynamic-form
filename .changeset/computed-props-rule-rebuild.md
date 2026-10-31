@@ -1,0 +1,9 @@
+---
+"@bach.software/vue-dynamic-form": minor
+---
+
+Closes three gaps in the validation engine that previously forced template authors into workarounds:
+
+- A childless branch of an `explicitChoiceSelection: true` choice (an "Express checkout" or "PayPal" option with nothing to fill in) can now declare a `presenceValue` marker (any value you choose, e.g. `true` or `'express'`). Selecting that branch writes the marker into its own value, so its own required check actually passes, and the selection persists into submitted values and reads back as selected on reload, with no hidden marker field of your own.
+- A `computedProps` function can now swap a field's `restriction` or `validation` in response to another field's value (a per-country postal pattern, a toggled character limit) and have the field actually validated against the new rules. Previously the engine kept building the validation ruleset from the original, static field metadata, so a swapped `restriction`/`validation` had no effect and template authors had to route around it with a closure over mutable module-level state plus a manual `validateField()` call. The ruleset only rebuilds (and revalidates) when the swap actually changes something rule-relevant, so an unrelated keystroke elsewhere in the form causes no extra validation work.
+- The form's own aggregate `meta.valid` (read off `useDynamicForm`/vee-validate's `useForm()`) is now a live, trustworthy signal for group, choice, and array fields: it flips to `true` as soon as every field underneath is actually valid, with no prior full `validate()`/`handleSubmit()` call needed to drive a submit button or a completeness indicator. **If your code currently works around a `meta.valid` that stays stuck `false` even once everything is filled in** (a hand-rolled completeness check, a submit button gated on something other than `meta.valid`), that workaround was compensating for this bug; re-check it now that the aggregate is accurate.

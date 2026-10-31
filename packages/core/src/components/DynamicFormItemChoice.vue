@@ -3,7 +3,6 @@
   setup
   generic="InternalMetadata extends InternalFieldMetadata<FieldMetadata>"
 >
-import type { GenericValidateFunction } from 'vee-validate';
 import type { ComputedRef } from 'vue';
 import type { ChoiceOccurrence, LimitedFieldContext } from '@/components/DynamicFormTemplate.vue';
 import type { DynamicFormItemProps } from '@/types/DynamicFormItemProps';
@@ -11,11 +10,12 @@ import type { DynamicFormSettings } from '@/types/DynamicFormSettings';
 import type { FieldMetadata } from '@/types/FieldMetadata';
 import type { InternalFieldMetadata } from '@/types/InternalFieldMetadata';
 import { useField, useFieldValue, useFormContext } from 'vee-validate';
-import { computed, inject, ref, watch } from 'vue';
+import { computed, inject, nextTick, ref, watch } from 'vue';
 import DynamicFormItem from '@/components/DynamicFormItem.vue';
 import { useFieldArrayExtended } from '@/core/useFieldArrayExtended';
 import { useIsResetPending } from '@/core/useIsResetPending';
 import { dynamicFormSettingsKey } from '@/types/DynamicFormSettings';
+import { buildRestrictionValidations } from '@/utils/buildRestrictionValidations';
 import { checkTreeHasValue } from '@/utils/checkTreeHasValue';
 import { createValidation } from '@/utils/createValidation';
 import { deepCloneValue } from '@/utils/deepCloneValue';
@@ -320,7 +320,14 @@ const activeChoiceOccurrences = computed<ChoiceOccurrence[]>(() => {
       return;
     }
 
-    const valueDriven = checkTreeHasValue(branchValueRefs[index]?.value);
+    // A childless branch declaring presenceValue reads as selected whenever it holds any value
+    // at all, bypassing checkTreeHasValue so an empty-object/array marker still reads back as
+    // selected after a reload. Gated on explicitChoiceSelection, the only mode where the marker
+    // is ever written (same scope as the write below); in an auto choice presenceValue is
+    // documented as ignored, so it must not flip a branch to selected there either.
+    const declaresPresence = explicitChoiceSelection && (child.children?.length ?? 0) === 0 && child.presenceValue !== undefined;
+    const branchValue = branchValueRefs[index]?.value;
+    const valueDriven = declaresPresence ? branchValue !== undefined : checkTreeHasValue(branchValue);
     const isExplicitlySelected = explicitChoiceSelection && explicitlySelectedBranch.value === child.name;
 
     if (valueDriven || isExplicitlySelected) {
@@ -385,10 +392,13 @@ const usedChoiceOccurrences = computed(() => {
 
 // In explicit mode a selected branch (maxOccurs:1) or an added occurrence (maxOccurs > 1) counts
 // toward xsd_choiceMinOccurs even while empty; its own required fields validate separately. Auto
-// mode stays value-driven.
+// mode stays value-driven. The single-choice case is sourced from activeChoiceOccurrences (not
+// explicitlySelectedBranch alone) so a reloaded presence-marked branch -- selected purely by its
+// value, with explicitlySelectedBranch still null -- also counts; for every other case this
+// reduces to the same count activeChoiceOccurrences already carried.
 const effectiveValuesCount = computed(() => {
   if (explicitChoiceSelection && maxOccurs.value === 1)
-    return Math.max(valuesCount.value, explicitlySelectedBranch.value ? 1 : 0);
+    return Math.max(valuesCount.value, activeChoiceOccurrences.value.length);
 
   if (explicitChoiceSelection && maxOccurs.value > 1)
     return Math.max(valuesCount.value, usedChoiceOccurrences.value);
@@ -409,14 +419,21 @@ const maxOccursTotalBreach = computed(() =>
 // --- Vee-Validate field context ---
 
 const combinedValidation = computed(() => {
-  if (singleChild.value)
-    return; // single-child choices are validated by the child itself
-
-  if (disabled.value)
-    return;
-
   const _messages = settings?.value?.messages;
-  const _validations: GenericValidateFunction[] = [];
+
+  // The hosting field's own restriction/validation rules, declared directly on the branch and
+  // independent of the choice's own occurrence rules below. Run here because this is the only
+  // vee-validate registration left at the shared path; the hosting field's "required" state is
+  // deliberately not folded in alongside these, since that is already fully expressed by
+  // xsd_choiceMinOccurs further down (and, unlike these, depends on minOccurs defaulting to 1
+  // for every field, which would otherwise make a plain choice doubly required for no reason).
+  const _validations = buildRestrictionValidations(field.value?.restriction, field.value?.validation, _messages);
+
+  // Single-child choices are validated by the child itself, and a disabled choice has no
+  // occurrence budget to check: both skip the choice-level rules below, but still run the
+  // hosting field's own rules collected above.
+  if (singleChild.value || disabled.value)
+    return _validations.length ? _validations : undefined;
 
   // Two independent guards, not else-if: the list shape must be able to hold both rules if the
   // minOccurs <= maxOccurs invariant is ever relaxed by a caller's metadata.
@@ -665,7 +682,62 @@ function addChoiceOccurrence(branchKey: string) {
 
   restoreStashedBranch(branchKey);
 
+  writePresenceValueIfApplicable(branchKey);
+
   explicitlySelectedBranch.value = branchKey;
+}
+
+// Writes a childless branch's declared presenceValue into its own value on selection, symmetric
+// with clearBranch's undefined write on deselection, so the branch's own default-required check
+// has something real to validate against. Never overwrites a value the branch already holds (a
+// just-restored preserveOnSwitch stash, or loaded data), and is inert -- with a one-time
+// development warning -- on a branch that also declares children, since a filled child value
+// already represents presence there and the two signals could disagree.
+function writePresenceValueIfApplicable(branchKey: string) {
+  const branch = branchByKey(branchKey);
+  if (!branch || branch.presenceValue === undefined)
+    return;
+
+  if ((branch.children?.length ?? 0) > 0) {
+    warnPresenceValueWithChildrenOnce(branchKey);
+    return;
+  }
+
+  const index = branchIndexOf(branchKey);
+  if (branchValueRefs[index]?.value !== undefined)
+    return;
+
+  const branchPath = branch.path ? overridePath(branch.path, props.pathOverride) : undefined;
+  if (!branchPath)
+    return;
+
+  formContext?.setFieldValue(branchPath as any, branch.presenceValue, false);
+
+  // When the branch mounts right after this write, vee-validate stages the just-written marker
+  // as the field's initial value (the same mechanism that protects a late-pushed array item's
+  // value from a reset). Left staged, resetForm() would restore the marker and keep the branch
+  // selected. Selecting is a session action, so the staged initial is removed again after the
+  // mount flush: a reset then clears the marker and deselects the branch, returning to the
+  // loaded state. A marker that came in through the form's own initial values never reaches
+  // this write (the branch already holds a value), so a loaded selection still survives a reset.
+  // setFieldInitialValue is deliberately left off vee-validate's public FormContext type, so it
+  // is read through a loosely typed access (like getPathState in useIsResetPending).
+  nextTick(() => {
+    const unstage = (formContext as unknown as {
+      setFieldInitialValue?: (path: string, value: unknown, updateOriginal?: boolean) => void
+    })?.setFieldInitialValue;
+    unstage?.(branchPath, undefined, true);
+  });
+}
+
+// Once per branch per component lifetime, mirroring the preserveOrder scalar-branch warning below.
+const warnedPresenceValueBranches = new Set<string>();
+function warnPresenceValueWithChildrenOnce(branchKey: string) {
+  if (!import.meta.env.DEV || warnedPresenceValueBranches.has(branchKey))
+    return;
+
+  warnedPresenceValueBranches.add(branchKey);
+  console.warn(`[vue-dynamic-form] presenceValue is ignored on branch "${branchKey}": it also declares children, so its own filled value already represents presence. Remove presenceValue from this branch or remove its children.`);
 }
 
 /** Remove a previously added occurrence. In maxOccurs > 1 the index selects which occurrence to remove; omitting it removes the last one, mirroring addChoiceOccurrence(branchKey) which appends with only a branchKey. In maxOccurs:1 the index is ignored and it deselects the active branch. No-op for an unknown branchKey, an inactive branch, an empty branch, or an out-of-range index. */

@@ -2,6 +2,10 @@ import { isNotNullOrUndefined } from '@/utils/isNullOrUndefined';
 
 /**
  * Removes all null value's from object properties and array's.
+ *
+ * Note: an empty-object or empty-array `presenceValue` marker on a choice branch is stripped
+ * back to `undefined` by this cleanup, same as any other empty object/array; use a non-empty
+ * marker if the branch's selection must survive this round-trip.
  * @param element any value
  */
 export function removeNullValues<T>(element: T): T | undefined {

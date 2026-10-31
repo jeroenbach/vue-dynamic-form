@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { AppIconName } from './AppIcon.vue';
 import type { Props as SectionCardProps } from './SectionCard.vue';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import AppIcon from './AppIcon.vue';
 import ChoiceCard from './ChoiceCard.vue';
 import SectionCard from './SectionCard.vue';
@@ -36,9 +36,23 @@ export interface Props extends /* @vue-ignore */ SectionCardProps {
   activeChoiceOccurrences?: ActiveChoiceOccurrence[]
   /** Marks a branch active, deselecting any previously active one. */
   addChoiceOccurrence?: (branchKey: string) => void
+  /** Grays out the option cards and blocks selection; a choice that becomes disabled is also deselected. */
+  disabled?: boolean
+  /** Deselects a branch (the `-choice` slot's `removeChoiceOccurrence`); used to clear the selection when the choice becomes disabled. */
+  removeChoiceOccurrence?: (branchKey: string, index?: number) => void
 }
 
 const props = defineProps<Props>();
+
+// A choice that becomes disabled is also deselected: the engine's removeChoiceOccurrence clears
+// the branch's values along with the selection, so a disabled section never silently keeps a
+// previously entered value in the submitted result.
+watch(() => props.disabled, (isDisabled) => {
+  if (!isDisabled || !props.removeChoiceOccurrence)
+    return;
+  for (const occurrence of props.activeChoiceOccurrences ?? [])
+    props.removeChoiceOccurrence(occurrence.branchKey, occurrence.index);
+});
 
 const gridCols = computed(() => {
   const n = props.options?.length ?? 0;
@@ -78,6 +92,7 @@ function isActive(value: string): boolean {
         :title="option.title"
         :description="option.description"
         :selected="isActive(option.value)"
+        :disabled="disabled"
         @select="addChoiceOccurrence?.(option.value)"
       >
         <template v-if="option.icon" #icon>

@@ -15,3 +15,8 @@ export function setupState(wrapper: ReturnType<typeof mount>, path: string): Rec
 export function arrayConstructValidationCount(wrapper: ReturnType<typeof mount>, path: string): number {
   return setupState(wrapper, path)?._analytics_constructValidationCount ?? -1;
 }
+
+/** Reads the array's own `meta.valid`, kept live by the silent validate in the values watcher. Returns undefined if the array is not found. */
+export function arrayMetaValid(wrapper: ReturnType<typeof mount>, path: string): boolean | undefined {
+  return setupState(wrapper, path)?.arrayField?.meta?.valid;
+}

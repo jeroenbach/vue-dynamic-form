@@ -174,7 +174,7 @@ As the XSD math above shows, a branch's `maxOccurs` is a batch size, not a ceili
 }
 ```
 
-`canAddChoiceOccurrence` turns `false` for that branch once the cap is reached, regardless of how much of the choice's shared budget remains. The example above uses this: each kind is capped at 3, while the choice allows 5 in total, so an Add button disables at whichever limit hits first. The property works the same way in automatic mode.
+`canAddChoiceOccurrence` turns `false` for that branch once the cap is reached, regardless of how much of the choice's shared budget remains. The example above uses this: each kind is capped at 3, while the choice allows 5 in total, so an Add button disables at whichever limit hits first. The property works the same way in automatic mode. It can only tighten the branch's declared `maxOccurs`, never widen it: a `maxOccursTotal` above the branch's own `maxOccurs` has no effect.
 
 This cap is no longer structural-only: a branch loaded or set programmatically with more raw items than its own `maxOccursTotal` now also fails the `vdf_maxOccursTotal` validation rule. See [Built-in Rules](/guide/validation#built-in-rules) in the validation guide for message customization; its message is a single choice-level aggregate that names no branch and, when several branches breach at once, reports only the first offending branch's cap in declaration order.
 

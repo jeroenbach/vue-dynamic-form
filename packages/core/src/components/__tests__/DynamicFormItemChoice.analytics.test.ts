@@ -49,10 +49,40 @@ function mountExplicitChoiceWithSibling() {
   });
 }
 
+function mountExplicitChoiceWithPresenceValueSibling() {
+  return mount(TestForm, {
+    attachTo: document.body,
+    props: {
+      metadata: [
+        { name: 'sibling', fieldOptions: { label: 'Sibling' } },
+        {
+          name: 'pick',
+          explicitChoiceSelection: true,
+          fieldOptions: { label: 'Pick One' },
+          choice: [
+            { name: 'selfServe', presenceValue: true, fieldOptions: { label: 'Self Serve' } },
+            { name: 'guidedRollout', fieldOptions: { label: 'Guided Rollout' } },
+          ],
+        },
+      ],
+    },
+  });
+}
+
 describe('component DynamicFormItemChoice - analytics', () => {
   describe('explicit selection with maxOccurs:1', () => {
     it('selecting a branch mounts its DynamicFormItem exactly once', async () => {
       const wrapper = mountExplicitChoiceWithSibling();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(renderCount(wrapper, 'pick.selfServe')).toBe(1);
+    });
+
+    it('selecting a branch that writes presenceValue still mounts its DynamicFormItem exactly once, matching the no-marker baseline above', async () => {
+      const wrapper = mountExplicitChoiceWithPresenceValueSibling();
       await flushPromises();
 
       await wrapper.find('[data-testid="pick.selfServe-add-choice-button"]').trigger('click');

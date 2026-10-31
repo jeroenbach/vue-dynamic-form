@@ -134,6 +134,29 @@ export function combinedValidationCount(wrapper: ReturnType<typeof mount>, path:
   return setupState(wrapper, path)?.combinedValidation?.length ?? 0;
 }
 
+/**
+ * Reads a branch's own raw form value directly off the choice's `branchValueRefs`, resolving
+ * `branchKey` to its internal numeric index via the choice's own metadata. Unlike the fixture's
+ * rendered input, this reads the value even when the branch isn't mounted (e.g. before any
+ * `addChoiceOccurrence` call).
+ */
+export function branchValue(wrapper: ReturnType<typeof mount>, choicePath: string, branchKey: string): unknown {
+  const state = setupState(wrapper, choicePath);
+  if (!state)
+    return undefined;
+
+  const index = state.field?.choice?.findIndex((child: any) => child.name === branchKey);
+  if (index === undefined || index < 0)
+    return undefined;
+
+  return state.branchValueRefs?.[index]?.value;
+}
+
+/** Reads the `effectiveValuesCount` computed (feeding `xsd_choiceMinOccurs`) for the choice at `path`. */
+export function effectiveValuesCount(wrapper: ReturnType<typeof mount>, path: string): number | undefined {
+  return setupState(wrapper, path)?.effectiveValuesCount;
+}
+
 /** Reads the `maxOccursTotalBreach` computed (the offending branch's cap, or undefined) for the choice at `path`. */
 export function maxOccursTotalBreach(wrapper: ReturnType<typeof mount>, path: string): number | undefined {
   return setupState(wrapper, path)?.maxOccursTotalBreach;

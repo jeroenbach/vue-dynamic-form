@@ -2,7 +2,7 @@ import type { GenericObject } from 'vee-validate';
 import type { PropType } from 'vue';
 import type { DynamicFormSettings, Metadata } from '@/examples/TestFormTemplate.vue';
 
-import { defineComponent, h, markRaw } from 'vue';
+import { defineComponent, h, markRaw, ref } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
 
 export const defaultTestCase = createTestCase([{
@@ -320,6 +320,31 @@ export const restrictionsSampleValues = {
   },
 };
 
+function atLeastOneContactMethod(value: unknown): boolean | string {
+  const contact = (value ?? {}) as { email?: string, phone?: string };
+  return !!(contact.email || contact.phone) || 'Fill in an email or a phone number.';
+}
+
+export const liveValidityTestCase = createTestCase([
+  {
+    name: 'contact',
+    fieldOptions: { label: 'Live Form Validity' },
+    type: 'heading',
+    fullWidth: true,
+    minOccurs: 0,
+    description: 'The group checks that at least one contact method is filled in. Watch the "Valid" line in the debug state below: it flips the moment the form becomes valid or invalid, with no Submit press needed. That makes it usable for a disabled submit button or a completeness indicator.',
+    validation: atLeastOneContactMethod,
+    children: [
+      { name: 'email', minOccurs: 0, fieldOptions: { label: 'Email' } },
+      { name: 'phone', minOccurs: 0, fieldOptions: { label: 'Phone' } },
+    ],
+  },
+]);
+
+export const liveValiditySampleValues = {
+  contact: { email: 'jane@example.com' },
+};
+
 export const arrayOccurrenceTestCase = createTestCase([
   {
     name: 'occurrences',
@@ -517,6 +542,29 @@ export const explicitChoiceTestCase = createTestCase([
 export const explicitChoiceSampleValues = {
   // A loaded value auto-selects its branch, even though nothing was clicked.
   explicitSection: { contact: { email: { address: 'jane@example.com' } } },
+};
+
+export const presenceValueTestCase = createTestCase([
+  {
+    name: 'checkoutSection',
+    fieldOptions: { label: 'Explicit Choice With presenceValue' },
+    type: 'heading',
+    children: [
+      { name: 'checkout', fieldOptions: { label: 'Checkout method' }, fullWidth: true, explicitChoiceSelection: true, description: 'Express checkout has nothing to fill in; selecting it writes presenceValue (true) into its own value so it satisfies its own required check and persists into submitted/reloaded values. Email is an ordinary branch for comparison.', choice: [
+        // type: 'heading' routes the selected branch to a label-only slot; without it the
+        // childless leaf would render as a text input exposing the raw presence marker.
+        { name: 'express', type: 'heading', presenceValue: true, fieldOptions: { label: 'Express checkout selected' }, description: 'Nothing to fill in: selecting this branch wrote presenceValue (true) into its value, visible in the debug output below.' },
+        { name: 'email', type: 'group', fieldOptions: { label: 'Email' }, children: [
+          { name: 'address', fullWidth: true, fieldOptions: { label: 'Email address' } },
+        ] },
+      ] },
+    ],
+  },
+]);
+
+export const presenceValueSampleValues = {
+  // Reads back as selected on mount with no click, through presenceValue's value-driven bypass.
+  checkoutSection: { checkout: { express: true } },
 };
 
 export const preserveOnSwitchTestCase = createTestCase([
@@ -759,6 +807,105 @@ export const computedPropsSampleValues = {
   ownValue: { charCounter: 'Counting', selfHiding: 'still shown', selfDisabling: 'still on' },
   progress: { first: 'Filled one', second: 'Filled two' },
   childFieldsDemo: { childA: 'kept visible' },
+};
+
+// Written by the country/business fields' computedProps and read by the dependent fields', so
+// the dependent rules follow the driver fields live. Module scope: every mounted instance of
+// this test case shares them, which is fine for a demo that renders one instance at a time.
+const dynamicRulesCountry = ref<string | undefined>(undefined);
+const dynamicRulesIsBusiness = ref(false);
+
+const postalCodeRestrictions: Record<string, { pattern: string }> = {
+  NL: { pattern: '^[0-9]{4} ?[A-Z]{2}$' },
+  DE: { pattern: '^[0-9]{5}$' },
+};
+
+const postalCodeHints: Record<string, string> = {
+  NL: 'Dutch format: 1234 AB.',
+  DE: 'German format: 12345.',
+};
+
+// Fixed function references: the computedProps below swap between these two. The engine compares
+// validation functions by reference, so a stable reference means "rules unchanged" and swapping
+// to the other one rebuilds the rule set and revalidates.
+function businessVatValidation(value: unknown): boolean | string {
+  if (!value)
+    return true;
+  return /^[A-Z]{2}[A-Z0-9]{8,12}$/.test(String(value)) || 'Enter a valid VAT number (e.g. NL123456789B01).';
+}
+
+function anyValueAllowed(): boolean {
+  return true;
+}
+
+export const dynamicRulesTestCase = createTestCase([
+  {
+    name: 'dynamicRules',
+    fieldOptions: { label: 'Dynamic Validation Rules (computedProps)' },
+    type: 'heading',
+    description: 'computedProps swaps a field\'s restriction and validation at runtime, and the field actually revalidates against the swapped rule.',
+    children: [
+      {
+        name: 'country',
+        type: 'select',
+        minOccurs: 0,
+        fieldOptions: { label: 'Country' },
+        description: 'Switching country swaps the postal code restriction below.',
+        options: [
+          { key: 'NL', value: 'Netherlands' },
+          { key: 'DE', value: 'Germany' },
+        ],
+        restriction: { enumeration: ['NL', 'DE'] },
+        computedProps: [
+          (_field, value) => {
+            dynamicRulesCountry.value = typeof value.value === 'string' ? value.value : undefined;
+          },
+        ],
+      },
+      {
+        name: 'postalCode',
+        minOccurs: 0,
+        fieldOptions: { label: 'Postal code' },
+        computedProps: [
+          (field) => {
+            const country = dynamicRulesCountry.value;
+            field.restriction = country ? postalCodeRestrictions[country] : undefined;
+            field.description = country ? postalCodeHints[country] : 'Pick a country to activate a postal code rule.';
+          },
+        ],
+      },
+      {
+        name: 'businessOrder',
+        type: 'checkbox',
+        minOccurs: 0,
+        fieldOptions: { label: 'Business order' },
+        description: 'Toggling this swaps the VAT number validation below.',
+        computedProps: [
+          (_field, value) => {
+            dynamicRulesIsBusiness.value = value.value === true;
+          },
+        ],
+      },
+      {
+        name: 'vatNumber',
+        minOccurs: 0,
+        fieldOptions: { label: 'VAT number' },
+        computedProps: [
+          (field) => {
+            field.validation = dynamicRulesIsBusiness.value ? businessVatValidation : anyValueAllowed;
+            field.description = dynamicRulesIsBusiness.value
+              ? 'Validated: two uppercase letters followed by 8 to 12 characters.'
+              : 'Not validated while this is a private order.';
+          },
+        ],
+      },
+    ],
+  },
+]);
+
+export const dynamicRulesSampleValues = {
+  // All values satisfy the rules their drivers activate (NL postal format, business VAT format).
+  dynamicRules: { country: 'NL', postalCode: '1234 AB', businessOrder: true, vatNumber: 'NL123456789B01' },
 };
 
 export const attributesTestCase = createTestCase([

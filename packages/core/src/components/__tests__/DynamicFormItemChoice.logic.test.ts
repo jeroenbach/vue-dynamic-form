@@ -4,8 +4,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import TestForm from '@/examples/TestForm.vue';
 import { removeNullValues } from '@/utils/removeNullValues';
-import { formValues } from './DynamicFormItem.test-helpers';
-import { activeChoiceOccurrences, canAddChoiceOccurrence, childValuesEntry, enableDisplayOrder, enablePreserveOnSwitch, enablePreserveOrder, findDynamicFormItemChoiceByPath, insertionOrdersMap, occurrenceBranchKey, occurrenceGlobalIndex, occurrenceInsertionOrder, renderedChoiceOccurrences, usedChoiceOccurrences } from './DynamicFormItemChoice.test-helpers';
+import { setupState as fieldSetupState, formValues } from './DynamicFormItem.test-helpers';
+import { activeChoiceOccurrences, branchValue, canAddChoiceOccurrence, childValuesEntry, effectiveValuesCount, enableDisplayOrder, enablePreserveOnSwitch, enablePreserveOrder, findDynamicFormItemChoiceByPath, insertionOrdersMap, occurrenceBranchKey, occurrenceGlobalIndex, occurrenceInsertionOrder, renderedChoiceOccurrences, usedChoiceOccurrences } from './DynamicFormItemChoice.test-helpers';
 
 function addButton(wrapper: ReturnType<typeof mount>, path: string) {
   return wrapper.find(`[data-testid="${path}-add-button"]`);
@@ -1217,6 +1217,331 @@ describe('component DynamicFormItemChoice - logic', () => {
       const cleaned = removeNullValues(values)!;
       expect(cleaned.pick).toEqual({ guidedRollout: 'world' });
       expect('selfServe' in cleaned.pick).toBe(false);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 9a. presenceValue: childless explicit-choice branch
+  // ─────────────────────────────────────────────────────────────────────────
+  describe('presenceValue', () => {
+    function mountPresenceValueChoice(extraProps: Record<string, any> = {}) {
+      return mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'express', presenceValue: true, fieldOptions: { label: 'Express Checkout' } },
+              { name: 'email', type: 'group', fieldOptions: { label: 'Email' }, children: [
+                { name: 'address', fieldOptions: { label: 'Email address' } },
+              ] },
+            ],
+          }],
+          settings: { messages: { required: '{field} is required' } },
+          ...extraProps,
+        },
+      });
+    }
+
+    it.each([
+      ['boolean', true],
+      ['string', 'express'],
+      ['object', { selected: true }],
+    ])('writes the %s presenceValue marker into the branch\'s own value on selection, and the branch is valid with no written value of its own', async (_label, marker) => {
+      const wrapper = mountPresenceValueChoice({
+        metadata: [{
+          name: 'pick',
+          explicitChoiceSelection: true,
+          fieldOptions: { label: 'Pick One' },
+          choice: [
+            { name: 'express', presenceValue: marker, fieldOptions: { label: 'Express Checkout' } },
+            { name: 'email', type: 'group', fieldOptions: { label: 'Email' }, children: [
+              { name: 'address', fieldOptions: { label: 'Email address' } },
+            ] },
+          ],
+        }],
+      });
+      await flushPromises();
+
+      const warnSpy = vi.spyOn(console, 'warn');
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(branchValue(wrapper, 'pick', 'express')).toEqual(marker);
+      // The load-bearing proof, not just the absence of rendered error text: the field's own
+      // xsd_required check actually passed against the marker.
+      expect(fieldSetupState(wrapper, 'pick.express')?.fieldContext.meta.valid).toBe(true);
+      expect(wrapper.find('[data-testid="pick.express-error-message"]').exists()).toBe(false);
+      // No shape restriction: an empty-object/array or non-truthy marker never warns either.
+      expect(warnSpy).not.toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+
+    it('submitting with the branch selected succeeds and the submitted values carry the marker at the branch path', async () => {
+      const wrapper = mountPresenceValueChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="submit"]').trigger('click');
+      await flushPromises();
+
+      expect((wrapper.vm as any).$.setupState.meta.valid).toBe(true);
+      expect(wrapper.find('[data-testid="isSubmitted"]').exists()).toBe(true);
+      expect(formValues(wrapper).pick.express).toBe(true);
+    });
+
+    it('deselecting the branch clears the marker back to undefined, symmetric with the write', async () => {
+      const wrapper = mountPresenceValueChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+      expect(branchValue(wrapper, 'pick', 'express')).toBe(true);
+
+      await wrapper.find('[data-testid="pick.express-remove-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(branchValue(wrapper, 'pick', 'express')).toBeUndefined();
+    });
+
+    it('resetting the form after selecting a presence-marked branch clears the marker and deselects it, returning to the empty loaded state', async () => {
+      // The marker is written before the branch's own DynamicFormItem mounts, and vee-validate
+      // would stage that already-present value as the field's reset baseline. The write therefore
+      // un-stages it again right after the mount flush: selecting is a session action, so a reset
+      // must behave like it does for a plain branch typed into after mount and go back to empty.
+      const wrapper = mountPresenceValueChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+      expect(branchValue(wrapper, 'pick', 'express')).toBe(true);
+
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+
+      expect(branchValue(wrapper, 'pick', 'express')).toBeUndefined();
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([]);
+    });
+
+    it('resetting a form whose loaded values carry the marker restores it and keeps the branch selected', async () => {
+      // The counterpart of the session-action test above: a marker that came in through the
+      // form's initial values is the reset baseline, so switching away and resetting brings the
+      // loaded selection back, exactly like a plain branch with loaded data.
+      const wrapper = mountPresenceValueChoice({
+        initialValues: { pick: { express: true } },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.email-add-choice-button"]').trigger('click');
+      await flushPromises();
+      expect(branchValue(wrapper, 'pick', 'express')).toBeUndefined();
+
+      await wrapper.find('[data-testid="reset"]').trigger('click');
+      await flushPromises();
+
+      expect(branchValue(wrapper, 'pick', 'express')).toBe(true);
+      expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'express', index: 0 }]);
+    });
+
+    it('selecting a branch that already holds a loaded value never overwrites it with the marker', async () => {
+      const wrapper = mountPresenceValueChoice({
+        initialValues: { pick: { express: 'already-loaded' } },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(branchValue(wrapper, 'pick', 'express')).toBe('already-loaded');
+    });
+
+    it('restoring a preserveOnSwitch stash is not clobbered by the marker write that follows it in the same call', async () => {
+      const wrapper = mountPresenceValueChoice({
+        metadata: [{
+          name: 'pick',
+          explicitChoiceSelection: true,
+          preserveOnSwitch: true,
+          fieldOptions: { label: 'Pick One' },
+          choice: [
+            { name: 'express', presenceValue: true, fieldOptions: { label: 'Express Checkout' } },
+            { name: 'email', type: 'group', fieldOptions: { label: 'Email' }, children: [
+              { name: 'address', fieldOptions: { label: 'Email address' } },
+            ] },
+          ],
+        }],
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+      // Overwrite the marker with a user-typed value so the restore below has something of its
+      // own (distinct from the marker) to prove was preserved.
+      await wrapper.find('[id="pick.express"]').setValue('typed-note');
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.email-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(branchValue(wrapper, 'pick', 'express')).toBe('typed-note');
+    });
+
+    describe('reload: value-driven selection with no addChoiceOccurrence call', () => {
+      it.each([
+        ['boolean', true],
+        ['empty object', {}],
+        ['empty array', []],
+        ['string', 'express'],
+      ])('a %s marker already at the branch path reads as selected on mount', async (_label, marker) => {
+        const wrapper = mountPresenceValueChoice({
+          initialValues: { pick: { express: marker } },
+        });
+        await flushPromises();
+
+        expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([{ branchKey: 'express', index: 0 }]);
+        // Also counts toward xsd_choiceMinOccurs on reload, so it doesn't read as selected yet
+        // still fail "required".
+        expect(wrapper.find('[data-testid="pick-error-message"]').exists()).toBe(false);
+      });
+
+      it('an empty-object marker, not checkTreeHasValue-truthy on its own, still counts toward effectiveValuesCount on reload', async () => {
+        const wrapper = mountPresenceValueChoice({
+          initialValues: { pick: { express: {} } },
+        });
+        await flushPromises();
+
+        expect(effectiveValuesCount(wrapper, 'pick')).toBe(1);
+      });
+
+      it('the bypass is inert in an auto (non-explicit) choice: a loaded empty-object value on a presence-marked branch does not read as selected', async () => {
+        // presenceValue is documented as ignored outside explicitChoiceSelection, and the marker
+        // is only ever written there, so auto mode must keep its plain value-driven reading.
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              fieldOptions: { label: 'Pick One' },
+              choice: [
+                { name: 'express', presenceValue: true, fieldOptions: { label: 'Express Checkout' } },
+                { name: 'email', type: 'group', fieldOptions: { label: 'Email' }, children: [
+                  { name: 'address', fieldOptions: { label: 'Email address' } },
+                ] },
+              ],
+            }],
+            initialValues: { pick: { express: {} } },
+          },
+        });
+        await flushPromises();
+
+        expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([]);
+      });
+
+      it('the same bypass does not apply to a branch that does not declare presenceValue: an empty-object/array value still reads as unselected', async () => {
+        const wrapper = mount(TestForm, {
+          attachTo: document.body,
+          props: {
+            metadata: [{
+              name: 'pick',
+              explicitChoiceSelection: true,
+              fieldOptions: { label: 'Pick One' },
+              choice: [
+                { name: 'express', fieldOptions: { label: 'Express Checkout' } },
+                { name: 'email', type: 'group', fieldOptions: { label: 'Email' }, children: [
+                  { name: 'address', fieldOptions: { label: 'Email address' } },
+                ] },
+              ],
+            }],
+            initialValues: { pick: { express: {} } },
+          },
+        });
+        await flushPromises();
+
+        expect(activeChoiceOccurrences(wrapper, 'pick')).toEqual([]);
+      });
+    });
+
+    it('effectiveValuesCount for a same-session click-selected branch is unchanged (identical to before this story)', async () => {
+      const wrapper = mountPresenceValueChoice();
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(effectiveValuesCount(wrapper, 'pick')).toBe(1);
+    });
+
+    it('a branch declaring both presenceValue and children warns once in development and the marker is never written', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            fieldOptions: { label: 'Pick One' },
+            choice: [
+              { name: 'express', presenceValue: true, type: 'group', fieldOptions: { label: 'Express Checkout' }, children: [
+                { name: 'note', fieldOptions: { label: 'Note' } },
+              ] },
+              { name: 'email', type: 'group', fieldOptions: { label: 'Email' }, children: [
+                { name: 'address', fieldOptions: { label: 'Email address' } },
+              ] },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0][0]).toContain('express');
+      // The marker itself was never written: the branch's own value is whatever its children
+      // compose to (here, its one unfilled child), never the presenceValue marker (true).
+      expect(branchValue(wrapper, 'pick', 'express')).not.toBe(true);
+
+      // Switch away and back: selecting the branch again does not warn a second time.
+      await wrapper.find('[data-testid="pick.email-add-choice-button"]').trigger('click');
+      await flushPromises();
+      await wrapper.find('[data-testid="pick.express-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+
+      warnSpy.mockRestore();
+    });
+
+    it('is a no-op on a repeatable (maxOccurs > 1) branch: the pushed occurrence is the existing empty placeholder, not the marker', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'pick',
+            explicitChoiceSelection: true,
+            maxOccurs: 3,
+            fieldOptions: { label: 'Pick Several' },
+            choice: [
+              { name: 'apiEndpoint', maxOccurs: 2, presenceValue: true, fieldOptions: { label: 'Api Endpoint' } },
+              { name: 'crmExport', maxOccurs: 2, fieldOptions: { label: 'Crm Export' } },
+            ],
+          }],
+        },
+      });
+      await flushPromises();
+
+      await wrapper.find('[data-testid="pick.apiEndpoint-add-choice-button"]').trigger('click');
+      await flushPromises();
+
+      expect(formValues(wrapper).pick.apiEndpoint).toEqual([null]);
     });
   });
 

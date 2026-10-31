@@ -486,7 +486,7 @@ ul.spaced li { margin-bottom: 4px; }
         </div>
 
         <div class="submit-zone">
-          <p class="anno">Submit gated on a local computed, not <code>meta.valid</code> (the explicit-choice aggregate can stick invalid, as the checkout documents). Whether the unreachable check blocks this button is Open question 3 (shown both ways in Section 4).</p>
+          <p class="anno">Submit gated on <code>meta.valid</code> per ADR-5 (FEAT-010, now done, fixed the explicit-choice aggregate that used to stick invalid). Whether the unreachable check blocks this button is Open question 3 (shown both ways in Section 4).</p>
           <button class="submit-btn">Save rule set</button>
           <pre class="code" style="font-size:.72rem;margin-top:4px;">// form values (live):
 {
@@ -871,7 +871,7 @@ computedProps: [(thisField) => {
     </ul>
 
     <h2>How It Works</h2>
-    <p style="font-size:.92rem;">The rule list is a <code>choice</code> with <code>maxOccurs &gt; 1</code> and <code>explicitChoiceSelection</code>. Each Add button pushes an occurrence into its branch's field array; reordering rewrites two <code>order</code>-equivalent values and the engine re-sorts <code>renderedChoiceOccurrences</code> with no remount. The inbox routing is a pure module read through vee-validate's <code>useFormContext</code>, not <code>computedProps</code>. Submit is gated on a local computed, not the choice's aggregate <code>meta.valid</code>, because an explicit choice's aggregate can stick invalid after first activation. No new engine primitive is involved.</p>
+    <p style="font-size:.92rem;">The rule list is a <code>choice</code> with <code>maxOccurs &gt; 1</code> and <code>explicitChoiceSelection</code>. Each Add button pushes an occurrence into its branch's field array; reordering rewrites two <code>order</code>-equivalent values and the engine re-sorts <code>renderedChoiceOccurrences</code> with no remount. The inbox routing is a pure module read through vee-validate's <code>useFormContext</code>, not <code>computedProps</code>. Submit is gated on the form's aggregate <code>meta.valid</code>, trustworthy since FEAT-010 landed (ADR-5). No new engine primitive is involved.</p>
 
     <h2>Related Source</h2>
     <ul class="spaced" style="font-size:.92rem;">

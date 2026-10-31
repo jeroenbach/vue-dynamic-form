@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { nextTick, ref } from 'vue';
 import TestForm from '@/examples/TestForm.vue';
-import { constructValidationCount, fieldChangedCount, fieldComputeCount, notifyValueUpdateCount, renderCount, valueChangedCount } from './DynamicFormItem.test-helpers';
+import { combinedValidationRules, constructValidationCount, fieldChangedCount, fieldComputeCount, notifyValueUpdateCount, renderCount, subtreeValidateCount, valueChangedCount } from './DynamicFormItem.test-helpers';
 
 describe('component DynamicFormItem - analytics', () => {
   describe('render count', () => {
@@ -270,6 +270,122 @@ describe('component DynamicFormItem - analytics', () => {
       await flushPromises();
 
       await wrapper.setProps({ settings: { messages: { required: 'Please fill in this field' } } });
+      await flushPromises();
+
+      expect(constructValidationCount(wrapper, 'text')).toBe(2);
+    });
+
+    it('does not reconstruct validation when computedProps recomputes but changes only a rule-irrelevant property', async () => {
+      const externalRef = ref('initial');
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            computedProps: [(field) => {
+              field.description = externalRef.value;
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(constructValidationCount(wrapper, 'text')).toBe(1);
+      const rulesBefore = combinedValidationRules(wrapper, 'text');
+
+      externalRef.value = 'updated';
+      await flushPromises();
+
+      expect(constructValidationCount(wrapper, 'text')).toBe(1);
+      expect(combinedValidationRules(wrapper, 'text')).toBe(rulesBefore);
+    });
+
+    it('does not reconstruct validation when computedProps rebuilds restriction as a new object with the same values', async () => {
+      const externalRef = ref('initial');
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            minOccurs: 0,
+            computedProps: [(field) => {
+              void externalRef.value; // subscribe, so computedField recomputes
+              field.restriction = { minLength: 5 };
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(constructValidationCount(wrapper, 'text')).toBe(1);
+      const rulesBefore = combinedValidationRules(wrapper, 'text');
+
+      externalRef.value = 'updated';
+      await flushPromises();
+
+      expect(constructValidationCount(wrapper, 'text')).toBe(1);
+      expect(combinedValidationRules(wrapper, 'text')).toBe(rulesBefore);
+    });
+
+    it('reconstructs validation when computedProps swaps validation to a new but logically equivalent closure', async () => {
+      const externalRef = ref('initial');
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            minOccurs: 0,
+            computedProps: [(field) => {
+              void externalRef.value; // subscribe, so computedField recomputes
+              field.validation = (v: unknown) => !!v || 'Required';
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(constructValidationCount(wrapper, 'text')).toBe(1);
+      const rulesBefore = combinedValidationRules(wrapper, 'text');
+
+      externalRef.value = 'updated';
+      await flushPromises();
+
+      expect(constructValidationCount(wrapper, 'text')).toBe(2);
+      expect(combinedValidationRules(wrapper, 'text')).not.toBe(rulesBefore);
+    });
+
+    it('reconstructs validation exactly once when computedProps flips required, and stays flat on an unrelated keystroke', async () => {
+      const externalRef = ref(false);
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'text',
+            type: 'text',
+            computedProps: [(field) => {
+              field.minOccurs = externalRef.value ? 1 : 0;
+            }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(constructValidationCount(wrapper, 'text')).toBe(1);
+
+      externalRef.value = true;
+      await flushPromises();
+
+      expect(constructValidationCount(wrapper, 'text')).toBe(2);
+
+      // Typing into the field itself does not touch minOccurs, so the flip does not repeat.
+      await wrapper.find('#text').setValue('hello');
       await flushPromises();
 
       expect(constructValidationCount(wrapper, 'text')).toBe(2);
@@ -728,6 +844,98 @@ describe('component DynamicFormItem - analytics', () => {
       expect(notifyValueUpdateCount(wrapper, 'person.firstName')).toBe(2);
       expect(valueChangedCount(wrapper, 'person')).toBe(2); // parent unchanged
       expect(notifyValueUpdateCount(wrapper, 'person.firstName.lang')).toBe(1);
+    });
+  });
+
+  describe('subtree live-validity watcher', () => {
+    it('does not run immediately after mount, beyond vee-validate\'s own mount-time check', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            children: [{ name: 'firstName', type: 'text', minOccurs: 0 }],
+          }],
+        },
+      });
+      await flushPromises();
+
+      expect(subtreeValidateCount(wrapper, 'person')).toBe(0);
+    });
+
+    it('does not re-render the container when a descendant fill refreshes its own meta.valid', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            children: [{ name: 'firstName', type: 'text', minOccurs: 0 }],
+          }],
+        },
+      });
+      await flushPromises();
+      const countBefore = renderCount(wrapper, 'person');
+
+      await wrapper.find('#person\\.firstName').setValue('John');
+      await flushPromises();
+
+      expect(subtreeValidateCount(wrapper, 'person')).toBe(1);
+      expect(renderCount(wrapper, 'person')).toBe(countBefore);
+    });
+
+    it('does not affect the construct-validation count, which only tracks rule-set rebuilds', async () => {
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            children: [{ name: 'firstName', type: 'text', minOccurs: 0 }],
+          }],
+        },
+      });
+      await flushPromises();
+      const countBefore = constructValidationCount(wrapper, 'person');
+
+      await wrapper.find('#person\\.firstName').setValue('John');
+      await flushPromises();
+
+      expect(subtreeValidateCount(wrapper, 'person')).toBe(1);
+      expect(constructValidationCount(wrapper, 'person')).toBe(countBefore);
+    });
+
+    it('does not mistake a fast burst of descendant fills for an infinite loop', async () => {
+      let caughtError: unknown;
+
+      const wrapper = mount(TestForm, {
+        attachTo: document.body,
+        props: {
+          metadata: [{
+            name: 'person',
+            type: 'heading',
+            children: [{ name: 'firstName', type: 'text', minOccurs: 0 }],
+          }],
+        },
+        global: {
+          config: {
+            errorHandler: (err) => {
+              caughtError = err;
+            },
+          },
+        },
+      });
+      await flushPromises();
+
+      const input = wrapper.find('#person\\.firstName');
+      for (let i = 1; i <= 15; i++) {
+        await input.setValue('x'.repeat(i));
+        await nextTick();
+      }
+
+      expect(caughtError).toBeUndefined();
+      expect(subtreeValidateCount(wrapper, 'person')).toBe(15);
     });
   });
 });

@@ -63,6 +63,8 @@ An array field fails `xsd_maxOccurs` once it holds more raw items than `maxOccur
 
 XSD's `maxOccurs` has no `unbounded` representation in this library: `FieldMetadata.maxOccurs` is a plain `number` with a default of `1`, so an "unlimited" field needs a large finite number instead. That number is now a hard cap enforced by `xsd_maxOccurs`, not only a UI suggestion, so a large placeholder value used as a stand-in for "no limit" behaves as a real ceiling once data can exceed it.
 
+If metadata mistakenly declares `minOccurs` above `maxOccurs`, the `xsd_maxOccurs` rule is skipped for that field: the engine auto-fills the array up to `minOccurs`, and applying the cap anyway would make the field permanently invalid with no way for the user to fix it.
+
 ### Choice occurrence maximum (`xsd_choiceMaxOccurs`)
 
 A choice field fails `xsd_choiceMaxOccurs` once its `usedChoiceOccurrences` (the same choice-occurrence unit `xsd_choiceMinOccurs` and the "Add" affordance already use) exceeds the choice's own `maxOccurs`, in both automatic and explicit selection modes. As with the array rule, this only fires on data that arrives already over the limit.
