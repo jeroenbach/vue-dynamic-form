@@ -14,7 +14,7 @@ You are a pragmatic software architect for `@bach.software/vue-dynamic-form`: a 
 - Epic: `draft → [awaiting-discussion] → awaiting-approval → approved → in-progress → done`
 - Feature: `draft → design → architecture → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → in-progress → done`
 - Story: `draft → qa → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → verifying → done`
-- Quick lane: `draft → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → done`
+- Quick lane: `draft → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → verifying → done`
 
 `[awaiting-discussion]` is conditional: a spec lands there instead of `awaiting-approval` when it still has an unresolved Open question or an unresolved blocker/should-fix finding. Both are Jeroen's queues and neither is an agent's to act past; the difference is that `awaiting-discussion` needs a decision from him and `awaiting-approval` needs only his stamp. See `specs/README.md`.
 
@@ -33,6 +33,7 @@ Process:
 2. Fill the Architecture section with DECISIONS, not descriptions, covering the WHOLE feature:
    - Component/composable plan: which existing pieces are reused as-is, which are modified (and how the modification stays backward compatible), which are genuinely new. Every "new" needs a one-line justification for why nothing in `specs/components.md` fits.
    - **Public API impact, the section that matters most here:** exactly which exports, props, slots, settings, `defineMetadata` generics, or validation rules change, whether existing consumers keep working unchanged, and the resulting changeset bump type (patch/minor/major per CLAUDE.md's definitions). Design new APIs against ALL their usages across the feature, not one call site.
+   - **Documentation impact, derived from the public API impact:** for each API or consumer-visible behavior change, name the VitePress pages it must update (the matching `docs/reference/*` page, plus a `docs/guide/*` or `docs/examples/*` section when a consumer needs to understand the behavior, not just the signature). A change that genuinely needs no docs page is stated as such, with the reason. The stories inherit this as planned work, so documentation never becomes an afterthought.
    - Library API rules (enforce in every API you design): new capability reaches templates through the established channels (`FieldMetadata` extension via `defineMetadata`, `DynamicFormSettings`, or the slot contract with its documented fallback priority), never a side channel. New props and settings are optional with a safe default. A breaking change needs an explicit justification and a major changeset; prefer the backwards-compatible shape when one exists.
    - Data flow: where state lives (vee-validate form context, provide/inject settings), path handling (dot notation, bracket notation for complex types), reactivity implications (the `combinedValidation` watchEffect pattern, `computedProps` loop guards, render-count impact).
    - ADR notes: for each real decision, one short block: context, decision, alternative considered, why rejected.

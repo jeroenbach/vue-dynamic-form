@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FEAT-006 Inbox Rules Builder — design prototype</title>
+<style>
+/* ============================================================
+   Design tokens. Mirror the docs site: VitePress --vp-c-* feel,
+   sky brand, slate neutrals, emerald/amber/rose state colors,
+   indigo position badges. Light is :root, dark is .dark on <html>
+   (exactly how VitePress drives its class-based dark mode).
+   ============================================================ */
+:root {
+  --page-bg: #ffffff;
+  --card-bg: #ffffff;
+  --panel-bg: #f8fafc;        /* slate-50 */
+  --border: #e2e8f0;          /* slate-200 */
+  --border-strong: #cbd5e1;   /* slate-300 */
+  --border-dashed: #cbd5e1;
+  --text: #1e293b;            /* slate-800 */
+  --text-strong: #0f172a;     /* slate-900 */
+  --text-muted: #64748b;      /* slate-500 */
+  --text-faint: #94a3b8;      /* slate-400 */
+  --brand: #0284c7;           /* sky-600 (text/links/labels) */
+  --brand-hover: #0369a1;     /* sky-700 */
+  --btn-bg: #0284c7;          /* solid button bg, white text, both modes */
+  --btn-bg-hover: #0369a1;
+  --brand-ring: #bae6fd;      /* sky-200 */
+  --brand-border: #38bdf8;    /* sky-400 */
+  --badge-bg: #eef2ff;        /* indigo-50 */
+  --badge-text: #4338ca;      /* indigo-700 */
+  --ok-bg: #ecfdf5; --ok-border: #a7f3d0; --ok-text: #065f46;      /* emerald */
+  --warn-bg: #fffbeb; --warn-border: #fcd34d; --warn-text: #92400e;/* amber */
+  --err-bg: #fef2f2; --err-border: #fca5a5; --err-text: #991b1b;   /* red/rose */
+  --valid-border: #6ee7b7;    /* emerald-300, subtle valid border */
+  --code-bg: #f1f5f9;         /* slate-100 */
+  --shadow: 0 1px 2px 0 rgba(0,0,0,.05);
+  --anno: #94a3b8;
+}
+.dark {
+  --page-bg: #1b1b1f;
+  --card-bg: #0f172a;         /* slate-900 */
+  --panel-bg: #131a2a;
+  --border: #334155;          /* slate-700 */
+  --border-strong: #475569;   /* slate-600 */
+  --border-dashed: #475569;
+  --text: #e2e8f0;            /* slate-200 */
+  --text-strong: #f1f5f9;     /* slate-100 */
+  --text-muted: #94a3b8;      /* slate-400 */
+  --text-faint: #64748b;      /* slate-500 */
+  --brand: #38bdf8;           /* sky-400 for readable text on dark */
+  --brand-hover: #0ea5e9;
+  --btn-bg: #0284c7;          /* solid button stays sky-600 in dark too */
+  --btn-bg-hover: #0369a1;
+  --brand-ring: #0c4a6e;      /* sky-900 */
+  --brand-border: #0ea5e9;
+  --badge-bg: #312e81;        /* indigo-900 */
+  --badge-text: #c7d2fe;      /* indigo-200 */
+  --ok-bg: #022c22; --ok-border: #065f46; --ok-text: #a7f3d0;
+  --warn-bg: #451a03; --warn-border: #b45309; --warn-text: #fde68a;
+  --err-bg: #4c0519; --err-border: #be123c; --err-text: #fecdd3;
+  --valid-border: #065f46;
+  --code-bg: #0b1222;
+  --shadow: 0 1px 2px 0 rgba(0,0,0,.4);
+  --anno: #64748b;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--page-bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+  transition: background .2s, color .2s;
+}
+.wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 120px; }
+
+h1 { font-size: 2rem; font-weight: 700; color: var(--text-strong); margin: 0 0 .5rem; }
+h2 { font-size: 1.4rem; font-weight: 700; color: var(--text-strong); margin: 0 0 .5rem; }
+h3 { font-size: 1.15rem; font-weight: 700; color: var(--text-strong); margin: 1.5rem 0 .5rem; }
+p { margin: 0 0 1rem; }
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .85em; background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+strong { color: var(--text-strong); }
+
+/* Section dividers so every screen is clearly separated and anchored. */
+.divider {
+  margin: 56px 0 24px; padding-top: 10px;
+  border-top: 2px dashed var(--border-strong);
+  display: flex; align-items: center; gap: 10px;
+}
+.divider .tag {
+  font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-faint); background: var(--panel-bg);
+  border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px;
+}
+.divider .id { font-family: monospace; font-size: .72rem; color: var(--anno); }
+
+.anno {
+  font-size: .72rem; color: var(--anno); font-style: italic;
+  display: block; margin: 4px 0 12px;
+}
+.anno::before { content: "↳ "; }
+
+/* Toggle button */
+.theme-toggle {
+  position: fixed; top: 16px; right: 16px; z-index: 50;
+  background: var(--card-bg); color: var(--text); border: 1px solid var(--border);
+  border-radius: 999px; padding: 8px 14px; font-size: .8rem; font-weight: 600;
+  cursor: pointer; box-shadow: var(--shadow); display: inline-flex; gap: 6px; align-items: center;
+}
+.theme-toggle:hover { border-color: var(--border-strong); }
+
+/* Callouts (VitePress ::: tip / warning) */
+.callout { border-radius: 8px; padding: 14px 16px; margin: 0 0 20px; font-size: .9rem; border: 1px solid; }
+.callout .title { font-weight: 700; display: block; margin-bottom: 4px; }
+.callout.tip { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok-text); }
+.callout.warning { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-text); }
+.callout.info { background: var(--badge-bg); border-color: var(--border); color: var(--text); }
+
+/* Cards */
+.card {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 24px; box-shadow: var(--shadow);
+}
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.card-head h2 { font-size: 1.15rem; margin: 0; }
+.card-head p { font-size: .85rem; color: var(--text-muted); margin: 2px 0 0; }
+.count-tag {
+  flex: none; background: var(--badge-bg); color: var(--badge-text);
+  border-radius: 999px; padding: 2px 10px; font-size: .72rem; font-weight: 700; white-space: nowrap;
+}
+
+/* Two-column layout (rule list + inbox rail). Mirrors checkout-layout. */
+.layout { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 24px; align-items: start; }
+.rail { position: sticky; top: 24px; }
+@media (max-width: 1023px) {
+  .layout { grid-template-columns: 1fr; }
+  .rail { position: static; }
+}
+
+/* Add-rule toolbar */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;
+  padding: 8px 12px; font-size: .82rem; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--card-bg); color: var(--text);
+  transition: background .15s, border-color .15s;
+}
+.btn:hover { border-color: var(--text-faint); background: var(--panel-bg); }
+.btn.primary { background: var(--btn-bg); border-color: var(--btn-bg); color: #fff; }
+.btn.primary:hover { background: var(--btn-bg-hover); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn .ico { font-size: 1rem; line-height: 1; }
+
+/* Rule row */
+.rules { display: flex; flex-direction: column; gap: 14px; }
+.rule {
+  display: flex; gap: 16px; align-items: flex-start;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+}
+.rule.is-unreachable { border-color: var(--warn-border); }
+.rule.is-blocked { border-color: var(--err-border); }
+.rule-order { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: none; }
+.badge {
+  display: grid; place-items: center; height: 28px; width: 28px; border-radius: 999px;
+  background: var(--badge-bg); color: var(--badge-text); font-size: .75rem; font-weight: 700;
+}
+.reorder { display: flex; flex-direction: column; gap: 2px; }
+.icon-btn {
+  display: grid; place-items: center; height: 24px; width: 24px; border: none; border-radius: 6px;
+  background: transparent; color: var(--text-muted); cursor: pointer; font-size: .9rem; line-height: 1;
+}
+.icon-btn:hover { background: var(--panel-bg); color: var(--text-strong); }
+.icon-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+.rule-body { flex: 1 1 auto; min-width: 0; }
+.rule-kind { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--brand); margin-bottom: 8px; }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .field-grid { grid-template-columns: 1fr; } }
+.field-grid.single { grid-template-columns: 1fr; }
+.rule-action {
+  margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+@media (max-width: 560px) { .rule-action { grid-template-columns: 1fr; } }
+
+.remove-btn {
+  flex: none; display: grid; place-items: center; height: 32px; width: 32px; border-radius: 6px;
+  background: transparent; border: none; color: var(--err-text); cursor: pointer; font-size: 1rem;
+}
+.remove-btn:hover { background: var(--err-bg); }
+.remove-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* Form fields */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: .82rem; font-weight: 600; color: var(--text); display: flex; justify-content: space-between; }
+.field label .req { font-size: .7rem; font-weight: 500; color: var(--text-faint); }
+.field label .req.required { color: var(--err-text); }
+.input, .select {
+  height: 40px; width: 100%; border-radius: 8px; padding: 8px 12px; font-size: .88rem;
+  background: var(--card-bg); color: var(--text-strong); border: 1px solid var(--border-strong);
+  transition: border-color .15s, box-shadow .15s;
+}
+.input::placeholder { color: var(--text-faint); }
+.input:focus, .select:focus { outline: none; border-color: var(--brand-border); box-shadow: 0 0 0 3px var(--brand-ring); }
+.input.is-valid { border-color: var(--valid-border); }
+.input.is-invalid { border-color: var(--err-border); box-shadow: 0 0 0 3px var(--err-bg); }
+.input:disabled, .select:disabled { background: var(--panel-bg); color: var(--text-faint); cursor: not-allowed; }
+.field-err { font-size: .76rem; color: var(--err-text); }
+.field-hint { font-size: .76rem; color: var(--text-muted); }
+.unit-row { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
+
+.childless-note {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
+  font-size: .82rem; color: var(--text-muted); background: var(--panel-bg);
+  border: 1px dashed var(--border-dashed); border-radius: 8px; padding: 10px 12px;
+}
+
+/* Empty rule list */
+.empty-state {
+  display: grid; place-items: center; text-align: center; gap: 4px;
+  border: 1px dashed var(--border-dashed); border-radius: 12px; background: var(--panel-bg);
+  padding: 32px 24px; color: var(--text-muted); font-size: .9rem;
+}
+
+/* Inbox rail */
+.inbox { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.inbox h3 { margin: 0 0 2px; font-size: 1rem; }
+.inbox .sub { font-size: .76rem; color: var(--text-muted); margin: 0 0 14px; }
+.mail { padding: 12px 0; border-top: 1px solid var(--border); }
+.mail:first-of-type { border-top: none; padding-top: 0; }
+.mail-from { font-size: .8rem; font-weight: 600; color: var(--text-strong); }
+.mail-subject { font-size: .8rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-meta { font-size: .72rem; color: var(--text-faint); display: flex; gap: 8px; margin-top: 2px; }
+.mail-meta .clip::before { content: "📎 "; }
+.route {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 7px;
+  font-size: .72rem; font-weight: 600; border-radius: 6px; padding: 3px 8px;
+}
+.route.matched { background: var(--ok-bg); color: var(--ok-text); border: 1px solid var(--ok-border); }
+.route.nomatch { background: var(--panel-bg); color: var(--text-muted); border: 1px dashed var(--border-dashed); }
+.route .rule-ref { color: var(--badge-text); background: var(--badge-bg); border-radius: 4px; padding: 0 5px; font-weight: 700; }
+
+/* Unreachable surfaces */
+.inline-badge {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;
+  padding: 3px 9px; font-size: .72rem; font-weight: 600; margin-top: 8px;
+}
+.inline-badge.warn { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
+.inline-badge.err { background: var(--err-bg); color: var(--err-text); border: 1px solid var(--err-border); }
+.block-banner {
+  display: flex; align-items: flex-start; gap: 10px; border-radius: 8px; padding: 12px 14px;
+  background: var(--err-bg); border: 1px solid var(--err-border); color: var(--err-text); font-size: .85rem;
+  margin-top: 16px;
+}
+
+/* Submit zone */
+.submit-zone { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+.submit-btn {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px;
+  background: var(--btn-bg); color: #fff; border: none; border-radius: 8px;
+  padding: 12px 20px; font-size: .9rem; font-weight: 700; cursor: pointer;
+}
+.submit-btn:hover { background: var(--btn-bg-hover); }
+.submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+.success-banner {
+  display: flex; align-items: center; gap: 10px; border-radius: 12px; padding: 14px 16px;
+  background: var(--ok-bg); border: 1px solid var(--ok-border); color: var(--ok-text); font-size: .9rem;
+}
+
+/* State gallery grid */
+.states-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 680px) { .states-grid { grid-template-columns: 1fr; } }
+.state-cell { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: var(--card-bg); }
+.state-cell .state-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); margin-bottom: 10px; }
+
+/* Code block for metadata walkthrough */
+pre.code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; overflow: auto; font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: .78rem; line-height: 1.55; color: var(--text); margin: 0 0 16px;
+}
+.file-label { font-size: .72rem; color: var(--text-faint); font-family: monospace; margin-bottom: -8px; }
+ul.spaced li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+  <span id="toggleIcon">🌙</span><span id="toggleText">Dark</span>
+</button>
+
+<div class="wrap">
+
+  <!-- ============================================================
+       SECTION 1: NARRATIVE INTRO
+       ============================================================ -->
+  <div class="divider" style="margin-top:0;border-top:none;">
+    <span class="tag">Section 1 — Narrative intro</span><span class="id">#page-intro</span>
+  </div>
+  <section id="page-intro">
+    <h1>Inbox rules, where order is the whole point</h1>
+    <p class="anno">Final slug / title / nav placement are Open question 4. Working title and slug <code>/examples/inbox-rules</code> used throughout. Page sets <code>aside:false</code> and a <code>pageClass</code>, widening the content column to 1100px, exactly like the checkout page.</p>
+    <p>
+      Every mail client, every firewall, every router does the same thing: it walks an ordered list of rules
+      top to bottom and stops at the <strong>first one that matches</strong>. Move a rule up, and it starts
+      catching messages a rule below it used to handle. That is not a cosmetic detail. The order <em>is</em> the behavior.
+    </p>
+    <p>
+      The form below is a single repeatable ordered <code>choice</code>: one metadata tree, one template, no bespoke
+      engine code. Each row is a rule, with genuinely different fields per condition type. Reorder the rules and the
+      live test inbox on the right re-routes every message the instant a rule moves.
+    </p>
+    <div class="callout tip">
+      <span class="title">What you are looking at</span>
+      A fixed, fictional test inbox of six messages, routed entirely in your browser. No mail server, no account,
+      no message is ever sent anywhere. The inbox is demo data authored for this page.
+    </div>
+    <p class="anno">Intro copy borrows the conceptual model (Gmail filters / ACLs / routing tables) in words only. No email-client chrome is imitated, matching how the checkout page borrows Shopify's structure but not its branding.</p>
+  </section>
+
+  <!-- ============================================================
+       SECTION 2: THE LIVE FORM (rule list + inbox rail)
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 2 — The live form</span><span class="id">#live-form</span>
+  </div>
+  <p class="anno">Two-column grid: rule list (fluid) + inbox rail (340px, sticky). Collapses to one column below 1024px; the inbox then stacks below the rules (mirrors the checkout cart-rail responsive behavior). Default state below shows four rules.</p>
+
+  <section id="live-form" class="layout">
+    <!-- LEFT: rule list -->
+    <div>
+      <div class="card" style="padding:20px;">
+        <div class="card-head">
+          <div>
+            <h2>Routing rules</h2>
+            <p>Applied top to bottom. The first rule that matches a message wins.</p>
+          </div>
+          <span class="count-tag">4 of 20</span>
+        </div>
+
+        <p class="anno">Add-rule toolbar: one button per condition type (mirrors ChoiceArraySectionCard). Each button calls <code>addChoiceOccurrence(branchKey)</code>, appending a rule at the end. Buttons disable when the choice's shared budget is exhausted (annotated in the state gallery).</p>
+        <div class="toolbar">
+          <button class="btn primary"><span class="ico">+</span> From sender</button>
+          <button class="btn primary"><span class="ico">+</span> Subject contains</button>
+          <button class="btn primary"><span class="ico">+</span> Larger than</button>
+          <button class="btn primary"><span class="ico">+</span> Has attachment</button>
+        </div>
+
+        <p class="anno">Each rule: position badge (engine <code>globalIndex + 1</code>), up/down reorder (ghost icon buttons, boundary buttons disabled), condition fields per branch, an action block, and a remove button. Reordering writes the two affected occurrences' order values directly, exactly as SplitPaymentLedgerRow does.</p>
+
+        <div class="rules">
+          <!-- Rule 1: From sender -->
+          <article class="rule">
+            <div class="rule-order">
+              <span class="badge">1</span>
+              <div class="reorder">
+                <button class="icon-btn" disabled aria-label="Move rule up">▲</button>
+                <button class="icon-btn" aria-label="Move rule down">▼</button>
+              </div>
+            </div>
+            <div class="rule-body">
+              <div class="rule-kind">From sender</div>
+              <div class="field-grid single">
+                <div class="field">
+                  <label>Sender email <span class="req required">required</span></label>
+                  <input class="input is-valid" type="email" value="newsletter@weeklydigest.example">
+                </div>
+              </div>
+              <div class="rule-action">
+                <div class="field">
+                  <label>Then <span class="req required">required</span></label>
+                  <select class="select"><option>Apply label</option><option>Move to folder</option><option>Forward to</option><option>Delete</option></select>
+                </div>
+                <div class="field">
+                  <label>Label <span class="req required">required</span></label>
+                  <input class="input is-valid" type="text" value="Newsletters">
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove rule">🗑</button>
+          </article>
+
+          <!-- Rule 2: Larger than -->
+          <article class="rule">
+            <div class="rule-order">
+              <span class="badge">2</span>
+              <div class="reorder">
+                <button class="icon-btn" aria-label="Move rule up">▲</button>
+                <button class="icon-btn" aria-label="Move rule down">▼</button>
+              </div>
+            </div>
+            <div class="rule-body">
+              <div class="rule-kind">Larger than</div>
+              <div class="field-grid">
+                <div class="field">
+                  <label>Size <span class="req required">required</span></label>
+                  <div class="unit-row">
+                    <input class="input is-valid" type="number" value="1">
+                    <select class="select"><option>MB</option><option>KB</option></select>
+                  </div>
+                </div>
+                <div class="field">
+                  <span class="field-hint" style="margin-top:28px;">Matches messages whose total size exceeds this threshold.</span>
+                </div>
+              </div>
+              <div class="rule-action">
+                <div class="field">
+                  <label>Then <span class="req required">required</span></label>
+                  <select class="select"><option>Move to folder</option><option>Apply label</option><option>Forward to</option><option>Delete</option></select>
+                </div>
+                <div class="field">
+                  <label>Folder <span class="req required">required</span></label>
+                  <input class="input is-valid" type="text" value="Large files">
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove rule">🗑</button>
+          </article>
+
+          <!-- Rule 3: Has attachment (childless branch) -->
+          <article class="rule">
+            <div class="rule-order">
+              <span class="badge">3</span>
+              <div class="reorder">
+                <button class="icon-btn" aria-label="Move rule up">▲</button>
+                <button class="icon-btn" aria-label="Move rule down">▼</button>
+              </div>
+            </div>
+            <div class="rule-body">
+              <div class="rule-kind">Has attachment</div>
+              <div class="field-grid single">
+                <div class="childless-note">
+                  <span>📎</span> No filter to configure. This rule matches any message that carries an attachment.
+                </div>
+              </div>
+              <div class="rule-action">
+                <div class="field">
+                  <label>Then <span class="req required">required</span></label>
+                  <select class="select"><option>Move to folder</option><option>Apply label</option><option>Forward to</option><option>Delete</option></select>
+                </div>
+                <div class="field">
+                  <label>Folder <span class="req required">required</span></label>
+                  <input class="input is-valid" type="text" value="Attachments">
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove rule">🗑</button>
+          </article>
+
+          <!-- Rule 4: Subject contains -->
+          <article class="rule">
+            <div class="rule-order">
+              <span class="badge">4</span>
+              <div class="reorder">
+                <button class="icon-btn" aria-label="Move rule up">▲</button>
+                <button class="icon-btn" disabled aria-label="Move rule down">▼</button>
+              </div>
+            </div>
+            <div class="rule-body">
+              <div class="rule-kind">Subject contains</div>
+              <div class="field-grid single">
+                <div class="field">
+                  <label>Text in subject <span class="req required">required</span></label>
+                  <input class="input is-valid" type="text" value="Invoice">
+                </div>
+              </div>
+              <div class="rule-action">
+                <div class="field">
+                  <label>Then <span class="req required">required</span></label>
+                  <select class="select"><option>Forward to</option><option>Move to folder</option><option>Apply label</option><option>Delete</option></select>
+                </div>
+                <div class="field">
+                  <label>Forward to <span class="req required">required</span></label>
+                  <input class="input is-valid" type="email" value="accounting@mycompany.example">
+                </div>
+              </div>
+            </div>
+            <button class="remove-btn" aria-label="Remove rule">🗑</button>
+          </article>
+        </div>
+
+        <div class="submit-zone">
+          <p class="anno">Submit gated on a local computed, not <code>meta.valid</code> (the explicit-choice aggregate can stick invalid, as the checkout documents). Whether the unreachable check blocks this button is Open question 3 (shown both ways in Section 4).</p>
+          <button class="submit-btn">Save rule set</button>
+          <pre class="code" style="font-size:.72rem;margin-top:4px;">// form values (live):
+{
+  "rules": {
+    "fromSender": [{ "order": 1, "email": "newsletter@weeklydigest.example", "action": "label", "label": "Newsletters" }],
+    "largerThan": [{ "order": 2, "size": 1, "unit": "MB", "action": "folder", "folder": "Large files" }],
+    "hasAttachment": [{ "order": 3, "action": "folder", "folder": "Attachments" }],
+    "subjectContains": [{ "order": 4, "text": "Invoice", "action": "forward", "forwardTo": "accounting@mycompany.example" }]
+  }
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: live test inbox rail -->
+    <aside class="rail" id="test-inbox">
+      <div class="inbox">
+        <h3>Test inbox</h3>
+        <p class="sub">6 fixed demo messages, routed by the rules in their current order. Recomputes live on every add, edit, remove, or reorder.</p>
+
+        <div class="mail">
+          <div class="mail-from">newsletter@weeklydigest.example</div>
+          <div class="mail-subject">Your Monday digest</div>
+          <div class="mail-meta"><span>12 KB</span></div>
+          <span class="route matched">→ Label “Newsletters” <span class="rule-ref">rule 1</span></span>
+        </div>
+
+        <div class="mail">
+          <div class="mail-from">billing@cloudhost.example</div>
+          <div class="mail-subject">Invoice #4821 attached</div>
+          <div class="mail-meta"><span>340 KB</span><span class="clip">attachment</span></div>
+          <span class="route matched">→ Folder “Attachments” <span class="rule-ref">rule 3</span></span>
+        </div>
+
+        <div class="mail">
+          <div class="mail-from">maria.chen@example.com</div>
+          <div class="mail-subject">Re: lunch Friday?</div>
+          <div class="mail-meta"><span>8 KB</span></div>
+          <span class="route nomatch">No rule matched, stays in Inbox</span>
+        </div>
+
+        <div class="mail">
+          <div class="mail-from">noreply@social.example</div>
+          <div class="mail-subject">5 new notifications</div>
+          <div class="mail-meta"><span>15 KB</span></div>
+          <span class="route nomatch">No rule matched, stays in Inbox</span>
+        </div>
+
+        <div class="mail">
+          <div class="mail-from">team@projecttools.example</div>
+          <div class="mail-subject">Large export ready</div>
+          <div class="mail-meta"><span>2.4 MB</span><span class="clip">attachment</span></div>
+          <span class="route matched">→ Folder “Large files” <span class="rule-ref">rule 2</span></span>
+        </div>
+
+        <div class="mail">
+          <div class="mail-from">hello@random.example</div>
+          <div class="mail-subject">hello</div>
+          <div class="mail-meta"><span>3 KB</span></div>
+          <span class="route nomatch">No rule matched, stays in Inbox</span>
+        </div>
+      </div>
+      <p class="anno">Routing badge references the catching rule by its displayed position (rule 1..N). "No match" uses a dashed, muted treatment, never a color that reads as error. The invoice message is the teaching moment: rule 3 (Has attachment) catches it before rule 4 (Subject contains "Invoice") can, see the reordered state in Section 5.</p>
+    </aside>
+  </section>
+
+  <!-- ============================================================
+       SECTION 3: FIELD & RULE STATES POLICY
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 3 — States policy</span><span class="id">#rule-states</span>
+  </div>
+  <p class="anno">One states policy applied everywhere in the feature. Hover/focus are annotated where they cannot be shown statically. Every colored state uses the shared tokens so light and dark both carry through.</p>
+
+  <section id="rule-states">
+    <div class="states-grid">
+      <div class="state-cell">
+        <div class="state-label">Field — pristine</div>
+        <div class="field">
+          <label>Sender email <span class="req required">required</span></label>
+          <input class="input" type="email" placeholder="name@example.com">
+        </div>
+        <p class="anno">Untouched: neutral border, no success or error color. Placeholder in faint text.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Field — focus</div>
+        <div class="field">
+          <label>Sender email <span class="req required">required</span></label>
+          <input class="input" style="border-color:var(--brand-border);box-shadow:0 0 0 3px var(--brand-ring);" type="email" value="maria.chen@example.com">
+        </div>
+        <p class="anno">Simulated focus ring (sky). Real focus is the browser default plus this ring; keyboard focus is identical.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Field — invalid (xsd_pattern)</div>
+        <div class="field">
+          <label>Sender email <span class="req required">required</span></label>
+          <input class="input is-invalid" type="text" value="not-an-email">
+          <span class="field-err">Enter a valid email address.</span>
+        </div>
+        <p class="anno">Touched + failing: rose border + message below. From-sender uses the same <code>xsd_pattern</code> email check the checkout uses.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Field — valid</div>
+        <div class="field">
+          <label>Sender email <span class="req required">required</span></label>
+          <input class="input is-valid" type="email" value="newsletter@weeklydigest.example">
+        </div>
+        <p class="anno">Touched + passing: subtle emerald border, no message. Same convention the checkout template added.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Field — disabled</div>
+        <div class="field">
+          <label style="opacity:.6;">Forward to <span class="req">optional</span></label>
+          <input class="input" type="email" value="accounting@mycompany.example" disabled>
+        </div>
+        <p class="anno">A conditionally hidden action field (e.g. "Forward to" when the action is not Forward) is removed, not disabled. Disabled shown here only for the reorder boundary + budget-exhausted cases.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Reorder controls — boundary</div>
+        <div style="display:flex;gap:16px;align-items:center;">
+          <div class="rule-order"><span class="badge">1</span>
+            <div class="reorder">
+              <button class="icon-btn" disabled>▲</button>
+              <button class="icon-btn">▼</button>
+            </div>
+          </div>
+          <span class="field-hint">Top rule: up disabled. Bottom rule: down disabled.</span>
+        </div>
+        <p class="anno">Hover: ghost buttons tint their background (panel) and darken the glyph. Disabled at 30% opacity, not clickable.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Add toolbar — budget exhausted</div>
+        <div class="toolbar" style="margin:0;">
+          <button class="btn primary"><span class="ico">+</span> From sender</button>
+          <button class="btn primary" disabled><span class="ico">+</span> Larger than</button>
+        </div>
+        <span class="count-tag">20 of 20</span>
+        <p class="anno">When the choice's shared budget is full, every add button disables and the count tag reads its max. Follows <code>canAddChoiceOccurrence</code>.</p>
+      </div>
+
+      <div class="state-cell">
+        <div class="state-label">Submitting / loading</div>
+        <button class="submit-btn" disabled>
+          <span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:999px;"></span>
+          Saving…
+        </button>
+        <p class="anno">Spinner reuses the checkout's submit-button pattern. The form itself has no network load state (all data is in-memory); "loading" only ever means the save action.</p>
+      </div>
+    </div>
+
+    <h3>Empty state (no rules yet)</h3>
+    <p class="anno">Empty state is mandatory. Dashed panel inside the rules card, mirroring the split-payment ledger's empty state. The add toolbar stays visible above it.</p>
+    <div class="card" style="padding:20px;max-width:680px;">
+      <div class="card-head">
+        <div><h2>Routing rules</h2><p>Applied top to bottom. The first rule that matches a message wins.</p></div>
+        <span class="count-tag">0 of 20</span>
+      </div>
+      <div class="toolbar">
+        <button class="btn primary"><span class="ico">+</span> From sender</button>
+        <button class="btn primary"><span class="ico">+</span> Subject contains</button>
+        <button class="btn primary"><span class="ico">+</span> Larger than</button>
+        <button class="btn primary"><span class="ico">+</span> Has attachment</button>
+      </div>
+      <div class="empty-state">
+        <strong style="color:var(--text);">No rules yet</strong>
+        <span>Add a rule above. Until then, every message in the test inbox stays in the Inbox.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SECTION 4: UNREACHABLE-RULE SURFACING
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 4 — Unreachable-rule surfacing</span><span class="id">#unreachable</span>
+  </div>
+  <p class="anno">A rule placed after another that already catches everything it would catch can never fire. Surfaced with the same hidden-field technique the checkout's coverage check uses. Open question 2 decides the exact definition of "unreachable"; the visual surface below is identical regardless of which definition lands. Open question 3 decides blocking vs non-blocking; both variants are shown.</p>
+
+  <section id="unreachable">
+    <h3>Variant A — non-blocking badge (working assumption)</h3>
+    <p class="anno">An unreachable rule is dead configuration, not invalid data, so the amber badge on the affected row reads better than a hard error. Submit stays enabled. This is the working assumption pending Open question 3.</p>
+    <div class="rules" style="max-width:720px;">
+      <article class="rule">
+        <div class="rule-order"><span class="badge">3</span>
+          <div class="reorder"><button class="icon-btn">▲</button><button class="icon-btn">▼</button></div>
+        </div>
+        <div class="rule-body">
+          <div class="rule-kind">Has attachment</div>
+          <div class="field-grid single"><div class="childless-note"><span>📎</span> Matches any message that carries an attachment.</div></div>
+          <div class="rule-action">
+            <div class="field"><label>Then</label><select class="select"><option>Move to folder</option></select></div>
+            <div class="field"><label>Folder</label><input class="input is-valid" value="Attachments"></div>
+          </div>
+        </div>
+        <button class="remove-btn">🗑</button>
+      </article>
+      <article class="rule is-unreachable">
+        <div class="rule-order"><span class="badge">4</span>
+          <div class="reorder"><button class="icon-btn">▲</button><button class="icon-btn" disabled>▼</button></div>
+        </div>
+        <div class="rule-body">
+          <div class="rule-kind">Has attachment</div>
+          <div class="field-grid single"><div class="childless-note"><span>📎</span> Matches any message that carries an attachment.</div></div>
+          <div class="rule-action">
+            <div class="field"><label>Then</label><select class="select"><option>Apply label</option></select></div>
+            <div class="field"><label>Label</label><input class="input is-valid" value="Files"></div>
+          </div>
+          <span class="inline-badge warn">⚠ Unreachable: rule 3 already catches every message this rule would.</span>
+        </div>
+        <button class="remove-btn">🗑</button>
+      </article>
+    </div>
+
+    <h3>Variant B — blocking error (alternative)</h3>
+    <p class="anno">If Jeroen decides unreachable rules must block (mirroring the checkout's blocking coverage gate), the row border and badge turn rose and a banner gates submit. This needs a real <code>validation</code> rule on the hidden field; Variant A needs only a derived display flag. Shown so the architecture can cost both.</p>
+    <div class="rules" style="max-width:720px;">
+      <article class="rule is-blocked">
+        <div class="rule-order"><span class="badge">4</span>
+          <div class="reorder"><button class="icon-btn">▲</button><button class="icon-btn" disabled>▼</button></div>
+        </div>
+        <div class="rule-body">
+          <div class="rule-kind">Has attachment</div>
+          <div class="field-grid single"><div class="childless-note"><span>📎</span> Matches any message that carries an attachment.</div></div>
+          <div class="rule-action">
+            <div class="field"><label>Then</label><select class="select"><option>Apply label</option></select></div>
+            <div class="field"><label>Label</label><input class="input is-valid" value="Files"></div>
+          </div>
+          <span class="inline-badge err">⛔ Unreachable: remove this rule or move it above rule 3.</span>
+        </div>
+        <button class="remove-btn">🗑</button>
+      </article>
+    </div>
+    <div class="block-banner" style="max-width:720px;">
+      <span>⛔</span>
+      <div><strong>One rule can never fire.</strong> Rule 4 is unreachable because rule 3 already catches every message it would. Fix it to save the rule set.</div>
+    </div>
+    <button class="submit-btn" disabled style="margin-top:12px;">Save rule set</button>
+  </section>
+
+  <!-- ============================================================
+       SECTION 5: THE REORDER PAYOFF (before / after)
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 5 — The reorder payoff</span><span class="id">#reorder-payoff</span>
+  </div>
+  <p class="anno">The page's whole point, shown as a before/after of the inbox. Moving rule 4 ("Subject contains Invoice", forward to accounting) above rule 3 ("Has attachment") re-routes the invoice message live, with no remount. In the live form this happens on one click of the up chevron.</p>
+
+  <section id="reorder-payoff" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="inbox">
+      <h3>Before — attachment rule first</h3>
+      <p class="sub">Order: 1 label, 2 large files, <strong>3 has attachment</strong>, 4 subject "Invoice".</p>
+      <div class="mail">
+        <div class="mail-from">billing@cloudhost.example</div>
+        <div class="mail-subject">Invoice #4821 attached</div>
+        <div class="mail-meta"><span>340 KB</span><span class="clip">attachment</span></div>
+        <span class="route matched">→ Folder “Attachments” <span class="rule-ref">rule 3</span></span>
+      </div>
+    </div>
+    <div class="inbox">
+      <h3>After — subject rule moved up</h3>
+      <p class="sub">Order: 1 label, 2 large files, <strong>3 subject "Invoice"</strong>, 4 has attachment.</p>
+      <div class="mail">
+        <div class="mail-from">billing@cloudhost.example</div>
+        <div class="mail-subject">Invoice #4821 attached</div>
+        <div class="mail-meta"><span>340 KB</span><span class="clip">attachment</span></div>
+        <span class="route matched">→ Forward to accounting@mycompany.example <span class="rule-ref">rule 3</span></span>
+      </div>
+    </div>
+  </section>
+  <p class="anno" style="margin-top:12px;">Same message, same rules, different order, different destination. The "first match wins" claim becomes concrete here. Because the "Has attachment" branch is childless, ordering is session-only (Open question 1, working assumption a): a reload re-sorts to grouped order. If Jeroen picks assumption (b), order survives reload and nothing in this prototype changes visually.</p>
+
+  <!-- ============================================================
+       SECTION 6: METADATA WALKTHROUGH
+       ============================================================ -->
+  <div class="divider">
+    <span class="tag">Section 6 — Metadata walkthrough</span><span class="id">#metadata-walkthrough</span>
+  </div>
+  <p class="anno">Below the live form, matching the structure of /examples/checkout and /examples/advanced: short in-page nav (because aside:false removes the outline), region excerpts via VitePress <code>&lt;&lt;&lt;</code>, then What It Demonstrates / How It Works / Related Source. Rendered here as static mock-ups of those blocks.</p>
+
+  <section id="metadata-walkthrough">
+    <h2>One metadata tree, one template</h2>
+    <p>Everything above is declarative. The engine walks the tree, classifies each node by its shape, and renders it through the neutral template. This section walks the metadata behind it.</p>
+
+    <ul class="spaced" style="font-size:.9rem;">
+      <li><a href="#the-rule-list-choice">The rule list, a repeatable ordered choice</a></li>
+      <li><a href="#condition-branches">Four condition branches, four shapes</a></li>
+      <li><a href="#the-action">The per-rule action</a></li>
+      <li><a href="#reorder-control">The reorder control</a></li>
+      <li><a href="#routing-module">The live routing module</a></li>
+      <li><a href="#unreachable-check">The unreachable-rule check</a></li>
+    </ul>
+
+    <h3 id="the-rule-list-choice">The rule list, a repeatable ordered choice</h3>
+    <p>The whole form is one node: <code>maxOccurs &gt; 1</code> combined with a <code>choice</code>, in explicit selection mode, rendered add-order.</p>
+    <div class="file-label">InboxRulesExample.vue</div>
+    <pre class="code">{
+  name: 'rules',
+  maxOccurs: 20,
+  explicitChoiceSelection: true,
+  displayOrder: 'added',        // session add-order; see Open question 1 re: preserveOrder
+  fieldOptions: { label: 'Routing rules' },
+  choice: [ fromSender, subjectContains, largerThan, hasAttachment ],
+}</pre>
+
+    <h3 id="condition-branches">Four condition branches, four shapes</h3>
+    <p>Each branch is a genuinely different condition, not a cosmetic relabel: an email leaf with a pattern, a plain text leaf, a number-plus-unit pair, and a childless branch.</p>
+    <div class="file-label">InboxRulesExample.vue</div>
+    <pre class="code">const fromSender = {
+  name: 'fromSender', fieldOptions: { label: 'From sender' },
+  children: [
+    { name: 'email', type: 'email',
+      restriction: { pattern: EMAIL_PATTERN }, validation: ['xsd_required'] },
+    actionFields,                 // shared action block, spread into every branch
+  ],
+};
+
+const largerThan = {
+  name: 'largerThan', fieldOptions: { label: 'Larger than' },
+  children: [
+    { name: 'size', type: 'number', validation: ['xsd_required'] },
+    { name: 'unit', type: 'select', fieldOptions: { options: ['KB', 'MB'] } },
+    actionFields,
+  ],
+};
+
+const hasAttachment = {
+  name: 'hasAttachment', fieldOptions: { label: 'Has attachment' },
+  // No filter field of its own, but not a childless leaf either: the shared
+  // action block gives the branch children, so no marker value is needed
+  // (unlike the checkout's express / home-delivery / PayPal leaves).
+  // See Open question 1 and ADR-2.
+  children: [ actionFields ],
+};</pre>
+    <p class="anno">Note for the architect: a truly childless branch disables <code>preserveOrder</code> for the whole choice (dev-mode warning). This prototype shows "Has attachment" carrying only the shared action block, so it is technically an object, but whether that counts as a filter-less branch for Open question 1 is Jeroen's call. The action block itself gives every branch children regardless.</p>
+
+    <h3 id="the-action">The per-rule action</h3>
+    <p>Every rule carries an action: move to folder, apply label, forward, or delete. Modeled as an action <code>select</code> with conditionally revealed fields via <code>computedProps</code> (the folder name, label, or forward address appears only for its action), mirroring the checkout's business/VAT toggle. A nested second-level choice is the alternative; that trade-off is an architecture decision.</p>
+    <div class="file-label">InboxRulesExample.vue</div>
+    <pre class="code">// On the companion leaf (e.g. forwardTo): hidden + not required unless its
+// own occurrence's action === 'forward'. computedProps mutates thisField and
+// reads the sibling by path; `values` is the host's useDynamicForm().values,
+// captured in closure, exactly as CheckoutFormExample does.
+computedProps: [(thisField) => {
+  const action = readPath(values, `${thisField.parent.path}.action`);
+  thisField.hide = action !== 'forward';
+  thisField.minOccurs = action === 'forward' ? 1 : 0;
+}],</pre>
+
+    <h3 id="reorder-control">The reorder control</h3>
+    <p>The up/down buttons write the two affected occurrences' order values directly through the normal field-write path, exactly as <code>SplitPaymentLedgerRow</code> does. The engine's <code>renderedChoiceOccurrences</code> re-sorts with no remount.</p>
+
+    <h3 id="routing-module">The live routing module</h3>
+    <p>A small, pure, synchronous TypeScript module (mirroring <code>splitPaymentLedgerMath.ts</code>) walks the rules in displayed order and returns, per sample email, the first matching rule and its action. A template-level computed reads the form's values through vee-validate's own context, not <code>computedProps</code>, and feeds the inbox panel.</p>
+    <div class="file-label">inboxRoutingMath.ts</div>
+    <pre class="code">export function routeInbox(rules: Rule[], inbox: Mail[]): RoutedMail[] {
+  return inbox.map((mail) => {
+    for (const rule of rules) {          // already in displayed order
+      if (matches(rule, mail))
+        return { mail, caughtBy: rule, action: rule.action };
+    }
+    return { mail, caughtBy: null };     // stays in Inbox
+  });
+}</pre>
+
+    <h3 id="unreachable-check">The unreachable-rule check</h3>
+    <p>A derived check reads the live rule list and flags any rule an earlier rule already fully shadows, surfaced via the same hidden-field technique the checkout's <code>splitPaymentCoverage</code> uses. Open question 2 fixes the subsumption definition; Open question 3 fixes whether it blocks submit or only warns.</p>
+
+    <h2 style="margin-top:32px;">What It Demonstrates</h2>
+    <ul class="spaced" style="font-size:.92rem;">
+      <li>A repeatable ordered <code>choice</code> (<code>maxOccurs &gt; 1</code> + <code>explicitChoiceSelection</code> + <code>displayOrder: 'added'</code>) as the entire form, not a footnote.</li>
+      <li>Four condition branches with genuinely different fields, including a childless "Has attachment" branch.</li>
+      <li>A per-rule action with a conditionally revealed field via <code>computedProps</code>.</li>
+      <li>Position badges from <code>globalIndex + 1</code>, and up/down reordering that writes the affected order values directly.</li>
+      <li>A live side panel routing a fixed test inbox "first match wins", re-routing on every reorder.</li>
+      <li>A cross-row unreachable-rule check built on the checkout's hidden-field technique.</li>
+    </ul>
+
+    <h2>How It Works</h2>
+    <p style="font-size:.92rem;">The rule list is a <code>choice</code> with <code>maxOccurs &gt; 1</code> and <code>explicitChoiceSelection</code>. Each Add button pushes an occurrence into its branch's field array; reordering rewrites two <code>order</code>-equivalent values and the engine re-sorts <code>renderedChoiceOccurrences</code> with no remount. The inbox routing is a pure module read through vee-validate's <code>useFormContext</code>, not <code>computedProps</code>. Submit is gated on a local computed, not the choice's aggregate <code>meta.valid</code>, because an explicit choice's aggregate can stick invalid after first activation. No new engine primitive is involved.</p>
+
+    <h2>Related Source</h2>
+    <ul class="spaced" style="font-size:.92rem;">
+      <li>InboxRulesExample.vue (the metadata tree)</li>
+      <li>InboxRulesTemplate.vue (this page's own neutral template)</li>
+      <li>inboxRoutingMath.ts (the pure routing module)</li>
+      <li><a href="#">/examples/choices</a> for the repeatable ordered choice mechanics this page specializes</li>
+      <li><a href="#">/examples/checkout</a> split-payment section, the other existing demonstration of the shape</li>
+    </ul>
+    <p class="anno">Cross-links are one-directional from this new page only; they do not modify FEAT-001 or FEAT-002 artifacts. Relationship to the sibling trip-itinerary example (FEAT-007) is Open question 5.</p>
+  </section>
+
+</div>
+
+<script>
+  // Light/dark toggle, driving the .dark class on <html> exactly like VitePress.
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('themeToggle');
+    var icon = document.getElementById('toggleIcon');
+    var text = document.getElementById('toggleText');
+    function apply(dark) {
+      root.classList.toggle('dark', dark);
+      icon.textContent = dark ? '☀️' : '🌙';
+      text.textContent = dark ? 'Light' : 'Dark';
+    }
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    apply(prefersDark);
+    btn.addEventListener('click', function () {
+      apply(!root.classList.contains('dark'));
+    });
+  })();
+</script>
+</body>
+</html>

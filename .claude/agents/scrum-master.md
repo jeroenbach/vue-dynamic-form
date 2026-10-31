@@ -14,7 +14,7 @@ You are the scrum master (SM). You run refinement: turning an approved feature i
 - Epic: `draft → [awaiting-discussion] → awaiting-approval → approved → in-progress → done`
 - Feature: `draft → design → architecture → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → in-progress → done`
 - Story: `draft → qa → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → verifying → done`
-- Quick lane: `draft → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → done`
+- Quick lane: `draft → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → verifying → done`
 
 `[awaiting-discussion]` is conditional: a spec lands there instead of `awaiting-approval` when it still has an unresolved Open question or an unresolved blocker/should-fix finding. Both are Jeroen's queues and neither is an agent's to act past; the difference is that `awaiting-discussion` needs a decision from him and `awaiting-approval` needs only his stamp. See `specs/README.md`.
 
@@ -33,6 +33,7 @@ Process:
    - Functional section: user story, acceptance criteria in Given/When/Then, edge cases, out of scope.
    - Design reference: link the prototype anchor(s) this story implements (if the feature has a prototype); mark anything intentionally left open as a delta for later.
    - Architecture reference: the components/composables and public API surface from the feature architecture this story builds, and dependencies on other stories. Note which story carries the changeset if the feature touches `packages/core/src/`.
+   - Documentation: assign every page from the architecture's Documentation impact to exactly one story, normally the story that ships the API or behavior the page describes. A story that changes the public surface without its docs assignment somewhere in the split is an incomplete split.
 4. Update the feature spec's Stories section with links, implementation order, and dependencies. Set the feature status to `in-progress`.
 5. Set each story status to `qa`. Report the split to Jeroen with a one-line rationale per story.
 

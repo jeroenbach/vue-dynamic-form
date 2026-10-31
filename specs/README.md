@@ -35,7 +35,7 @@ draft → qa → adversarial-review → [awaiting-discussion] → awaiting-appro
 **Quick lane** (bug fixes and trivial changes):
 
 ```
-draft → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → done
+draft → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → verifying → done
 ```
 
 ### The two Jeroen queues: `awaiting-discussion` and `awaiting-approval`
@@ -59,7 +59,7 @@ Point 3 is the one that keeps this useful rather than noisy. A should-fix alread
 
 Severity must not be bent to reach the tidier status. `awaiting-approval` is a promise that the spec can be stamped without close reading, and a blocker quietly downgraded to a should-fix turns that promise into a trap.
 
-`/spec:discuss` owns the transition out: when the last open item is resolved it moves the spec from `awaiting-discussion` to `awaiting-approval`. That is not an approval and does not weaken the gate rule below; it only says the spec is now a yes/no question. If Jeroen stops a discussion partway, the spec stays in `awaiting-discussion` with whatever is still open.
+`/spec:discuss` owns the transition out: when the last open item is resolved it moves the spec from `awaiting-discussion` to `awaiting-approval`. That is not an approval and does not weaken the gate rule below; it only says the spec is now a yes/no question. If Jeroen stops a discussion partway, the spec stays in `awaiting-discussion` with whatever is still open. The pre-approval chain applies the same rule once, in the same run as the review: after its research step settles items, it re-evaluates the three conditions above, so a feature whose open items all had clear winners lands directly at `awaiting-approval`.
 
 `/spec:approve` works from **either** status, because the gate is his and he may always decide he has seen enough. From `awaiting-discussion` it lists the unresolved items first and asks him to confirm, so skipping a discussion is deliberate rather than accidental.
 
@@ -73,6 +73,14 @@ Severity must not be bent to reach the tidier status. `awaiting-approval` is a p
 A spec still short of `done` (including `in-progress` features whose stories haven't shipped yet) is fair game to edit directly: it hasn't closed anything yet. This distinction is why, for instance, amending an `awaiting-approval` story is normal but amending a `done` one is not.
 
 Epics follow the same rule: a `done` epic doesn't gain new features. A genuinely new initiative in that space gets its own epic, optionally noting the relation to the earlier one in its vision text.
+
+**`done` specs move to `specs/archive/`.** Once a feature reaches `done` (last story shipped, final audit closed), its whole folder moves unchanged into `specs/archive/` (e.g. `specs/archive/FEAT-001-readonly-mode/`), stories, prototype, and assets included. The same applies to a quick spec when it is `done`, and to an epic once its last feature is `done` (features archive individually as they finish; the epic folder follows when the epic itself closes). The top level of `specs/` then holds only live or parked work, which is what `/spec:status` and Jeroen actually scan. The rules that follow:
+
+- The move changes **nothing inside the folder**: frontmatter, ids, and links stay exactly as they are. An archived feature's `epic:` link keeps working because the link is by id, not by path.
+- Archived specs still count for numbering: the next free `FEAT-XXX`, `EPIC-XXX`, or `QUICK-XXX` is determined across `specs/` **and** `specs/archive/`, so an id is never reused.
+- Commands that locate a spec by id search `specs/**/spec.md`, which includes the archive, so an archived spec can still be read, referenced, and linked forward from new work ("extends FEAT-001"). It is out of the active pipeline, not out of the record.
+- `deferred` is **not** archived. It is parked, not shipped, and it stays at the top level where reviving it stays visible.
+- Chain 3 of `/spec:continue` performs the move when it closes a feature, with a plain `mv` (never `git mv` in an interactive session, since that stages). `/spec:status` flags any `done` spec still sitting at the top level as ready to archive.
 
 ## Epics (optional grouping above features)
 
@@ -109,7 +117,7 @@ Related hard rules: each agent only advances the status for its own phase, after
 | `/spec:design FEAT-XXX` | ui-designer builds the cohesive prototype for the ENTIRE feature (skipped for features with no UI) | opus |
 | `/spec:arch FEAT-XXX` | architect works out the complete technical design | opus |
 | `/spec:review FEAT-XXX` | adversarial-reviewer attacks the spec (full mode) | opus |
-| `/spec:discuss FEAT-XXX` | researches the open items, settles what has a clear winner, walks Jeroen live through the rest, then moves the spec to `awaiting-approval` | opus |
+| `/spec:discuss FEAT-XXX` | summarizes what research already settled (Jeroen can override any of it), walks him live through the remaining open items, then moves the spec to `awaiting-approval` | opus |
 | **APPROVE** (`/spec:approve FEAT-XXX`) | Jeroen reviews and sets `status: approved` on the feature | (no agent) |
 | ↓ `/spec:continue FEAT-XXX` runs the next three in one go | | opus |
 | `/spec:split FEAT-XXX` | scrum-master slices the approved feature into stories | sonnet |
@@ -123,7 +131,7 @@ Related hard rules: each agent only advances the status for its own phase, after
 
 This table is the **single source of truth for which model runs which phase**. `/spec:continue` reads it (and each command file) to decide what to pass, so keep it accurate: see the known-limitation note below for why the model has to be passed explicitly rather than read from the agent's own frontmatter.
 
-Any time: `/spec:status` shows the whole pipeline and what is waiting on Jeroen, split into the two queues (needs a decision, needs a stamp). `/spec:approve <id>` opens the gate from either (see above). `/spec:quick <description>` runs the fast lane for small fixes (mini spec, lite review, Jeroen approval, then `/spec:implement`). `/spec:audit <id>` can also be run on demand for a final sweep of any branch, outside the chain.
+Any time: `/spec:status` shows the whole pipeline and what is waiting on Jeroen, split into the two queues (needs a decision, needs a stamp). `/spec:approve <id>` opens the gate from either (see above). `/spec:quick <description>` runs the fast lane for small fixes (mini spec, lite review, Jeroen approval, then `/spec:continue QUICK-XXX` to implement, verify, and archive it). `/spec:audit <id>` can also be run on demand for a final sweep of any branch, outside the chain.
 
 ### Running a whole chain: `/spec:continue`
 
@@ -131,11 +139,13 @@ The table above is the full set of phases, but Jeroen rarely wants to type them 
 
 | # | From | Runs | Ends at |
 | --- | --- | --- | --- |
-| 1 | feature in `design` | design → arch → review | feature at `awaiting-discussion` or `awaiting-approval` (Jeroen's gate) |
+| 1 | feature in `design` | design → arch → review → research open items (clear-winner bar) | feature at `awaiting-discussion` or `awaiting-approval` (Jeroen's gate) |
 | 2 | feature in `approved` | split → per story qa → review | every story at `awaiting-approval`, bar any it had to park |
 | 3 | feature `in-progress` with an approved story | per story: implement → verify → fix findings | story `done`, bar any it had to park |
 
 It never crosses a gate and never sets `status: approved`. Chains 1 and 2 deliberately behave differently about open questions, which is the heart of the design below; chain 3 behaves differently depending on whether it is running on Jeroen's machine.
+
+A `QUICK-XXX` id works too: the quick lane runs collapsed versions of chain 1 (just the lite review and the research step, no design or architecture) and chain 3 (implement → verify → fix findings, no split and no final audit, archiving the spec on `done`), stopping at the same gate in between.
 
 **Chains 2 and 3 run to the end.** They never halt the whole run over one undecidable item. If a story hits something that genuinely cannot be settled without Jeroen, that **single story** is parked at `awaiting-discussion` with a note saying what is missing, and the chain moves on to its siblings. Jeroen comes back to a feature where everything that could progress has progressed, plus a short list of what stalled. See the tie-breaker ladder below for why parking should almost never happen.
 
@@ -152,17 +162,17 @@ It defaults to interactive, since committing unasked on Jeroen's machine is the 
 
 The workflow is built so Jeroen is needed at exactly two moments per feature, and can ignore everything in between.
 
-**1. Feature review, the real one.** After `/spec:continue` has run design, architecture, and the adversarial review, the feature sits at `awaiting-discussion` with its open questions and findings deliberately **left open**. Nothing has been decided on his behalf. `/spec:discuss FEAT-XXX` then walks him through it live: it researches every open item first (primary sources, checked against this project's installed versions), settles the ones with a clear winner, and brings him only the calls that genuinely need a human. He rules on those, approves, and is done with the feature.
+**1. Feature review, the real one.** After `/spec:continue` has run design, architecture, and the adversarial review, it researches the open items itself (primary sources, checked against this project's installed versions), settles the ones with a clear winner under the pre-approval bar, and records them in the "Decided without Jeroen (research)" rollup. The feature then sits at `awaiting-discussion` with only the calls that genuinely need a human still open. `/spec:discuss FEAT-XXX` picks up from there live: it opens by summarizing what was decided on his behalf and asking whether he wants to revisit any of it (he can override every entry), then walks him through the remaining items one at a time. He rules on those, approves, and is done with the feature.
 
 **2. Story approval, a rubber stamp.** After approval, `/spec:continue FEAT-XXX` splits the feature and prepares every story unattended, researching and deciding open points as it goes. Jeroen is not expected to read these; he sets each story to `approved` and starts implementation on the branch he wants. Stories should arrive at `awaiting-approval`, never at `awaiting-discussion`: by this point the feature is approved and he has explicitly stepped back, so a story that still needs him is an exception the chain works hard to avoid (see the ladder below), not a normal outcome.
 
 Implementation itself needs no decisions from him, only his git hand: locally, `/spec:continue FEAT-XXX` implements and verifies **one** story and leaves it uncommitted, he commits, and he runs the command again for the next one. Running autonomously it does the whole feature in one go, a commit per story. Either way the specs are the same; only who presses commit changes.
 
-The rule separating the two chains: the **pre**-approval chain decides nothing, because its whole output feeds his review. The **post**-approval chain decides everything it can, because he has stepped back and asked not to be involved again until the PR.
+The rule separating the two chains: the **pre**-approval chain settles only what has a clear winner and leaves every genuine call open, because its whole output feeds his review and every decision it makes is presented back to him at the start of `/spec:discuss` for override. The **post**-approval chain decides everything it can, because he has stepped back and asked not to be involved again until the PR.
 
-That asymmetry is deliberate. Before approval, a question left open costs nothing, since Jeroen is about to read the spec anyway. After approval, the same question costs him a context switch back into a feature he has mentally closed. So the two chains apply different bars, both defined in `specs/RESEARCH-AND-DECIDE.md`:
+That asymmetry is deliberate. Before approval, a question left open costs little, since Jeroen is about to read the spec anyway; what the research step buys him there is a discussion that starts at the discussion instead of at a lookup pass. After approval, the same question costs him a context switch back into a feature he has mentally closed. So the two chains apply different bars, both defined in `specs/RESEARCH-AND-DECIDE.md`:
 
-- **Pre-approval:** leave every open point open.
+- **Pre-approval:** the **clear-winner bar**. Settle only what the evidence decides outright (recorded `DECIDED (research)` with sources, rolled up for him to override at `/spec:discuss`); anything that is a real tradeoff, touches the public API, visible design, or scope, or needs a fact only he has stays open for the discussion. Never break ties here, and never write `ASSUMED` entries pre-approval.
 - **Post-approval:** settle it. Research it first; if research produces a clear winner, record `DECIDED (research)` with sources. If it does not, walk the **post-approval tie-breaker ladder** (approved feature spec, then upstream standards and dependency docs, then the existing codebase pattern, then reversibility, then smallest scope) and take the first rung that discriminates. A tie broken on the last two rungs is recorded honestly as `ASSUMED (story prep)`, naming the alternative and what reversing it would cost.
 
 The ladder exists because "no clear winner" almost never means "only Jeroen can answer this". This library's validation model is **XSD-inspired and built on vee-validate**, so most questions about rule semantics, edge-case behaviour, or naming have a factual answer in the XSD specification, the vee-validate docs, or the Vue docs, checked against the versions this project actually installs. Most style questions are answered by the existing codebase. Most of what used to stop a chain is answerable by looking.
@@ -179,7 +189,7 @@ Case 3 is usually a defect in the **feature**, not in the story. When a story pa
 
 The ui-designer, architect, adversarial-reviewer, and product-owner have `WebFetch` and `WebSearch`. The architect verifies API and library assumptions against official docs (Vue, vee-validate, VitePress, Storybook, Vitest) and the project's installed versions; the adversarial-reviewer checks factual claims instead of only reasoning about them (including XSD semantics for the `xsd_*` rules); the product-owner scopes against what the published docs site and existing examples actually contain; the ui-designer checks UI patterns and accessibility conventions.
 
-Agents use the web to do their own phase better. They still do **not** settle Jeroen's open questions: those go to the Open questions section and are resolved by `/spec:discuss` or the post-approval chain. The scrum-master, qa-planner, developer, qa-verifier, and final-reviewer have no web access, since their work is defined by internal artifacts (the approved spec, test conventions, the codebase) rather than by anything external.
+Agents use the web to do their own phase better. They still do **not** settle Jeroen's open questions: those go to the Open questions section and are resolved by the research step of `/spec:continue` (pre-approval under the clear-winner bar, post-approval under the ladder) or by `/spec:discuss`. The scrum-master, qa-planner, developer, qa-verifier, and final-reviewer have no web access, since their work is defined by internal artifacts (the approved spec, test conventions, the codebase) rather than by anything external.
 
 ### Known limitation: agent frontmatter `model:` is not honored by Claude Code
 
@@ -215,11 +225,11 @@ The **architect** fills the Architecture section covering the whole feature: the
 
 ### 4. Attack the spec → `/spec:review`
 
-The **adversarial-reviewer** runs in FEATURE (full) mode: it tries to break the functional scope, the prototype, and the architecture (API holes, semver mistakes, vee-validate behaviour the spec assumes wrongly), writes findings with severities into the spec's Adversarial review section, and routes blockers/should-fixes as `PROPOSED (adversarial review)` edits. Then it stops, at `awaiting-discussion` if it left anything open (the usual outcome for a feature) or at `awaiting-approval` if it did not.
+The **adversarial-reviewer** runs in FEATURE (full) mode: it tries to break the functional scope, the prototype, and the architecture (API holes, semver mistakes, vee-validate behaviour the spec assumes wrongly), writes findings with severities into the spec's Adversarial review section, and routes blockers/should-fixes as `PROPOSED (adversarial review)` edits. Then it stops, at `awaiting-discussion` if it left anything open (the usual outcome for a feature) or at `awaiting-approval` if it did not. When the review runs inside `/spec:continue`, the chain follows it with its research step: it settles the open items that have a clear winner, records them in the rollup, and re-applies the reviewer's status rule, so what remains open when the chain ends is only what genuinely needs you.
 
 ### 5. Talk it through, then APPROVE (Jeroen only)
 
-This is the one point in the feature where you're genuinely needed. Start with `/spec:discuss FEAT-001`: it researches every open item first, settles the ones with a clear winner, and walks you live through only what actually needs you, one item at a time with a recommendation for each. Once nothing is left open it moves the feature to `awaiting-approval`. Then review and open the gate (`/spec:approve FEAT-001`, or set `status: approved`, `approved_by: Jeroen` by hand). Until it's set, `/spec:split` refuses to run.
+This is the one point in the feature where you're genuinely needed. Start with `/spec:discuss FEAT-001`: it opens with a summary of what the chain's research already settled on your behalf and asks whether you want to revisit any of it, then walks you live through only what actually needs you, one item at a time with a recommendation for each (researching on the spot anything the chain missed). Once nothing is left open it moves the feature to `awaiting-approval`. Then review and open the gate (`/spec:approve FEAT-001`, or set `status: approved`, `approved_by: Jeroen` by hand). Until it's set, `/spec:split` refuses to run.
 
 ### 6–7. Slice into stories, prep each story → `/spec:continue`
 
@@ -243,8 +253,8 @@ Once the last story is `done`, the chain closes with **`/spec:audit FEAT-XXX`** 
 /spec:status         # pipeline overview: what's waiting on you, what's stuck,
                      # what an agent can pick up next
 /spec:continue <id>  # run every phase up to the next approval gate, then stop
-/spec:discuss <id>   # research the open items, settle what's clear, walk you
-                     # live through the rest
+/spec:discuss <id>   # summarize what research settled (override freely), walk
+                     # you live through the rest
 ```
 
 ### The fast lane (no feature needed)
@@ -255,7 +265,7 @@ For a bug fix or a trivial change, skip the whole feature machinery:
 /spec:quick xsd_pattern anchors the regex twice when the pattern already starts with ^
 ```
 
-This creates a `QUICK-XXX-<name>/spec.md` (problem, proposed change, affected files, test impact), runs a **lite** adversarial review, and stops at `awaiting-approval` (or `awaiting-discussion` if the review left a blocker open, which for a genuinely quick fix should be unusual). After you approve (`/spec:approve QUICK-XXX`), `/spec:implement QUICK-XXX` ships it, still honouring the `specs/components.md` update rule, the test obligation, and the changeset rule.
+This creates a `QUICK-XXX-<name>/spec.md` (problem, proposed change, affected files, test impact), runs a **lite** adversarial review, and stops at `awaiting-approval` (or `awaiting-discussion` if the review left a blocker open, which for a genuinely quick fix should be unusual). After you approve (`/spec:approve QUICK-XXX`), `/spec:continue QUICK-XXX` ships it: the developer implements, the qa-verifier verifies with the usual fix loop, and the folder is archived on `done`, still honouring the `specs/components.md` update rule, the test obligation, and the changeset rule. `/spec:implement QUICK-XXX` remains available for just the implementation step.
 
 ### Grouping several features under an epic (optional)
 
@@ -282,6 +292,10 @@ specs/
         spec.md
   QUICK-001-small-fix/
     spec.md
+  archive/               # done specs, moved here whole once they ship (see "done specs move to specs/archive/")
+    FEAT-000-earlier-feature/
+      spec.md
+      ...
 ```
 
 Note the flat model: `FEAT-001` is **not** inside `EPIC-001`'s folder. Both live at the top level and the only link between them is the feature's `epic:` frontmatter field, so a feature stays independently designed, approved, and shipped.

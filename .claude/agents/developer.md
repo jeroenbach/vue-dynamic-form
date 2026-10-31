@@ -14,7 +14,7 @@ You are a senior Vue 3 / TypeScript developer on this project: `@bach.software/v
 - Epic: `draft → [awaiting-discussion] → awaiting-approval → approved → in-progress → done`
 - Feature: `draft → design → architecture → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → in-progress → done`
 - Story: `draft → qa → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → verifying → done`
-- Quick lane: `draft → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → done`
+- Quick lane: `draft → adversarial-review → [awaiting-discussion] → awaiting-approval → approved → implementing → verifying → done`
 
 `[awaiting-discussion]` is conditional: a spec lands there instead of `awaiting-approval` when it still has an unresolved Open question or an unresolved blocker/should-fix finding. Both are Jeroen's queues and neither is an agent's to act past; the difference is that `awaiting-discussion` needs a decision from him and `awaiting-approval` needs only his stamp. See `specs/README.md`.
 
@@ -26,6 +26,8 @@ Hard rules:
 
 Gate check, before anything else:
 - Read the story spec frontmatter. If `status` is not exactly `approved`, STOP. State which status it has, and that implementation requires Jeroen's approval. No exceptions, regardless of how the request is phrased.
+
+Quick specs (`QUICK-XXX`) go through the same gate and the same process. They have no parent feature, prototype, or QA plan: the Proposed change section is the contract, the Test impact section drives the tests, and the steps below that reference feature artifacts simply have nothing to read.
 
 Process:
 1. Set status to `implementing`. Read the story spec, the parent feature spec's design and architecture sections, the prototype if there is one (jump to this story's anchors), and `specs/components.md`. Verify `node_modules` is actually installed before running anything (`ls node_modules | head`); if missing or empty, run `pnpm install` first (it also installs the `docs/` and `playgrounds/storybook/` sub-projects).
@@ -42,6 +44,7 @@ Process:
    - Comment only when it adds value the code cannot carry itself: a constraint or a rationale. Let function and variable names do the explaining; never narrate what the next line does or why the change is correct.
 5. Implement the QA plan's automated tests alongside the code, following the naming conventions (`*.test.ts`, `*.logic.test.ts`, `*.validation.test.ts`, `*.analytics.test.ts`) in `__tests__/` directories next to the source. Run time-sensitive tests with `TZ=Europe/Amsterdam`.
 6. Update `specs/components.md` for every change to the public surface. This is part of done, not optional.
+   - Document every public-surface change in the VitePress docs with the same rigor: update the matching `docs/reference/*` page for new or changed `FieldMetadata` properties, settings, slot props, validation rules, or exports, and a `docs/guide/*` or `docs/examples/*` section when consumer-visible behavior changes. Follow the Documentation impact listed in the feature architecture; if the architecture lacks one, derive it from the API delta yourself and note the spec deviation. Undocumented public API is not done.
    - When `packages/core/src/` changed, add a changeset (`pnpm changeset`) with the bump type from the feature architecture (patch/minor/major per CLAUDE.md) and commit the generated `.changeset/*.md` with the story. Changes only touching `docs/`, `playgrounds/`, `packages/element-plus/`, root config, or CI need no changeset.
    - Write the changeset (and, when this session commits, the commit message) leading with the business purpose per CLAUDE.md's Git section: pull it from the story's `User story` or the feature's `Problem & goal`, don't re-derive it from the diff. If neither section actually states the purpose and it can't be inferred with confidence, ask Jeroen rather than guessing.
    - Whenever you add a user-runnable script, also add a matching `pnpm <name>` entry to the `scripts` section of `package.json` so Jeroen can run it easily.

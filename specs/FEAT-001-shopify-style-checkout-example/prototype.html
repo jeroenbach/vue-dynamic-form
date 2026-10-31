@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FEAT-001 prototype: Shopify-style checkout docs page</title>
+<style>
+  /* ------------------------------------------------------------------ *
+   * Palette mirrors the docs' embedded-demo styling (slate neutrals,    *
+   * indigo for choice selection, sky for primary/toggles, rose errors,  *
+   * emerald success, amber warnings). VitePress drives dark mode with a *
+   * `.dark` class on <html>; the toggle below does the same.            *
+   * ------------------------------------------------------------------ */
+  :root {
+    --page-bg: #ffffff;
+    --prose-text: #213547;
+    --prose-heading: #1a1a1a;
+    --prose-muted: #5c6b77;
+    --prose-border: #e2e2e3;
+    --code-bg: #f6f6f7;
+    --code-block-bg: #1e293b;
+    --code-block-text: #e2e8f0;
+
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --surface-sunken: #f1f5f9;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --text-1: #0f172a;
+    --text-2: #475569;
+    --text-3: #64748b;
+    --text-muted: #94a3b8;
+
+    --brand: #4f46e5;
+    --brand-ring: #4f46e5;
+    --brand-soft-bg: #eef2ff;
+    --brand-soft-text: #4338ca;
+
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --primary-ring: #bae6fd;
+
+    --error: #dc2626;
+    --error-border: #ef4444;
+    --error-bg: #fef2f2;
+    --error-soft-border: #fecaca;
+
+    --success-bg: #ecfdf5;
+    --success-border: #a7f3d0;
+    --success-text: #065f46;
+
+    --warn-bg: #fffbeb;
+    --warn-border: #fcd34d;
+    --warn-text: #92400e;
+
+    --info-bg: #f0f9ff;
+    --info-border: #bae6fd;
+    --info-text: #075985;
+
+    --anno: #94a3b8;
+    --anno-bg: #f1f5f9;
+  }
+  html.dark {
+    --page-bg: #1b1b1f;
+    --prose-text: #c9c9c9;
+    --prose-heading: #ffffff;
+    --prose-muted: #a0a0a8;
+    --prose-border: #2e2e32;
+    --code-bg: #202127;
+    --code-block-bg: #161618;
+    --code-block-text: #d6d6d6;
+
+    --surface: #0f172a;
+    --surface-2: #1e293b;
+    --surface-sunken: #1e293b;
+    --border: #334155;
+    --border-strong: #475569;
+    --text-1: #f1f5f9;
+    --text-2: #94a3b8;
+    --text-3: #94a3b8;
+    --text-muted: #64748b;
+
+    --brand: #6366f1;
+    --brand-ring: #6366f1;
+    --brand-soft-bg: #1e1b4b;
+    --brand-soft-text: #a5b4fc;
+
+    --primary: #0ea5e9;
+    --primary-hover: #38bdf8;
+    --primary-ring: #0c4a6e;
+
+    --error: #fb7185;
+    --error-border: #e11d48;
+    --error-bg: #2a1215;
+    --error-soft-border: #7f1d1d;
+
+    --success-bg: #052e22;
+    --success-border: #065f46;
+    --success-text: #6ee7b7;
+
+    --warn-bg: #2a200a;
+    --warn-border: #a16207;
+    --warn-text: #fcd34d;
+
+    --info-bg: #082f49;
+    --info-border: #0c4a6e;
+    --info-text: #7dd3fc;
+
+    --anno: #64748b;
+    --anno-bg: #1e293b;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--page-bg);
+    color: var(--prose-text);
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  /* ---- Page shell: mimics a VitePress doc content column ---- */
+  .page { max-width: 860px; margin: 0 auto; padding: 48px 24px 120px; }
+
+  .prose h1 { font-size: 2rem; line-height: 1.25; font-weight: 700; color: var(--prose-heading); letter-spacing: -0.02em; margin: 0 0 24px; }
+  .prose h2 { font-size: 1.5rem; font-weight: 600; color: var(--prose-heading); border-top: 1px solid var(--prose-border); padding-top: 24px; margin: 48px 0 16px; letter-spacing: -0.01em; }
+  .prose h3 { font-size: 1.2rem; font-weight: 600; color: var(--prose-heading); margin: 32px 0 12px; }
+  .prose p { margin: 16px 0; }
+  .prose a { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .prose a:hover { text-decoration: underline; }
+  .prose ul { padding-left: 1.4em; margin: 16px 0; }
+  .prose li { margin: 6px 0; }
+  .prose strong { color: var(--prose-heading); font-weight: 600; }
+  .prose code { background: var(--code-bg); border-radius: 4px; padding: 2px 6px; font-size: 0.85em; font-family: "SF Mono", Menlo, Consolas, monospace; color: var(--prose-text); }
+  .lead { font-size: 1.1rem; color: var(--prose-muted); }
+
+  /* VitePress-style custom containers (tip / warning / info) */
+  .callout { border-radius: 8px; padding: 16px 16px 8px; margin: 20px 0; font-size: 0.92rem; border: 1px solid transparent; }
+  .callout p { margin: 0 0 8px; }
+  .callout .callout-title { font-weight: 700; margin-bottom: 4px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .callout.tip { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
+  .callout.warning { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-text); }
+
+  /* Code block (metadata excerpts) */
+  pre.code { background: var(--code-block-bg); color: var(--code-block-text); border-radius: 8px; padding: 20px; overflow-x: auto; font-size: 0.82rem; line-height: 1.6; font-family: "SF Mono", Menlo, Consolas, monospace; margin: 16px 0; }
+  pre.code .cmt { color: #94a3b8; }
+  pre.code .key { color: #7dd3fc; }
+  pre.code .str { color: #86efac; }
+  pre.code .num { color: #fca5a5; }
+  .code-title { background: var(--surface-2); border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; padding: 6px 16px; font-size: 0.78rem; color: var(--text-3); font-family: "SF Mono", Menlo, monospace; margin-top: 16px; }
+  .code-title + pre.code { margin-top: 0; border-radius: 0 0 8px 8px; }
+
+  /* ---- Prototype section dividers / annotations ---- */
+  .divider { margin: 56px 0 20px; display: flex; align-items: center; gap: 12px; }
+  .divider::before, .divider::after { content: ""; height: 1px; flex: 1; background: var(--border); }
+  .divider span { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--anno); background: var(--anno-bg); padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+  .anno { font-size: 0.75rem; color: var(--anno); font-style: italic; margin: 8px 0; display: block; }
+  .anno::before { content: "✎ "; font-style: normal; }
+  .state-label { display: inline-block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; margin: 20px 0 10px; }
+
+  /* ---- Form card / section card (mirrors SectionCard.vue) ---- */
+  .form-shell { max-width: 768px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  .card { border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .card > header { margin-bottom: 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .card h3.card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-1); margin: 0; }
+  .card .card-desc { font-size: 0.875rem; line-height: 1.5; color: var(--text-2); margin: 2px 0 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid2 .span2 { grid-column: 1 / -1; }
+  @media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .tag { display: inline-flex; align-items: center; border-radius: 99px; background: var(--brand-soft-bg); color: var(--brand-soft-text); font-size: 0.72rem; font-weight: 700; padding: 3px 10px; white-space: nowrap; }
+
+  /* ---- Fields (mirrors FormField / TextInput / SelectInput) ---- */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field > label { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 500; color: var(--text-1); }
+  .req { color: var(--text-muted); font-size: 0.72rem; font-weight: 500; }
+  .opt { color: var(--text-muted); font-size: 0.72rem; }
+  input.inp, select.inp, textarea.inp {
+    width: 100%; height: 40px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: var(--surface); padding: 8px 12px; font-size: 0.9rem; color: var(--text-1);
+    font-family: inherit; transition: border-color .15s, box-shadow .15s;
+  }
+  textarea.inp { height: auto; min-height: 76px; resize: vertical; line-height: 1.5; }
+  input.inp::placeholder, textarea.inp::placeholder { color: var(--text-muted); }
+  input.inp:focus, select.inp:focus, textarea.inp:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+  /* 2px: a 1px border on a fractionally-positioned row anti-aliases into the dark background, leaving top/bottom edges dimmer than the sides */
+  input.inp.err, select.inp.err, textarea.inp.err { border-color: var(--error-border); border-width: 2px; padding: 7px 11px; }
+  input.inp.err:focus, textarea.inp.err:focus { box-shadow: 0 0 0 3px var(--error-bg); }
+  input.inp:disabled, select.inp:disabled { background: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
+  input.inp.valid { border-color: var(--success-border); }
+  .err-msg { color: var(--error); font-size: 0.82rem; }
+  .field-hint { color: var(--text-3); font-size: 0.8rem; }
+  .char-count { font-size: 0.75rem; color: var(--text-3); text-align: right; }
+  .char-count.over { color: var(--error); font-weight: 600; }
+
+  .dependent-slot { height: 40px; display: grid; place-items: center; border: 1px dashed var(--border-strong); background: var(--surface-2); border-radius: 8px; font-size: 0.78rem; color: var(--text-3); }
+
+  /* ---- Choice cards (mirrors ChoiceCard.vue) ---- */
+  .choice-grid { display: grid; gap: 12px; }
+  .choice-grid.cols2 { grid-template-columns: 1fr 1fr; }
+  .choice-grid.cols4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 620px) { .choice-grid.cols2, .choice-grid.cols4 { grid-template-columns: 1fr; } }
+  .choice-card { border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 16px; text-align: left; cursor: pointer; transition: all .15s; display: flex; gap: 12px; align-items: flex-start; font: inherit; color: inherit; }
+  .choice-card:hover { border-color: var(--brand); }
+  .choice-card.selected { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); background: var(--brand-soft-bg); }
+  .radio-dot { margin-top: 2px; width: 16px; height: 16px; border-radius: 99px; border: 2px solid var(--border-strong); display: grid; place-items: center; flex-shrink: 0; }
+  .choice-card.selected .radio-dot { border-color: var(--brand); }
+  .radio-dot i { width: 8px; height: 8px; border-radius: 99px; background: var(--brand); transform: scale(0); transition: transform .15s; }
+  .choice-card.selected .radio-dot i { transform: scale(1); }
+  .choice-card > span:not(.radio-dot) { display: flex; flex-direction: column; min-width: 0; }
+  .choice-card .cc-title { font-size: 0.9rem; font-weight: 600; color: var(--text-1); }
+  .choice-card .cc-desc { font-size: 0.78rem; color: var(--text-2); margin-top: 2px; }
+
+  /* ---- Toggle switch (mirrors ToggleSwitch.vue) ---- */
+  .toggle-row { display: flex; align-items: center; gap: 12px; }
+  .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .switch .track { position: absolute; inset: 0; border-radius: 99px; background: var(--border-strong); transition: background .15s; }
+  .switch.on .track { background: var(--primary); }
+  .switch .knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 99px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s; }
+  .switch.on .knob { transform: translateX(20px); }
+  .toggle-label { font-size: 0.9rem; color: var(--text-1); }
+
+  /* ---- Buttons (mirrors AppButton.vue) ---- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; padding: 9px 16px; font-size: 0.9rem; font-weight: 500; cursor: pointer; border: 1px solid transparent; font-family: inherit; transition: all .15s; }
+  .btn.primary { background: var(--primary); color: #fff; }
+  .btn.primary:hover { background: var(--primary-hover); }
+  .btn.primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.ghost { background: transparent; color: var(--text-2); }
+  .btn.ghost:hover { background: var(--surface-2); }
+  .btn.outline { background: var(--surface); border-color: var(--border-strong); color: var(--text-1); }
+  .btn.outline:hover { border-color: var(--text-3); background: var(--surface-2); }
+  .btn.danger-light { background: transparent; color: var(--error); padding: 6px 10px; }
+  .btn.danger-light:hover { background: var(--error-bg); }
+  .link-btn { background: none; border: none; padding: 0; color: var(--primary); font-weight: 500; cursor: pointer; font-size: 0.9rem; font-family: inherit; }
+  .link-btn:hover { text-decoration: underline; }
+  .icon-btn { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; font-size: 0.9rem; line-height: 1; }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text-1); }
+  .icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* ---- Repeater / occurrence card (mirrors RepeaterCard.vue) ---- */
+  .repeater { border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 16px; }
+  .repeater > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .repeater .rbadge { display: inline-flex; align-items: center; gap: 8px; }
+  .rbadge .num { width: 26px; height: 26px; border-radius: 99px; background: var(--brand-soft-bg); color: var(--brand-soft-text); display: grid; place-items: center; font-size: 0.75rem; font-weight: 700; }
+  .rbadge .rtitle { font-size: 0.9rem; font-weight: 600; color: var(--text-1); }
+
+  /* ---- Split-payment ledger ---- */
+  .ledger { display: flex; flex-direction: column; gap: 12px; }
+  .ledger-row { border: 1px solid var(--border); background: var(--surface); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+  .ledger-row.incomplete { border-color: var(--warn-border); }
+  .ledger-order { display: flex; flex-direction: column; gap: 4px; }
+  .ledger-main { flex: 1; min-width: 0; }
+  .ledger-src { font-size: 0.9rem; font-weight: 600; color: var(--text-1); }
+  .ledger-sub { font-size: 0.78rem; color: var(--text-3); }
+  .ledger-amounts { text-align: right; display: flex; flex-direction: column; gap: 2px; min-width: 150px; }
+  .ledger-applied { font-size: 0.95rem; font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+  .ledger-remaining { font-size: 0.75rem; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .remaining-readout { display: flex; justify-content: space-between; align-items: center; border-radius: 10px; padding: 14px 18px; font-variant-numeric: tabular-nums; }
+  .remaining-readout.ok { background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success-text); }
+  .remaining-readout.short { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-text); }
+  .remaining-readout .amt { font-size: 1.15rem; font-weight: 700; }
+
+  .banner { border-radius: 10px; padding: 14px 16px; font-size: 0.9rem; display: flex; gap: 10px; align-items: flex-start; }
+  .banner.error { background: var(--error-bg); border: 1px solid var(--error-soft-border); color: var(--error); }
+  .banner.info { background: var(--info-bg); border: 1px solid var(--info-border); color: var(--info-text); }
+  .banner.success { background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success-text); }
+  .banner .b-ico { font-size: 1rem; line-height: 1.4; }
+
+  .inert-note { font-size: 0.78rem; color: var(--text-3); display: flex; gap: 8px; align-items: flex-start; border-left: 3px solid var(--border-strong); padding: 4px 0 4px 12px; margin-top: 4px; }
+
+  .summary-line { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 4px 0; }
+  .summary-line.total { font-weight: 700; color: var(--text-1); border-top: 1px solid var(--border); margin-top: 6px; padding-top: 10px; }
+  .summary-line span:last-child { font-variant-numeric: tabular-nums; }
+
+  /* ---- Checkout layout: form left, sticky cart right (stacks below 960px) ---- */
+  .checkout-layout { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
+  .cart-rail { position: sticky; top: 24px; }
+  .cart-item { display: flex; justify-content: space-between; gap: 12px; font-size: 0.88rem; padding: 6px 0; }
+  .cart-item .ci-qty { color: var(--text-3); margin-right: 6px; }
+  .cart-item span:last-child { font-variant-numeric: tabular-nums; color: var(--text-1); }
+  .cart-items { border-bottom: 1px solid var(--border); margin-bottom: 8px; padding-bottom: 6px; }
+  @media (max-width: 960px) { .checkout-layout { grid-template-columns: 1fr; } .cart-rail { position: static; } }
+
+  .submit-bar { display: flex; flex-direction: column; gap: 12px; }
+  .spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 99px; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- Dark-mode toggle button ---- */
+  #themeToggle { position: fixed; top: 16px; right: 16px; z-index: 50; width: 40px; height: 40px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); color: var(--text-1); cursor: pointer; font-size: 1.1rem; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+  #themeToggle:hover { background: var(--surface-2); }
+
+  .legend { font-size: 0.72rem; color: var(--anno); border: 1px dashed var(--border); border-radius: 8px; padding: 10px 14px; margin: 16px 0; }
+  .legend strong { color: var(--text-2); }
+</style>
+</head>
+<body>
+
+<button id="themeToggle" type="button" aria-label="Toggle dark mode" title="Toggle light / dark">🌙</button>
+
+<div class="page">
+
+  <div class="legend">
+    <strong>Prototype note.</strong> This single file is the cohesive design surface for the whole feature: the docs page copy plus every state of the live checkout form, stacked with labeled dividers. Each section has a stable anchor id (shown in the divider) so stories can deep-link to their slice. States that are only reachable by interaction (hover, focus, live recompute) are shown as stacked snapshots with ✎ annotations rather than wired up. Flip the moon button, top right, to review both themes.
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- PAGE INTRO / NARRATIVE                                         -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#page-intro</span></div>
+  <section id="page-intro" class="prose">
+    <h1>A complete webshop checkout, Shopify-style</h1>
+    <p class="lead">One typed metadata tree, one template component, and the most consequential form on the web. This example rebuilds the <em>structure</em> of a modern one-page checkout, not its branding, and ends with a split-payment finale that no other page here demonstrates.</p>
+
+    <p>Years ago, a usability team at <strong>a major retailer</strong> studied why so many shoppers filled a cart and never bought. The culprit was a single button next to the sign-in form that read "Register". First-time buyers assumed they had to create an account to purchase, so they abandoned. The team replaced it with a "Continue" button and a quiet line of text: you can check out as a guest. Purchases rose 45% in the first month, an extra 300 million dollars in the first year. Jared Spool told this story for years and never named the retailer, so neither will we.</p>
+
+    <p>The lesson is not about one button. It is that checkout is the highest-stakes form on the web, and small structural choices move real money. <a href="https://baymard.com/research-articles/checkout-flow-average-form-fields" target="_blank" rel="noreferrer">Baymard Institute</a> finds the average checkout asks for <strong>11.3 fields across 5.1 steps</strong>, while an optimized checkout needs only about <strong>8 fields</strong>, and that <strong>17% of shoppers have abandoned a purchase</strong> purely because checkout was too long or complicated.</p>
+
+    <p>Few companies obsess over this more publicly than Shopify. According to <a href="https://www.shopify.com/partners/blog/shopify-best-checkout" target="_blank" rel="noreferrer">a study Shopify commissioned from one of the Big Three consulting firms</a>, its checkout converts about <strong>15% better on average, and up to 36% better</strong> than comparable checkouts, with Shop Pay lifting conversion by up to 50% against guest checkout. Those are vendor-published figures from an unnamed study, so treat them as Shopify's own claim rather than independent fact. Either way, this is the checkout we rebuild below, as the benchmark worth matching.</p>
+
+    <div class="callout tip">
+      <p class="callout-title">What you are looking at</p>
+      <p>Everything in the live form is rendered by the library from one metadata tree through one neutrally styled template. We rebuild the checkout's structure, not Shopify's visual design or logo. Payment inputs are inert demo fields (details below).</p>
+    </div>
+    <span class="anno">Intro uses the VitePress prose column (max 860px) and the default theme's tip container. No dark-specific styling needed: text and borders come from --vp-c-* equivalents, which both themes supply.</span>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- LIVE FORM HEADER + EXPRESS/MANUAL CHOICE                       -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#live-form / #express-choice</span></div>
+  <section id="live-form" class="prose">
+    <h2>The checkout, live</h2>
+    <p>The first decision is a <code>choice</code>: check out with an express wallet, or enter details manually. Picking a branch is all it takes for the engine to mount that branch and relax validation on the other.</p>
+  </section>
+
+  <div id="express-choice" class="form-shell">
+    <div class="state-label">State: default, nothing selected (empty)</div>
+    <div class="card">
+      <header>
+        <div>
+          <h3 class="card-title">How would you like to check out?</h3>
+          <p class="card-desc">Choose one. Express skips the form; manual reveals it.</p>
+        </div>
+      </header>
+      <div class="choice-grid cols2">
+        <button class="choice-card" type="button">
+          <span class="radio-dot"><i></i></span>
+          <span><span class="cc-title">⚡ Express checkout</span><span class="cc-desc">Pay with a saved wallet. Redirects to confirm.</span></span>
+        </button>
+        <button class="choice-card" type="button">
+          <span class="radio-dot"><i></i></span>
+          <span><span class="cc-title">Enter details manually</span><span class="cc-desc">Fill in contact, shipping and payment.</span></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="state-label">State: express selected (minimal inert branch)</div>
+    <div class="card">
+      <header>
+        <div>
+          <h3 class="card-title">How would you like to check out?</h3>
+          <p class="card-desc">Choose one. Express skips the form; manual reveals it.</p>
+        </div>
+      </header>
+      <div class="choice-grid cols2">
+        <button class="choice-card selected" type="button">
+          <span class="radio-dot"><i></i></span>
+          <span><span class="cc-title">⚡ Express checkout</span><span class="cc-desc">Pay with a saved wallet. Redirects to confirm.</span></span>
+        </button>
+        <button class="choice-card" type="button">
+          <span class="radio-dot"><i></i></span>
+          <span><span class="cc-title">Enter details manually</span><span class="cc-desc">Fill in contact, shipping and payment.</span></span>
+        </button>
+      </div>
+      <div style="margin-top:16px">
+        <div class="banner info"><span class="b-ico">ℹ️</span><span>In a real store this would redirect to your wallet (Apple Pay, Shop Pay, PayPal) to confirm. This demo stops here: express is shown as a structural branch, not a scripted one-click flow.</span></div>
+      </div>
+    </div>
+    <span class="anno">Express is a real choice branch with deliberately minimal inert UI (DECIDED, Q4). Selecting it mounts only this note; the whole manual form below belongs to the sibling branch.</span>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- MANUAL FORM: CONTACT                                           -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#contact</span></div>
+  <section class="prose"><p>Picking <strong>manual</strong> reveals the full form. From here down, every card is one node of the same metadata tree. We keep the default visible count near Baymard's ideal of 8 by using their reduction tactics: one full-name field, no address line 2 by default, discount and gift codes behind links, billing hidden until needed, and no account step.</p></section>
+
+  <div id="contact" class="form-shell">
+    <div class="state-label">States: pristine / invalid with message / valid</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Contact</h3><p class="card-desc">We only use this to send your order confirmation.</p></div></header>
+      <div class="grid2">
+        <div class="field span2">
+          <label>Full name <span class="req">Required</span></label>
+          <input class="inp" type="text" placeholder="e.g. Anna de Vries" value="Anna de Vries">
+          <span class="anno">Baymard tactic: one full-name field, not first + last.</span>
+        </div>
+        <div class="field">
+          <label>Email <span class="req">Required</span></label>
+          <input class="inp valid" type="email" value="anna.devries@example.nl">
+          <span class="field-hint">valid: passes xsd_pattern</span>
+        </div>
+        <div class="field">
+          <label>Email <span class="req">Required</span></label>
+          <input class="inp err" type="email" value="anna.devries@" aria-invalid="true">
+          <span class="err-msg">Enter a valid email address.</span>
+        </div>
+        <div class="field">
+          <label>Phone <span class="opt">Optional</span></label>
+          <input class="inp" type="tel" placeholder="+31 6 1234 5678">
+        </div>
+        <div class="field">
+          <label>Phone <span class="opt">Optional</span></label>
+          <input class="inp" type="tel" placeholder="+31 6 1234 5678" disabled>
+          <span class="field-hint">disabled state</span>
+        </div>
+      </div>
+    </div>
+    <span class="anno">Validation timing follows the library default (validate on blur, then on input once touched). Pristine shows no indicator beyond Required/Optional; invalid shows the rose message; valid gets a subtle emerald border only.</span>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- DELIVERY ADDRESS + PER-COUNTRY POSTAL                          -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#delivery-address</span></div>
+  <section class="prose">
+    <h3 style="margin-top:0">Delivery address and per-country postal validation</h3>
+    <p>The country <code>xsd_enumeration</code> drives the postal-code rule through <code>computedProps</code>. Switching country swaps the pattern, placeholder and error message live. We ship Netherlands, Germany and a generic fallback (DECIDED, Q6).</p>
+  </section>
+
+  <div id="delivery-address" class="form-shell">
+    <div class="state-label">State: Netherlands selected, NL postal format (1234 AB)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Delivery address</h3></div></header>
+      <div class="grid2">
+        <div class="field span2">
+          <label>Street and number <span class="req">Required</span></label>
+          <input class="inp" type="text" value="Keizersgracht 123">
+        </div>
+        <div class="field span2">
+          <button class="link-btn" type="button">+ Add apartment, suite, etc. (optional)</button>
+          <span class="anno">Baymard tactic: address line 2 hidden behind a link, not a default field.</span>
+        </div>
+        <div class="field">
+          <label>Country <span class="req">Required</span></label>
+          <select class="inp">
+            <option selected>Netherlands</option><option>Germany</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Postal code <span class="req">Required</span></label>
+          <input class="inp valid" type="text" value="1015 CJ">
+          <span class="field-hint">pattern: 4 digits + 2 letters</span>
+        </div>
+        <div class="field">
+          <label>City <span class="req">Required</span></label>
+          <input class="inp" type="text" value="Amsterdam">
+        </div>
+      </div>
+    </div>
+
+    <div class="state-label">State: Germany selected, DE postal format (5 digits), invalid value</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Delivery address</h3></div></header>
+      <div class="grid2">
+        <div class="field span2"><label>Street and number <span class="req">Required</span></label><input class="inp" type="text" value="Hauptstrasse 50"></div>
+        <div class="field"><label>Country <span class="req">Required</span></label><select class="inp"><option>Netherlands</option><option selected>Germany</option><option>Other</option></select></div>
+        <div class="field">
+          <label>Postal code <span class="req">Required</span></label>
+          <input class="inp err" type="text" value="1015 CJ" aria-invalid="true">
+          <span class="err-msg">Enter a valid German postal code (5 digits).</span>
+          <span class="anno">The NL value above is now invalid because computedProps swapped the pattern to Germany's 5-digit format.</span>
+        </div>
+        <div class="field"><label>City <span class="req">Required</span></label><input class="inp" type="text" value="Berlin"></div>
+      </div>
+    </div>
+
+    <div class="state-label">State: Other selected, relaxed generic fallback pattern</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Delivery address</h3></div></header>
+      <div class="grid2">
+        <div class="field"><label>Country <span class="req">Required</span></label><select class="inp"><option>Netherlands</option><option>Germany</option><option selected>Other</option></select></div>
+        <div class="field">
+          <label>Postal / ZIP code <span class="opt">Optional</span></label>
+          <input class="inp" type="text" placeholder="Any format">
+          <span class="field-hint">relaxed pattern: 2 to 10 letters, digits, spaces or dashes</span>
+        </div>
+      </div>
+      <span class="anno" style="padding:0 0 0 0">The fallback shows the pattern degrading gracefully instead of the country select reading as a two-entry toy (DECIDED, Q6).</span>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- BUSINESS / VAT TOGGLE                                          -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#business-toggle</span></div>
+  <section class="prose"><p>A checkbox flips a sibling field between hidden and required through <code>computedProps</code>: conditional visibility and conditional validation from the same flag.</p></section>
+
+  <div id="business-toggle" class="form-shell">
+    <div class="state-label">State: off (VAT field hidden)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Business order</h3></div></header>
+      <div class="grid2">
+        <div class="field span2 toggle-row">
+          <span class="switch"><span class="track"></span><span class="knob"></span></span>
+          <span class="toggle-label">I am ordering as a business</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="state-label">State: on (company + VAT revealed and required)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Business order</h3></div></header>
+      <div class="grid2">
+        <div class="field span2 toggle-row">
+          <span class="switch on"><span class="track"></span><span class="knob"></span></span>
+          <span class="toggle-label">I am ordering as a business</span>
+        </div>
+        <div class="field"><label>Company name <span class="req">Required</span></label><input class="inp" type="text" value="De Vries Design BV"></div>
+        <div class="field">
+          <label>VAT number <span class="req">Required</span></label>
+          <input class="inp err" type="text" value="NL00123" aria-invalid="true">
+          <span class="err-msg">Enter a valid VAT number.</span>
+          <span class="anno">The field only validates while visible; turning the toggle off relaxes it again.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- SHIPPING METHOD CHOICE + NESTED PICKUP                         -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#shipping-method</span></div>
+  <section class="prose"><p>Shipping is a <code>choice</code> whose pickup branch nests an extra field. Selecting pickup mounts the pickup-point selector; the other branches never render it.</p></section>
+
+  <div id="shipping-method" class="form-shell">
+    <div class="state-label">State: pickup branch selected (nested field mounted)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Shipping method</h3></div></header>
+      <div class="choice-grid cols2 span2" style="margin-bottom:16px">
+        <button class="choice-card" type="button"><span class="radio-dot"><i></i></span><span><span class="cc-title">🏠 Home delivery</span><span class="cc-desc">1 to 3 business days, 4.95</span></span></button>
+        <button class="choice-card selected" type="button"><span class="radio-dot"><i></i></span><span><span class="cc-title">📦 Pickup point</span><span class="cc-desc">Collect nearby, free</span></span></button>
+      </div>
+      <div class="grid2">
+        <div class="field span2">
+          <label>Pickup point <span class="req">Required</span></label>
+          <select class="inp"><option value="">Select a nearby point</option><option selected>Albert Heijn, Nieuwmarkt 18</option><option>PostNL, Damrak 62</option></select>
+          <span class="anno">Nested only on the pickup branch. Home delivery mounts no extra fields.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- PAYMENT METHOD: SINGLE CHOICE + BRANCH SWITCHING               -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#payment</span></div>
+  <section class="prose">
+    <h2>Payment</h2>
+    <p>By default payment is a single <code>choice</code>: card, iDEAL, PayPal, or Klarna. Each branch carries its own fields and rules, so switching instantly swaps what is shown and validated. This is the first thing we want a visitor to see working.</p>
+  </section>
+
+  <div id="payment" class="form-shell">
+    <div class="state-label">Shared: the four branch picker</div>
+    <div class="card">
+      <header><div><h3 class="card-title">How would you like to pay?</h3></div></header>
+      <div class="choice-grid cols4 span2">
+        <button class="choice-card selected" type="button"><span class="radio-dot"><i></i></span><span><span class="cc-title">💳 Card</span></span></button>
+        <button class="choice-card" type="button"><span class="radio-dot"><i></i></span><span><span class="cc-title">iDEAL</span></span></button>
+        <button class="choice-card" type="button"><span class="radio-dot"><i></i></span><span><span class="cc-title">PayPal</span></span></button>
+        <button class="choice-card" type="button"><span class="radio-dot"><i></i></span><span><span class="cc-title">Klarna</span></span></button>
+      </div>
+      <span class="anno" style="margin-top:12px">Branch set is card / iDEAL / PayPal / Klarna (DECIDED, Q5). Four flavours: card inputs, a bank select, an empty branch, an enumeration select.</span>
+    </div>
+
+    <div class="state-label">Branch: Card (inert demo inputs, with disclaimer)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Card details</h3></div></header>
+      <div class="inert-note" style="margin-bottom:16px"><span>🔒</span><span>These card and iDEAL fields are <strong>inert demo inputs</strong>. They collect no real payment data and are not a payment integration. Do not copy them as one.</span></div>
+      <div class="grid2">
+        <div class="field span2"><label>Card number <span class="req">Required</span></label><input class="inp" type="text" placeholder="1234 5678 9012 3456" value="4242 4242 4242 4242"></div>
+        <div class="field"><label>Expiry <span class="req">Required</span></label><input class="inp" type="text" placeholder="MM / YY" value="04 / 28"></div>
+        <div class="field"><label>CVC <span class="req">Required</span></label><input class="inp" type="text" placeholder="123" value="123"></div>
+      </div>
+    </div>
+
+    <div class="state-label">Branch: iDEAL (bank select)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">iDEAL</h3></div></header>
+      <div class="grid2">
+        <div class="field span2"><label>Your bank <span class="req">Required</span></label><select class="inp"><option value="">Select your bank</option><option selected>ING</option><option>Rabobank</option><option>ABN AMRO</option><option>bunq</option></select></div>
+      </div>
+    </div>
+
+    <div class="state-label">Branch: PayPal (empty branch, redirect note)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">PayPal</h3></div></header>
+      <div class="banner info"><span class="b-ico">ℹ️</span><span>No extra fields. In a real store you would be redirected to PayPal to confirm. This branch intentionally mounts nothing, to show an empty choice branch.</span></div>
+    </div>
+
+    <div class="state-label">Branch: Klarna (installment enumeration)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Klarna, pay in installments</h3></div></header>
+      <div class="grid2">
+        <div class="field span2">
+          <label>Installment plan <span class="req">Required</span></label>
+          <select class="inp"><option value="">Choose a plan</option><option selected>3 months, 82.83 / month</option><option>6 months, 41.42 / month</option><option>12 months, 20.71 / month</option></select>
+          <span class="anno">The fourth flavour: an enumeration select, 3 / 6 / 12 months (DECIDED, Q5).</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- SPLIT PAYMENT: repeatable ordered choice finale                -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#split-payment</span></div>
+  <section class="prose">
+    <h2>Split your payment, the finale</h2>
+    <p>Here is the shape no other page here covers: a <strong>repeatable ordered choice</strong> (<code>maxOccurs &gt; 1</code> combined with <code>choice</code>). Split payment is opt-in, so it never inflates the default field count (DECIDED, Q2). Add payment sources (gift card, voucher, card, PayPal); they apply <strong>top to bottom</strong>. Each row shows the amount it covers and what remains after it. Reorder rows and the remainders redistribute live, because order is a real behaviour here, not a cosmetic handle.</p>
+    <div class="callout warning">
+      <p class="callout-title">Ordering is UI-level, not XSD</p>
+      <p>The display order and the per-row <code>order</code> value are library behaviour layered on the shape. They have no equivalent in <code>&lt;xs:choice&gt;</code> occurrence semantics.</p>
+    </div>
+  </section>
+
+  <div id="split-payment" class="form-shell">
+    <div class="state-label">State: entry point, collapsed (opt-in escalation)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Payment</h3><p class="card-desc">Paying with one method? Use the picker above.</p></div></header>
+      <button class="link-btn" type="button">+ Split your payment across multiple methods</button>
+    </div>
+
+    <div class="state-label">State: empty (expanded, no sources yet)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Split payment</h3><p class="card-desc">Add sources in the order they should apply.</p></div></header>
+      <div class="choice-grid cols4 span2" style="margin-bottom:16px">
+        <button class="btn outline" type="button">+ Gift card</button>
+        <button class="btn outline" type="button">+ Voucher</button>
+        <button class="btn outline" type="button">+ Card</button>
+        <button class="btn outline" type="button">+ PayPal</button>
+      </div>
+      <div class="dependent-slot" style="height:auto;padding:20px">No payment sources yet. Add one above to begin covering the 248.50 order total.</div>
+    </div>
+
+    <div class="state-label">State: covered (rows sum to the order total) + reordering controls</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Split payment</h3></div></header>
+      <div class="choice-grid cols4 span2" style="margin-bottom:16px">
+        <button class="btn outline" type="button">+ Gift card</button>
+        <button class="btn outline" type="button">+ Voucher</button>
+        <button class="btn outline" type="button">+ Card</button>
+        <button class="btn outline" type="button" disabled>+ PayPal</button>
+      </div>
+      <div class="ledger">
+        <div class="ledger-row">
+          <div class="ledger-order">
+            <span class="rbadge"><span class="num">1</span></span>
+            <span style="display:flex;gap:4px;margin-top:4px"><button class="icon-btn" disabled title="Move up">▲</button><button class="icon-btn" title="Move down">▼</button></span>
+          </div>
+          <div class="ledger-main"><div class="ledger-src">🎁 Gift card</div><div class="ledger-sub">Code GIFT-4821, balance 50.00</div></div>
+          <div class="ledger-amounts"><div class="ledger-applied">− 50.00</div><div class="ledger-remaining">Remaining after: 198.50</div></div>
+        </div>
+        <div class="ledger-row">
+          <div class="ledger-order">
+            <span class="rbadge"><span class="num">2</span></span>
+            <span style="display:flex;gap:4px;margin-top:4px"><button class="icon-btn" title="Move up">▲</button><button class="icon-btn" title="Move down">▼</button></span>
+          </div>
+          <div class="ledger-main"><div class="ledger-src">🏷️ Voucher</div><div class="ledger-sub">WELCOME25, fixed 25.00</div></div>
+          <div class="ledger-amounts"><div class="ledger-applied">− 25.00</div><div class="ledger-remaining">Remaining after: 173.50</div></div>
+        </div>
+        <div class="ledger-row">
+          <div class="ledger-order">
+            <span class="rbadge"><span class="num">3</span></span>
+            <span style="display:flex;gap:4px;margin-top:4px"><button class="icon-btn" title="Move up">▲</button><button class="icon-btn" disabled title="Move down">▼</button></span>
+          </div>
+          <div class="ledger-main"><div class="ledger-src">💳 Card</div><div class="ledger-sub">Covers the remainder, 4242</div></div>
+          <div class="ledger-amounts"><div class="ledger-applied">− 173.50</div><div class="ledger-remaining">Remaining after: 0.00</div></div>
+        </div>
+      </div>
+      <div class="remaining-readout ok" style="margin-top:16px">
+        <span>Remaining to assign</span><span class="amt">0.00</span>
+      </div>
+      <span class="anno">The last row ("card, covers the remainder") recomputes its applied amount from the order total minus rows above it. Each row carries ▲/▼ controls; the up button is disabled on row 1, the down button on the last row. Moving a row rewrites the two affected rows' order values, so remainders redistribute (per components.md: templates write order directly, no new engine primitive).</span>
+    </div>
+
+    <div class="state-label">State: short / blocked submit (rows do NOT cover the total)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Split payment</h3></div></header>
+      <div class="choice-grid cols4 span2" style="margin-bottom:16px">
+        <button class="btn outline" type="button">+ Gift card</button>
+        <button class="btn outline" type="button">+ Voucher</button>
+        <button class="btn outline" type="button">+ Card</button>
+        <button class="btn outline" type="button">+ PayPal</button>
+      </div>
+      <div class="ledger">
+        <div class="ledger-row">
+          <div class="ledger-order"><span class="rbadge"><span class="num">1</span></span><span style="display:flex;gap:4px;margin-top:4px"><button class="icon-btn" disabled>▲</button><button class="icon-btn">▼</button></span></div>
+          <div class="ledger-main"><div class="ledger-src">🎁 Gift card</div><div class="ledger-sub">Code GIFT-4821, balance 50.00</div></div>
+          <div class="ledger-amounts"><div class="ledger-applied">− 50.00</div><div class="ledger-remaining">Remaining after: 198.50</div></div>
+        </div>
+        <div class="ledger-row incomplete">
+          <div class="ledger-order"><span class="rbadge"><span class="num">2</span></span><span style="display:flex;gap:4px;margin-top:4px"><button class="icon-btn">▲</button><button class="icon-btn" disabled>▼</button></span></div>
+          <div class="ledger-main"><div class="ledger-src">🏷️ Voucher</div><div class="ledger-sub">WELCOME25, fixed 25.00</div></div>
+          <div class="ledger-amounts"><div class="ledger-applied">− 25.00</div><div class="ledger-remaining">Remaining after: 173.50</div></div>
+        </div>
+      </div>
+      <div class="remaining-readout short" style="margin-top:16px">
+        <span>Still unassigned</span><span class="amt">173.50</span>
+      </div>
+      <div class="banner error" style="margin-top:12px"><span class="b-ico">⚠️</span><span>Your payment sources must cover the full order total of 248.50. Add 173.50 more before placing the order.</span></div>
+      <span class="anno">Hard cross-field validation (DECIDED, Q7): submit stays disabled until the rows sum to the order total. The live readout flips amber and shows the shortfall; the banner spells out the exact amount.</span>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- GIFT MESSAGE (conditional + counter)                           -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#gift-message</span></div>
+  <section class="prose"><p>A gift message is a conditional field with <code>xsd_maxLength</code>, revealed behind a link (Baymard tactic) and paired with a character counter, the docs template's convention.</p></section>
+
+  <div id="gift-message" class="form-shell">
+    <div class="state-label">State: collapsed link</div>
+    <div class="card"><header><div><h3 class="card-title">Extras</h3></div></header><button class="link-btn" type="button">+ Add a gift message</button></div>
+
+    <div class="state-label">States: within limit / at limit / over limit</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Gift message</h3></div></header>
+      <div class="grid2">
+        <div class="field span2">
+          <textarea class="inp" id="giftMsg">Happy birthday, Mum! See you Sunday. Love, Anna</textarea>
+          <div class="char-count" id="giftCount">47 / 200</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <header><div><h3 class="card-title">Gift message</h3></div></header>
+      <div class="grid2">
+        <div class="field span2">
+          <textarea class="inp err">This message is intentionally too long to demonstrate the xsd_maxLength rule firing once the counter passes the configured limit of two hundred characters, which this sentence now comfortably exceeds by a wide and deliberate margin indeed.</textarea>
+          <div class="char-count over">214 / 200</div>
+          <span class="err-msg">Keep your gift message to 200 characters or fewer.</span>
+        </div>
+      </div>
+    </div>
+    <span class="anno">Counter lives in the template, not the engine. It turns rose and the field errors once past maxLength. The live card above updates its counter as you type (the only wired interaction besides the theme toggle).</span>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- BILLING SAME AS SHIPPING TOGGLE                                -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#billing-toggle</span></div>
+  <section class="prose"><p>Billing defaults to "same as shipping" and stays hidden (Baymard tactic). Turning it off reveals a reused address subtree through <code>computedProps</code>: the same group metadata, mounted at a second path.</p></section>
+
+  <div id="billing-toggle" class="form-shell">
+    <div class="state-label">State: on (billing hidden, default)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Billing address</h3></div></header>
+      <div class="field span2 toggle-row"><span class="switch on"><span class="track"></span><span class="knob"></span></span><span class="toggle-label">Billing address is the same as shipping</span></div>
+    </div>
+
+    <div class="state-label">State: off (reused address subtree revealed)</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Billing address</h3></div></header>
+      <div class="field span2 toggle-row" style="margin-bottom:16px"><span class="switch"><span class="track"></span><span class="knob"></span></span><span class="toggle-label">Billing address is the same as shipping</span></div>
+      <div class="grid2">
+        <div class="field span2"><label>Street and number <span class="req">Required</span></label><input class="inp" type="text" placeholder="e.g. Keizersgracht 123"></div>
+        <div class="field"><label>Country <span class="req">Required</span></label><select class="inp"><option selected>Netherlands</option><option>Germany</option><option>Other</option></select></div>
+        <div class="field"><label>Postal code <span class="req">Required</span></label><input class="inp" type="text" placeholder="1015 CJ"></div>
+        <div class="field"><label>City <span class="req">Required</span></label><input class="inp" type="text" placeholder="Amsterdam"></div>
+      </div>
+      <span class="anno">Identical field set and per-country postal rule as the delivery address: the same subtree metadata reused, not a second copy.</span>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- ORDER SUMMARY: STICKY CART RIGHT OF THE FORM                   -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#order-summary</span></div>
+  <div id="order-summary" class="form-shell">
+    <div class="state-label">Layout: form left, sticky cart right (stacks on top below 960px)</div>
+    <div class="checkout-layout">
+      <div class="dependent-slot" style="height:auto;min-height:260px;padding:24px">The form sections above (express choice, contact, delivery, shipping, payment, gift message) render in this column, ending in the place-order bar.</div>
+      <div class="cart-rail">
+        <div class="card">
+          <header><div><h3 class="card-title">Order summary</h3></div></header>
+          <div class="cart-items">
+            <div class="cart-item"><span><span class="ci-qty">1 ×</span>Ergonomic desk chair</span><span>199.00</span></div>
+            <div class="cart-item"><span><span class="ci-qty">1 ×</span>Felt desk mat</span><span>49.50</span></div>
+          </div>
+          <div class="summary-line"><span>Subtotal</span><span>248.50</span></div>
+          <div class="summary-line"><span>Shipping (pickup)</span><span>0.00</span></div>
+          <div class="summary-line"><span>VAT included</span><span>43.13</span></div>
+          <div class="summary-line total"><span>Total</span><span>248.50</span></div>
+        </div>
+      </div>
+    </div>
+    <span class="anno">The cart column sits where VitePress normally renders "On this page": the checkout page sets aside: false in frontmatter and widens the doc column with page-scoped CSS. The cart is sticky while the form scrolls and reacts live to the form (shipping method flips the shipping line). Below 960px it stacks above the form, like Shopify's mobile checkout. The metadata walkthrough opens with a short inline TOC to compensate for the missing outline. (DECIDED, cart placement.)</span>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- SUBMIT BAR                                                     -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#submit</span></div>
+  <div id="submit" class="form-shell">
+    <div class="state-label">States: ready / blocked / submitting / success</div>
+    <div class="card">
+      <header><div><h3 class="card-title">Place your order</h3><p class="card-desc">Totals live in the sticky cart on the right; this bar closes the form column.</p></div></header>
+      <div class="submit-bar" style="margin-top:4px">
+        <button class="btn primary" type="button">Place order, 248.50</button>
+        <button class="btn primary" type="button" disabled>Place order, 248.50</button>
+        <span class="anno">Ready (enabled) vs blocked (disabled): blocked whenever the form is invalid, including an uncovered split-payment total.</span>
+        <button class="btn primary" type="button" disabled style="pointer-events:none"><span class="spinner"></span> Placing order…</button>
+        <span class="anno">Submitting: the only genuinely async state. Button shows a spinner and disables to prevent a double submit.</span>
+      </div>
+    </div>
+
+    <div class="card" style="text-align:center">
+      <div class="banner success" style="justify-content:center"><span class="b-ico">✅</span><span><strong>Order placed.</strong> A confirmation is on its way to anna.devries@example.nl. (Demo only: nothing was charged.)</span></div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- METADATA WALKTHROUGH                                           -->
+  <!-- ============================================================= -->
+  <div class="divider"><span>#metadata-walkthrough</span></div>
+  <section id="metadata-walkthrough" class="prose">
+    <h2>It is one metadata tree and one template</h2>
+    <p>Everything above is declarative. The engine walks the tree, classifies each node by its shape, and renders it through the neutral template. Below, the same walkthrough style as the other advanced examples.</p>
+
+    <h3>What it demonstrates</h3>
+    <ul>
+      <li>A top-level <code>choice</code> for express vs manual checkout, shown with minimal inert UI</li>
+      <li>Email <code>xsd_pattern</code>, and a country <code>xsd_enumeration</code> that drives per-country postal validation through <code>computedProps</code></li>
+      <li>Conditional visibility and validation: the business / VAT toggle and the billing "same as shipping" toggle</li>
+      <li>A shipping <code>choice</code> with a field nested only on the pickup branch</li>
+      <li>A payment <code>choice</code> with four branch flavours: card inputs, a bank select, an empty branch, an enumeration select</li>
+      <li>The finale: a repeatable ordered <code>choice</code> (<code>maxOccurs &gt; 1</code>) for split payment, with a computed per-row remaining amount, template-driven reordering, and a hard cross-field rule that the rows cover the total</li>
+      <li>A gift message with <code>xsd_maxLength</code> and a character counter</li>
+    </ul>
+
+    <h3>How it works: the split-payment shape</h3>
+    <p>The split-payment list is a choice with <code>maxOccurs &gt; 1</code> and <code>explicitChoiceSelection</code>. Each source is a branch; adding one pushes an occurrence. The per-row remaining amount is a <code>computedProps</code> read over the sibling occurrences above it, and reordering writes the two affected occurrences' <code>order</code> values directly, exactly as the choices page already demonstrates.</p>
+
+    <div class="code-title">checkout.metadata.ts</div>
+<pre class="code"><span class="cmt">// Split payment: a repeatable, ordered choice of payment sources.</span>
+{
+  name: <span class="str">'splitPayment'</span>,
+  type: <span class="str">'heading'</span>,
+  maxOccurs: <span class="num">6</span>,
+  <span class="key">explicitChoiceSelection</span>: <span class="num">true</span>,
+  <span class="key">displayOrder</span>: <span class="str">'added'</span>,
+  <span class="key">preserveOrder</span>: <span class="num">true</span>, <span class="cmt">// order is real, reorderable data</span>
+  choice: [
+    { name: <span class="str">'giftCard'</span>, children: [ <span class="cmt">/* code, applied amount */</span> ] },
+    { name: <span class="str">'voucher'</span>,  children: [ <span class="cmt">/* code, applied amount */</span> ] },
+    { name: <span class="str">'card'</span>,     children: [ <span class="cmt">/* inert demo inputs */</span> ] },
+    { name: <span class="str">'payPal'</span>,   children: [ <span class="cmt">/* applied amount */</span> ] },
+  ],
+}</pre>
+    <span class="anno">Illustrative excerpt for the design brief. The architect owns the exact field set, validation wiring and computedProps signatures; this only fixes the shape and the camelCase, no-em-dash house style.</span>
+
+    <h3>Related source</h3>
+    <ul>
+      <li>CheckoutFormExample.vue (the metadata tree)</li>
+      <li>CheckoutFormTemplate.vue (the checkout's own neutral template component)</li>
+      <li><a href="/examples/choices">Choice Fields</a> for the repeatable ordered choice mechanics</li>
+      <li><a href="/examples/wizard">Wizard</a> and <a href="/examples/advanced">Client Onboarding Wizard</a> for the <code>validateSection()</code> step pattern (this page is intentionally one-page, matching the benchmark)</li>
+    </ul>
+    <span class="anno">Nav (DECIDED, Q1): this page is /examples/checkout and leads the advanced examples. The existing onboarding wizard keeps its slug and content, is renamed "Client Onboarding Wizard" in the sidebar (DECIDED, Q8), and cross-links here.</span>
+  </section>
+
+</div>
+
+<script>
+  // VitePress drives dark mode with a `.dark` class on <html>; mirror that here.
+  const root = document.documentElement;
+  const toggle = document.getElementById('themeToggle');
+  function apply(dark) {
+    root.classList.toggle('dark', dark);
+    toggle.textContent = dark ? '☀️' : '🌙';
+  }
+  apply(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  toggle.addEventListener('click', () => apply(!root.classList.contains('dark')));
+
+  // The one wired form interaction: a live character counter for the gift message.
+  const msg = document.getElementById('giftMsg');
+  const count = document.getElementById('giftCount');
+  if (msg && count) {
+    const max = 200;
+    const update = () => {
+      const n = msg.value.length;
+      count.textContent = n + ' / ' + max;
+      count.classList.toggle('over', n > max);
+    };
+    msg.addEventListener('input', update);
+    update();
+  }
+</script>
+</body>
+</html>

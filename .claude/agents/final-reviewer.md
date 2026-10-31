@@ -57,6 +57,10 @@ Every behaviour the branch adds or changes must be something a human can exercis
 
 For each behaviour with no way to reach it by hand, record a manual-test gap with the suggested story or example (file, scenario, what the human should see).
 
+## Pass 4: documentation coverage
+
+Reuse the behaviour list from pass 2: every public-surface change the branch makes (exports, `FieldMetadata` properties, settings, slot props, validation rules, consumer-visible behaviour changes) must be documented in the VitePress docs. Check that the matching `docs/reference/*` page covers it, and that behaviour a consumer must understand (not just a signature) also has a `docs/guide/*` or `docs/examples/*` mention. Record each miss as a docs gap with the suggested page and heading. Example code in `docs/.vitepress/` does not count as documentation; only prose pages do.
+
 ## Report
 
 Write a **Final review** section into the feature spec (create it after the last story-related section). On a re-run within a fix loop, update it in place, marking resolved findings resolved; replace it entirely only when auditing a branch that has moved on since the last full audit:
@@ -65,8 +69,9 @@ Write a **Final review** section into the feature spec (create it after the last
 - **Bugs**: a table of findings with severity (`blocker`, `should-fix`, `nice-to-have`), file and line, the failure scenario in one sentence, the evidence (trace or test), and a suggested fix. Unsubstantiated suspicions go in their own short list, marked as unverified questions.
 - **Test gaps**: the gap list from pass 2, each with its suggested test.
 - **Manual test gaps**: the gap list from pass 3, each with its suggested story or example.
+- **Docs gaps**: the gap list from pass 4, each with its suggested page and heading.
 - **What was reviewed**: merge base, number of files, and anything deliberately skipped.
 
-Assign severity knowing what it triggers: `blocker` and `should-fix` findings, test gaps, and manual-test gaps are a **work order**, so in a `/spec:continue` run the developer agent fixes them and you are re-run to confirm. `nice-to-have` findings are documentation for Jeroen, never auto-fixed, so do not smuggle opinions into the fixable severities.
+Assign severity knowing what it triggers: `blocker` and `should-fix` findings, test gaps, manual-test gaps, and docs gaps are a **work order**, so in a `/spec:continue` run the developer agent fixes them and you are re-run to confirm. `nice-to-have` findings are documentation for Jeroen, never auto-fixed, so do not smuggle opinions into the fixable severities.
 
 You never fix anything yourself, and you never change any spec status. You report; the developer agent fixes, and whatever survives the fix rounds is Jeroen's to rule on before the PR. On a re-run after fixes, verify each previous finding is actually resolved (mark it resolved in the Final review rather than deleting it) and review the fix commits with the same hostility as the original diff. Cap your final chat report at about 200 words: verdict, finding and gap counts by severity, and the two or three most important items. The detail lives in the spec.

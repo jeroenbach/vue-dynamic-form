@@ -32,7 +32,7 @@ The same question is worth interrupting Jeroen for before he has reviewed the fe
 
 So there are two bars, and which one applies is a fact about the spec, not a judgement call:
 
-- **The feature is not yet approved** (chain 1, `/spec:discuss`, any epic or feature spec still short of `approved`): use the **clear-winner bar** in step 2a.
+- **The feature is not yet approved** (chain 1, `/spec:discuss`, any epic or feature spec still short of `approved`): use the **clear-winner bar** in step 2a. Chain 1 runs this research step right after the adversarial review, so the spec reaches Jeroen with the clear winners already settled; `/spec:discuss` then opens by presenting those decisions for him to override and researches only what the chain missed. Pre-approval, never write `ASSUMED` entries and never break ties: what fails the bar simply stays open for the discussion.
 - **The feature is approved** (chain 2 and chain 3, all story prep and implementation, quick specs after approval): use the **post-approval ladder** in step 2b. Its whole purpose is to leave nothing for Jeroen.
 
 ## Step 2a: the clear-winner bar (before approval)

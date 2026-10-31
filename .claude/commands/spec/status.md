@@ -6,6 +6,8 @@ Read `CLAUDE.md` and the referenced spec before acting.
 
 Scan the frontmatter of every `specs/**/spec.md` (epics, features, their stories, and quick specs) and print a pipeline overview table:
 
+- **Leave `specs/archive/` out of the table.** Archived specs are shipped and closed; summarize them as a single line at the end (e.g. "archive: 4 features, 2 quick specs") and skip the stale check for them. Conversely, flag any `done` spec still sitting at the top level of `specs/` as ready to archive, with the `mv` to run, in the next-actions list (this command stays read-only and does not move it).
+
 - Group each epic (EPIC-XXX) with the features that carry its `epic:` id nested underneath, and each feature with its stories nested under it (id, name, status, approved_by, pr).
 - Features with no `epic:` value are standalone; list them in their own group after the epics.
 - Include QUICK-XXX specs in their own group.

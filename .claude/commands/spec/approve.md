@@ -18,7 +18,7 @@ If (and only if) the precondition passes and any required confirmation was given
 - set `status: approved`
 - set `approved_by: Jeroen`
 
-Change nothing else in the spec, and touch no other file. This command does not advance any downstream phase, does not split, does not implement: it only opens the gate. After editing, confirm what was approved and name the next command in the workflow (`/spec:split FEAT-XXX` for a feature, `/spec:implement ST-YY` for a story or `QUICK-XXX`, or `/spec:feature <idea> EPIC-XXX` to start elaborating features under an approved epic).
+Change nothing else in the spec, and touch no other file. This command does not advance any downstream phase, does not split, does not implement: it only opens the gate. After editing, confirm what was approved and name the next command in the workflow (`/spec:split FEAT-XXX` for a feature, `/spec:implement ST-YY` for a story, `/spec:continue QUICK-XXX` for a quick spec (it implements, verifies, and archives in one go), or `/spec:feature <idea> EPIC-XXX` to start elaborating features under an approved epic).
 
 Spec id to approve:
 
