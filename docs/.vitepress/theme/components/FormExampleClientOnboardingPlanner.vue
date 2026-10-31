@@ -171,6 +171,14 @@ const wizardSummary = computed<ReviewGroupProps[]>(() => {
       : systems.map((s, i): [string, string] => [`System ${i + 1}`, s.text]);
   };
 
+  const dataMigrationLabel = (): string => {
+    if (!values?.company?.requiresMigration)
+      return 'No';
+    if (!values?.company?.migrationDeadline)
+      return 'Yes';
+    return `Yes (by ${values.company.migrationDeadline})`;
+  };
+
   return [
     {
       title: 'Company',
@@ -178,7 +186,7 @@ const wizardSummary = computed<ReviewGroupProps[]>(() => {
         ['Company name', values?.company?.companyName || '—'],
         ['Industry', industryLabel.value || '—'],
         ['Team size', values?.company?.teamSize || '—'],
-        ['Data migration', values?.company?.requiresMigration ? `Yes${values?.company?.migrationDeadline ? ` (by ${values.company.migrationDeadline})` : ''}` : 'No'],
+        ['Data migration', dataMigrationLabel()],
       ],
     },
     {
@@ -361,7 +369,7 @@ const metadata: Metadata[] = [
           {
             name: 'email',
             fieldOptions: { label: 'Work email' },
-            restriction: { pattern: '^.+@.+\\..+$' },
+            restriction: { pattern: String.raw`^.+@.+\..+$` },
           },
           {
             name: 'role',
@@ -483,9 +491,10 @@ watch(submitted, async (submittedValues) => {
     { id: 'integrations', label: `${systemCount} system integration${systemCount !== 1 ? 's' : ''} added to backlog`, status: 'pending' },
   ];
 
-  for (let i = 0; i < timeline.value.length; i++) {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    timeline.value[i].status = 'done';
+  for (const item of timeline.value) {
+    // Sequential by design: each step must wait for the previous one's delay to stagger the reveal.
+    await new Promise(resolve => setTimeout(resolve, 800)); // NOSONAR
+    item.status = 'done';
   }
 });
 // #endregion timeline

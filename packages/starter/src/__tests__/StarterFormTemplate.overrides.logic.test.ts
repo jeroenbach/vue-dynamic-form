@@ -1,7 +1,9 @@
 import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
 import type { VueWrapper } from '@vue/test-utils';
+import { flushPromises } from '@vue/test-utils';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
-import { h } from 'vue';
+import { defineComponent, h, ref } from 'vue';
+import StarterFormTemplate from '@/StarterFormTemplate.vue';
 import { createConsumerWrapper } from './fixtures/createConsumerWrapper';
 import { headingMetadata, richTextMetadata, richTextMetadataConfiguration, textMetadata } from './fixtures/metadata';
 import { mountInForm } from './fixtures/mountInForm';
@@ -33,6 +35,71 @@ describe('component StarterFormTemplate - extendMetadata as metadataConfiguratio
     type Field = GetMetadataType<typeof richTextMetadataConfiguration>;
     const field: Field = { name: 'body', toolbar: true };
     expectTypeOf(field.toolbar).toEqualTypeOf<boolean | undefined>();
+  });
+});
+
+describe('component StarterFormTemplate - per-type slots passed through to the dispatcher', () => {
+  it('renders a consumer slot for a custom field type inside the built-in chrome', async () => {
+    const { wrapper, values } = await mountInForm({
+      metadata: { name: 'notes', type: 'richText', fieldOptions: { label: 'Notes' }, rows: 6 },
+      template: createConsumerWrapper({
+        overrides: {
+          'richText-input': (scope: any) => h('textarea', {
+            'data-testid': 'custom-richtext',
+            'rows': scope.fieldMetadata.rows,
+            'value': scope.fieldContext.value.value,
+            'onInput': (e: Event) => scope.fieldContext.handleChange((e.target as HTMLTextAreaElement).value),
+          }),
+        },
+      }),
+      initialValues: { notes: 'hello' },
+    });
+
+    const textarea = wrapper.find('[data-testid="custom-richtext"]');
+    expect(textarea.exists()).toBe(true);
+    expect((textarea.element as HTMLTextAreaElement).rows).toBe(6);
+    expect(wrapper.find('.sft-field').exists()).toBe(true);
+    expect(wrapper.find('input.sft-input').exists()).toBe(false);
+
+    await textarea.setValue('updated');
+    expect(values().notes).toBe('updated');
+  });
+
+  it('prefers a dedicated built-in per-type slot over default-input', async () => {
+    const customInput = customMarkup('custom-text-input');
+    const { wrapper } = await mountInForm({
+      metadata: textMetadata,
+      template: createConsumerWrapper({
+        overrides: { 'text-input': customInput, 'default-input': customMarkup('default-input-override') },
+      }),
+    });
+
+    expect(findByTestId(wrapper, 'custom-text-input')).toHaveLength(1);
+    expect(findByTestId(wrapper, 'default-input-override')).toHaveLength(0);
+  });
+
+  it('forwards a slot the consumer adds after the form was mounted', async () => {
+    const showRichText = ref(false);
+    const Wrapper = defineComponent({
+      setup: (_, { slots }) => () => h(
+        StarterFormTemplate as any,
+        {},
+        {
+          input: (scope: any) => slots.default?.(scope),
+          ...(showRichText.value ? { 'richText-input': customMarkup('late-richtext') } : {}),
+        },
+      ),
+    });
+    const { wrapper } = await mountInForm({
+      metadata: { name: 'notes', type: 'richText', fieldOptions: { label: 'Notes' } },
+      template: Wrapper,
+    });
+    expect(findByTestId(wrapper, 'late-richtext')).toHaveLength(0);
+
+    showRichText.value = true;
+    await flushPromises();
+
+    expect(findByTestId(wrapper, 'late-richtext')).toHaveLength(1);
   });
 });
 

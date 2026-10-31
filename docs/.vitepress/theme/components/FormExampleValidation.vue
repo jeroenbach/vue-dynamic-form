@@ -30,13 +30,13 @@ const passwordValue = useFieldValue('account.password');
 const startDateValue = useFieldValue('dateRange.startDate');
 
 // #region async-validation
-const takenEmails = ['admin@example.com', 'test@test.com', 'hello@world.com'];
+const takenEmails = new Set(['admin@example.com', 'test@test.com', 'hello@world.com']);
 
 async function validateEmailAvailability(value: unknown): Promise<true | string> {
   if (!value)
     return true;
   await new Promise(resolve => setTimeout(resolve, 700));
-  return takenEmails.includes(String(value).toLowerCase())
+  return takenEmails.has(String(value).toLowerCase())
     ? `${value} is already registered`
     : true;
 }
@@ -101,7 +101,7 @@ const metadata: Metadata[] = [
         name: 'email',
         fieldOptions: { label: 'Email' },
         description: 'Format is checked with a restriction. Availability is verified asynchronously — try admin@example.com.',
-        restriction: { pattern: '^.+@.+\\..+$' },
+        restriction: { pattern: String.raw`^.+@.+\..+$` },
         validation: validateEmailAvailability,
       },
       {
@@ -182,14 +182,14 @@ const metadata: Metadata[] = [
         name: 'startDate',
         fieldOptions: { label: 'Start date' },
         placeholder: 'YYYY-MM-DD',
-        restriction: { pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+        restriction: { pattern: String.raw`^\d{4}-\d{2}-\d{2}$` },
       },
       // #region cross-field-date
       {
         name: 'endDate',
         fieldOptions: { label: 'End date' },
         placeholder: 'YYYY-MM-DD',
-        restriction: { pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+        restriction: { pattern: String.raw`^\d{4}-\d{2}-\d{2}$` },
         validation: (value: unknown) => {
           const start = startDateValue.value;
           if (!value || !start)

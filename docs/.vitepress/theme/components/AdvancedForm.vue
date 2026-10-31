@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
 import type { starterMetadata } from '@bach.software/vue-dynamic-form-starter';
-import type { DefineComponent } from 'vue';
 import { DynamicForm } from '@bach.software/vue-dynamic-form';
 import { StarterFormTemplate } from '@bach.software/vue-dynamic-form-starter';
 import { computed } from 'vue';
@@ -22,9 +21,6 @@ export interface Emits {
 
 const { metadata, settings: _settings } = defineProps<Props>();
 const emit = defineEmits<Emits>();
-
-// `StarterFormTemplate` is generic, which `vue-tsc` does not accept for the `template` prop as is.
-const template = StarterFormTemplate as unknown as DefineComponent<object, object, any>;
 
 const settings = computed<DynamicFormSettings>(() => ({
   messages: {
@@ -51,7 +47,7 @@ const settings = computed<DynamicFormSettings>(() => ({
 <template>
   <form @submit="emit('submit', $event)">
     <DynamicForm
-      :template="template"
+      :template="StarterFormTemplate"
       :metadata="metadata"
       :settings
     />

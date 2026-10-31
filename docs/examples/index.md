@@ -14,6 +14,7 @@ Runnable examples that cover the main features. Each page embeds the live compon
 - [Inbox Rules Builder](/examples/inbox-rules): a reorderable, ordered list of rules where order is the whole point
 - [Workout Plan Builder](/examples/workout-plan): a repeatable ordered choice where reordering alone satisfies or breaks published coaching conventions
 - [Run of Show Builder](/examples/run-of-show): a repeatable ordered choice where reordering changes a computed clock and whether an amplified-music curfew is met
+- [Extending The Starter Template](/examples/extending-starter): project-specific field types on top of the starter template
 - [Advanced Wizard](/examples/advanced): full-featured client onboarding wizard
 
 ## Quick Overview

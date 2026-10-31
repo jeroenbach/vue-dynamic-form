@@ -8,6 +8,7 @@ import FormExampleChoiceExplicitSingle from './components/FormExampleChoiceExpli
 import FormExampleChoiceFields from './components/FormExampleChoiceFields.vue';
 import FormExampleChoicePreserveOnSwitch from './components/FormExampleChoicePreserveOnSwitch.vue';
 import FormExampleChoiceRepeatableBranch from './components/FormExampleChoiceRepeatableBranch.vue';
+import FormExampleProjectFields from './components/FormExampleProjectFields.vue';
 import FormExampleValidation from './components/FormExampleValidation.vue';
 import FormExampleWizard from './components/FormExampleWizard.vue';
 import InboxRulesExample from './components/InboxRulesExample.vue';
@@ -30,6 +31,7 @@ export default {
     app.component('FormExampleChoiceExplicitRepeatable', FormExampleChoiceExplicitRepeatable);
     app.component('FormExampleChoicePreserveOnSwitch', FormExampleChoicePreserveOnSwitch);
     app.component('FormExampleChoiceRepeatableBranch', FormExampleChoiceRepeatableBranch);
+    app.component('FormExampleProjectFields', FormExampleProjectFields);
     app.component('FormExampleWizard', FormExampleWizard);
     app.component('FormExampleClientOnboardingPlannerContext', FormExampleClientOnboardingPlannerContext);
     app.component('FormExampleDynamicFieldsContext', FormExampleDynamicFieldsContext);

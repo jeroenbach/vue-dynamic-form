@@ -17,6 +17,7 @@
     "skipLibCheck": true
   },
   "include": [
+    "vite-env.d.ts",
     "components/**/*.ts",
     "components/**/*.vue",
     "stories/**/*.ts",
