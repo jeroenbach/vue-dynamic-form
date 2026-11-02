@@ -24,8 +24,10 @@ const valueExports = collect(/export\s*\{([^}]+)\}\s*from/g).sort();
 const typeExports = collect(/export\s+type\s*\{([^}]+)\}\s*from/g).sort();
 
 describe('public api surface matches the architecture exactly', () => {
-  it('exports exactly the seven runtime values', () => {
+  it('exports exactly the nine runtime values', () => {
     expect(valueExports).toEqual([
+      'AppButton',
+      'ChoiceArraySectionCard',
       'ReviewGroup',
       'StarterFormTemplate',
       'StarterIcon',
@@ -38,6 +40,8 @@ describe('public api surface matches the architecture exactly', () => {
 
   it('exports exactly the type-only names, including the four re-exported core types', () => {
     expect(typeExports).toEqual([
+      'AppButtonProps',
+      'ChoiceOption',
       'StarterIconName',
       'StarterFieldProperties',
       'StarterValueTypes',
@@ -51,7 +55,7 @@ describe('public api surface matches the architecture exactly', () => {
   });
 
   it('never exports an internal chrome component', () => {
-    const internalChrome = ['FormField', 'GroupField', 'SectionCard', 'ArraySectionCard', 'ArrayField', 'RepeaterCard', 'ChoiceCard', 'ChoiceField', 'ChoiceSectionCard', 'ChoiceArraySectionCard', 'FormWizard', 'Stepper', 'AppButton', 'TextInput', 'SelectInput', 'CheckboxField', 'ToggleSwitch', 'PasswordInput', 'PasswordStrengthBar', 'ErrorMessage', 'OptionalRequiredTag'];
+    const internalChrome = ['FormField', 'GroupField', 'SectionCard', 'ArraySectionCard', 'ArrayField', 'RepeaterCard', 'ChoiceCard', 'ChoiceField', 'ChoiceSectionCard', 'FormWizard', 'Stepper', 'TextInput', 'SelectInput', 'CheckboxField', 'ToggleSwitch', 'PasswordInput', 'PasswordStrengthBar', 'ErrorMessage', 'OptionalRequiredTag'];
     for (const name of internalChrome)
       expect(valueExports).not.toContain(name);
   });

@@ -1,110 +1,61 @@
 <script lang="ts" setup>
 import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
-import { defineMetadata, DynamicFormTemplate } from '@bach.software/vue-dynamic-form';
+import type { SplitPaymentBranchShape } from './splitPaymentLedgerMath';
+import { extendMetadata, StarterFormTemplate } from '@bach.software/vue-dynamic-form-starter';
 import { toValue } from 'vue';
-import CheckboxField from './CheckboxField.vue';
-import ChoiceField from './ChoiceField.vue';
-import ChoiceSectionCard from './ChoiceSectionCard.vue';
-import FormField from './FormField.vue';
-import GroupField from './GroupField.vue';
-import SectionCard from './SectionCard.vue';
-import SelectInput from './SelectInput.vue';
 import SplitPaymentLedger from './SplitPaymentLedger.vue';
 import SplitPaymentLedgerRow from './SplitPaymentLedgerRow.vue';
 import TextareaWithCounter from './TextareaWithCounter.vue';
-import TextInput from './TextInput.vue';
-import ToggleSwitch from './ToggleSwitch.vue';
 
 // #region template-metadata-contract
 export type Metadata = GetMetadataType<typeof metadata>;
 
 export type DynamicFormSettings = GetDynamicFormSettingsType<typeof metadata>;
 
-const metadata = defineMetadata<
+const metadata = extendMetadata<
   {
-    heading: never
-    text: string
-    email: string
-    tel: string
-    select: string
-    checkbox: boolean | undefined
     textareaWithCounter: string
     /** The split-payment ledger container (a repeatable ordered choice): never holds a value of its own. */
     splitPayment: never
     /** A hidden vehicle field: never rendered as an input, only ever as its own validation error (the coverage banner). */
     splitPaymentCoverage: never
+    email: string
+    tel: string
+    /** A value-less informational paragraph, e.g. the inert-payment notice next to a branch's own fields. */
+    disclaimer: never
   },
   {
-    description?: string
-    placeholder?: string
-    options?: { key: string, value: string }[]
-    fullWidth?: boolean
-    disabled?: boolean
-    hide?: boolean
     /** Shown next to a choice branch's own fields; the branch that carries this flag is demo-only and collects no real payment data. */
     inertPaymentDisclaimer?: boolean
   },
   object,
   {
-    showRequiredOrOptional?: 'optional' | 'required'
     /** The order total the split-payment ledger reconciles against. */
     orderTotal?: number
   }
 >();
 // #endregion template-metadata-contract
 
-/**
- * A field is pristine until it has been touched once; after that it is either invalid (an
- * error message is showing) or valid. Drives both a data attribute (deterministic to assert
- * against) and the subtle "valid" border, which no reused input component carries today.
- */
-function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: boolean): 'pristine' | 'invalid' | 'valid' {
-  if (hasError)
-    return 'invalid';
-  if (meta.touched && meta.valid)
-    return 'valid';
-  return 'pristine';
+// Explicitly typed (rather than inlined in the template): `.map()`'s callback parameter does
+// not get inferred from a choice branch array reached through this many layers of generics, and
+// would otherwise come out implicitly `any`.
+function toChoiceOptions(choice: Metadata['choice']) {
+  return (choice ?? []).map(x => ({ value: x.name ?? '', title: toValue(x.fieldOptions?.label), description: x.description }));
+}
+
+function toBranchShapes(choice: Metadata['choice']): SplitPaymentBranchShape[] {
+  return (choice ?? []).map(x => ({ name: x.name ?? '', coversRemainder: !x.children?.some(child => child.name === 'amount') }));
 }
 </script>
 
 <template>
-  <DynamicFormTemplate :metadata-configuration="metadata">
-    <!--
-      Every group/parent node in this template carries an explicit type: 'heading', including a
-      choice branch that intentionally has no children (an inert branch, e.g. a redirect-only
-      payment method): gating on children length here means such a branch renders nothing beyond
-      its own picker entry, never a dangling empty card.
-    -->
-    <template #heading="{ fieldMetadata, fieldContext: { errorMessage, label } }">
-      <SectionCard
-        v-if="fieldMetadata.children?.length"
-        v-show="!fieldMetadata.hide"
-        class="md:col-span-2"
-        :label
-        :description="fieldMetadata.description"
-        :error-message="errorMessage.value"
-        :dataTestid="fieldMetadata.path"
-      >
-        <slot />
-      </SectionCard>
+  <StarterFormTemplate :metadataConfiguration="metadata">
+    <!-- Hands the engine's field and attribute renders to the built-in chrome. -->
+    <template #input="s">
+      <slot v-bind="s" />
     </template>
-
-    <template #heading-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, addChoiceOccurrence, removeChoiceOccurrence, activeChoiceOccurrences }">
-      <ChoiceSectionCard
-        v-show="!fieldMetadata.hide"
-        class="md:col-span-2"
-        :label
-        :description="fieldMetadata.description"
-        :errorMessage="errorMessage.value"
-        :dataTestid="fieldMetadata.path"
-        :options="fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description }))"
-        :activeChoiceOccurrences
-        :addChoiceOccurrence
-        :disabled
-        :removeChoiceOccurrence
-      >
-        <slot />
-      </ChoiceSectionCard>
+    <template #attributes="s">
+      <slot name="attributes" v-bind="s" />
     </template>
 
     <template #splitPayment-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences, settings: { orderTotal } }">
@@ -115,13 +66,13 @@ function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: b
         :description="fieldMetadata.description"
         :error-message="errorMessage.value"
         :dataTestid="fieldMetadata.path"
-        :options="fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description }))"
+        :options="toChoiceOptions(fieldMetadata.choice)"
         :addChoiceOccurrence
         :canAddChoiceOccurrence
         :usedChoiceOccurrences
         :maxOccurs="fieldMetadata.maxOccurs"
         :splitPaymentPath="fieldMetadata.path ?? ''"
-        :branches="fieldMetadata.choice.map(x => ({ name: x.name ?? '', coversRemainder: !x.children?.some(child => child.name === 'amount') }))"
+        :branches="toBranchShapes(fieldMetadata.choice)"
         :orderTotal="orderTotal ?? 0"
       >
         <slot />
@@ -132,7 +83,7 @@ function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: b
       <SplitPaymentLedgerRow
         :path="fieldMetadata.path ?? ''"
         :splitPaymentPath="fieldMetadata.parent?.path ?? ''"
-        :branches="(fieldMetadata.parent?.choice ?? []).map(x => ({ name: x.name ?? '', coversRemainder: !x.children?.some(child => child.name === 'amount') }))"
+        :branches="toBranchShapes(fieldMetadata.parent?.choice)"
         :branchKey
         :index
         :globalIndex
@@ -158,117 +109,17 @@ function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: b
       </div>
     </template>
 
-    <!-- Fallback for a choice whose own type never matches a dedicated '<type>-choice' slot; unused by this story's shapes but kept so a future choice type falls back the same way AdvancedFormTemplate's does. -->
-    <template #default-choice="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, settings: { showRequiredOrOptional } }">
-      <ChoiceField
+    <!-- A value-less leaf: the same trick as the coverage banner above, but for a static notice
+    rather than a validation message. Keeps the inert-payment copy out of the shared group chrome. -->
+    <template #disclaimer="{ fieldMetadata }">
+      <p
         v-show="!fieldMetadata.hide"
-        :label
-        :description="fieldMetadata.description"
-        :required
-        :show-required-or-optional
-        :disabled="fieldMetadata.disabled || disabled"
-        :error-message="errorMessage.value"
-        :dataTestid="fieldMetadata.path"
+        class="md:col-span-2 flex gap-2 items-start text-xs text-slate-500 dark:text-slate-400 border-l-2 border-slate-300 dark:border-slate-600 pl-3"
+        :data-testid="fieldMetadata.path"
       >
-        <slot />
-      </ChoiceField>
-    </template>
-
-    <template #checkbox="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, settings: { showRequiredOrOptional } }">
-      <CheckboxField
-        v-show="!fieldMetadata.hide"
-        :input-id="fieldMetadata.path"
-        :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
-        :label
-        :description="fieldMetadata.description"
-        :required
-        :show-required-or-optional
-        :disabled="fieldMetadata.disabled || disabled"
-        :error-message="errorMessage.value"
-        :dataTestid="fieldMetadata.path"
-      >
-        <slot />
-      </CheckboxField>
-    </template>
-
-    <template #checkbox-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange, errorMessage }, disabled }">
-      <ToggleSwitch
-        :id="fieldMetadata.path"
-        :dataTestid="`${fieldMetadata.path}-input`"
-        :checked="value.value"
-        :disabled="fieldMetadata.disabled || disabled"
-        :errorMessage="errorMessage.value"
-        @change="handleChange"
-        @blur="handleBlur"
-      />
-    </template>
-
-    <!-- Every leaf field (text/email/tel/select/textareaWithCounter) reaches here; a group node always declares type: 'heading' instead, so children.length is never set on this path. -->
-    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, settings: { showRequiredOrOptional } }">
-      <GroupField
-        v-if="fieldMetadata.children?.length"
-        v-show="!fieldMetadata.hide"
-        class="md:col-span-2"
-        :label
-        :description="fieldMetadata.description"
-        :required
-        :show-required-or-optional
-        :disabled="fieldMetadata.disabled || disabled"
-        :error-message="errorMessage.value"
-        :dataTestid="fieldMetadata.path"
-      >
-        <p v-if="fieldMetadata.inertPaymentDisclaimer" class="md:col-span-2 flex gap-2 items-start text-xs text-slate-500 dark:text-slate-400 border-l-2 border-slate-300 dark:border-slate-600 pl-3">
-          <span>🔒</span>
-          <span>These fields are <strong>inert demo inputs</strong>. They collect no real payment data and are not a payment integration.</span>
-        </p>
-        <slot />
-      </GroupField>
-      <FormField
-        v-else
-        v-show="!fieldMetadata.hide"
-        :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
-        :disabled="fieldMetadata.disabled || disabled"
-        :input-id="fieldMetadata.path"
-        :dataTestid="fieldMetadata.path"
-        :description="fieldMetadata.description"
-        :label
-        :required
-        :show-required-or-optional
-        :errorMessage="errorMessage.value"
-      >
-        <slot />
-      </FormField>
-    </template>
-
-    <template #default-input="{ fieldMetadata, fieldContext: { value, meta, handleBlur, handleChange, errorMessage }, disabled }">
-      <TextInput
-        :id="fieldMetadata.path"
-        :dataTestid="`${fieldMetadata.path}-input`"
-        :type="fieldMetadata.type"
-        :value="value.value"
-        :disabled="fieldMetadata.disabled || disabled"
-        :errorMessage="errorMessage.value"
-        :placeholder="fieldMetadata.placeholder"
-        :data-field-state="inputFieldState(meta, !!errorMessage.value)"
-        :class="{ '!border-[color:var(--vp-c-success-3)]': inputFieldState(meta, !!errorMessage.value) === 'valid' }"
-        @input="handleChange"
-        @blur="handleBlur"
-      />
-    </template>
-
-    <template #select-input="{ fieldMetadata, fieldContext: { value, meta, handleBlur, handleChange, errorMessage }, disabled }">
-      <SelectInput
-        :id="fieldMetadata.path"
-        :dataTestid="`${fieldMetadata.path}-input`"
-        :value="value.value"
-        :options="fieldMetadata.options"
-        :disabled="fieldMetadata.disabled || disabled"
-        :errorMessage="errorMessage.value"
-        :data-field-state="inputFieldState(meta, !!errorMessage.value)"
-        :class="{ '!border-[color:var(--vp-c-success-3)]': inputFieldState(meta, !!errorMessage.value) === 'valid' }"
-        @change="handleChange"
-        @blur="handleBlur"
-      />
+        <span>🔒</span>
+        <span>These fields are <strong>inert demo inputs</strong>. They collect no real payment data and are not a payment integration.</span>
+      </p>
     </template>
 
     <template #textareaWithCounter-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange, errorMessage }, disabled }">
@@ -284,5 +135,5 @@ function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: b
         @blur="handleBlur"
       />
     </template>
-  </DynamicFormTemplate>
+  </StarterFormTemplate>
 </template>

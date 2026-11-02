@@ -352,6 +352,26 @@
   border-color: var(--sft-danger-focus-border);
   box-shadow: 0 0 0 2px var(--sft-danger-ring);
 }
+/* opt-in via the showValidState setting: a touched, valid field gets a subtle success border */
+.sft-input.is-valid,
+.sft-select.is-valid {
+  border-color: var(--sft-success);
+}
+
+/* ---- input suffix (e.g. a unit label) -------------------------------- */
+.sft-input-suffix-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sft-input-suffix-row > .sft-input-suffix-input {
+  flex: 1 1 auto;
+}
+.sft-input-suffix {
+  font-size: 14px;
+  color: var(--sft-text-muted);
+  white-space: nowrap;
+}
 
 /* password */
 .sft-password {
@@ -719,8 +739,12 @@
     box-shadow 0.15s ease,
     background 0.15s ease;
 }
-.sft-choice-card:hover {
+.sft-choice-card:not(.is-disabled):hover {
   border-color: var(--sft-choice-border-hover);
+}
+.sft-choice-card.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 .sft-choice-card:focus-visible {
   outline: none;
@@ -936,6 +960,17 @@
   font-weight: 600;
   color: var(--sft-text);
 }
+/* error state overrides is-done/is-current, placed after both so it always wins */
+.sft-step.is-error .sft-step-dot {
+  background: var(--sft-danger-border);
+  color: #fff;
+}
+.sft-step.is-current.is-error .sft-step-dot {
+  box-shadow: 0 0 0 4px var(--sft-danger-ring);
+}
+.sft-step.is-error .sft-step-label {
+  color: var(--sft-danger-text);
+}
 @media (max-width: 640px) {
   .sft-step-label {
     display: none;
@@ -955,11 +990,24 @@
   background: #10b981;
 }
 
+.sft-wizard-alert {
+  margin-top: 32px;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  border: 1px solid var(--sft-danger-soft-border);
+  background: var(--sft-danger-soft-bg);
+  color: var(--sft-danger-soft-text);
+}
 .sft-wizard-footer {
   margin-top: 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+/* the alert above already carries its own top margin, so the footer needs less of its own */
+.sft-wizard-footer.is-tight {
+  margin-top: 16px;
 }
 /* the back button carries wider horizontal padding than the default button chrome */
 .sft-wizard-back {

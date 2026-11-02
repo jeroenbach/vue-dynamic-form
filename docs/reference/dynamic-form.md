@@ -128,7 +128,7 @@ Defaults to `false` to stay consistent with vee-validate's out-of-the-box behavi
 :::
 
 ::: info Aggregate validity of groups, choices, and arrays stays live
-The timing settings above control when validation *errors are shown* for input fields. A container's own aggregate validity (the `meta.valid` of a group, choice, or array node) is kept current independently of them: whenever a value anywhere underneath the container changes, the engine re-checks the container silently, updating `meta.valid` without surfacing an error message. A template that reads `meta.valid` on a container (for example to enable a submit button) therefore always sees an up-to-date value, even with `validateOnValueUpdate: false`.
+The timing settings above control when validation _errors are shown_ for input fields. A container's own aggregate validity (the `meta.valid` of a group, choice, or array node) is kept current independently of them: whenever a value anywhere underneath the container changes, the engine re-checks the container silently, updating `meta.valid` without surfacing an error message. A template that reads `meta.valid` on a container (for example to enable a submit button) therefore always sees an up-to-date value, even with `validateOnValueUpdate: false`.
 :::
 
 #### `validateOnBlur`

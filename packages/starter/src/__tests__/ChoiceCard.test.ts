@@ -17,4 +17,15 @@ describe('component ChoiceCard', () => {
 
     expect(wrapper.emitted('select')).toHaveLength(1);
   });
+
+  it('blocks select and dims the card when disabled', async () => {
+    const wrapper = mount(ChoiceCard, { props: { title: 'Alpha', disabled: true } });
+
+    expect(wrapper.attributes('disabled')).toBeDefined();
+    expect(wrapper.classes()).toContain('is-disabled');
+
+    await wrapper.trigger('click');
+
+    expect(wrapper.emitted('select')).toBeUndefined();
+  });
 });

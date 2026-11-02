@@ -333,7 +333,7 @@ const metadata: Metadata[] = [
             fullWidth: true,
             fieldOptions: { label: 'Custom API' },
             description: 'An in-house system we reach through a custom endpoint.',
-            iconName: 'bolt',
+            iconName: 'zap',
             children: [
               {
                 name: 'url',

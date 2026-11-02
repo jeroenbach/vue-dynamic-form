@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
-import AppButton from './AppButton.vue';
+import { AppButton } from '@bach.software/vue-dynamic-form-starter';
 import ErrorMessage from './ErrorMessage.vue';
 import OptionalRequiredTag from './OptionalRequiredTag.vue';
 

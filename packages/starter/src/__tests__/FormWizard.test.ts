@@ -58,4 +58,47 @@ describe('component FormWizard', () => {
     expect(submit.attributes('type')).toBe('submit');
     expect(submit.attributes('data-testid')).toBeUndefined();
   });
+
+  it('shows no error alert and an enabled submit button when no step has errors', () => {
+    const wrapper = mount(FormWizard, {
+      props: { ...baseProps, isLast: true, steps: [{ title: 'One' }, { title: 'Two' }] },
+    });
+
+    expect(wrapper.find('.sft-wizard-alert').exists()).toBe(false);
+    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeUndefined();
+  });
+
+  it('shows the error alert and disables the submit button on the last step when a step has errors', () => {
+    const wrapper = mount(FormWizard, {
+      props: { ...baseProps, isLast: true, steps: [{ title: 'One', hasError: true }, { title: 'Two' }] },
+    });
+
+    const alert = wrapper.find('.sft-wizard-alert');
+    expect(alert.attributes('role')).toBe('alert');
+    expect(alert.text()).toBe('Some steps still contain errors. Fix the steps marked in red before submitting.');
+    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined();
+  });
+
+  it('takes the error alert text from the stepErrorsText prop and derives its data-testid from dataTestid', () => {
+    const wrapper = mount(FormWizard, {
+      props: {
+        ...baseProps,
+        isLast: true,
+        dataTestid: 'wizard',
+        steps: [{ title: 'One', hasError: true }],
+        stepErrorsText: 'Fix the red steps first.',
+      },
+    });
+
+    const alert = wrapper.find('[data-testid="wizard-step-errors-message"]');
+    expect(alert.text()).toBe('Fix the red steps first.');
+  });
+
+  it('shows no error alert on a step before the last one, even when a step has errors', () => {
+    const wrapper = mount(FormWizard, {
+      props: { ...baseProps, isLast: false, steps: [{ title: 'One', hasError: true }, { title: 'Two' }] },
+    });
+
+    expect(wrapper.find('.sft-wizard-alert').exists()).toBe(false);
+  });
 });

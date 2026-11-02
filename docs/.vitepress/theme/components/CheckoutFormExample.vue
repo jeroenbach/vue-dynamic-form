@@ -204,6 +204,7 @@ const canSubmit = computed(() => meta.value.valid);
 // shipping-inclusive total, which changes live with the shipping method.
 const settings = computed<DynamicFormSettings>(() => ({
   orderTotal: total.value,
+  showValidState: true,
   messages: MESSAGES,
 }));
 
@@ -305,6 +306,8 @@ const metadata: Metadata[] = [
                 fieldOptions: { label: '🏠 Home delivery' },
                 description: `1 to 3 business days, ${HOME_DELIVERY_FEE.toFixed(2)}`,
                 presenceValue: true,
+                // No fields of its own, so there is nothing to show once selected.
+                hide: true,
               },
               {
                 name: 'pickup',
@@ -323,12 +326,13 @@ const metadata: Metadata[] = [
             fieldOptions: { label: 'How would you like to pay?' },
             explicitChoiceSelection: true,
             // While split payment is active this choice is disabled and deselected, so the two
-            // payment paths never compete: maxOccurs 0 is the engine's own disable switch (it
-            // stands down the choice's validation and disables every field beneath it), and the
-            // template deselects a disabled choice, which also clears a previously chosen
-            // method out of the order values.
+            // payment paths never compete: minOccurs 0 stands the choice's own required check
+            // down (coverage comes from splitPaymentCoverage instead), disabled grays out the
+            // picker, and the starter chrome deselects a disabled choice on its own, which also
+            // clears a previously chosen method out of the order values.
             computedProps: [(thisField) => {
-              thisField.maxOccurs = splitPaymentActive.value ? 0 : 1;
+              thisField.minOccurs = splitPaymentActive.value ? 0 : 1;
+              thisField.disabled = splitPaymentActive.value;
             }],
             // #region payment-choice
             choice: [
@@ -337,6 +341,7 @@ const metadata: Metadata[] = [
                 fieldOptions: { label: '💳 Card' },
                 inertPaymentDisclaimer: true,
                 children: [
+                  { name: 'disclaimer', type: 'disclaimer' },
                   { name: 'cardNumber', fieldOptions: { label: 'Card number' }, placeholder: '1234 5678 9012 3456', fullWidth: true },
                   { name: 'expiry', fieldOptions: { label: 'Expiry' }, placeholder: 'MM / YY' },
                   { name: 'cvc', fieldOptions: { label: 'CVC' }, placeholder: '123' },
@@ -347,6 +352,7 @@ const metadata: Metadata[] = [
                 fieldOptions: { label: 'iDEAL' },
                 inertPaymentDisclaimer: true,
                 children: [
+                  { name: 'disclaimer', type: 'disclaimer' },
                   { name: 'bank', type: 'select', fieldOptions: { label: 'Your bank' }, fullWidth: true, options: BANK_OPTIONS, restriction: { enumeration: BANK_OPTIONS.map(option => option.key) } },
                 ],
               },
@@ -355,6 +361,8 @@ const metadata: Metadata[] = [
                 type: 'heading',
                 fieldOptions: { label: 'PayPal' },
                 presenceValue: true,
+                // No fields of its own, so there is nothing to show once selected.
+                hide: true,
               },
               {
                 name: 'klarna',

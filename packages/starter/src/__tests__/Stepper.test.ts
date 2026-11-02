@@ -29,4 +29,24 @@ describe('component Stepper', () => {
 
     expect(wrapper.findAll('button').every(button => button.attributes('disabled') === undefined)).toBe(true);
   });
+
+  it('renders a step with errors in red, with the "!" marker, aria-invalid, and the aria-label suffix', () => {
+    const erroredSteps = [{ title: 'One', hasError: true }, { title: 'Two' }];
+    const wrapper = mount(Stepper, { props: { steps: erroredSteps, currentStep: 0 } });
+
+    const button = wrapper.findAll('button')[0];
+    expect(button.classes()).toContain('is-error');
+    expect(button.attributes('aria-invalid')).toBe('true');
+    expect(button.attributes('aria-label')).toBe('Step 1: One (contains errors)');
+    expect(button.find('.sft-step-dot > span[aria-hidden="true"]').text()).toBe('!');
+  });
+
+  it('renders no error state and no aria-invalid for a step without errors', () => {
+    const wrapper = mount(Stepper, { props: { steps, currentStep: 1 } });
+
+    const button = wrapper.findAll('button')[1];
+    expect(button.classes()).not.toContain('is-error');
+    expect(button.attributes('aria-invalid')).toBeUndefined();
+    expect(button.attributes('aria-label')).toBe('Step 2: Two');
+  });
 });

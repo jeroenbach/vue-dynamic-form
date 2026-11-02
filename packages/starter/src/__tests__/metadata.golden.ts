@@ -31,6 +31,7 @@ export interface GoldenFieldProperties {
   iconName?: string
   dependentOnMessage?: string
   placeholder?: string
+  suffix?: string
   options?: { key: string, value: string }[]
   fullWidth?: boolean
   disabled?: boolean
@@ -49,6 +50,7 @@ export interface GoldenFieldProperties {
   stepText?: string
   stepperAriaLabel?: string
   stepAriaLabel?: string
+  stepErrorsText?: string
 }
 
 /** Independently written slot properties of the built-in catalogue. */
@@ -60,6 +62,7 @@ export interface GoldenSlotProperties {
 export interface GoldenSettingsProperties {
   showRequiredOrOptional?: 'optional' | 'required'
   optionalText?: string
+  showValidState?: boolean
 }
 
 type IsEqual<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;

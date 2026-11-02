@@ -23,6 +23,9 @@ importers:
       '@vee-validate/rules':
         specifier: ^4.15.1
         version: 4.15.1(vue@3.5.18(typescript@5.9.2))
+      '@vue/shared':
+        specifier: 3.5.18
+        version: 3.5.18
       element-plus:
         specifier: 2.14.2
         version: 2.14.2(vue@3.5.18(typescript@5.9.2))

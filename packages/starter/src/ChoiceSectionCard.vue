@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { StarterIconName } from '@/icons';
 import type { Props as SectionCardProps } from '@/SectionCard.vue';
-import { computed, toValue } from 'vue';
+import { computed, toValue, watch } from 'vue';
 import ChoiceCard from '@/ChoiceCard.vue';
 import SectionCard from '@/SectionCard.vue';
 import StarterIcon from '@/StarterIcon.vue';
@@ -37,10 +37,23 @@ export interface Props extends /* @vue-ignore */ SectionCardProps {
   addChoiceOccurrence?: (branchKey: string) => void
   /** Aria label of the radiogroup when no label is given. */
   ariaLabel?: string
+  /** Grays out the option cards and blocks selection. */
+  disabled?: boolean
+  /** Deselects a branch; used below to clear the selection when the choice becomes disabled. */
+  removeChoiceOccurrence?: (branchKey: string, index?: number) => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
   ariaLabel: 'Choose an option',
+});
+
+// Without this, a branch picked before the choice was disabled would keep its value even
+// though the user can no longer see or change it.
+watch(() => props.disabled, (isDisabled) => {
+  if (!isDisabled || !props.removeChoiceOccurrence)
+    return;
+  for (const occurrence of props.activeChoiceOccurrences ?? [])
+    props.removeChoiceOccurrence(occurrence.branchKey, occurrence.index);
 });
 
 const gridCols = computed(() => {
@@ -80,6 +93,7 @@ function isActive(value: string): boolean {
         :title="option.title"
         :description="option.description"
         :selected="isActive(option.value)"
+        :disabled="disabled"
         @select="addChoiceOccurrence?.(option.value)"
       >
         <template v-if="option.icon" #icon>

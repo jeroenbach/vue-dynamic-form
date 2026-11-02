@@ -23,6 +23,8 @@ interface Props {
   submitButton?: string
   /** Progress line above the footer buttons; `{current}` and `{total}` are replaced by the step numbers. */
   stepText?: string
+  /** Shown above the footer on the last step when any step has errors; blocks explanation of why submit is disabled. */
+  stepErrorsText?: string
   stepperAriaLabel?: string
   stepAriaLabel?: string
   dataTestid?: string
@@ -33,8 +35,10 @@ const props = withDefaults(defineProps<Props>(), {
   prevButton: 'Back',
   submitButton: 'Submit',
   stepText: 'Step {current} of {total}',
+  stepErrorsText: 'Some steps still contain errors. Fix the steps marked in red before submitting.',
 });
 const currentStep = computed(() => props.steps?.[props.currentStepIndex]);
+const hasStepErrors = computed(() => props.steps?.some(step => step.hasError) ?? false);
 const helperText = computed(() => {
   const progress = props.stepText
     .replace('{current}', String(props.currentStepIndex + 1))
@@ -67,7 +71,16 @@ const helperText = computed(() => {
       <slot />
     </main>
 
-    <footer class="sft-wizard-footer">
+    <p
+      v-if="isLast && hasStepErrors"
+      role="alert"
+      class="sft-wizard-alert"
+      :data-testid="dataTestid ? `${dataTestid}-step-errors-message` : undefined"
+    >
+      {{ stepErrorsText }}
+    </p>
+
+    <footer class="sft-wizard-footer" :class="{ 'is-tight': isLast && hasStepErrors }">
       <AppButton
         type="button"
         class="sft-wizard-back"
@@ -87,6 +100,7 @@ const helperText = computed(() => {
         v-if="isLast"
         variant="primary"
         type="submit"
+        :disabled="hasStepErrors"
         :dataTestid="dataTestid ? `${dataTestid}-submit-button` : undefined"
       >
         {{ submitButton }}

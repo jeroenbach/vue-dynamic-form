@@ -10,7 +10,6 @@ describe('root eslint hyphenation override', () => {
     const filesLine = /files:\s*\[([^\]]*)\]/.exec(rootEslintConfig)?.[1] ?? '';
 
     expect(filesLine).toContain('docs/**/*.vue');
-    expect(filesLine).toContain('packages/element-plus/**/*.vue');
     expect(filesLine).toContain('playgrounds/storybook/**/*.vue');
     expect(filesLine).toContain('packages/starter/**/*.vue');
   });

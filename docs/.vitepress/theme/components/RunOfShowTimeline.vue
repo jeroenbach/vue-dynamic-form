@@ -1,9 +1,9 @@
 <script lang="ts" setup>
+import type { ChoiceOption } from '@bach.software/vue-dynamic-form-starter';
 import type { MaybeRefOrGetter } from 'vue';
-import type { ChoiceOption } from './ChoiceSectionCard.vue';
 import type { ProgramBranchShape } from './runOfShowMath';
+import { ChoiceArraySectionCard } from '@bach.software/vue-dynamic-form-starter';
 import { computed } from 'vue';
-import ChoiceArraySectionCard from './ChoiceArraySectionCard.vue';
 
 /**
  * The program container: the add-item toolbar and the choice-level budget tag (via

@@ -12,8 +12,8 @@ import FormExampleProjectFields from './components/FormExampleProjectFields.vue'
 import FormExampleValidation from './components/FormExampleValidation.vue';
 import FormExampleWizard from './components/FormExampleWizard.vue';
 import InboxRulesExample from './components/InboxRulesExample.vue';
-import WorkoutPlanExample from './components/WorkoutPlanExample.vue';
 import RunOfShowExample from './components/RunOfShowExample.vue';
+import WorkoutPlanExample from './components/WorkoutPlanExample.vue';
 import FormExampleClientOnboardingPlannerContext from './context/FormExampleClientOnboardingPlannerContext.vue';
 import FormExampleDynamicFieldsContext from './context/FormExampleDynamicFieldsContext.vue';
 // The starter package's stylesheet is pulled in from custom.css (as a layered @import), not

@@ -187,5 +187,8 @@ Caveats:
 | `StarterIconName`, `starterIconNames`                                                     | the registry's name union and ordered list                                |
 | `SubmissionSuccess`                                                                       | component, a standalone post-submit screen (with its `TimelineItem` type) |
 | `ReviewGroup`                                                                             | component, a standalone wizard-review card (with its props type)          |
+| `AppButton`                                                                               | component, a standalone button (with its `AppButtonProps` type)           |
+| `ChoiceArraySectionCard`                                                                  | component, a standalone repeatable choice section card                    |
+| `ChoiceOption`                                                                            | type, the option shape `ChoiceSectionCard`/`ChoiceArraySectionCard` take  |
 | `FieldMetadata`, `GetMetadataType`, `GetDynamicFormSettingsType`, `MetadataConfiguration` | types re-exported from the core package                                   |
 | `@bach.software/vue-dynamic-form-starter/style.css`                                       | the stylesheet                                                            |

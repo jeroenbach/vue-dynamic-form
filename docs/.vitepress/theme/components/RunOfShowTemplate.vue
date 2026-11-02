@@ -1,64 +1,38 @@
 <script lang="ts" setup>
 import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
-import { defineMetadata, DynamicFormTemplate } from '@bach.software/vue-dynamic-form';
+import { extendMetadata, StarterFormTemplate } from '@bach.software/vue-dynamic-form-starter';
 import { toValue } from 'vue';
-import FormField from './FormField.vue';
 import RunOfShowRow from './RunOfShowRow.vue';
 import RunOfShowTimeline from './RunOfShowTimeline.vue';
-import SelectInput from './SelectInput.vue';
-import TextInput from './TextInput.vue';
-import ToggleSwitch from './ToggleSwitch.vue';
 
 // #region template-metadata-contract
 export type Metadata = GetMetadataType<typeof metadata>;
 
 export type DynamicFormSettings = GetDynamicFormSettingsType<typeof metadata>;
 
-const metadata = defineMetadata<
-  {
-    /** The schedule-anchors card: a group wrapper, never a value of its own. */
-    scheduleAnchors: never
-    /** A native `<input type="time">` leaf; always a 24-hour `HH:MM` string. */
-    time: string
-    text: string
-    select: string
-    checkbox: boolean | undefined
-    /** The program choice container and every one of its six branches: never a value of their own. */
-    program: never
-    /** The hidden curfew-check vehicle leaf: carries no value, exists only to hold validation. */
-    curfew: never
-  },
-  {
-    description?: string
-    placeholder?: string
-    options?: { key: string, value: string }[]
-    fullWidth?: boolean
-    disabled?: boolean
-    hide?: boolean
-  },
-  object,
-  {
-    showRequiredOrOptional?: 'optional' | 'required'
-  }
->();
+const metadata = extendMetadata<{
+  /** The schedule-anchors card: a group wrapper, never a value of its own. */
+  scheduleAnchors: never
+  /** A native `<input type="time">` leaf; always a 24-hour `HH:MM` string. */
+  time: string
+  /** The program choice container and every one of its six branches: never a value of their own. */
+  program: never
+  /** The hidden curfew-check vehicle leaf: carries no value, exists only to hold validation. */
+  curfew: never
+}>();
 // #endregion template-metadata-contract
-
-/**
- * A field is pristine until it has been touched once; after that it is either invalid (an error
- * message is showing) or valid. Drives both a data attribute (deterministic to assert against)
- * and the subtle "valid" border, matching the checkout's own input-state convention.
- */
-function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: boolean): 'pristine' | 'invalid' | 'valid' {
-  if (hasError)
-    return 'invalid';
-  if (meta.touched && meta.valid)
-    return 'valid';
-  return 'pristine';
-}
 </script>
 
 <template>
-  <DynamicFormTemplate :metadata-configuration="metadata">
+  <StarterFormTemplate :metadataConfiguration="metadata">
+    <!-- Hands the engine's field and attribute renders to the built-in chrome. -->
+    <template #input="s">
+      <slot v-bind="s" />
+    </template>
+    <template #attributes="s">
+      <slot name="attributes" v-bind="s" />
+    </template>
+
     <!--
       The three schedule-anchor leaves are grouped under one wrapper purely so they can share one
       bordered card with a 3-up grid: the engine only produces one rendered element per group/
@@ -87,13 +61,13 @@ function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: b
         :description="fieldMetadata.description"
         :error-message="errorMessage.value"
         :dataTestid="fieldMetadata.path"
-        :options="fieldMetadata.choice.map(x => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description }))"
+        :options="fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description }))"
         :addChoiceOccurrence
         :canAddChoiceOccurrence
         :usedChoiceOccurrences
         :maxOccurs="fieldMetadata.maxOccurs"
         :programPath="fieldMetadata.path ?? ''"
-        :branches="fieldMetadata.choice.map(x => ({ name: x.name ?? '', amplifiedByDefault: x.name === 'band' || x.name === 'dance' }))"
+        :branches="fieldMetadata.choice.map((x: any) => ({ name: x.name ?? '', amplifiedByDefault: x.name === 'band' || x.name === 'dance' }))"
       >
         <slot />
       </RunOfShowTimeline>
@@ -103,7 +77,7 @@ function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: b
       <RunOfShowRow
         :path="fieldMetadata.path ?? ''"
         :programPath="fieldMetadata.parent?.path ?? ''"
-        :branches="(fieldMetadata.parent?.choice ?? []).map(x => ({ name: x.name ?? '', amplifiedByDefault: x.name === 'band' || x.name === 'dance' }))"
+        :branches="(fieldMetadata.parent?.choice ?? []).map((x: any) => ({ name: x.name ?? '', amplifiedByDefault: x.name === 'band' || x.name === 'dance' }))"
         :branchKey
         :index
         :globalIndex
@@ -121,78 +95,17 @@ function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: b
     <template #curfew />
     <!-- #endregion program-slots -->
 
-    <template #checkbox-input="{ fieldMetadata, fieldContext: { value, handleBlur, handleChange, errorMessage }, disabled }">
-      <ToggleSwitch
-        :id="fieldMetadata.path"
-        :dataTestid="`${fieldMetadata.path}-input`"
-        :checked="value.value"
-        :disabled="fieldMetadata.disabled || disabled"
-        :errorMessage="errorMessage.value"
-        @change="handleChange"
-        @blur="handleBlur"
-      />
-    </template>
-
-    <!-- A lightweight inline wrapper (toggle plus its own label), unlike CheckboxField's bordered
-    card: this page's one checkbox (a speech's on-the-mic flag) sits inline in its row's footer,
-    next to the reorder controls, not as a standalone field. -->
+    <!-- A lightweight inline wrapper (toggle plus its own label), unlike the starter's bordered
+    checkbox card: this page's one checkbox (a speech's on-the-mic flag) sits inline in its row's
+    footer, next to the reorder controls, not as a standalone field. The inner slot still renders
+    the starter's own toggle switch (via #checkbox-input), only the surrounding chrome changes. -->
     <template #checkbox="{ fieldMetadata, fieldContext: { label } }">
       <label v-show="!fieldMetadata.hide" class="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 sm:col-span-2" :data-testid="fieldMetadata.path">
         <slot />
         {{ label }}
       </label>
     </template>
-
-    <!-- Every leaf field here (text/time/select) reaches this fallback for its own field-level
-    wrapper; no other group node in this page's metadata uses the default slot. -->
-    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, settings: { showRequiredOrOptional } }">
-      <FormField
-        v-show="!fieldMetadata.hide"
-        :class="{ 'md:col-span-2': fieldMetadata.fullWidth }"
-        :disabled="fieldMetadata.disabled || disabled"
-        :input-id="fieldMetadata.path"
-        :dataTestid="fieldMetadata.path"
-        :description="fieldMetadata.description"
-        :label
-        :required
-        :show-required-or-optional
-        :errorMessage="errorMessage.value"
-      >
-        <slot />
-      </FormField>
-    </template>
-
-    <template #default-input="{ fieldMetadata, fieldContext: { value, meta, handleBlur, handleChange, errorMessage }, disabled }">
-      <TextInput
-        :id="fieldMetadata.path"
-        :dataTestid="`${fieldMetadata.path}-input`"
-        :type="fieldMetadata.type"
-        :value="value.value"
-        :disabled="fieldMetadata.disabled || disabled"
-        :errorMessage="errorMessage.value"
-        :placeholder="fieldMetadata.placeholder"
-        :data-field-state="inputFieldState(meta, !!errorMessage.value)"
-        :class="{ '!border-[color:var(--vp-c-success-3)]': inputFieldState(meta, !!errorMessage.value) === 'valid' }"
-        @input="handleChange"
-        @blur="handleBlur"
-      />
-    </template>
-
-    <template #select-input="{ fieldMetadata, fieldContext: { value, meta, handleBlur, handleChange, errorMessage }, disabled }">
-      <SelectInput
-        :id="fieldMetadata.path"
-        :dataTestid="`${fieldMetadata.path}-input`"
-        :value="value.value"
-        :options="fieldMetadata.options"
-        :disabled="fieldMetadata.disabled || disabled"
-        :errorMessage="errorMessage.value"
-        :data-field-state="inputFieldState(meta, !!errorMessage.value)"
-        :class="{ '!border-[color:var(--vp-c-success-3)]': inputFieldState(meta, !!errorMessage.value) === 'valid' }"
-        @change="handleChange"
-        @blur="handleBlur"
-      />
-    </template>
-  </DynamicFormTemplate>
+  </StarterFormTemplate>
 </template>
 
 <style scoped>

@@ -5,6 +5,8 @@ import type {
   MetadataConfiguration,
 } from '@bach.software/vue-dynamic-form';
 import type {
+  AppButtonProps,
+  ChoiceOption,
   FieldMetadata as FromStarterFieldMetadata,
   GetDynamicFormSettingsType as FromStarterGetDynamicFormSettingsType,
   GetMetadataType as FromStarterGetMetadataType,
@@ -21,12 +23,16 @@ import { starterMetadata as starterMetadataFromModule } from '@/metadata';
 type Config = typeof api.starterMetadata;
 
 describe('package entry', () => {
-  it('exports exactly the seven runtime values the architecture lists', () => {
+  it('exports exactly the nine runtime values the architecture lists', () => {
     expect(api.StarterFormTemplate).toBeDefined();
     expect(api.StarterIcon).toBeDefined();
     expect(api.ReviewGroup).toBeDefined();
     expect(api.SubmissionSuccess).toBeDefined();
+    expect(api.AppButton).toBeDefined();
+    expect(api.ChoiceArraySectionCard).toBeDefined();
     expect(Object.keys(api).sort()).toEqual([
+      'AppButton',
+      'ChoiceArraySectionCard',
       'ReviewGroup',
       'StarterFormTemplate',
       'StarterIcon',
@@ -49,6 +55,14 @@ describe('package entry', () => {
 
     const item: TimelineItem = { id: 'a', label: 'Received', status: 'done' };
     expect(item.status).toBe('done');
+  });
+
+  it('types AppButton props and the ChoiceOption shape', () => {
+    const buttonProps: AppButtonProps = { variant: 'primary' };
+    expect(buttonProps.variant).toBe('primary');
+
+    const option: ChoiceOption = { value: 'card', title: 'Card' };
+    expect(option.value).toBe('card');
   });
 
   it('re-exports the convenience types from the core package', () => {

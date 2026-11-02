@@ -3,6 +3,7 @@ export interface Props {
   title?: string
   description?: string
   selected?: boolean
+  disabled?: boolean
   dataTestid?: string
 }
 
@@ -16,8 +17,9 @@ defineEmits<{ select: [] }>();
     role="radio"
     :data-testid="dataTestid"
     :aria-checked="selected"
+    :disabled="disabled"
     class="sft-choice-card"
-    :class="{ 'is-selected': selected }"
+    :class="{ 'is-selected': selected, 'is-disabled': disabled }"
     @click="$emit('select')"
   >
     <div class="sft-choice-body">

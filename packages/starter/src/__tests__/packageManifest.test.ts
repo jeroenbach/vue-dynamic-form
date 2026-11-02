@@ -38,8 +38,9 @@ describe('package scaffold mirrors element-plus', () => {
     expect(manifest.private).toBe(true);
   });
 
-  it('shares the same exports map shape', () => {
-    expect(Object.keys(manifest.exports)).toEqual(Object.keys(elementPlusManifest.exports));
+  it('shares the same exports map shape, plus the shipped stylesheet', () => {
+    // The starter additionally ships its stylesheet as a subpath export; element-plus has none.
+    expect(Object.keys(manifest.exports)).toEqual(['.', './style.css']);
     expect(Object.keys(manifest.exports['.'])).toEqual(Object.keys(elementPlusManifest.exports['.']));
     expect(manifest.exports['./style.css']).toBe('./dist/style.css');
   });

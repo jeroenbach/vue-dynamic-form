@@ -5,7 +5,8 @@
 >
 import type { DynamicFormTemplate as _DynamicFormTemplate, MetadataConfiguration } from '@bach.software/vue-dynamic-form';
 import type { IconOverrideProps } from '@/iconOverride';
-import { DynamicFormTemplate } from '@bach.software/vue-dynamic-form';
+import { DynamicFormTemplate, isPathInSection } from '@bach.software/vue-dynamic-form';
+import { useFormErrors } from 'vee-validate';
 import { provide, toValue, useSlots } from 'vue';
 import ArrayField from '@/ArrayField.vue';
 import ArraySectionCard from '@/ArraySectionCard.vue';
@@ -51,6 +52,29 @@ const slots = useSlots();
 
 // The fallback markup is written against the built-in catalogue; the generic only widens the slot scopes consumers see.
 const metadata = (props.metadataConfiguration ?? starterMetadata) as typeof starterMetadata;
+
+// #region wizard-step-errors
+const formErrors = useFormErrors();
+
+// A wizard page is in error when any registered field at or under its path currently has a
+// validation error.
+function pageHasErrors(pagePath: string): boolean {
+  return Object.entries(formErrors.value).some(([path, message]) =>
+    !!message && isPathInSection(path, pagePath));
+}
+// #endregion wizard-step-errors
+
+// #region input-field-state
+// A field is pristine until touched once; after that it is either invalid (an error message
+// is showing) or valid.
+function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: boolean): 'pristine' | 'invalid' | 'valid' {
+  if (hasError)
+    return 'invalid';
+  if (meta.touched && meta.valid)
+    return 'valid';
+  return 'pristine';
+}
+// #endregion input-field-state
 
 // Only reachable when a consumer wraps this template in their own component and supplies
 // `#icon` there: `DynamicForm` never forwards its own `#icon` slot to a bare `:template` usage.
@@ -283,7 +307,9 @@ function passthroughSlotNames() {
           :options="s.fieldMetadata.choiceShowChoiceSelect ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
           :activeChoiceOccurrences="s.activeChoiceOccurrences"
           :addChoiceOccurrence="s.addChoiceOccurrence"
+          :removeChoiceOccurrence="s.removeChoiceOccurrence"
           :ariaLabel="s.fieldMetadata.choiceAriaLabel"
+          :disabled="s.fieldMetadata.disabled || s.disabled"
         >
           <slot name="input" :selectedOption v-bind="s.slotProps ?? {}">
             <slot :selectedOption v-bind="s.slotProps ?? {}" />
@@ -359,16 +385,42 @@ function passthroughSlotNames() {
       </slot>
     </template>
 
+    <!--
+      Passes the raw string from the input event instead of letting vee-validate's handleChange
+      read the native input's own value: a native number input hands handleChange a JS number
+      (valueAsNumber), which would store a number in the model instead of a string.
+    -->
     <template #default-input="s">
       <slot name="default-input" v-bind="s">
+        <div v-if="s.fieldMetadata.suffix" class="sft-input-suffix-row">
+          <TextInput
+            :id="s.fieldMetadata.path"
+            :dataTestid="`${s.fieldMetadata.path}-input`"
+            :value="s.fieldContext.value.value"
+            :type="s.fieldMetadata.type"
+            :disabled="s.fieldMetadata.disabled || s.disabled"
+            :errorMessage="s.fieldContext.errorMessage.value"
+            :placeholder="s.fieldMetadata.placeholder"
+            :data-field-state="s.settings.showValidState ? inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) : undefined"
+            :class="{ 'is-valid': s.settings.showValidState && inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) === 'valid' }"
+            class="sft-input-suffix-input"
+            @input="s.fieldContext.handleChange(($event.target as HTMLInputElement).value)"
+            @blur="s.fieldContext.handleBlur"
+          />
+          <span class="sft-input-suffix">{{ s.fieldMetadata.suffix }}</span>
+        </div>
         <TextInput
+          v-else
           :id="s.fieldMetadata.path"
           :dataTestid="`${s.fieldMetadata.path}-input`"
           :value="s.fieldContext.value.value"
+          :type="s.fieldMetadata.type"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :errorMessage="s.fieldContext.errorMessage.value"
           :placeholder="s.fieldMetadata.placeholder"
-          @input="s.fieldContext.handleChange"
+          :data-field-state="s.settings.showValidState ? inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) : undefined"
+          :class="{ 'is-valid': s.settings.showValidState && inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) === 'valid' }"
+          @input="s.fieldContext.handleChange(($event.target as HTMLInputElement).value)"
           @blur="s.fieldContext.handleBlur"
         />
       </slot>
@@ -384,6 +436,8 @@ function passthroughSlotNames() {
           :placeholder="s.fieldMetadata.placeholder"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :errorMessage="s.fieldContext.errorMessage.value"
+          :data-field-state="s.settings.showValidState ? inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) : undefined"
+          :class="{ 'is-valid': s.settings.showValidState && inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) === 'valid' }"
           @change="s.fieldContext.handleChange"
           @blur="s.fieldContext.handleBlur"
         />
@@ -415,6 +469,8 @@ function passthroughSlotNames() {
           :placeholder="s.fieldMetadata.placeholder"
           :showPasswordAriaLabel="s.fieldMetadata.showPasswordAriaLabel"
           :hidePasswordAriaLabel="s.fieldMetadata.hidePasswordAriaLabel"
+          :data-field-state="s.settings.showValidState ? inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) : undefined"
+          :class="{ 'is-valid': s.settings.showValidState && inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) === 'valid' }"
           @input="s.fieldContext.handleChange"
           @blur="s.fieldContext.handleBlur"
         />
@@ -433,7 +489,7 @@ function passthroughSlotNames() {
           :title="s.fieldContext.label"
           :subTitle="s.fieldMetadata.description"
           :dataTestid="s.fieldMetadata.path"
-          :steps="s.pages.map((page: any) => ({ title: toValue(page.fieldOptions?.label) ?? page.name, description: page.helpText }))"
+          :steps="s.pages.map((page: any) => ({ title: toValue(page.fieldOptions?.label) ?? page.name, description: page.helpText, hasError: pageHasErrors(page.path) }))"
           :currentStepIndex="s.currentStepIndex"
           :isFirst="s.isFirst"
           :isLast="s.isLast"
@@ -446,6 +502,7 @@ function passthroughSlotNames() {
           :prevButton="s.fieldMetadata.prevButtonText"
           :submitButton="s.fieldMetadata.submitButtonText"
           :stepText="s.fieldMetadata.stepText"
+          :stepErrorsText="s.fieldMetadata.stepErrorsText"
           :stepperAriaLabel="s.fieldMetadata.stepperAriaLabel"
           :stepAriaLabel="s.fieldMetadata.stepAriaLabel"
         >

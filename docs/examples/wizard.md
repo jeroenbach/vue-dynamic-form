@@ -47,7 +47,7 @@ A non-linear wizard lets the user walk past invalid steps, so the stepper double
 
 The engine does not track per-step validity; the template derives it. Each page in the `pages` slot prop carries its `path`, and vee-validate exposes all current errors keyed by field path via `useFormErrors()`, so the template marks a step as erroneous when any error path falls at or under the page's path (the exported `isPathInSection` helper does that matching, the same one `validateSection` uses internally):
 
-<<< @/.vitepress/theme/components/AdvancedFormTemplate.vue#wizard-step-errors{ts} [AdvancedFormTemplate.vue]
+<<< @/../packages/starter/src/StarterFormTemplate.vue#wizard-step-errors{ts} [StarterFormTemplate.vue]
 
 Errors only exist once a field has been validated, so steps turn red exactly as validation surfaces them: when `next()` or a forward jump validates the page being left, or when a submit attempt validates the whole form. A not-yet-visited step is never falsely red, and a red step clears as soon as its fields are fixed, re-enabling the submit button.
 

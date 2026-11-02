@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import ChoiceSectionCard from '@/ChoiceSectionCard.vue';
 
 describe('component ChoiceSectionCard', () => {
@@ -31,5 +31,47 @@ describe('component ChoiceSectionCard', () => {
     const wrapper = mount(ChoiceSectionCard, { props: { options: [{ value: 'a', title: 'Alpha' }] } });
 
     await expect(wrapper.find('.sft-choice-card').trigger('click')).resolves.toBeUndefined();
+  });
+
+  it('disables every option card when disabled is set', () => {
+    const wrapper = mount(ChoiceSectionCard, {
+      props: { options: [{ value: 'a', title: 'Alpha' }, { value: 'b', title: 'Beta' }], disabled: true },
+    });
+
+    expect(wrapper.findAll('.sft-choice-card').every(card => card.attributes('disabled') !== undefined)).toBe(true);
+  });
+
+  it('deselects every active occurrence when disabled flips from false to true', async () => {
+    const removeChoiceOccurrence = vi.fn();
+    const wrapper = mount(ChoiceSectionCard, {
+      props: {
+        options: [{ value: 'a', title: 'Alpha' }],
+        activeChoiceOccurrences: [{ branchKey: 'a', index: 0 }],
+        removeChoiceOccurrence,
+        disabled: false,
+      },
+    });
+
+    expect(removeChoiceOccurrence).not.toHaveBeenCalled();
+
+    await wrapper.setProps({ disabled: true });
+
+    expect(removeChoiceOccurrence).toHaveBeenCalledExactlyOnceWith('a', 0);
+  });
+
+  it('does nothing when disabled flips to false', async () => {
+    const removeChoiceOccurrence = vi.fn();
+    const wrapper = mount(ChoiceSectionCard, {
+      props: {
+        options: [{ value: 'a', title: 'Alpha' }],
+        activeChoiceOccurrences: [{ branchKey: 'a', index: 0 }],
+        removeChoiceOccurrence,
+        disabled: true,
+      },
+    });
+
+    await wrapper.setProps({ disabled: false });
+
+    expect(removeChoiceOccurrence).not.toHaveBeenCalled();
   });
 });

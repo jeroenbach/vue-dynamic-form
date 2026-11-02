@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { WorkoutBranchShape } from './workoutPlanMath';
-import type { Metadata } from './WorkoutPlanTemplate.vue';
+import type { DynamicFormSettings, Metadata } from './WorkoutPlanTemplate.vue';
 import { DynamicForm, removeNullValues, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { computed, ref } from 'vue';
 import { collectBlocks, summarizePlan } from './workoutPlanMath';
@@ -102,6 +102,11 @@ const {
   initialValues: INITIAL_PLAN_VALUES,
 });
 
+const settings: DynamicFormSettings = {
+  messages: MESSAGES,
+  showValidState: true,
+};
+
 const isSubmitting = ref(false);
 const submitted = ref<WorkoutPlanValues>();
 
@@ -196,7 +201,7 @@ function buildAnotherPlan() {
 <template>
   <div class="form-demo workout-layout">
     <form class="flex flex-col gap-6" @submit="onSubmit">
-      <DynamicForm :template="WorkoutPlanTemplate" :metadata :settings="{ messages: MESSAGES }" />
+      <DynamicForm :template="WorkoutPlanTemplate" :metadata :settings />
 
       <div v-if="!submitted" class="flex flex-col gap-3">
         <button

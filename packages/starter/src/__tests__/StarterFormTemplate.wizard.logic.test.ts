@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { h } from 'vue';
 import { createConsumerWrapper } from './fixtures/createConsumerWrapper';
@@ -8,6 +9,7 @@ import {
   mountWizardForm,
   nextButton,
   reviewPageWrapper,
+  stepButton,
   submitButton,
 } from './wizard.test-helpers';
 
@@ -31,6 +33,41 @@ describe('component StarterFormTemplate - wizard page registration', () => {
     await click(submitButton(wrapper));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('component StarterFormTemplate - wizard step errors', () => {
+  it('marks a step red and disables submit once its required field fails validation, clearing once fixed', async () => {
+    const { wrapper } = await mountWizardForm(wizardMetadata({
+      pages: 2,
+      wizard: { allowForwardJump: true },
+      requiredPages: [0],
+    }));
+
+    await click(nextButton(wrapper));
+
+    expect(stepButton(wrapper, 0).classes()).toContain('is-error');
+    expect(wrapper.find('.sft-wizard-alert').exists()).toBe(true);
+    expect(submitButton(wrapper).attributes('disabled')).toBeDefined();
+
+    await wrapper.find('[data-testid="wizard.page0.field0-input"]').setValue('filled in');
+    await flushPromises();
+
+    expect(stepButton(wrapper, 0).classes()).not.toContain('is-error');
+    expect(wrapper.find('.sft-wizard-alert').exists()).toBe(false);
+    expect(submitButton(wrapper).attributes('disabled')).toBeUndefined();
+  });
+
+  it('shows no step errors and an enabled submit button when every required field is filled in', async () => {
+    const { wrapper } = await mountWizardForm(wizardMetadata({ pages: 2, requiredPages: [0] }), {
+      initialValues: { wizard: { page0: { field0: 'already filled' } } },
+    });
+
+    await click(nextButton(wrapper));
+
+    expect(stepButton(wrapper, 0).classes()).not.toContain('is-error');
+    expect(wrapper.find('.sft-wizard-alert').exists()).toBe(false);
+    expect(submitButton(wrapper).attributes('disabled')).toBeUndefined();
   });
 });
 

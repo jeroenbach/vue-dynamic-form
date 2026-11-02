@@ -1,53 +1,28 @@
 <script lang="ts" setup>
 import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
-import { defineMetadata, DynamicFormTemplate } from '@bach.software/vue-dynamic-form';
+import { ChoiceArraySectionCard, extendMetadata, StarterFormTemplate } from '@bach.software/vue-dynamic-form-starter';
 import { toValue } from 'vue';
-import ChoiceArraySectionCard from './ChoiceArraySectionCard.vue';
 import FormField from './FormField.vue';
 import InboxRuleRow from './InboxRuleRow.vue';
-import SelectInput from './SelectInput.vue';
-import TextInput from './TextInput.vue';
 
 // #region template-metadata-contract
 export type Metadata = GetMetadataType<typeof metadata>;
 
 export type DynamicFormSettings = GetDynamicFormSettingsType<typeof metadata>;
 
-const metadata = defineMetadata<
-  {
-    /** The rule list and every branch: never holds a value of its own. */
-    rule: never
-    text: string
-    email: string
-    number: number | undefined
-    select: string
-  },
-  {
-    description?: string
-    placeholder?: string
-    options?: { key: string, value: string }[]
-    fullWidth?: boolean
-    disabled?: boolean
-    hide?: boolean
-  },
-  object,
-  {
-    showRequiredOrOptional?: 'optional' | 'required'
-  }
->();
+const metadata = extendMetadata<{
+  /** The rule list and every branch: never holds a value of its own. */
+  rule: never
+  number: number | undefined
+  email: string
+}>();
 // #endregion template-metadata-contract
 
-/**
- * A field is pristine until it has been touched once; after that it is either invalid (an
- * error message is showing) or valid. Drives both a data attribute (deterministic to assert
- * against) and the subtle "valid" border.
- */
-function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: boolean): 'pristine' | 'invalid' | 'valid' {
-  if (hasError)
-    return 'invalid';
-  if (meta.touched && meta.valid)
-    return 'valid';
-  return 'pristine';
+// A rule occurrence's own path is e.g. 'rules.subjectContains[2]'; stripping its own
+// branch-and-index segment gives the containing choice's path ('rules'), which the row needs to
+// write a reordered occurrence's `order` back through `setFieldValue`.
+function rulesPathFor(occurrencePath?: string): string {
+  return (occurrencePath ?? '').replace(/\.[^.[\]]+\[\d+\]$/, '');
 }
 
 /**
@@ -56,13 +31,6 @@ function inputFieldState(meta: { valid: boolean, touched: boolean }, hasError: b
  * width. Keyed on field name rather than type, since text/email/select are reused by more than
  * one field with different widths.
  */
-// A rule occurrence's own path is e.g. 'rules.subjectContains[2]'; stripping its own
-// branch-and-index segment gives the containing choice's path ('rules'), which the row needs to
-// write a reordered occurrence's `order` back through `setFieldValue`.
-function rulesPathFor(occurrencePath?: string): string {
-  return (occurrencePath ?? '').replace(/\.[^.[\]]+\[\d+\]$/, '');
-}
-
 function ruleFieldLayout(name?: string): string {
   switch (name) {
     case 'size':
@@ -82,7 +50,15 @@ function ruleFieldLayout(name?: string): string {
 </script>
 
 <template>
-  <DynamicFormTemplate :metadata-configuration="metadata">
+  <StarterFormTemplate :metadataConfiguration="metadata">
+    <!-- Hands the engine's field and attribute renders to the built-in chrome. -->
+    <template #input="s">
+      <slot v-bind="s" />
+    </template>
+    <template #attributes="s">
+      <slot name="attributes" v-bind="s" />
+    </template>
+
     <!-- #region rule-list-slots -->
     <template #rule-choice-array="{ fieldMetadata, fieldContext: { errorMessage, label }, addChoiceOccurrence, canAddChoiceOccurrence, usedChoiceOccurrences, activeChoiceOccurrences }">
       <ChoiceArraySectionCard
@@ -90,7 +66,7 @@ function ruleFieldLayout(name?: string): string {
         :description="fieldMetadata.description"
         :errorMessage="errorMessage.value"
         :dataTestid="fieldMetadata.path"
-        :options="fieldMetadata.choice.map(branch => ({ value: branch.name, title: toValue(branch.fieldOptions?.label), description: branch.description }))"
+        :options="fieldMetadata.choice.map((branch: any) => ({ value: branch.name, title: toValue(branch.fieldOptions?.label), description: branch.description }))"
         :addChoiceOccurrence
         :canAddChoiceOccurrence
         :usedChoiceOccurrences
@@ -126,53 +102,24 @@ function ruleFieldLayout(name?: string): string {
     <!-- #endregion rule-list-slots -->
 
     <!-- Every leaf field (text/email/number/select) reaches here; the rule list and its branches
-    always render through the choice-array / choice-array-item slots above instead. -->
+    always render through the choice-array / choice-array-item slots above instead. The input
+    itself still renders through the starter's own default-input / select-input chrome via the
+    plain `<slot />` below. -->
     <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, disabled, required, settings: { showRequiredOrOptional } }">
       <FormField
         v-show="!fieldMetadata.hide"
         :class="ruleFieldLayout(fieldMetadata.name)"
         :disabled="fieldMetadata.disabled || disabled"
-        :input-id="fieldMetadata.path"
+        :inputId="fieldMetadata.path"
         :dataTestid="fieldMetadata.path"
         :description="fieldMetadata.description"
         :label
         :required
-        :show-required-or-optional
+        :showRequiredOrOptional
         :errorMessage="errorMessage.value"
       >
         <slot />
       </FormField>
     </template>
-
-    <template #default-input="{ fieldMetadata, fieldContext: { value, meta, handleBlur, handleChange, errorMessage }, disabled }">
-      <TextInput
-        :id="fieldMetadata.path"
-        :dataTestid="`${fieldMetadata.path}-input`"
-        :type="fieldMetadata.type"
-        :value="value.value"
-        :disabled="fieldMetadata.disabled || disabled"
-        :errorMessage="errorMessage.value"
-        :placeholder="fieldMetadata.placeholder"
-        :data-field-state="inputFieldState(meta, !!errorMessage.value)"
-        :class="{ '!border-[color:var(--vp-c-success-3)]': inputFieldState(meta, !!errorMessage.value) === 'valid' }"
-        @input="handleChange"
-        @blur="handleBlur"
-      />
-    </template>
-
-    <template #select-input="{ fieldMetadata, fieldContext: { value, meta, handleBlur, handleChange, errorMessage }, disabled }">
-      <SelectInput
-        :id="fieldMetadata.path"
-        :dataTestid="`${fieldMetadata.path}-input`"
-        :value="value.value"
-        :options="fieldMetadata.options"
-        :disabled="fieldMetadata.disabled || disabled"
-        :errorMessage="errorMessage.value"
-        :data-field-state="inputFieldState(meta, !!errorMessage.value)"
-        :class="{ '!border-[color:var(--vp-c-success-3)]': inputFieldState(meta, !!errorMessage.value) === 'valid' }"
-        @change="handleChange"
-        @blur="handleBlur"
-      />
-    </template>
-  </DynamicFormTemplate>
+  </StarterFormTemplate>
 </template>

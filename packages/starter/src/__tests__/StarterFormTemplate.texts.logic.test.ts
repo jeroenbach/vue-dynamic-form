@@ -41,6 +41,20 @@ describe('component StarterFormTemplate - overridable texts', () => {
       expect(submitButton(wrapper).text()).toBe('Versturen');
     });
 
+    it('takes the step-errors message from the wizard field metadata', async () => {
+      const metadata = wizardMetadata({
+        pages: 2,
+        wizard: { allowForwardJump: true },
+        requiredPages: [0],
+        extra: { stepErrorsText: 'Herstel de rode stappen.' },
+      });
+      const { wrapper } = await mountWizardForm(metadata);
+
+      await click(nextButton(wrapper));
+
+      expect(wrapper.find('.sft-wizard-alert').text()).toBe('Herstel de rode stappen.');
+    });
+
     it('takes the stepper aria labels from the wizard field metadata', async () => {
       const metadata = wizardMetadata({
         pages: 2,

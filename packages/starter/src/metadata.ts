@@ -41,6 +41,8 @@ export interface StarterFieldProperties {
   iconName?: StarterIconName
   dependentOnMessage?: string
   placeholder?: string
+  /** Short unit label shown right after the input, e.g. "min". */
+  suffix?: string
   options?: { key: string, value: string }[]
   fullWidth?: boolean
   disabled?: boolean
@@ -69,6 +71,8 @@ export interface StarterFieldProperties {
   stepperAriaLabel?: string
   /** Aria label of a single step button; `{number}` and `{title}` are the step number and title. Defaults to "Step {number}: {title}". */
   stepAriaLabel?: string
+  /** Message shown above the footer on the last step when any step has errors. Defaults to "Some steps still contain errors. Fix the steps marked in red before submitting.". */
+  stepErrorsText?: string
 }
 
 export interface StarterSlotProperties {
@@ -80,6 +84,8 @@ export interface StarterSettingsProperties {
   showRequiredOrOptional?: 'optional' | 'required'
   /** Tag text next to a non-required field label when `showRequiredOrOptional` is `'optional'`. Defaults to "Optional". */
   optionalText?: string
+  /** Marks a touched, valid input with a success border and a `data-field-state` attribute. */
+  showValidState?: boolean
 }
 
 /** The built-in starter field types and their extended properties. */
