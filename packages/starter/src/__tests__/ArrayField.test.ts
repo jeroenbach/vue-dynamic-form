@@ -14,6 +14,12 @@ describe('component ArrayField', () => {
     expect(wrapper.emitted('add')).toHaveLength(1);
   });
 
+  it('spans the full grid row by default', () => {
+    const wrapper = mount(ArrayField, { props: { label: 'Tags' } });
+
+    expect(wrapper.classes()).toContain('sft-span-full');
+  });
+
   it('renders no add button when canAddItems is false', () => {
     const wrapper = mount(ArrayField, { props: { label: 'Tags', canAddItems: false } });
 

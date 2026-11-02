@@ -77,7 +77,7 @@ const showJson = ref(false);
       </AppButton>
     </div>
     <Transition name="sft-reveal">
-      <pre v-if="showJson" class="sft-col-span sft-json">{{ submittedJson }}</pre>
+      <pre v-if="showJson" class="sft-span-full sft-json">{{ submittedJson }}</pre>
     </Transition>
   </SectionCard>
 </template>

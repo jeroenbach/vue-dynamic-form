@@ -1,15 +1,22 @@
+import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
+import type { starterMetadata } from '@bach.software/vue-dynamic-form-starter';
+
+type StarterMetadata = GetMetadataType<typeof starterMetadata>;
+type StarterSettings = GetDynamicFormSettingsType<typeof starterMetadata>;
+
 export interface StarterFormExample {
   exampleId: string
   title: string
   description: string
-  metadata: Record<string, any>[]
-  initialValues?: Record<string, any>
+  metadata: StarterMetadata[]
+  /** Each example has its own value shape, so only the object form is pinned down. */
+  initialValues?: Record<string, unknown>
   /** Render through the bare template instead of the wrapper that carries the icon override. */
   bare?: boolean
   /** The wizard brings its own submit button. */
   hideSubmit?: boolean
   /** Forwarded to `DynamicForm`'s `settings` prop. */
-  settings?: Record<string, any>
+  settings?: StarterSettings
 }
 
 const planOptions = [
@@ -90,7 +97,7 @@ export const arrayExample: StarterFormExample = {
   bare: true,
 };
 
-const contactBranches = [
+const contactBranches: StarterMetadata[] = [
   { name: 'email', type: 'text', fieldOptions: { label: 'Email' } },
   { name: 'phone', type: 'text', fieldOptions: { label: 'Phone number' } },
 ];

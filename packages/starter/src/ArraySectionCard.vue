@@ -29,7 +29,7 @@ defineEmits<{ addItem: [] }>();
     :tag="`${itemsCount} ${itemsCount === 1 ? (itemsName ?? 'item') : (itemsNamePlural ?? 'items')}`"
   >
     <template #default>
-      <div v-if="itemsCount === 0" class="sft-col-span sft-empty">
+      <div v-if="itemsCount === 0" class="sft-span-full sft-empty">
         <StarterIcon class="sft-empty-icon" name="grid" :size="32" />
         <p class="sft-empty-title">
           {{ noItemsTitle ?? `No ${itemsNamePlural ?? 'items'} added yet` }}

@@ -15,4 +15,13 @@ describe('component SectionCard', () => {
 
     expect(wrapper.find('.custom-footer').exists()).toBe(true);
   });
+
+  it('spans the full grid row by default; an explicit colSpan adds its own class on top', () => {
+    const wrapper = mount(SectionCard);
+    expect(wrapper.classes()).toContain('sft-span-full');
+
+    const narrowed = mount(SectionCard, { props: { colSpan: 2 } });
+    expect(narrowed.classes()).toContain('sft-span-full');
+    expect(narrowed.classes()).toContain('sft-span-2');
+  });
 });

@@ -346,12 +346,13 @@ const metadata = defineMetadata<
     </template>
 
     <!-- Heading -->
-    <template #heading="{ fieldMetadata: field }">
+    <template #heading="slotProps">
       <div class="my-4">
         <h3 class="text-lg font-semibold mb-2">
-          {{ field.label }}
+          {{ slotProps.fieldMetadata.label }}
         </h3>
-        <slot />
+        <!-- Keep the props bound: a bare <slot /> would type the default slot as empty for consumers. -->
+        <slot v-bind="slotProps" />
       </div>
     </template>
 

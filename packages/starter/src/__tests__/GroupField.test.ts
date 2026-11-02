@@ -9,6 +9,12 @@ describe('component GroupField', () => {
     expect(wrapper.findAll('button')).toHaveLength(0);
   });
 
+  it('spans the full grid row by default', () => {
+    const wrapper = mount(GroupField, { props: { label: 'Address' } });
+
+    expect(wrapper.classes()).toContain('sft-span-full');
+  });
+
   it('emits add when the add button is clicked', async () => {
     const wrapper = mount(GroupField, { props: { label: 'Address', canAddItems: true, dataTestid: 'address' } });
 

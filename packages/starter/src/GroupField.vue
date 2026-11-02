@@ -41,7 +41,7 @@ defineEmits<{
 <template>
   <section
     :data-testid="dataTestid"
-    class="sft-group"
+    class="sft-group sft-span-full"
     :class="[{ 'is-disabled': disabled }, gridItemClasses(colSpan, colStart)]"
   >
     <div class="sft-group-header">

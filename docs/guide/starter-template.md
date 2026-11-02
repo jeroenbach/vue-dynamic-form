@@ -86,6 +86,8 @@ Every container the template renders (section cards, groups, choice bodies, and 
 - `colSpan` sets how many columns the field spans **inside its parent's grid** (`1`-`6`, or `'full'` for the whole row).
 - `colStart` sets the column the field starts on inside its parent's grid, e.g. to leave the rest of the previous row empty.
 
+By default only input fields flow per column. Everything else (section cards, groups, choice groups, repeater items, and headings without children) spans the full row, so structure never ends up squeezed next to a field; set an explicit `colSpan` to narrow one. The chrome components carry this default themselves (`sft-span-full` on their root), so it also applies when you use them directly in a slot override.
+
 ```ts
 const metadata = {
   name: 'availability',

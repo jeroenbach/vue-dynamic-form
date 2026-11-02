@@ -42,7 +42,7 @@ const removeLabel = computed(() =>
 </script>
 
 <template>
-  <article :data-testid="dataTestid" class="sft-repeater" :class="gridItemClasses(colSpan, colStart)">
+  <article :data-testid="dataTestid" class="sft-repeater sft-span-full" :class="gridItemClasses(colSpan, colStart)">
     <header class="sft-repeater-header">
       <div class="sft-repeater-title-group">
         <span class="sft-repeater-badge">

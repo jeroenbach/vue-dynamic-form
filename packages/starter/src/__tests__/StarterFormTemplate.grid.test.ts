@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { gridColumnsClasses, gridItemClasses } from '@/gridClasses';
+import { itemCards } from './fixtures/arrayHelpers';
+import { autoChoiceMetadata, explicitChoiceArrayMetadata } from './fixtures/choiceMetadata';
+import { headingArrayMetadata } from './fixtures/metadata';
 import { mountInForm } from './fixtures/mountInForm';
 
 const gridMetadata = {
@@ -40,6 +43,50 @@ describe('component StarterFormTemplate - grid field type', () => {
 
     const regular = wrapper.find('[data-testid="layout.a"]');
     expect(regular.classes().some(name => name.startsWith('sft-span'))).toBe(false);
+  });
+
+  it('spans everything that is not an input field over the full row by default', async () => {
+    const { wrapper } = await mountInForm({
+      metadata: {
+        name: 'layout',
+        type: 'grid',
+        columns: 2,
+        children: [
+          { name: 'intro', type: 'heading', fieldOptions: { label: 'Intro' }, minOccurs: 0 },
+          { name: 'a', type: 'text', fieldOptions: { label: 'A' } },
+        ],
+      },
+    });
+
+    // a heading without children still takes the full row; only input fields flow per column
+    expect(wrapper.find('[data-testid="layout.intro"]').classes()).toContain('sft-span-full');
+    expect(wrapper.find('[data-testid="layout.a"]').classes()).not.toContain('sft-span-full');
+  });
+
+  it('spans a choice group over the full row by default, unless colSpan narrows it', async () => {
+    const { wrapper } = await mountInForm({ metadata: autoChoiceMetadata });
+    expect(wrapper.find('[data-testid="payment"]').classes()).toContain('sft-span-full');
+
+    const { wrapper: narrowed } = await mountInForm({ metadata: { ...autoChoiceMetadata, colSpan: 2 } });
+    const classes = narrowed.find('[data-testid="payment"]').classes();
+    // both classes land on the element; the numeric utility wins because sft-span-full
+    // is declared before the numeric spans in the stylesheet
+    expect(classes).toContain('sft-span-full');
+    expect(classes).toContain('sft-span-2');
+  });
+
+  it('spans repeater item cards over the full row by default', async () => {
+    const { wrapper } = await mountInForm({
+      metadata: headingArrayMetadata,
+      initialValues: { contacts: [{ first: 'Ann' }] },
+    });
+    expect(itemCards(wrapper, 'contacts')[0].classes()).toContain('sft-span-full');
+
+    const { wrapper: choiceArray } = await mountInForm({
+      metadata: explicitChoiceArrayMetadata,
+      initialValues: { channels: { email: ['ops@acme.example'] } },
+    });
+    expect(choiceArray.find('.sft-repeater').classes()).toContain('sft-span-full');
   });
 
   it('passes the columns of a heading section down to its own children grid', async () => {

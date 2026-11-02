@@ -183,13 +183,6 @@ $breakpoint-lg: 1024px; // widest grid utility tier
     grid-template-columns: 1fr 1fr;
   }
 }
-/* full row of any grid, whatever its column count; cards and groups get this by default */
-@media (min-width: $breakpoint-md) {
-  .sft-col-span {
-    grid-column: 1 / -1;
-  }
-}
-
 /* bare layout container rendered by the `grid` field type; one column until `sft-cols-*` says otherwise */
 .sft-grid-plain {
   display: grid;
@@ -1439,13 +1432,17 @@ $grid-max-columns: 6;
 
 @each $tier, $min-width in $grid-tiers {
   @include grid-tier($min-width) {
+    /* `full` comes before the numeric spans: every chrome component that is not a plain
+       input field (cards, groups, choices, repeater items) carries `sft-span-full` on its
+       own root as its full-row default, and an explicit numeric `colSpan` must win by
+       order. Only input fields flow per column. */
+    .sft-span-#{$tier}full {
+      grid-column: 1 / -1;
+    }
     @for $i from 1 through $grid-max-columns {
       .sft-span-#{$tier}#{$i} {
         grid-column: span #{$i} / span #{$i};
       }
-    }
-    .sft-span-#{$tier}full {
-      grid-column: 1 / -1;
     }
   }
 }

@@ -26,7 +26,7 @@ defineProps<Props>();
 </script>
 
 <template>
-  <section :data-testid="dataTestid" class="sft-choice-group" :class="gridItemClasses(colSpan, colStart)">
+  <section :data-testid="dataTestid" class="sft-choice-group sft-span-full" :class="gridItemClasses(colSpan, colStart)">
     <span class="sft-choice-group-title" :class="{ 'is-disabled': disabled }">
       {{ label }}
       <OptionalRequiredTag :required :show-required-or-optional :optionalText />

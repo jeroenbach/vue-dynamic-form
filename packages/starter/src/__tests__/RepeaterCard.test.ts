@@ -19,4 +19,10 @@ describe('component RepeaterCard', () => {
 
     expect(wrapper.find('.sft-repeater-title').text()).toBe('New contact');
   });
+
+  it('spans the full grid row by default', () => {
+    const wrapper = mount(RepeaterCard, { props: { index: 0 } });
+
+    expect(wrapper.classes()).toContain('sft-span-full');
+  });
 });

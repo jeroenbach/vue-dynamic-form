@@ -13,7 +13,9 @@ const packageStyles = styleBlock.slice(styleBlock.indexOf('STARTER FORM TEMPLATE
 
 // `.sft-root` names the prototype's per-section wrapper; the shipped stylesheet
 // moved its variables to document-root scope instead, so it is deliberately absent.
-const supersededClasses = new Set(['sft-root']);
+// `.sft-col-span` was the prototype's full-row default; the shipped stylesheet uses
+// the identical `sft-span-full` utility for that instead.
+const supersededClasses = new Set(['sft-root', 'sft-col-span']);
 
 function classTokensIn(source: string) {
   const tokens = new Set<string>();

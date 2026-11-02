@@ -134,7 +134,6 @@ function passthroughSlotNames() {
         <GroupField
           v-if="s.fieldMetadata.children?.length"
           v-show="!s.fieldMetadata.hide"
-          class="sft-col-span"
           :columns="s.fieldMetadata.columns"
           :colSpan="s.fieldMetadata.colSpan"
           :colStart="s.fieldMetadata.colStart"
@@ -188,7 +187,6 @@ function passthroughSlotNames() {
         <SectionCard
           v-if="s.fieldMetadata.children?.length"
           v-show="!s.fieldMetadata.hide"
-          class="sft-col-span"
           :columns="s.fieldMetadata.columns"
           :colSpan="s.fieldMetadata.colSpan"
           :colStart="s.fieldMetadata.colStart"
@@ -201,10 +199,13 @@ function passthroughSlotNames() {
             <slot v-bind="s.slotProps ?? {}" />
           </slot>
         </SectionCard>
-        <!-- Same presence rule as the default slot above: the picker card already says it all. -->
+        <!-- Same presence rule as the default slot above: the picker card already says it all.
+        FormField is per-column by nature (it wraps inputs), so this heading usage opts into
+        the full row here instead of inside the component. -->
         <FormField
           v-else-if="s.fieldMetadata.presenceValue === undefined"
           v-show="!s.fieldMetadata.hide"
+          class="sft-span-full"
           :colSpan="s.fieldMetadata.colSpan"
           :colStart="s.fieldMetadata.colStart"
           :input-id="s.fieldMetadata.path"
@@ -225,7 +226,7 @@ function passthroughSlotNames() {
       <slot :name="chromeSlotName('grid')" v-bind="s">
         <div
           v-show="!s.fieldMetadata.hide"
-          class="sft-grid-plain sft-col-span"
+          class="sft-grid-plain sft-span-full"
           :class="[gridColumnsClasses(s.fieldMetadata.columns), gridItemClasses(s.fieldMetadata.colSpan, s.fieldMetadata.colStart)]"
           :data-testid="s.fieldMetadata.path"
         >
@@ -240,7 +241,6 @@ function passthroughSlotNames() {
       <slot name="default-array" v-bind="s">
         <ArrayField
           v-show="!s.fieldMetadata.hide"
-          class="sft-col-span"
           :columns="s.fieldMetadata.columns"
           :colSpan="s.fieldMetadata.colSpan"
           :colStart="s.fieldMetadata.colStart"
@@ -266,7 +266,6 @@ function passthroughSlotNames() {
     <template #heading-array="s">
       <slot name="heading-array" v-bind="s">
         <ArraySectionCard
-          class="sft-col-span"
           :columns="s.fieldMetadata.columns"
           :colSpan="s.fieldMetadata.colSpan"
           :colStart="s.fieldMetadata.colStart"
@@ -341,7 +340,6 @@ function passthroughSlotNames() {
       <slot name="heading-choice" v-bind="s">
         <ChoiceSectionCard
           v-slot="{ selectedOption }"
-          class="sft-col-span"
           :columns="s.fieldMetadata.columns"
           :colSpan="s.fieldMetadata.colSpan"
           :colStart="s.fieldMetadata.colStart"
@@ -366,7 +364,6 @@ function passthroughSlotNames() {
     <template #heading-choice-array="s">
       <slot name="heading-choice-array" v-bind="s">
         <ChoiceArraySectionCard
-          class="sft-col-span"
           :columns="s.fieldMetadata.columns"
           :colSpan="s.fieldMetadata.colSpan"
           :colStart="s.fieldMetadata.colStart"
