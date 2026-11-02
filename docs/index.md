@@ -43,6 +43,8 @@ Most form logic comes down to "if this field has a certain value, show/hide/requ
 
 ::: code-group
 
+<!-- eslint-skip -->
+
 ```ts{8} [Form definition: the when]
 const fields: Metadata[] = [
   { name: 'accountType', type: 'select', ... },

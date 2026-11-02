@@ -13,7 +13,7 @@ Type: `string`
 The key for this field in the form values object. Combined with parent names it builds the full dot-notated path.
 
 ```ts
-{ name: 'email' }
+{ name: 'email'; }
 // → values.email
 
 // Inside a parent named 'contact':
@@ -29,7 +29,7 @@ Type: `string` (constrained to your declared types + `'default'`)
 Determines which slot in your `DynamicFormTemplate` handles this field. If no named slot matches, the library falls back to `#default` and `#default-input`.
 
 ```ts
-{ name: 'country', type: 'select' }
+const field = { name: 'country', type: 'select' };
 ```
 
 ### `path`
@@ -40,17 +40,17 @@ Override the automatically derived path. Useful when the form value structure do
 
 ```ts
 // Fields are grouped visually under 'address' but the API shape is flat
-{
+const addressGroup = {
   name: 'address',
   children: [
-    { name: 'street', type: 'text', path: 'street' },  // → values.street
-    { name: 'city',   type: 'text', path: 'city' },    // → values.city
+    { name: 'street', type: 'text', path: 'street' }, // → values.street
+    { name: 'city', type: 'text', path: 'city' }, // → values.city
     // without path: would be values.address.street, values.address.city
   ],
-}
+};
 
 // Field rendered at root level but value stored nested to match API shape
-{ name: 'id', type: 'text', path: 'user.id' }
+const field = { name: 'id', type: 'text', path: 'user.id' };
 // → values.user.id  (not values.id)
 ```
 
@@ -62,16 +62,16 @@ Type: `number` | Default: `1`
 
 Minimum number of times this field must be filled in.
 
-| Value | Effect |
-|-------|--------|
-| `0` | Field is optional |
-| `1` | Field is required (default) |
+| Value   | Effect                                        |
+| ------- | --------------------------------------------- |
+| `0`     | Field is optional                             |
+| `1`     | Field is required (default)                   |
 | `N > 1` | Array must have at least N filled occurrences |
 
 ```ts
-{ name: 'nickname', minOccurs: 0 }      // optional
-{ name: 'email',    minOccurs: 1 }      // required (default)
-{ name: 'contacts', minOccurs: 2, maxOccurs: 5 }  // at least 2 required
+const nickname = { name: 'nickname', minOccurs: 0 }; // optional
+const email = { name: 'email', minOccurs: 1 }; // required (default)
+const contacts = { name: 'contacts', minOccurs: 2, maxOccurs: 5 }; // at least 2 required
 ```
 
 For group fields (fields with `children`), setting `minOccurs: 0` makes the entire group optional: as long as none of the children have a value, all children are treated as optional regardless of their own `minOccurs`. Once any child receives a value, each child reverts to its own `minOccurs`. This lets users leave an entire section blank, but enforces required fields the moment they start filling it in.
@@ -82,15 +82,15 @@ Type: `number` | Default: `1`
 
 Maximum number of times this field can be filled in.
 
-| Value | Effect |
-|-------|--------|
-| `0` | Field is disabled (and so are all its children) |
-| `1` | Field appears once (default) |
-| `N > 1` | Field becomes a repeatable array |
+| Value   | Effect                                          |
+| ------- | ----------------------------------------------- |
+| `0`     | Field is disabled (and so are all its children) |
+| `1`     | Field appears once (default)                    |
+| `N > 1` | Field becomes a repeatable array                |
 
 ```ts
-{ name: 'phoneNumbers', maxOccurs: 3 }   // up to 3 entries
-{ name: 'readOnly',     maxOccurs: 0 }   // disabled
+const phoneNumbers = { name: 'phoneNumbers', maxOccurs: 3 }; // up to 3 entries
+const readOnly = { name: 'readOnly', maxOccurs: 0 }; // disabled
 ```
 
 Loading or programmatically setting data that already holds more items than `maxOccurs` now also fails `xsd_maxOccurs` validation, not only the "Add" affordance: see [Built-in Rules](/guide/validation#built-in-rules) in the validation guide. A choice branch's own opt-in `maxOccursTotal` cap has a matching validation backstop; see [Capping a branch's total count](/examples/choices#capping-a-branch-s-total-count-maxoccurstotal) in the Choice Fields example.
@@ -102,7 +102,7 @@ Type: `boolean` | Default: `true`
 When `true` (default), array fields automatically add empty placeholder items on first render until the count reaches `minOccurs`. Set to `false` to start with an empty array and let the user add items manually.
 
 ```ts
-{ name: 'contacts', minOccurs: 2, maxOccurs: 5, autoAddMinOccurs: false }
+const contacts = { name: 'contacts', minOccurs: 2, maxOccurs: 5, autoAddMinOccurs: false };
 // Array starts empty — user must click "Add" to begin
 ```
 
@@ -118,23 +118,23 @@ Type: `object`
 
 XSD-inspired data constraints. Each property generates a corresponding vee-validate rule automatically.
 
-| Property | Type | Generates rule |
-|----------|------|---------------|
-| `minLength` | `number` | `xsd_minLength` |
-| `maxLength` | `number` | `xsd_maxLength` |
-| `length` | `number` | `xsd_length` (exact length) |
-| `pattern` | `string` | `xsd_pattern` (regex) |
-| `minInclusive` | `number` | `xsd_minInclusive` (value ≥ min) |
-| `maxInclusive` | `number` | `xsd_maxInclusive` (value ≤ max) |
-| `minExclusive` | `number` | `xsd_minExclusive` (value > min) |
-| `maxExclusive` | `number` | `xsd_maxExclusive` (value < max) |
-| `enumeration` | `unknown[]` | `xsd_enumeration` (value in list) |
-| `whiteSpace` | `'preserve' \| 'replace' \| 'collapse'` | `xsd_whiteSpace` |
-| `fractionDigits` | `number` | `xsd_fractionDigits` (max decimal places) |
-| `totalDigits` | `number` | `xsd_totalDigits` (max significant digits) |
+| Property         | Type                                    | Generates rule                             |
+| ---------------- | --------------------------------------- | ------------------------------------------ |
+| `minLength`      | `number`                                | `xsd_minLength`                            |
+| `maxLength`      | `number`                                | `xsd_maxLength`                            |
+| `length`         | `number`                                | `xsd_length` (exact length)                |
+| `pattern`        | `string`                                | `xsd_pattern` (regex)                      |
+| `minInclusive`   | `number`                                | `xsd_minInclusive` (value ≥ min)           |
+| `maxInclusive`   | `number`                                | `xsd_maxInclusive` (value ≤ max)           |
+| `minExclusive`   | `number`                                | `xsd_minExclusive` (value > min)           |
+| `maxExclusive`   | `number`                                | `xsd_maxExclusive` (value < max)           |
+| `enumeration`    | `unknown[]`                             | `xsd_enumeration` (value in list)          |
+| `whiteSpace`     | `'preserve' \| 'replace' \| 'collapse'` | `xsd_whiteSpace`                           |
+| `fractionDigits` | `number`                                | `xsd_fractionDigits` (max decimal places)  |
+| `totalDigits`    | `number`                                | `xsd_totalDigits` (max significant digits) |
 
 ```ts
-{
+const field = {
   name: 'postcode',
   type: 'text',
   restriction: {
@@ -142,7 +142,7 @@ XSD-inspired data constraints. Each property generates a corresponding vee-valid
     maxLength: 10,
     pattern: '^[A-Z0-9 ]+$',
   },
-}
+};
 ```
 
 ### `validation`
@@ -152,13 +152,13 @@ Type: `RuleExpression<unknown>` (vee-validate rule expression)
 Custom vee-validate validation rules applied in addition to `restriction`. Supports the pipe syntax:
 
 ```ts
-{ validation: 'xsd_minLength:3|xsd_maxLength:50' }
+{ validation: 'xsd_minLength:3|xsd_maxLength:50'; }
 ```
 
 Or a function:
 
 ```ts
-{ validation: (value) => value !== 'forbidden' || 'This value is not allowed' }
+{ validation: value => value !== 'forbidden' || 'This value is not allowed'; }
 ```
 
 ### `fieldOptions`
@@ -167,19 +167,19 @@ Type: `Partial<FieldOptions>` (vee-validate)
 
 Options passed directly to vee-validate's `useField()`.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `label` | `string \| Ref<string>` | Display name used in error messages and slot props. Pass a `Ref` for a dynamic label. |
-| `validateOnValueUpdate` | `boolean` | Overrides `settings.validateOnValueUpdate` for this specific field. |
+| Property                | Type                    | Description                                                                           |
+| ----------------------- | ----------------------- | ------------------------------------------------------------------------------------- |
+| `label`                 | `string \| Ref<string>` | Display name used in error messages and slot props. Pass a `Ref` for a dynamic label. |
+| `validateOnValueUpdate` | `boolean`               | Overrides `settings.validateOnValueUpdate` for this specific field.                   |
 
 ```ts
-{
+const field = {
   name: 'email',
   fieldOptions: {
     label: 'Email address',
-    validateOnValueUpdate: false,   // override global setting for this field
+    validateOnValueUpdate: false, // override global setting for this field
   },
-}
+};
 ```
 
 ## Structure
@@ -191,14 +191,14 @@ Type: `FieldMetadata[]`
 Makes this field a parent/group. Its `name` becomes a path segment and its children are rendered inside it.
 
 ```ts
-{
+const group = {
   name: 'address',
   fieldOptions: { label: 'Address' },
   children: [
     { name: 'street', type: 'text', fieldOptions: { label: 'Street' } },
-    { name: 'city',   type: 'text', fieldOptions: { label: 'City' } },
+    { name: 'city', type: 'text', fieldOptions: { label: 'City' } },
   ],
-}
+};
 ```
 
 When `minOccurs: 0` is set on the parent, all child requirements are suspended until at least one child has a value.
@@ -210,7 +210,7 @@ Type: `FieldMetadata[]`
 Makes this field a choice container. Only one branch from the array should be filled in at a time. Once a branch receives a value, all siblings are disabled.
 
 ```ts
-{
+const choiceField = {
   name: 'contact',
   fieldOptions: { label: 'Preferred contact' },
   minOccurs: 1,
@@ -218,7 +218,7 @@ Makes this field a choice container. Only one branch from the array should be fi
     { name: 'email', type: 'text', fieldOptions: { label: 'Email' } },
     { name: 'phone', type: 'text', fieldOptions: { label: 'Phone' } },
   ],
-}
+};
 ```
 
 Combine `choice` with `maxOccurs > 1` to allow multiple independent choices (each picks its own branch).
@@ -231,14 +231,14 @@ Type: `boolean` | Default: `false` (absent)
 Opts a `choice` field into selection-first rendering: no branch renders until the template calls `addChoiceOccurrence(branchKey)`, instead of the default automatic mode where every branch renders and siblings disable once one holds a value. Works for both `maxOccurs: 1` (pick exactly one branch) and `maxOccurs > 1` (add several occurrences, each one of several branches). See [Select first, then fill in](/examples/choices#select-first-then-fill-in) in the Choice Fields example for the full pattern, the slot props it adds to the `-choice` (`maxOccurs: 1`) and `-choice-array` (`maxOccurs > 1`) slots, and the clear-on-switch contract.
 
 ```ts
-{
+const choiceField = {
   name: 'launchApproach',
   explicitChoiceSelection: true,
   choice: [
     { name: 'selfServe', fieldOptions: { label: 'Self-serve launch' } },
     { name: 'guidedRollout', fieldOptions: { label: 'Guided rollout' } },
   ],
-}
+};
 ```
 
 ### `presenceValue`
@@ -252,7 +252,7 @@ Any JSON-serializable value works (`true`, `'selected'`, `{}`, ...), except `nul
 Only useful on a non-repeatable (`maxOccurs: 1`) branch without `children`, inside a `choice` with `explicitChoiceSelection: true`. On other branches it is ignored, because their values already show that they were selected (a repeated branch has its occurrences, a branch with children has its filled-in fields). Using it on a branch with `children` logs a development warning. Prefer a non-empty value: if you clean up submitted values with `removeNullValues`, an empty `{}` or `[]` marker is removed and the selection is lost. Static metadata only: `computedProps` cannot set or change it at runtime.
 
 ```ts
-{
+const choiceField = {
   name: 'checkoutMethod',
   explicitChoiceSelection: true,
   choice: [
@@ -260,7 +260,7 @@ Only useful on a non-repeatable (`maxOccurs: 1`) branch without `children`, insi
     { name: 'express', presenceValue: true, fieldOptions: { label: 'Express checkout' } },
     { name: 'manual', children: [/* ... */], fieldOptions: { label: 'Enter details manually' } },
   ],
-}
+};
 ```
 
 See [Express vs. manual checkout](/examples/checkout#express-vs-manual) in the Checkout example for this pattern in a full form.
@@ -272,13 +272,13 @@ Type: `'grouped' | 'added'` | Default: `'grouped'` (absent)
 For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Selects the render order of its occurrences: `'grouped'` is the default (grouped by branch declaration order, same as `activeChoiceOccurrences`), `'added'` interleaves occurrences by the order their `addChoiceOccurrence` press happened. Reactive: changing it in the metadata re-sorts the occurrence list in place, without a remount, and the session's add history survives the flip. Display only, never written to `values`. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
 
 ```ts
-{
+const choiceField = {
   name: 'integrations',
   maxOccurs: 5,
   explicitChoiceSelection: true,
   displayOrder: 'added',
   choice: [/* ... */],
-}
+};
 ```
 
 ### `preserveOrder`
@@ -288,14 +288,14 @@ Type: `boolean` | Default: `false` (absent)
 For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). The values stay contiguous `1..N` at all times: loaded data with missing or gapped `order` is normalized at mount (preserving its relative order) and removing an occurrence renumbers the survivors. Reactive: flipping it on mid-session seeds `order` into existing occurrences, flipping it off strips `order` from all of them; mounting with the flag absent never touches loaded data. Requires every branch to have `children`: one scalar-leaf branch disables it for the whole choice, with a development warning. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
 
 ```ts
-{
+const choiceField = {
   name: 'integrations',
   maxOccurs: 5,
   explicitChoiceSelection: true,
   displayOrder: 'added',
   preserveOrder: true,
   choice: [/* ... */],
-}
+};
 ```
 
 ### `wizard`
@@ -322,14 +322,14 @@ interface WizardConfig {
 ```
 
 ```ts
-{
+const wizardField = {
   name: 'onboarding',
   wizard: { allowForwardJump: true },
   children: [
-    { name: 'company', fieldOptions: { label: 'Company details' }, children: [ /* ... */ ] },
-    { name: 'plan', fieldOptions: { label: 'Plan' }, children: [ /* ... */ ] },
+    { name: 'company', fieldOptions: { label: 'Company details' }, children: [/* ... */] },
+    { name: 'plan', fieldOptions: { label: 'Plan' }, children: [/* ... */] },
   ],
-}
+};
 ```
 
 A non-empty `choice` or a `maxOccurs > 1` set alongside `wizard` is inert (pages still come from `children` only) and triggers a one-time `console.warn` naming the node's path and the ignored property. A choice of wizards, or a repeated wizard, is expressed by nesting `wizard: true` nodes inside a plain `choice` branch or an array item's children instead — both fall out of the existing choice/array mechanics with no special handling.
@@ -349,14 +349,14 @@ Type: `FieldMetadata[]`
 Secondary metadata fields that appear alongside a field once it has a value. Inspired by XSD attributes: the parent field stores its primary value and the attributes are stored alongside it in a complex-type object.
 
 ```ts
-{
+const field = {
   name: 'phone',
   type: 'text',
   fieldOptions: { label: 'Phone' },
   attributes: [
     { name: 'verified', type: 'checkbox', minOccurs: 0, fieldOptions: { label: 'Verified' } },
   ],
-}
+};
 // → values.phone.value, values.phone.verified
 ```
 
@@ -369,7 +369,7 @@ Type: `boolean`
 When `true`, the field value is stored under a sub-property (`value` by default) rather than directly. Automatically set when `attributes` are present.
 
 ```ts
-{ name: 'phone', isComplexType: true }
+const field = { name: 'phone', isComplexType: true };
 // → values.phone.value = '...' instead of values.phone = '...'
 ```
 
@@ -401,7 +401,7 @@ const fields = [
       }
     ],
   },
-]
+];
 ```
 
 - **`field`** — writable clone of this field's metadata. Write here to change properties reactively.
@@ -421,16 +421,16 @@ When `true`, `computedProps` re-runs whenever any child field's **form value** c
 To react to changes in a child's **computed metadata** (e.g. becoming `hidden` or `disabled`) use the `childFields` parameter of `computedProps` instead — no flag needed.
 
 ```ts
-{
+const field = {
   name: 'address',
   computeOnChildValueChange: true,
-  children: [...],
+  children: [/* ... */],
   computedProps: [
     (field) => {
       // re-runs when any child in 'address' changes its form value
     }
   ]
-}
+};
 ```
 
 ## Read-only Runtime Properties
@@ -450,7 +450,7 @@ computedProps: [
       field.fullWidth = true;
     }
   }
-]
+];
 ```
 
 ## Extended Properties
@@ -460,7 +460,7 @@ Any key you declared in the second generic parameter of `defineMetadata()` is al
 ```ts
 // Declared: { options?: { key: string; value: string }[]; disabled?: boolean }
 
-{
+const field = {
   name: 'country',
   type: 'select',
   options: [
@@ -468,15 +468,17 @@ Any key you declared in the second generic parameter of `defineMetadata()` is al
     { key: 'de', value: 'Germany' },
   ],
   disabled: false,
-}
+};
 ```
 
 Access in your template:
 
+<!-- eslint-skip -->
+
 ```vue
 <template #select-input="{ fieldMetadata }">
   <select :disabled="fieldMetadata.disabled">
-    <option v-for="opt in fieldMetadata.options" ...>
+    <option v-for="opt in fieldMetadata.options" ... />
   </select>
 </template>
 ```
@@ -545,7 +547,7 @@ const fields: Metadata[] = [
     maxOccurs: 5,
     children: [
       { name: 'company', type: 'text', fieldOptions: { label: 'Company' } },
-      { name: 'role',    type: 'text', fieldOptions: { label: 'Role' } },
+      { name: 'role', type: 'text', fieldOptions: { label: 'Role' } },
     ],
   },
 ];

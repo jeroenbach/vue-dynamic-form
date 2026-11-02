@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Smoke-tests the dogfooded docs pages' actual computed styles against a running dev server,
-// in both color modes. Unlike verifyDogfood.mjs (source-scan only), this catches a cascade
-// problem like the starter stylesheet being discarded by the docs theme's own CSS: a broken
-// import or layer order still leaves the right class names and imports in the source, but the
-// browser renders unstyled controls.
+// Smoke-tests the docs pages' actual computed styles against a running dev server, in both
+// color modes. Unlike the structural checks in .vitepress/theme/__tests__/dogfood.test.ts, this
+// catches a cascade problem like the starter stylesheet being discarded by the docs theme's own
+// CSS: a broken import or layer order still leaves the right class names and imports in the
+// source, but the browser renders unstyled controls.
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -82,7 +82,7 @@ async function run() {
     return;
   }
 
-  console.log('\nverify:dogfood:render passed');
+  console.log('\ntest:render passed');
 }
 
 run().catch((error) => {

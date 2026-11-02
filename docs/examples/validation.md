@@ -24,13 +24,13 @@ The `username` field combines three restrictions at once: length bounds and a ch
 
 Other restriction flavours used in this example:
 
-| Field | Restriction | What it enforces |
-|---|---|---|
-| `displayName` | `whiteSpace: 'collapse'` | Rejects leading/trailing spaces and double spaces |
-| `bio` | `maxLength: 200` | Hard character cap |
-| `startDate` / `endDate` | `pattern: '^\\d{4}-\\d{2}-\\d{2}$'` | YYYY-MM-DD format |
-| `amount` | `minExclusive: 0`, `maxInclusive: 10000`, `fractionDigits: 2` | Positive monetary value, max 2 decimals |
-| `promoCode` | `pattern: '^[A-Z0-9]{4,8}$'` | 4–8 uppercase alphanumeric chars |
+| Field                   | Restriction                                                   | What it enforces                                  |
+| ----------------------- | ------------------------------------------------------------- | ------------------------------------------------- |
+| `displayName`           | `whiteSpace: 'collapse'`                                      | Rejects leading/trailing spaces and double spaces |
+| `bio`                   | `maxLength: 200`                                              | Hard character cap                                |
+| `startDate` / `endDate` | `pattern: '^\\d{4}-\\d{2}-\\d{2}$'`                           | YYYY-MM-DD format                                 |
+| `amount`                | `minExclusive: 0`, `maxInclusive: 10000`, `fractionDigits: 2` | Positive monetary value, max 2 decimals           |
+| `promoCode`             | `pattern: '^[A-Z0-9]{4,8}$'`                                  | 4–8 uppercase alphanumeric chars                  |
 
 ## Async Validation
 
@@ -53,6 +53,7 @@ The `validation` function on the password field checks five criteria and lists a
 The animated strength bar (`PasswordStrengthBar.vue`) is rendered directly inside the custom `#password-input` slot in `StarterFormTemplate`. It reads the same `value.value` ref that vee-validate tracks, so the bar updates on every keystroke without any extra wiring.
 
 The new `password` field type was added to the template by:
+
 1. Registering `password: string` in `defineMetadata`
 2. Adding a `showStrengthBar?: boolean` extended property
 3. Dropping in a `#password-input` slot that renders `PasswordInput` (with the eye toggle) followed by `PasswordStrengthBar`

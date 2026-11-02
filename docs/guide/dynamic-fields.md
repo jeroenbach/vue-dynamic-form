@@ -5,7 +5,7 @@
 ## Basic Syntax
 
 ```ts
-{
+const field = {
   name: 'discount',
   type: 'text',
   fieldOptions: { label: 'Discount code' },
@@ -16,12 +16,12 @@
       // childFields — Ref<FieldMetadata[]> of direct children's latest computed fields
     }
   ]
-}
+};
 ```
 
 Write to `field` to change properties. Read from `value` to subscribe to the field's own value. Read from `childFields` to subscribe to changes in children's computed state. All three trigger the computed to re-run whenever their reactive dependencies change.
 
-To react to a *different* field's value, call `useFieldValue` in `<script setup>` and close over the resulting `Ref` — do not call it inside the `computedProps` function itself, as `inject()` is not available inside a `computed()` callback.
+To react to a _different_ field's value, call `useFieldValue` in `<script setup>` and close over the resulting `Ref` — do not call it inside the `computedProps` function itself, as `inject()` is not available inside a `computed()` callback.
 
 ## Disabling or Hiding a Field
 
@@ -31,7 +31,7 @@ To react to a *different* field's value, call `useFieldValue` in `<script setup>
 // MyFormTemplate.ts
 export const metadata = defineMetadata<
   { text: string },
-  { disabled?: boolean; hidden?: boolean }
+  { disabled?: boolean, hidden?: boolean }
 >();
 ```
 
@@ -50,20 +50,23 @@ const fields: Metadata[] = [
     fieldOptions: { label: 'VAT number' },
     computedProps: [
       (field) => {
-        if (accountType.value !== 'business') field.disabled = true;
+        if (accountType.value !== 'business')
+          field.disabled = true;
       }
     ]
   }
-]
+];
 </script>
 ```
 
 And in your template, use the extended property to conditionally disable or hide the input:
 
 ```vue
-<template #text-input="{ fieldMetadata, fieldContext: { value, handleChange } }">
-  <input :disabled="fieldMetadata.disabled" :value="value.value" @change="handleChange" />
-</template>
+<DynamicFormTemplate>
+  <template #text-input="{ fieldMetadata, fieldContext: { value, handleChange } }">
+    <input :disabled="fieldMetadata.disabled" :value="value.value" @change="handleChange">
+  </template>
+</DynamicFormTemplate>
 ```
 
 ## Changing Select Options Dynamically
@@ -87,7 +90,7 @@ const fields: Metadata[] = [
       }
     ]
   }
-]
+];
 </script>
 ```
 
@@ -106,8 +109,8 @@ import { reactive } from 'vue';
 import MyForm from './MyForm.vue';
 
 const optionStore = reactive({
-  industry: [] as { key: string; value: string }[],
-  teamSize: [] as { key: string; value: string }[],
+  industry: [] as { key: string, value: string }[],
+  teamSize: [] as { key: string, value: string }[],
 });
 
 function loadOptions(name: 'industry' | 'teamSize', params?: { industry?: string }) {
@@ -140,7 +143,7 @@ Inside the form component, emit the load request when a value changes and read t
 import type { Metadata } from './MyFormTemplate';
 
 const props = defineProps<{
-  optionStore: { industry: { key: string; value: string }[]; teamSize: { key: string; value: string }[] }
+  optionStore: { industry: { key: string, value: string }[], teamSize: { key: string, value: string }[] }
 }>();
 
 const emit = defineEmits<{
@@ -173,7 +176,7 @@ const fields: Metadata[] = [
       }
     ],
   },
-]
+];
 </script>
 ```
 
@@ -184,7 +187,7 @@ Because `props.optionStore.teamSize` is read inside `computedProps`, Vue tracks 
 Use the `value` parameter to subscribe to this field's own current value:
 
 ```ts
-{
+const field = {
   name: 'agreedToTerms',
   type: 'checkbox',
   fieldOptions: { label: 'I agree to the terms' },
@@ -196,7 +199,7 @@ Use the `value` parameter to subscribe to this field's own current value:
         : 'You must agree before continuing.';
     }
   ]
-}
+};
 ```
 
 If you never read `value.value`, changes to this field will not re-trigger the function.
@@ -206,7 +209,7 @@ If you never read `value.value`, changes to this field will not re-trigger the f
 You can also write to `value.value` to programmatically set the field's value. A common use case is normalising or transforming input — for example, trimming whitespace or uppercasing a code:
 
 ```ts
-{
+const field = {
   name: 'couponCode',
   type: 'text',
   fieldOptions: { label: 'Coupon code' },
@@ -216,7 +219,7 @@ You can also write to `value.value` to programmatically set the field's value. A
         value.value = value.value.toUpperCase();
     }
   ]
-}
+};
 ```
 
 Make sure the transform is idempotent — writing `value.value` triggers a re-run, so a non-idempotent write will cause an infinite loop. The library detects this and throws after a set number of synchronous re-runs.
@@ -224,6 +227,8 @@ Make sure the transform is idempotent — writing `value.value` triggers a re-ru
 ## Reacting to Child Value Changes
 
 By default, `computedProps` does not re-run when a child field changes. Enable tracking of child changes with `computeOnChildValueChange`:
+
+<!-- eslint-skip -->
 
 ```vue
 <script setup lang="ts">
@@ -278,17 +283,23 @@ const fields: Metadata[] = [
         name: 'street',
         type: 'text',
         minOccurs: 0,
-        computedProps: [(f, v) => { if (!inEditMode.value && !v.value) f.hidden = true; }],
+        computedProps: [(f, v) => {
+          if (!inEditMode.value && !v.value)
+            f.hidden = true;
+        }],
       },
       {
         name: 'city',
         type: 'text',
         minOccurs: 0,
-        computedProps: [(f, v) => { if (!inEditMode.value && !v.value) f.hidden = true; }],
+        computedProps: [(f, v) => {
+          if (!inEditMode.value && !v.value)
+            f.hidden = true;
+        }],
       },
     ],
   }
-]
+];
 </script>
 ```
 
@@ -307,11 +318,14 @@ const fields: Metadata[] = [
     name: 'adminNote',
     type: 'text',
     computedProps: [
-      (field) => { if (role.value !== 'admin') field.hidden = true; },
+      (field) => {
+        if (role.value !== 'admin')
+          field.hidden = true;
+      },
       (field) => { field.description = 'Only visible to admins.'; },
     ]
   }
-]
+];
 </script>
 ```
 
@@ -328,13 +342,13 @@ const fields: Metadata[] = [
 
 **Read-only in computedProps (cannot be mutated):**
 
-| Property | Reason |
-|----------|---------|
-| `name`, `path`, `parent` | Always present and consistent — use for reference only |
-| `children`, `choice`, `attributes` | Structural; changing them mid-render is not supported |
-| `fieldOptions` | vee-validate doesn't react to these changes |
-| `maxOccurs` | Changing array length mid-render is not supported |
-| `computedProps` | Cannot be changed recursively |
+| Property                                     | Reason                                                       |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `name`, `path`, `parent`                     | Always present and consistent — use for reference only       |
+| `children`, `choice`, `attributes`           | Structural; changing them mid-render is not supported        |
+| `fieldOptions`                               | vee-validate doesn't react to these changes                  |
+| `maxOccurs`                                  | Changing array length mid-render is not supported            |
+| `computedProps`                              | Cannot be changed recursively                                |
 | `isComplexType`, `computeOnChildValueChange` | Not read reactively after setup; changing them has no effect |
 
 ## Dynamic Labels
@@ -344,11 +358,11 @@ Since `fieldOptions.label` is read-only in `computedProps`, pass a `Ref` from th
 ```ts
 const labelRef = ref('Quantity');
 
-{
+const field = {
   name: 'qty',
   type: 'text',
   fieldOptions: { label: labelRef },
-}
+};
 
 // Update it at any time:
 labelRef.value = 'Number of licences';
@@ -365,6 +379,7 @@ labelRef.value = 'Number of licences';
 This is almost always caused by writing to `value` (the field's own form value) inside `computedProps`. Mutate `field` properties — not the form value — in these functions.
 
 ## Live Example
+
 <FormExampleDynamicFieldsContext />
 
 Full source:

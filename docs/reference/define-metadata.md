@@ -10,7 +10,7 @@ function defineMetadata<
   ExtendedFieldProperties extends object = object,
   SlotProperties extends object = object,
   ExtendedSettingsProperties extends object = object,
->(): MetadataConfiguration
+>(): MetadataConfiguration;
 ```
 
 ## Generic Parameters
@@ -23,11 +23,11 @@ Each key generates a pair of slots: `#text` (wrapper) and `#text-input` (raw inp
 
 ```ts
 defineMetadata<{
-  text: string        // fieldContext.value is Ref<string> in #text and #text-input
-  number: number      // fieldContext.value is Ref<number> in #number and #number-input
-  checkbox: boolean   // fieldContext.value is Ref<boolean> in #checkbox and #checkbox-input
-  heading: never      // display-only — no -input slot, no value
-}>()
+  text: string // fieldContext.value is Ref<string> in #text and #text-input
+  number: number // fieldContext.value is Ref<number> in #number and #number-input
+  checkbox: boolean // fieldContext.value is Ref<boolean> in #checkbox and #checkbox-input
+  heading: never // display-only — no -input slot, no value
+}>();
 ```
 
 ::: tip
@@ -40,15 +40,15 @@ Optional. Extra properties merged into every `FieldMetadata` object. These flow 
 
 ```ts
 defineMetadata<
-  { text: string; select: string },
+  { text: string, select: string },
   {
     description?: string
     placeholder?: string
-    options?: { key: string; value: string }[]
+    options?: { key: string, value: string }[]
     disabled?: boolean
     fullWidth?: boolean
   }
->()
+>();
 ```
 
 ### `SlotProperties`
@@ -58,9 +58,9 @@ Optional. Extra data that can be passed down from a parent slot to child slots v
 ```ts
 defineMetadata<
   { text: string },
-  {},
-  { hideLabel?: boolean; depth?: number }
->()
+  object,
+  { hideLabel?: boolean, depth?: number }
+>();
 // slotProps is now typed as { hideLabel?: boolean; depth?: number } | undefined
 ```
 
@@ -70,20 +70,22 @@ Optional. Extra properties merged into the `DynamicFormSettings` object passed t
 
 ```ts
 defineMetadata<
-  { text: string; select: string },
-  {},
-  {},
+  { text: string, select: string },
+  object,
+  object,
   { showRequiredOrOptional?: 'optional' | 'required' }
->()
+>();
 // settings.showRequiredOrOptional is now available in every slot
 ```
 
 Slots can then destructure the setting directly:
 
 ```vue
-<template #default="{ required, settings: { showRequiredOrOptional } }">
-  <span v-if="showRequiredOrOptional === 'optional' && !required">Optional</span>
-</template>
+<DynamicFormTemplate>
+  <template #default="{ required, settings: { showRequiredOrOptional } }">
+    <span v-if="showRequiredOrOptional === 'optional' && !required">Optional</span>
+  </template>
+</DynamicFormTemplate>
 ```
 
 ## Return Value
@@ -100,14 +102,14 @@ Pass it to `DynamicFormTemplate` via `:metadata-configuration`.
 
 `default` is always included as a field type — you never need to declare it in `FieldValueTypes`. Like every declared type, it generates seven slots that act as the final fallback for any field whose `type` has no matching named slot:
 
-| Slot | Fallback for |
-|------|-------------|
-| `#default` | Any `#T` slot that is not defined |
-| `#default-input` | Any `#T-input` slot that is not defined |
-| `#default-array` | Any `#T-array` slot that is not defined |
-| `#default-array-item` | Any `#T-array-item` slot that is not defined |
-| `#default-choice` | Any `#T-choice` slot that is not defined |
-| `#default-choice-array` | Any `#T-choice-array` slot that is not defined |
+| Slot                         | Fallback for                                        |
+| ---------------------------- | --------------------------------------------------- |
+| `#default`                   | Any `#T` slot that is not defined                   |
+| `#default-input`             | Any `#T-input` slot that is not defined             |
+| `#default-array`             | Any `#T-array` slot that is not defined             |
+| `#default-array-item`        | Any `#T-array-item` slot that is not defined        |
+| `#default-choice`            | Any `#T-choice` slot that is not defined            |
+| `#default-choice-array`      | Any `#T-choice-array` slot that is not defined      |
 | `#default-choice-array-item` | Any `#T-choice-array-item` slot that is not defined |
 
 When a `default-*` slot is missing too, resolution keeps walking: the `-choice-array` families degrade into the `-choice` and `-array-item` families before landing on `#default`. See the full fallback chain in [DynamicFormTemplate](/reference/dynamic-form-template#slots-overview).
@@ -121,13 +123,13 @@ Avoid names ending in `-input`, `-array`, `-array-item`, `-choice`, `-choice-arr
 Use the `GetDynamicFormSettingsType` helper to derive the fully typed `DynamicFormSettings` alias, including any extended properties declared in the fourth generic:
 
 ```ts
-import { defineMetadata } from '@bach.software/vue-dynamic-form';
 import type { GetDynamicFormSettingsType } from '@bach.software/vue-dynamic-form';
+import { defineMetadata } from '@bach.software/vue-dynamic-form';
 
 export const metadata = defineMetadata<
-  { text: string; select: string },
-  {},
-  {},
+  { text: string, select: string },
+  object,
+  object,
   { showRequiredOrOptional?: 'optional' | 'required' }
 >();
 
@@ -142,12 +144,12 @@ Import `DynamicFormSettings` wherever you pass settings to `DynamicForm`. TypeSc
 Use the `GetMetadataType` helper to derive the fully typed `FieldMetadata` alias for use in form definitions:
 
 ```ts
-import { defineMetadata } from '@bach.software/vue-dynamic-form';
 import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
+import { defineMetadata } from '@bach.software/vue-dynamic-form';
 
 export const metadata = defineMetadata<
-  { text: string; select: string },
-  { options?: { key: string; value: string }[] }
+  { text: string, select: string },
+  { options?: { key: string, value: string }[] }
 >();
 
 export type Metadata = GetMetadataType<typeof metadata>;
@@ -159,9 +161,9 @@ Import `Metadata` wherever you write field arrays. TypeScript will enforce that 
 ## Full Example
 
 ```ts
+import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
 // MyFormTemplate.vue
 import { defineMetadata } from '@bach.software/vue-dynamic-form';
-import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
 
 export const metadata = defineMetadata<
   {
@@ -172,7 +174,7 @@ export const metadata = defineMetadata<
   },
   {
     description?: string
-    options?: { key: string; value: string }[]
+    options?: { key: string, value: string }[]
     disabled?: boolean
     fullWidth?: boolean
   },
@@ -195,9 +197,9 @@ import type { FormSettings, Metadata } from './MyFormTemplate.vue';
 const fields: Metadata[] = [
   {
     name: 'country',
-    type: 'select',              // ✓ only 'text' | 'select' | 'checkbox' | 'heading' accepted
+    type: 'select', // ✓ only 'text' | 'select' | 'checkbox' | 'heading' accepted
     fieldOptions: { label: 'Country' },
-    options: [                   // ✓ typed from ExtendedFieldProperties
+    options: [ // ✓ typed from ExtendedFieldProperties
       { key: 'nl', value: 'Netherlands' },
       { key: 'de', value: 'Germany' },
     ],
@@ -205,7 +207,7 @@ const fields: Metadata[] = [
 ];
 
 const settings: FormSettings = {
-  showRequiredOrOptional: 'optional',   // ✓ typed from ExtendedSettingsProperties
-  validateOnBlur: true,                  // ✓ always available from DynamicFormSettings
+  showRequiredOrOptional: 'optional', // ✓ typed from ExtendedSettingsProperties
+  validateOnBlur: true, // ✓ always available from DynamicFormSettings
 };
 ```

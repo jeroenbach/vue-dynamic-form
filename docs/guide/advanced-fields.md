@@ -7,16 +7,16 @@ Beyond simple inputs, the library handles three structural field types: **groups
 A field with `children` becomes a parent group. Its own `name` becomes a path segment, and its children are rendered inside it.
 
 ```ts
-{
+const billingGroup = {
   name: 'billing',
   type: 'heading',
   fieldOptions: { label: 'Billing details' },
   children: [
-    { name: 'street',   type: 'text', fieldOptions: { label: 'Street' } },
-    { name: 'city',     type: 'text', fieldOptions: { label: 'City' } },
+    { name: 'street', type: 'text', fieldOptions: { label: 'Street' } },
+    { name: 'city', type: 'text', fieldOptions: { label: 'City' } },
     { name: 'postcode', type: 'text', fieldOptions: { label: 'Postcode' } },
   ],
-}
+};
 // → values.billing.street, values.billing.city, values.billing.postcode
 ```
 
@@ -25,15 +25,15 @@ A field with `children` becomes a parent group. Its own `name` becomes a path se
 Set `minOccurs: 0` on the parent to make the entire group optional. While none of its children have a value, child validation is suspended — the user is not forced to fill anything in. As soon as one child gets a value, all child `minOccurs` constraints are restored:
 
 ```ts
-{
+const secondaryContact = {
   name: 'secondaryContact',
   minOccurs: 0,
   fieldOptions: { label: 'Secondary contact (optional)' },
   children: [
-    { name: 'name',  type: 'text', fieldOptions: { label: 'Name' } },
+    { name: 'name', type: 'text', fieldOptions: { label: 'Name' } },
     { name: 'email', type: 'text', fieldOptions: { label: 'Email' } },
   ],
-}
+};
 ```
 
 ### Template Slot for Groups
@@ -41,26 +41,32 @@ Set `minOccurs: 0` on the parent to make the entire group optional. While none o
 Your `#default` slot handles both groups and plain inputs. Check `fieldMetadata.children?.length` to distinguish them:
 
 ```vue
-<template #default="{ fieldMetadata, fieldContext: { label, errorMessage }, required, canRemoveItems, removeItem }">
-  <!-- Group rendering -->
-  <div v-if="fieldMetadata.children?.length" class="group">
-    <h3>{{ label }}<span v-if="required"> *</span></h3>
-    <p v-if="fieldMetadata.description">{{ fieldMetadata.description }}</p>
-    <div class="group-fields">
-      <slot />
+<DynamicFormTemplate>
+  <template #default="{ fieldMetadata, fieldContext: { label, errorMessage }, required, canRemoveItems, removeItem }">
+    <!-- Group rendering -->
+    <div v-if="fieldMetadata.children?.length" class="group">
+      <h3>{{ label }}<span v-if="required"> *</span></h3>
+      <p v-if="fieldMetadata.description">
+        {{ fieldMetadata.description }}
+      </p>
+      <div class="group-fields">
+        <slot />
+      </div>
     </div>
-  </div>
 
-  <!-- Input rendering -->
-  <div v-else class="field">
-    <label :for="fieldMetadata.path">
-      {{ label }}<span v-if="required"> *</span>
-    </label>
-    <slot />
-    <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
-    <button v-if="canRemoveItems" type="button" @click="removeItem">Remove</button>
-  </div>
-</template>
+    <!-- Input rendering -->
+    <div v-else class="field">
+      <label :for="fieldMetadata.path">
+        {{ label }}<span v-if="required"> *</span>
+      </label>
+      <slot />
+      <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
+      <button v-if="canRemoveItems" type="button" @click="removeItem">
+        Remove
+      </button>
+    </div>
+  </template>
+</DynamicFormTemplate>
 ```
 
 Alternatively, give each structural type its own named slot — for example `#heading` for section headings, so `#default` can stay purely for input fields.
@@ -70,29 +76,29 @@ Alternatively, give each structural type its own named slot — for example `#he
 Set `maxOccurs` greater than `1` to make a field repeatable. The library manages adding and removing occurrences.
 
 ```ts
-{
+const contacts = {
   name: 'contacts',
   fieldOptions: { label: 'Contacts' },
   minOccurs: 1,
   maxOccurs: 5,
   children: [
-    { name: 'name',  type: 'text', fieldOptions: { label: 'Name' } },
+    { name: 'name', type: 'text', fieldOptions: { label: 'Name' } },
     { name: 'email', type: 'text', fieldOptions: { label: 'Email' } },
   ],
-}
+};
 // → values.contacts[0].name, values.contacts[0].email, …
 ```
 
 Simple fields (no children) can be arrays too:
 
 ```ts
-{
+const tags = {
   name: 'tags',
   type: 'text',
   fieldOptions: { label: 'Tag' },
   minOccurs: 0,
   maxOccurs: 10,
-}
+};
 // → values.tags[0], values.tags[1], …
 ```
 
@@ -104,40 +110,46 @@ The rendering splits into two roles:
 2. **`#default-array-item`** (or `#<type>-array-item`, e.g. `#text-array-item`) — rendered once per occurrence; the item wrapper. Falls back to `#default` if neither is defined.
 
 ```vue
-<!-- Outer container -->
-<template #default-array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
-  <section class="array-field">
-    <h3>{{ label }}<span v-if="required"> *</span></h3>
-    <slot />
-    <button type="button" v-if="canAddItems" @click="addItem">+ Add</button>
-    <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
-  </section>
-</template>
+<DynamicFormTemplate>
+  <!-- Outer container -->
+  <template #default-array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
+    <section class="array-field">
+      <h3>{{ label }}<span v-if="required"> *</span></h3>
+      <slot />
+      <button v-if="canAddItems" type="button" @click="addItem">
+        + Add
+      </button>
+      <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
+    </section>
+  </template>
 
-<!-- Each occurrence -->
-<template #default-array-item="{ fieldMetadata, fieldContext: { label, errorMessage }, required, canRemoveItems, removeItem }">
-  <div class="array-item">
-    <slot /> <!-- renders #default-input (or type-specific input slot) -->
-    <button type="button" v-if="canRemoveItems" @click="removeItem">✕ Remove</button>
-  </div>
-</template>
+  <!-- Each occurrence -->
+  <template #default-array-item="{ fieldMetadata, fieldContext: { label, errorMessage }, required, canRemoveItems, removeItem }">
+    <div class="array-item">
+      <slot /> <!-- renders #default-input (or type-specific input slot) -->
+      <button v-if="canRemoveItems" type="button" @click="removeItem">
+        ✕ Remove
+      </button>
+    </div>
+  </template>
+</DynamicFormTemplate>
 ```
 
 ### Add/Remove Control Props
 
-| Prop | When `true` |
-|------|-------------|
-| `canAddItems` | Current count is below `maxOccurs` |
+| Prop             | When `true`                                                                  |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `canAddItems`    | Current count is below `maxOccurs`                                           |
 | `canRemoveItems` | Current count is above `minOccurs` (or item has a value that can be cleared) |
-| `addItem()` | Call to append a new occurrence |
-| `removeItem()` | Call to remove the current occurrence |
+| `addItem()`      | Call to append a new occurrence                                              |
+| `removeItem()`   | Call to remove the current occurrence                                        |
 
 ## Choices (Mutually Exclusive Branches)
 
 A field with `choice` presents several branches, of which the user fills in exactly one. Once one branch gets a value, all sibling branches are disabled.
 
 ```ts
-{
+const contactMethod = {
   name: 'contactMethod',
   fieldOptions: { label: 'How should we reach you?' },
   minOccurs: 1,
@@ -145,7 +157,7 @@ A field with `choice` presents several branches, of which the user fills in exac
     { name: 'email', type: 'text', fieldOptions: { label: 'Email address' } },
     { name: 'phone', type: 'text', fieldOptions: { label: 'Phone number' } },
   ],
-}
+};
 ```
 
 With `minOccurs: 1`, at least one branch must be filled in. Set `minOccurs: 0` for an entirely optional choice.
@@ -155,7 +167,7 @@ With `minOccurs: 1`, at least one branch must be filled in. Set `minOccurs: 0` f
 Each choice branch can itself be a group with children:
 
 ```ts
-{
+const payment = {
   name: 'payment',
   fieldOptions: { label: 'Payment method' },
   choice: [
@@ -164,7 +176,7 @@ Each choice branch can itself be a group with children:
       fieldOptions: { label: 'Credit / debit card' },
       children: [
         { name: 'number', type: 'text', fieldOptions: { label: 'Card number' } },
-        { name: 'cvv',    type: 'text', fieldOptions: { label: 'CVV' } },
+        { name: 'cvv', type: 'text', fieldOptions: { label: 'CVV' } },
       ],
     },
     {
@@ -175,7 +187,7 @@ Each choice branch can itself be a group with children:
       ],
     },
   ],
-}
+};
 ```
 
 ### Choice + Arrays
@@ -183,15 +195,15 @@ Each choice branch can itself be a group with children:
 Combining `maxOccurs > 1` with `choice` lets the user add multiple occurrences, each picking its own branch independently:
 
 ```ts
-{
+const identifiers = {
   name: 'identifiers',
   maxOccurs: 3,
   fieldOptions: { label: 'Identity documents' },
   choice: [
-    { name: 'passport',       type: 'text', fieldOptions: { label: 'Passport number' } },
+    { name: 'passport', type: 'text', fieldOptions: { label: 'Passport number' } },
     { name: 'drivingLicense', type: 'text', fieldOptions: { label: 'Driving licence' } },
   ],
-}
+};
 ```
 
 ### Template Slots for Choices
@@ -204,37 +216,40 @@ The rendering splits the same way as arrays:
 A choice with `maxOccurs > 1` renders its outer wrapper through `#default-choice-array` (or `#<type>-choice-array`) instead, so a template can lay out "pick exactly one" and "add several" choices independently. When no `-choice-array` slot is defined, a repeatable choice falls back to the `-choice` slots, which receive the same slot props.
 
 ```vue
-<!-- Outer wrapper -->
-<template #default-choice="{ fieldContext: { label, errorMessage }, required, disabled }">
-  <div class="choice-field">
-    <h3>{{ label }}<span v-if="required"> *</span></h3>
-    <slot />
-    <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
-  </div>
-</template>
+<DynamicFormTemplate>
+  <!-- Outer wrapper -->
+  <template #default-choice="{ fieldContext: { label, errorMessage }, required, disabled }">
+    <div class="choice-field">
+      <h3>{{ label }}<span v-if="required"> *</span></h3>
+      <slot />
+      <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
+    </div>
+  </template>
 
-<!-- Each branch -->
-<template #default="{ fieldMetadata, fieldContext: { label, errorMessage }, required, disabled }">
-  <div class="choice-branch" :class="{ 'is-disabled': disabled }">
-    <label>{{ label }}</label>
-    <slot />
-    <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
-  </div>
-</template>
+  <!-- Each branch -->
+  <template #default="{ fieldMetadata, fieldContext: { label, errorMessage }, required, disabled }">
+    <div class="choice-branch" :class="{ 'is-disabled': disabled }">
+      <label>{{ label }}</label>
+      <slot />
+      <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
+    </div>
+  </template>
+</DynamicFormTemplate>
 ```
 
 ## Live Example Arrays
+
 <FormExampleArrayFields />
 
 Full source:
 [FormExampleArrayFields.vue](https://github.com/jeroenbach/vue-dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleArrayFields.vue) ·
 
 ## Live Example Choices
+
 <FormExampleChoiceFields />
 
 Full source:
 [FormExampleChoiceFields.vue](https://github.com/jeroenbach/vue-dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleChoiceFields.vue) ·
-
 
 ---
 

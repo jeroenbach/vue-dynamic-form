@@ -35,13 +35,13 @@ Some forms should ask "what kind of data do you want to enter?" before showing a
 
 With the flag on, no branch renders until your template calls `addChoiceOccurrence`. The choice's slot receives a small set of props for building the picker:
 
-| Slot prop | Purpose |
-| --- | --- |
-| `addChoiceOccurrence(branchKey)` | Selects a branch (`maxOccurs: 1`) or adds one occurrence of it (`maxOccurs > 1`). |
-| `removeChoiceOccurrence(branchKey, index?)` | Deselects the active branch; pass `index` when the choice repeats. |
-| `canAddChoiceOccurrence(branchKey)` | `false` when the choice is full or the branch reached its own cap. |
-| `activeChoiceOccurrences` | Array of `{ branchKey, index }` for everything currently selected. |
-| `usedChoiceOccurrences` | How many of the choice's `maxOccurs` slots are in use. |
+| Slot prop                                   | Purpose                                                                           |
+| ------------------------------------------- | --------------------------------------------------------------------------------- |
+| `addChoiceOccurrence(branchKey)`            | Selects a branch (`maxOccurs: 1`) or adds one occurrence of it (`maxOccurs > 1`). |
+| `removeChoiceOccurrence(branchKey, index?)` | Deselects the active branch; pass `index` when the choice repeats.                |
+| `canAddChoiceOccurrence(branchKey)`         | `false` when the choice is full or the branch reached its own cap.                |
+| `activeChoiceOccurrences`                   | Array of `{ branchKey, index }` for everything currently selected.                |
+| `usedChoiceOccurrences`                     | How many of the choice's `maxOccurs` slots are in use.                            |
 
 `branchKey` is always the branch's `name`, never its position.
 
@@ -154,10 +154,10 @@ Following XSD semantics, a branch's `maxOccurs` is not an independent total; it 
 
 Two opt-in flags, set next to `explicitChoiceSelection`, control the ordering. Both are reactive: change them in your metadata at any time and the choice adjusts in place, no remount needed. The toolbar in the example above flips both live, so you can try each combination:
 
-| Flag | What it does |
-| --- | --- |
-| `displayOrder: 'added'` | Renders occurrences in the order they were added, interleaving kinds. Display only, nothing is written to `values`. The default, `'grouped'`, groups by kind. |
-| `preserveOrder: true` | Additionally writes an `order` number (`1, 2, 3...` in add order) into each occurrence's values, so the order is real submitted data that survives a reload or loaded saved data. |
+| Flag                    | What it does                                                                                                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `displayOrder: 'added'` | Renders occurrences in the order they were added, interleaving kinds. Display only, nothing is written to `values`. The default, `'grouped'`, groups by kind.                     |
+| `preserveOrder: true`   | Additionally writes an `order` number (`1, 2, 3...` in add order) into each occurrence's values, so the order is real submitted data that survives a reload or loaded saved data. |
 
 With `displayOrder: 'added'` alone, the add order lives only in memory: the engine records every add press regardless of the current display mode (so flipping to `'added'` mid-session shows the clicks made before the flip too), but a page reload starts over and the display falls back to grouped order. Turn on `preserveOrder` to make it durable.
 

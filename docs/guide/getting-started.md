@@ -27,12 +27,12 @@ export const metadata = defineMetadata<
   {
     text: string
     checkbox: boolean
-    heading: never    // display-only, no form value
+    heading: never // display-only, no form value
   },
   {
     label?: string
     description?: string
-    options?: { key: string; value: string }[]
+    options?: { key: string, value: string }[]
   }
 >();
 
@@ -70,7 +70,7 @@ import { metadata } from './MyFormTemplate';
         :value="value.value"
         @input="handleChange"
         @blur="handleBlur"
-      />
+      >
     </template>
 
     <template #checkbox-input="{ fieldMetadata, fieldContext: { value, handleChange } }">
@@ -79,7 +79,7 @@ import { metadata } from './MyFormTemplate';
         type="checkbox"
         :checked="value.value"
         @change="handleChange"
-      />
+      >
     </template>
   </DynamicFormTemplate>
 </template>

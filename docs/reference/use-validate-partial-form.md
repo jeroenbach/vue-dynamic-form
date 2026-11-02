@@ -24,29 +24,30 @@ if (!result.valid) {
 
 **Returns** `Promise<FormValidationResult<GenericObject>>` — the same shape as vee-validate's `validate()`:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `valid` | `boolean` | `true` when every matched field passes validation |
-| `errors` | `Record<string, string>` | Field path → first error message for each failing field |
+| Property  | Type                               | Description                                                |
+| --------- | ---------------------------------- | ---------------------------------------------------------- |
+| `valid`   | `boolean`                          | `true` when every matched field passes validation          |
+| `errors`  | `Record<string, string>`           | Field path → first error message for each failing field    |
 | `results` | `Record<string, ValidationResult>` | Field path → full validation result for each matched field |
-| `source` | `'fields'` | Always `'fields'` |
+| `source`  | `'fields'`                         | Always `'fields'`                                          |
 
 If no fields match `sectionPath`, the result is `{ valid: true, errors: {}, results: {}, source: 'fields' }`.
 
 ## Path matching
 
-| `sectionPath` | What gets validated |
-|---------------|---------------------|
-| `'company'` | `company.name`, `company.address.street`, `company[0]`, … |
-| `'company.address'` | `company.address.street`, `company.address.city`, … |
-| `'contacts[0]'` | `contacts[0].name`, `contacts[0].email`, … |
-| `'company.name'` | Only `company.name` (exact leaf match) |
+| `sectionPath`       | What gets validated                                       |
+| ------------------- | --------------------------------------------------------- |
+| `'company'`         | `company.name`, `company.address.street`, `company[0]`, … |
+| `'company.address'` | `company.address.street`, `company.address.city`, …       |
+| `'contacts[0]'`     | `contacts[0].name`, `contacts[0].email`, …                |
+| `'company.name'`    | Only `company.name` (exact leaf match)                    |
 
 ## How it works
 
 vee-validate maintains an internal registry of every active field in the form. `validateSection` reads that registry, filters to the paths that equal or start with `sectionPath`, then runs `validateField` on each match in parallel.
 
 This means:
+
 - You do not need to list which fields a section contains — the registry is the source of truth.
 - Fields that are hidden or removed by `computedProps` are not in the registry and are not validated.
 
@@ -61,8 +62,10 @@ const { validateSection } = useDynamicForm<MyValues>();
 
 async function saveDraft() {
   const result = await validateSection('company');
-  if (!result.valid)
-    return; // show errors, keep editing
-  // persist the draft
+  if (!result.valid) {
+    // show errors, keep editing
+    return;
+  }
+  await api.saveDraft(values.company);
 }
 ```

@@ -9,9 +9,9 @@ import { defineMetadata } from '@bach.software/vue-dynamic-form';
 
 const metadata = defineMetadata<
   {
-    text: string      // text input, value is a string
+    text: string // text input, value is a string
     checkbox: boolean // checkbox, value is a boolean
-    heading: never    // display-only, no value
+    heading: never // display-only, no value
   }
 >();
 ```
@@ -34,7 +34,7 @@ const metadata = defineMetadata<
   },
   {
     description?: string
-    options?: { key: string; value: string }[]
+    options?: { key: string, value: string }[]
     disabled?: boolean
     fullWidth?: boolean
   }
@@ -49,10 +49,10 @@ The third generic parameter declares properties you can forward from an outer sl
 
 ```ts
 const metadata = defineMetadata<
-  { text: string; heading: never },
+  { text: string, heading: never },
   { description?: string },
   {
-    level?: number          // nesting depth, incremented at each heading
+    level?: number // nesting depth, incremented at each heading
     belowChoiceField?: boolean
   }
 >();
@@ -61,15 +61,17 @@ const metadata = defineMetadata<
 In your template, bind the properties on `<slot />` and read them from `slotProps` in the child:
 
 ```vue
-<template #heading="{ slotProps }">
-  <div>
-    <slot :level="(slotProps?.level ?? 0) + 1" />
-  </div>
-</template>
+<DynamicFormTemplate>
+  <template #heading="{ slotProps }">
+    <div>
+      <slot :level="(slotProps?.level ?? 0) + 1" />
+    </div>
+  </template>
 
-<template #default="{ slotProps }">
-  <!-- slotProps.level is now available here -->
-</template>
+  <template #default="{ slotProps }">
+    <!-- slotProps.level is now available here -->
+  </template>
+</DynamicFormTemplate>
 ```
 
 ## How This Unlocks Intellisense
@@ -85,13 +87,13 @@ Pass the result to `DynamicFormTemplate` via `:metadata-configuration` and TypeS
 Export the configuration and a derived `Metadata` type from the dedicated `.ts` file:
 
 ```ts
+import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
 // MyFormTemplate.ts
 import { defineMetadata } from '@bach.software/vue-dynamic-form';
-import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
 
 export const metadata = defineMetadata<
-  { text: string; select: string; heading: never },
-  { description?: string; options?: { key: string; value: string }[] }
+  { text: string, select: string, heading: never },
+  { description?: string, options?: { key: string, value: string }[] }
 >();
 
 export type Metadata = GetMetadataType<typeof metadata>;
@@ -108,7 +110,7 @@ const fields: Metadata[] = [
     name: 'country',
     type: 'select',
     fieldOptions: { label: 'Country' },
-    options: [                      // ✓ autocomplete, typed
+    options: [ // ✓ autocomplete, typed
       { key: 'nl', value: 'Netherlands' },
       { key: 'de', value: 'Germany' },
     ],
@@ -124,15 +126,15 @@ Any field type that has no dedicated slot in your template falls back to the `#d
 
 Avoid using these names as field type keys because they clash with the built-in fallback slot names that `DynamicFormTemplate` resolves to:
 
-| Name | Internal use |
-|------|-------------|
-| `default` | Fallback slot for any field type |
-| `default-input` | Fallback slot for input variants |
-| `default-array` | Fallback slot for the outer array container |
-| `default-array-item` | Fallback slot for each array occurrence |
-| `default-choice` | Fallback slot for the outer container of a single choice |
-| `default-choice-array` | Fallback slot for the outer container of a repeatable choice |
-| `default-choice-array-item` | Fallback slot for each repeatable-choice occurrence |
+| Name                        | Internal use                                                 |
+| --------------------------- | ------------------------------------------------------------ |
+| `default`                   | Fallback slot for any field type                             |
+| `default-input`             | Fallback slot for input variants                             |
+| `default-array`             | Fallback slot for the outer array container                  |
+| `default-array-item`        | Fallback slot for each array occurrence                      |
+| `default-choice`            | Fallback slot for the outer container of a single choice     |
+| `default-choice-array`      | Fallback slot for the outer container of a repeatable choice |
+| `default-choice-array-item` | Fallback slot for each repeatable-choice occurrence          |
 
 ---
 
