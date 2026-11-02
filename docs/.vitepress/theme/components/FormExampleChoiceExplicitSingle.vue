@@ -20,7 +20,7 @@ const metadata: Metadata[] = [
     fieldOptions: { label: 'Preferred contact' },
     description: 'Nothing renders until you pick a method. Picking the other one afterwards clears what you filled in.',
     explicitChoiceSelection: true,
-    choiceShowChoiceSelect: true,
+    choicePicker: { show: true },
     choice: [
       {
         name: 'email',

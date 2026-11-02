@@ -67,15 +67,55 @@ Every interactive example in this documentation renders through the starter temp
 | `text` (the default) | text input                                                                              |
 | `select`             | select dropdown driven by `options`                                                     |
 | `checkbox`           | toggle switch                                                                           |
-| `password`           | password input with a show/hide toggle and an optional strength bar (`showStrengthBar`) |
+| `password`           | password input with a show/hide toggle and an optional strength bar (`password.showStrengthBar`) |
 | `heading`            | section card around its `children`                                                      |
-| `wizardSummaryPage`  | review page inside a wizard, driven by `wizardSummary`                                  |
+| `grid`               | bare CSS-grid `div` around its `children`, no card chrome; configured via `columns`     |
+| `wizardSummaryPage`  | review page inside a wizard, driven by `wizardSummary.groups`                           |
 
 **Structural shapes** are all covered: plain groups (`children`), repeatable fields and sections (`maxOccurs > 1`), single and repeatable choices (`choice`), and multi-step wizards with a stepper, per-step validation, and a review page.
 
-**Field properties** beyond the core ones include `description`, `helpText`, `placeholder`, `options`, `fullWidth`, `disabled`, `hide`, and a set of text overrides for every built-in label (`arrayAddButtonText`, `nextButtonText`, `stepText`, and so on), which also makes the template translatable. See [`StarterFieldProperties`](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/metadata.ts) for the full list.
+**Field properties** shared by many field types live at the root of the metadata node: `description`, `helpText`, `placeholder`, `suffix`, `options`, `iconName`, `dependentOnMessage`, `columns`, `colSpan`, `colStart`, `disabled`, and `hide`. Everything that belongs to one piece of chrome is grouped under a single property: `array` (repeatable chrome and texts), `choicePicker` (the explicit-choice selection UI), `password`, `checkbox`, `wizardSummary` (the review page), and `wizardTexts` (every wizard label, which also makes the template translatable). See [`StarterFieldProperties`](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/metadata.ts) for the full list.
 
 **Settings**: pass `settings: { showRequiredOrOptional: 'optional' }` (or `'required'`) to `DynamicForm` to tag field labels, and `optionalText` to translate the tag.
+
+## Grid layout
+
+Every container the template renders (section cards, groups, choice bodies, and the bare `grid` type) lays its children out in a CSS grid: one column on small screens, two columns from `768px` up. Three field properties control that layout:
+
+- `columns` sets the number of equal columns of the field's **own children grid** (`1`-`6`).
+- `colSpan` sets how many columns the field spans **inside its parent's grid** (`1`-`6`, or `'full'` for the whole row).
+- `colStart` sets the column the field starts on inside its parent's grid, e.g. to leave the rest of the previous row empty.
+
+```ts
+const metadata = {
+  name: 'availability',
+  type: 'grid',
+  columns: 4,
+  children: [
+    { name: 'monday', type: 'checkbox', fieldOptions: { label: 'Mon' } },
+    { name: 'tuesday', type: 'checkbox', fieldOptions: { label: 'Tue' } },
+    { name: 'wednesday', type: 'checkbox', fieldOptions: { label: 'Wed' } },
+    { name: 'notes', fieldOptions: { label: 'Notes' }, colSpan: 'full' },
+  ],
+};
+```
+
+Each value maps to a prefixed utility class in the shipped stylesheet (`sft-cols-4`, `sft-span-full`, `sft-col-start-2`, ...), the same way Tailwind's `grid-cols-*` and `col-span-*` utilities work. No inline styles are involved, so your own CSS can always override the result. Gaps, alignment, and anything beyond columns and spans are design-system concerns: set them centrally in your own stylesheet on the grid containers (`.sft-grid`, `.sft-choice-group-body`, `.sft-grid-plain`).
+
+### Responsive values
+
+`columns`, `colSpan`, and `colStart` also accept one value per breakpoint tier instead of a bare value. Tiers are mobile-first: `base` applies from `0`, `md` from `768px`, `lg` from `1024px`, and each tier holds until a larger one overrides it.
+
+```ts
+columns: { base: 2, lg: 4 },
+colSpan: { md: 2, lg: 3 },
+```
+
+A bare value applies from `md` up (one column below, so a span can never push a field off a narrow screen). Classes never inherit, so a parent's `columns` can not leak into a nested section or grid.
+
+### Breakpoint widths
+
+The two tier widths are fixed in the stylesheet (`768px` and `1024px`). If your design system uses different widths, redeclare the utility-class media blocks from the end of the shipped stylesheet in your own CSS with your widths; every rule is a single-class selector, so yours win by coming later.
 
 ## Theming with CSS variables
 

@@ -21,7 +21,7 @@ export const headingMetadata = {
 
 export const checkboxMetadata = { name: 'subscribe', type: 'checkbox', fieldOptions: { label: 'Subscribe' } };
 
-export const passwordMetadata = { name: 'password', type: 'password', fieldOptions: { label: 'Password' }, showStrengthBar: true };
+export const passwordMetadata = { name: 'password', type: 'password', fieldOptions: { label: 'Password' }, password: { showStrengthBar: true } };
 
 export const richTextMetadataConfiguration = extendMetadata<object, { toolbar?: boolean }>();
 
@@ -53,9 +53,11 @@ export const headingArrayMetadata = {
   fieldOptions: { label: 'Contacts' },
   maxOccurs: 3,
   minOccurs: 0,
-  arrayItemName: 'contact',
-  arrayItemNamePlural: 'contacts',
-  arrayItemFieldForTitle: 'first',
+  array: {
+    itemName: 'contact',
+    itemNamePlural: 'contacts',
+    itemFieldForTitle: 'first',
+  },
   children: [
     { name: 'first', type: 'text', fieldOptions: { label: 'First' } },
     { name: 'last', type: 'text', fieldOptions: { label: 'Last' } },

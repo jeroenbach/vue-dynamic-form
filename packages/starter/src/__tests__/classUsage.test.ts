@@ -1,14 +1,19 @@
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { collectSourceFiles, extractClassTokens, packageDirectory } from './helpers/sourceScan';
+import { compiledStylesheet } from './helpers/compiledStylesheet';
+import { collectSourceFiles, extractClassTokens } from './helpers/sourceScan';
 
 const vueFiles = collectSourceFiles([fileURLToPath(import.meta.url)]).filter(file => file.path.endsWith('.vue'));
-const stylesheet = readFileSync(path.join(packageDirectory, 'src/style.css'), 'utf8');
+const stylesheet = compiledStylesheet;
 
 function stylesheetSelectors() {
-  const stripped = stylesheet.replace(/\{[^}]*\}/g, '{}').replace(/\/\*[\s\S]*?\*\//g, '');
+  // drop comments, then the innermost (declaration) blocks, then the leftover
+  // @media braces, so selectors inside media blocks stay in the text
+  const stripped = stylesheet
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\{[^{}]*\}/g, ' ')
+    .replace(/[{}]/g, ' ');
   return new Set([...stripped.matchAll(/\.([a-z_][\w-]*)/gi)].map(match => match[1]));
 }
 

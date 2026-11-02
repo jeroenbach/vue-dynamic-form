@@ -28,7 +28,7 @@ const metadata = computed<Metadata[]>(() => [
     description: 'Add up to 5 integrations in any mix. Each kind is capped at 3 in total (maxOccursTotal), so its Add button disables independently.',
     maxOccurs: 5,
     explicitChoiceSelection: true,
-    choiceShowChoiceSelect: true,
+    choicePicker: { show: true },
     displayOrder: displayOrder.value,
     preserveOrder: preserveOrder.value,
     choice: [
@@ -36,7 +36,7 @@ const metadata = computed<Metadata[]>(() => [
         name: 'crmExport',
         maxOccurs: 1,
         maxOccursTotal: 3,
-        fullWidth: true,
+        colSpan: 'full',
         fieldOptions: { label: 'CRM export' },
         children: [
           { name: 'crmSystem', type: 'text', fieldOptions: { label: 'CRM system' }, placeholder: 'e.g. Salesforce' },
@@ -47,7 +47,7 @@ const metadata = computed<Metadata[]>(() => [
         name: 'apiEndpoint',
         maxOccurs: 1,
         maxOccursTotal: 3,
-        fullWidth: true,
+        colSpan: 'full',
         fieldOptions: { label: 'API endpoint' },
         children: [
           { name: 'url', type: 'text', fieldOptions: { label: 'Endpoint URL' }, placeholder: 'https://example.com/webhook' },

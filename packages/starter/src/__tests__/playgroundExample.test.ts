@@ -94,7 +94,7 @@ describe('wrapper forwarding pattern', () => {
 
   it('passes the wrapper as :template, never directly to DynamicForm as an icon slot host', () => {
     expect(shell).toContain('StarterFormTemplateImplementation');
-    expect(shell).toMatch(/<DynamicForm\s+:metadata="metadata"\s+:template="template"\s*\/>/);
+    expect(shell).toMatch(/<DynamicForm\s+:metadata="metadata"\s+:template="template"(?:\s+:settings="settings")?\s*\/>/);
   });
 });
 

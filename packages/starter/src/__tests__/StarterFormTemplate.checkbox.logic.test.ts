@@ -38,9 +38,9 @@ describe('component StarterFormTemplate - checkbox via the checkbox/checkbox-inp
     expect(values().subscribe).toBe(false);
   });
 
-  it('turning off reports undefined instead of false when falseAsUndefined is set', async () => {
+  it('turning off reports undefined instead of false when checkbox.falseAsUndefined is set', async () => {
     const { wrapper, values } = await mountInForm({
-      metadata: { ...checkboxMetadata, falseAsUndefined: true },
+      metadata: { ...checkboxMetadata, checkbox: { falseAsUndefined: true } },
       initialValues: { subscribe: true },
     });
 

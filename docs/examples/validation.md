@@ -55,7 +55,7 @@ The animated strength bar (`PasswordStrengthBar.vue`) is rendered directly insid
 The new `password` field type was added to the template by:
 
 1. Registering `password: string` in `defineMetadata`
-2. Adding a `showStrengthBar?: boolean` extended property
+2. Adding a `password: { showStrengthBar?: boolean }` extended property
 3. Dropping in a `#password-input` slot that renders `PasswordInput` (with the eye toggle) followed by `PasswordStrengthBar`
 
 ## Cross-field Validation

@@ -51,8 +51,7 @@ export function wizardMetadata({
           name: 'summary',
           type: 'wizardSummaryPage',
           fieldOptions: { label: 'Review and submit' },
-          wizardSummary: summaryGroups,
-          wizardSummaryConfirmation: confirmation,
+          wizardSummary: { groups: summaryGroups, confirmation },
         }],
       }]
     : [];

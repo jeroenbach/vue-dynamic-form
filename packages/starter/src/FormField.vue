@@ -1,7 +1,9 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
+import type { GridColumnCount, Responsive } from '@/metadata';
 import AppButton from '@/AppButton.vue';
 import ErrorMessage from '@/ErrorMessage.vue';
+import { gridItemClasses } from '@/gridClasses';
 import OptionalRequiredTag from '@/OptionalRequiredTag.vue';
 
 export interface Props {
@@ -17,6 +19,10 @@ export interface Props {
   canRemoveItems?: boolean
   removeButtonText?: string
   dataTestid?: string
+  /** Parent-grid columns this field spans; the `colSpan` field property. */
+  colSpan?: Responsive<GridColumnCount | 'full'>
+  /** Parent-grid column line this field starts on; the `colStart` field property. */
+  colStart?: Responsive<GridColumnCount>
 }
 withDefaults(defineProps<Props>(), {
   removeButtonText: 'Remove',
@@ -30,7 +36,7 @@ defineEmits<{
   <div
     :data-testid="dataTestid"
     class="sft-field"
-    :class="{ 'is-disabled': disabled }"
+    :class="[{ 'is-disabled': disabled }, gridItemClasses(colSpan, colStart)]"
   >
     <label class="sft-field-label" :for="inputId">
       {{ label }}

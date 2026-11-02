@@ -16,6 +16,7 @@ import ChoiceField from '@/ChoiceField.vue';
 import ChoiceSectionCard from '@/ChoiceSectionCard.vue';
 import FormField from '@/FormField.vue';
 import FormWizard from '@/FormWizard.vue';
+import { gridColumnsClasses, gridItemClasses } from '@/gridClasses';
 import GroupField from '@/GroupField.vue';
 import { iconOverrideKey } from '@/iconOverride';
 import { starterMetadata } from '@/metadata';
@@ -85,7 +86,7 @@ provide(iconOverrideKey, slots.icon ? (iconProps: IconOverrideProps) => slots.ic
 // so checking it directly would make bare usage mistake the engine's render for a consumer
 // override. Gate it behind `input`, a name only a wrapper ever supplies, instead. `heading`
 // and `checkbox` have no such collision: the engine never uses those names itself.
-function chromeSlotName(name: 'default' | 'heading' | 'checkbox') {
+function chromeSlotName(name: 'default' | 'heading' | 'checkbox' | 'grid') {
   if (name === 'default')
     return slots.input ? 'default' : '';
   return slots[name] ? name : '';
@@ -100,6 +101,7 @@ const handledSlotNames = new Set([
   'default-array',
   'heading-array',
   'heading-array-item',
+  'grid',
   'default-choice',
   'heading-choice',
   'heading-choice-array',
@@ -133,6 +135,9 @@ function passthroughSlotNames() {
           v-if="s.fieldMetadata.children?.length"
           v-show="!s.fieldMetadata.hide"
           class="sft-col-span"
+          :columns="s.fieldMetadata.columns"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :required="s.required"
@@ -141,8 +146,8 @@ function passthroughSlotNames() {
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :canAddItems="s.canAddItems"
           :canRemoveItems="s.canRemoveItems"
-          :addButtonText="s.fieldMetadata.arrayAddButtonText"
-          :removeButtonText="s.fieldMetadata.arrayRemoveButtonText"
+          :addButtonText="s.fieldMetadata.array?.addButtonText"
+          :removeButtonText="s.fieldMetadata.array?.removeButtonText"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
           @add="s.addItem"
@@ -152,10 +157,13 @@ function passthroughSlotNames() {
             <slot v-bind="s.slotProps ?? {}" />
           </slot>
         </GroupField>
+        <!-- A childless branch with a presenceValue is fully represented by its picker card:
+        selecting it writes the presence value, so there is nothing left to render here. -->
         <FormField
-          v-else
+          v-else-if="s.fieldMetadata.presenceValue === undefined"
           v-show="!s.fieldMetadata.hide"
-          :class="{ 'sft-col-span': s.fieldMetadata.fullWidth }"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :input-id="s.fieldMetadata.path"
           :dataTestid="s.fieldMetadata.path"
@@ -164,7 +172,7 @@ function passthroughSlotNames() {
           :required="s.required"
           :show-required-or-optional="s.settings.showRequiredOrOptional"
           :optionalText="s.settings.optionalText"
-          :removeButtonText="s.fieldMetadata.arrayRemoveButtonText"
+          :removeButtonText="s.fieldMetadata.array?.removeButtonText"
           :dependentOnMessage="s.fieldMetadata.dependentOnMessage"
           :errorMessage="s.fieldContext.errorMessage.value"
         >
@@ -180,6 +188,10 @@ function passthroughSlotNames() {
         <SectionCard
           v-if="s.fieldMetadata.children?.length"
           v-show="!s.fieldMetadata.hide"
+          class="sft-col-span"
+          :columns="s.fieldMetadata.columns"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :errorMessage="s.fieldContext.errorMessage.value"
@@ -189,9 +201,12 @@ function passthroughSlotNames() {
             <slot v-bind="s.slotProps ?? {}" />
           </slot>
         </SectionCard>
+        <!-- Same presence rule as the default slot above: the picker card already says it all. -->
         <FormField
-          v-else
+          v-else-if="s.fieldMetadata.presenceValue === undefined"
           v-show="!s.fieldMetadata.hide"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :input-id="s.fieldMetadata.path"
           :dataTestid="s.fieldMetadata.path"
           :description="s.fieldMetadata.description"
@@ -205,19 +220,38 @@ function passthroughSlotNames() {
       </slot>
     </template>
 
+    <!-- A bare layout container: children in a plain CSS-grid div, no card chrome. -->
+    <template #grid="s">
+      <slot :name="chromeSlotName('grid')" v-bind="s">
+        <div
+          v-show="!s.fieldMetadata.hide"
+          class="sft-grid-plain sft-col-span"
+          :class="[gridColumnsClasses(s.fieldMetadata.columns), gridItemClasses(s.fieldMetadata.colSpan, s.fieldMetadata.colStart)]"
+          :data-testid="s.fieldMetadata.path"
+        >
+          <slot name="input" v-bind="s.slotProps ?? {}">
+            <slot v-bind="s.slotProps ?? {}" />
+          </slot>
+        </div>
+      </slot>
+    </template>
+
     <template #default-array="s">
       <slot name="default-array" v-bind="s">
         <ArrayField
           v-show="!s.fieldMetadata.hide"
           class="sft-col-span"
+          :columns="s.fieldMetadata.columns"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :canAddItems="s.canAddItems"
           :itemsLength="(s.fieldContext.value.value as unknown[] | undefined)?.length ?? 0"
-          :itemsName="s.fieldMetadata.arrayItemName"
-          :itemsNamePlural="s.fieldMetadata.arrayItemNamePlural"
-          :addButtonText="s.fieldMetadata.arrayAddButtonText"
+          :itemsName="s.fieldMetadata.array?.itemName"
+          :itemsNamePlural="s.fieldMetadata.array?.itemNamePlural"
+          :addButtonText="s.fieldMetadata.array?.addButtonText"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
           @add="s.addItem"
@@ -233,18 +267,21 @@ function passthroughSlotNames() {
       <slot name="heading-array" v-bind="s">
         <ArraySectionCard
           class="sft-col-span"
+          :columns="s.fieldMetadata.columns"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
-          :noItemsMessage="s.fieldMetadata.arrayNoItemsMessage"
-          :noItemsTitle="s.fieldMetadata.arrayNoItemsTitle"
+          :noItemsMessage="s.fieldMetadata.array?.noItemsMessage"
+          :noItemsTitle="s.fieldMetadata.array?.noItemsTitle"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
           :canAddItems="s.canAddItems"
           :itemsCount="(s.fieldContext.value.value as unknown[] | undefined)?.length ?? 0"
-          :itemsName="s.fieldMetadata.arrayItemName"
-          :itemsNamePlural="s.fieldMetadata.arrayItemNamePlural"
-          :addButtonText="s.fieldMetadata.arrayAddButtonText"
-          :addFirstButtonText="s.fieldMetadata.arrayAddFirstButtonText"
+          :itemsName="s.fieldMetadata.array?.itemName"
+          :itemsNamePlural="s.fieldMetadata.array?.itemNamePlural"
+          :addButtonText="s.fieldMetadata.array?.addButtonText"
+          :addFirstButtonText="s.fieldMetadata.array?.addFirstButtonText"
           @addItem="s.addItem"
         >
           <slot name="input" v-bind="s.slotProps ?? {}">
@@ -257,14 +294,16 @@ function passthroughSlotNames() {
     <template #heading-array-item="s">
       <slot name="heading-array-item" v-bind="s">
         <RepeaterCard
-          :class="{ 'sft-col-span': s.fieldMetadata.fullWidth }"
           class="sft-hide-tag"
+          :columns="s.fieldMetadata.columns"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :index="s.index"
-          :title="s.fieldMetadata.arrayItemFieldForTitle && (s.fieldContext.value.value as any)?.[s.fieldMetadata.arrayItemFieldForTitle]"
-          :placeholderTitle="s.fieldMetadata.arrayNewItemTitle ?? `New ${s.fieldMetadata.arrayItemName}`"
+          :title="s.fieldMetadata.array?.itemFieldForTitle && (s.fieldContext.value.value as any)?.[s.fieldMetadata.array?.itemFieldForTitle]"
+          :placeholderTitle="s.fieldMetadata.array?.newItemTitle ?? `New ${s.fieldMetadata.array?.itemName}`"
           :canRemove="s.canRemoveItems"
-          :removeButtonText="s.fieldMetadata.arrayRemoveButtonText"
-          :removeAriaLabel="s.fieldMetadata.arrayRemoveAriaLabel"
+          :removeButtonText="s.fieldMetadata.array?.removeButtonText"
+          :removeAriaLabel="s.fieldMetadata.array?.removeAriaLabel"
           :dataTestid="s.fieldMetadata.path"
           @remove="s.removeItem"
         >
@@ -279,7 +318,9 @@ function passthroughSlotNames() {
       <slot name="default-choice" v-bind="s">
         <ChoiceField
           v-show="!s.fieldMetadata.hide"
-          :class="{ 'sft-col-span': s.fieldMetadata.fullWidth }"
+          :columns="s.fieldMetadata.columns"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :required="s.required"
@@ -300,15 +341,19 @@ function passthroughSlotNames() {
       <slot name="heading-choice" v-bind="s">
         <ChoiceSectionCard
           v-slot="{ selectedOption }"
+          class="sft-col-span"
+          :columns="s.fieldMetadata.columns"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
-          :options="s.fieldMetadata.choiceShowChoiceSelect ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
+          :options="s.fieldMetadata.choicePicker?.show ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
           :activeChoiceOccurrences="s.activeChoiceOccurrences"
           :addChoiceOccurrence="s.addChoiceOccurrence"
           :removeChoiceOccurrence="s.removeChoiceOccurrence"
-          :ariaLabel="s.fieldMetadata.choiceAriaLabel"
+          :ariaLabel="s.fieldMetadata.choicePicker?.ariaLabel"
           :disabled="s.fieldMetadata.disabled || s.disabled"
         >
           <slot name="input" :selectedOption v-bind="s.slotProps ?? {}">
@@ -322,17 +367,20 @@ function passthroughSlotNames() {
       <slot name="heading-choice-array" v-bind="s">
         <ChoiceArraySectionCard
           class="sft-col-span"
+          :columns="s.fieldMetadata.columns"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
-          :options="s.fieldMetadata.choiceShowChoiceSelect ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
+          :options="s.fieldMetadata.choicePicker?.show ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
           :addChoiceOccurrence="s.addChoiceOccurrence"
           :canAddChoiceOccurrence="s.canAddChoiceOccurrence"
           :usedChoiceOccurrences="s.usedChoiceOccurrences"
           :maxOccurs="s.fieldMetadata.maxOccurs"
-          :addButtonText="s.fieldMetadata.choiceAddButtonText"
-          :limitReachedText="s.fieldMetadata.choiceLimitReachedText"
+          :addButtonText="s.fieldMetadata.choicePicker?.addButtonText"
+          :limitReachedText="s.fieldMetadata.choicePicker?.limitReachedText"
         >
           <slot name="input" v-bind="s.slotProps ?? {}">
             <slot v-bind="s.slotProps ?? {}" />
@@ -344,15 +392,17 @@ function passthroughSlotNames() {
     <template #default-choice-array-item="s">
       <slot name="default-choice-array-item" v-bind="s">
         <RepeaterCard
-          :class="{ 'sft-col-span': s.fieldMetadata.fullWidth }"
           class="sft-hide-tag"
+          :columns="s.fieldMetadata.columns"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :index="s.index"
           :displayNumber="s.globalIndex + 1"
           :title="s.fieldContext.label"
-          :placeholderTitle="s.fieldMetadata.arrayNewItemTitle ?? `New ${s.branchKey}`"
+          :placeholderTitle="s.fieldMetadata.array?.newItemTitle ?? `New ${s.branchKey}`"
           :canRemove="s.canRemoveItems"
-          :removeButtonText="s.fieldMetadata.arrayRemoveButtonText"
-          :removeAriaLabel="s.fieldMetadata.arrayRemoveAriaLabel"
+          :removeButtonText="s.fieldMetadata.array?.removeButtonText"
+          :removeAriaLabel="s.fieldMetadata.array?.removeAriaLabel"
           :dataTestid="s.fieldMetadata.path"
           @remove="s.removeItem"
         >
@@ -368,7 +418,8 @@ function passthroughSlotNames() {
         <CheckboxField
           v-show="!s.fieldMetadata.hide"
           :input-id="s.fieldMetadata.path"
-          :class="{ 'sft-col-span': s.fieldMetadata.fullWidth }"
+          :colSpan="s.fieldMetadata.colSpan"
+          :colStart="s.fieldMetadata.colStart"
           :label="s.fieldContext.label"
           :description="s.fieldMetadata.description"
           :required="s.required"
@@ -451,7 +502,7 @@ function passthroughSlotNames() {
           :checked="s.fieldContext.value.value"
           :label="toValue(s.fieldContext.label)"
           :disabled="s.fieldMetadata.disabled || s.disabled"
-          :falseAsUndefined="s.fieldMetadata.falseAsUndefined"
+          :falseAsUndefined="s.fieldMetadata.checkbox?.falseAsUndefined"
           @change="s.fieldContext.handleChange"
           @blur="s.fieldContext.handleBlur"
         />
@@ -467,18 +518,18 @@ function passthroughSlotNames() {
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :errorMessage="s.fieldContext.errorMessage.value"
           :placeholder="s.fieldMetadata.placeholder"
-          :showPasswordAriaLabel="s.fieldMetadata.showPasswordAriaLabel"
-          :hidePasswordAriaLabel="s.fieldMetadata.hidePasswordAriaLabel"
+          :showPasswordAriaLabel="s.fieldMetadata.password?.showAriaLabel"
+          :hidePasswordAriaLabel="s.fieldMetadata.password?.hideAriaLabel"
           :data-field-state="s.settings.showValidState ? inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) : undefined"
           :class="{ 'is-valid': s.settings.showValidState && inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) === 'valid' }"
           @input="s.fieldContext.handleChange"
           @blur="s.fieldContext.handleBlur"
         />
         <PasswordStrengthBar
-          v-if="s.fieldMetadata.showStrengthBar"
+          v-if="s.fieldMetadata.password?.showStrengthBar"
           :dataTestid="`${s.fieldMetadata.path}-input`"
           :password="s.fieldContext.value.value"
-          :labels="s.fieldMetadata.passwordStrengthLabels"
+          :labels="s.fieldMetadata.password?.strengthLabels"
         />
       </slot>
     </template>
@@ -498,13 +549,13 @@ function passthroughSlotNames() {
           :next="s.next"
           :prev="s.prev"
           :gotoStep="s.gotoStep"
-          :nextButton="s.fieldMetadata.nextButtonText"
-          :prevButton="s.fieldMetadata.prevButtonText"
-          :submitButton="s.fieldMetadata.submitButtonText"
-          :stepText="s.fieldMetadata.stepText"
-          :stepErrorsText="s.fieldMetadata.stepErrorsText"
-          :stepperAriaLabel="s.fieldMetadata.stepperAriaLabel"
-          :stepAriaLabel="s.fieldMetadata.stepAriaLabel"
+          :nextButton="s.fieldMetadata.wizardTexts?.nextButtonText"
+          :prevButton="s.fieldMetadata.wizardTexts?.prevButtonText"
+          :submitButton="s.fieldMetadata.wizardTexts?.submitButtonText"
+          :stepText="s.fieldMetadata.wizardTexts?.stepText"
+          :stepErrorsText="s.fieldMetadata.wizardTexts?.stepErrorsText"
+          :stepperAriaLabel="s.fieldMetadata.wizardTexts?.stepperAriaLabel"
+          :stepAriaLabel="s.fieldMetadata.wizardTexts?.stepAriaLabel"
         >
           <slot name="input" v-bind="s.slotProps ?? {}">
             <slot v-bind="s.slotProps ?? {}" />
@@ -544,17 +595,17 @@ function passthroughSlotNames() {
           :dataTestid="s.fieldMetadata.path"
         >
           <ReviewGroup
-            v-for="(group, i) in (s.fieldMetadata.wizardSummary ?? [])"
+            v-for="(group, i) in (s.fieldMetadata.wizardSummary?.groups ?? [])"
             :key="group.title"
             v-bind="group"
             @edit="s.slotProps?.gotoStep?.(i)"
           />
-          <div v-if="s.fieldMetadata.wizardSummaryConfirmation" class="sft-confirm">
+          <div v-if="s.fieldMetadata.wizardSummary?.confirmation" class="sft-confirm">
             <p class="sft-confirm-strong">
-              {{ s.fieldMetadata.wizardSummaryConfirmationTitle ?? 'Ready to submit?' }}
+              {{ s.fieldMetadata.wizardSummary?.confirmationTitle ?? 'Ready to submit?' }}
             </p>
             <p>
-              {{ s.fieldMetadata.wizardSummaryConfirmation }}
+              {{ s.fieldMetadata.wizardSummary?.confirmation }}
             </p>
           </div>
         </SectionCard>

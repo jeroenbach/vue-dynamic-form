@@ -1,7 +1,9 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
+import type { GridColumnCount, Responsive } from '@/metadata';
 import AppButton from '@/AppButton.vue';
 import ErrorMessage from '@/ErrorMessage.vue';
+import { gridColumnsClasses, gridItemClasses } from '@/gridClasses';
 
 export interface Props {
   label?: MaybeRefOrGetter<string | undefined>
@@ -14,6 +16,12 @@ export interface Props {
   addButtonText?: string
   errorMessage?: string
   dataTestid?: string
+  /** Column count of the items grid; the `columns` field property. */
+  columns?: Responsive<GridColumnCount>
+  /** Parent-grid columns this field spans; the `colSpan` field property. */
+  colSpan?: Responsive<GridColumnCount | 'full'>
+  /** Parent-grid column line this field starts on; the `colStart` field property. */
+  colStart?: Responsive<GridColumnCount>
 }
 
 withDefaults(defineProps<Props>(), {
@@ -31,7 +39,7 @@ defineEmits<{
   <section
     :data-testid="dataTestid"
     class="sft-section"
-    :class="{ 'is-disabled': disabled }"
+    :class="[{ 'is-disabled': disabled }, gridItemClasses(colSpan, colStart)]"
   >
     <header class="sft-section-header">
       <div>
@@ -47,7 +55,7 @@ defineEmits<{
       </span>
     </header>
 
-    <div class="sft-grid sft-array-items">
+    <div class="sft-grid sft-array-items" :class="gridColumnsClasses(columns)">
       <slot />
     </div>
     <div class="sft-array-footer">

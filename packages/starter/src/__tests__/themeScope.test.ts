@@ -1,9 +1,7 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { packageDirectory } from './helpers/sourceScan';
+import { compiledStylesheet } from './helpers/compiledStylesheet';
 
-const stylesheet = readFileSync(path.join(packageDirectory, 'src/style.css'), 'utf8');
+const stylesheet = compiledStylesheet;
 
 function blockOf(selector: string) {
   const escaped = selector.replace(/\./g, '\\.');
@@ -61,18 +59,29 @@ describe('decision A variable-driven color spots', () => {
 });
 
 describe('full-width spans stay out of the single-column mobile grid', () => {
-  it('declares no grid-column: span 2 outside the min-width: 768px media block', () => {
-    const mediaBlocks = [...stylesheet.matchAll(/@media\s*\(min-width:\s*768px\)\s*\{([\s\S]*?)\n\}\n/g)].map(match => match[1]);
+  it('declares no default grid-column span outside the min-width: 768px media block', () => {
+    const mediaBlocks = [...stylesheet.matchAll(/@media\s*\(min-width:[^)]*\)\s*\{([\s\S]*?)\n\}\n/g)].map(match => match[1]);
     let outsideMedia = stylesheet;
     for (const block of mediaBlocks)
       outsideMedia = outsideMedia.replace(block, '');
 
-    expect(outsideMedia).not.toMatch(/grid-column:\s*span\s*2/);
+    // Only the opt-in base-tier utilities may span columns at every width; a form author asks
+    // for those explicitly per field. No default chrome rule may.
+    const spanSelectors = [...outsideMedia.matchAll(/([^{}]+)\{[^}]*grid-column:\s*span\s+\d/g)]
+      .map(match => match[1].trim());
+    expect(spanSelectors.filter(selector => !selector.startsWith('.sft-span-base-'))).toEqual([]);
   });
 
   it('full-width rules use grid-column: 1 / -1 so they only ever span what the grid actually has', () => {
     for (const selector of ['.sft-choice-grid', '.sft-choice-group', '.sft-choice-addbar', '.sft-review-group', '.sft-confirm', '.sft-success-hero', '.sft-timeline', '.sft-success-actions'])
       expect(blockOf(selector)).toMatch(/grid-column:\s*1\s*\/\s*-1/);
+  });
+});
+
+describe('stepper connector done state in dark mode', () => {
+  it('re-declares the green done background for dark mode, where the dark base rule outweighs the single-class done state', () => {
+    expect(blockOf('.sft-step-connector.is-done')).toMatch(/background:\s*#00bc7d/);
+    expect(blockOf(':root.dark .sft-step-connector.is-done')).toMatch(/background:\s*#00bc7d/);
   });
 });
 

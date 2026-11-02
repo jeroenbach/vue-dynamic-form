@@ -1,5 +1,5 @@
-// The one shipped stylesheet; also exported as the `./style.css` subpath.
-import '@/style.css';
+// The one shipped stylesheet; compiled to plain CSS and exported as the `./style.css` subpath.
+import '@/style.scss';
 
 // Standalone extras, used directly by consumer demo pages as well as by the wizard review page
 export { default as AppButton } from '@/AppButton.vue';
@@ -10,7 +10,7 @@ export { starterIconNames } from '@/icons';
 export type { StarterIconName } from '@/icons';
 // Metadata
 export { extendMetadata, starterMetadata } from '@/metadata';
-export type { StarterFieldProperties, StarterValueTypes } from '@/metadata';
+export type { GridColumnCount, Responsive, StarterFieldProperties, StarterValueTypes } from '@/metadata';
 export { default as ReviewGroup } from '@/ReviewGroup.vue';
 export type { Props as ReviewGroupProps } from '@/ReviewGroup.vue';
 // Template

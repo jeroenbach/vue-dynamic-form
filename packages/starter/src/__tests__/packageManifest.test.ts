@@ -12,7 +12,6 @@ const workspaceCatalog = readFileSync(path.join(packageDirectory, '../../pnpm-wo
 const expectedDevDependencyKeys = [
   '@antfu/eslint-config',
   '@bach.software/vue-dynamic-form',
-  '@lucide/vue',
   '@types/node',
   '@vitejs/plugin-vue',
   '@vitest/coverage-v8',
@@ -20,6 +19,7 @@ const expectedDevDependencyKeys = [
   'eslint',
   'eslint-plugin-format',
   'jsdom',
+  'sass-embedded',
   'tsc-alias',
   'typescript',
   'vee-validate',
@@ -34,8 +34,10 @@ describe('package scaffold mirrors element-plus', () => {
     expect(manifest.name).toBe('@bach.software/vue-dynamic-form-starter');
   });
 
-  it('stays private', () => {
-    expect(manifest.private).toBe(true);
+  it('is publishable: not private, MIT licensed, with a changesets-managed version', () => {
+    expect(manifest.private).toBeUndefined();
+    expect(manifest.license).toBe('MIT');
+    expect(manifest.version).toBeDefined();
   });
 
   it('shares the same exports map shape, plus the shipped stylesheet', () => {
@@ -56,8 +58,9 @@ describe('package scaffold mirrors element-plus', () => {
     expect(manifest.publishConfig).toEqual(elementPlusManifest.publishConfig);
   });
 
-  it('shares the same script set', () => {
-    expect(Object.keys(manifest.scripts).sort()).toEqual(Object.keys(elementPlusManifest.scripts).sort());
+  it('shares the same script set, plus the publish guard', () => {
+    // prepublishOnly re-runs the full ci pipeline before `npm publish`; the private element-plus package has no reason to carry it.
+    expect(Object.keys(manifest.scripts).sort()).toEqual([...Object.keys(elementPlusManifest.scripts), 'prepublishOnly'].sort());
   });
 });
 
@@ -75,7 +78,7 @@ describe('peer and runtime dependencies match the architecture', () => {
     expect(Object.keys(manifest.dependencies)).toEqual(['@lucide/vue']);
   });
 
-  it('matches the architecture explicit devDependencies list plus @lucide/vue, with no element-plus', () => {
+  it('matches the architecture explicit devDependencies list, with no element-plus', () => {
     expect(Object.keys(manifest.devDependencies).sort()).toEqual([...expectedDevDependencyKeys].sort());
     expect(manifest.devDependencies['element-plus']).toBeUndefined();
   });
@@ -88,6 +91,5 @@ describe('@lucide/vue is pinned through a workspace catalog entry', () => {
 
   it('references the catalog entry, not a literal or open-ended version', () => {
     expect(manifest.dependencies['@lucide/vue']).toBe('catalog:framework');
-    expect(manifest.devDependencies['@lucide/vue']).toBe('catalog:framework');
   });
 });

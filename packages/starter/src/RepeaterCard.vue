@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { MaybeRefOrGetter } from 'vue';
+import type { GridColumnCount, Responsive } from '@/metadata';
 import { computed } from 'vue';
 import AppButton from '@/AppButton.vue';
+import { gridColumnsClasses, gridItemClasses } from '@/gridClasses';
 import StarterIcon from '@/StarterIcon.vue';
 
 interface Props {
@@ -15,6 +17,12 @@ interface Props {
   /** Aria label of the remove button; `{number}` is replaced by the item number. */
   removeAriaLabel?: string
   dataTestid?: string
+  /** Column count of the children grid; the `columns` field property. */
+  columns?: Responsive<GridColumnCount>
+  /** Parent-grid columns this card spans; the `colSpan` field property. */
+  colSpan?: Responsive<GridColumnCount | 'full'>
+  /** Parent-grid column line this card starts on; the `colStart` field property. */
+  colStart?: Responsive<GridColumnCount>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -34,7 +42,7 @@ const removeLabel = computed(() =>
 </script>
 
 <template>
-  <article :data-testid="dataTestid" class="sft-repeater">
+  <article :data-testid="dataTestid" class="sft-repeater" :class="gridItemClasses(colSpan, colStart)">
     <header class="sft-repeater-header">
       <div class="sft-repeater-title-group">
         <span class="sft-repeater-badge">
@@ -55,7 +63,7 @@ const removeLabel = computed(() =>
         {{ removeButtonText }}
       </AppButton>
     </header>
-    <div class="sft-grid">
+    <div class="sft-grid" :class="gridColumnsClasses(columns)">
       <slot />
     </div>
   </article>

@@ -218,7 +218,7 @@ const metadata: Metadata[] = [
     wizard: true,
     fieldOptions: { label: formName },
     description: 'New client setup',
-    submitButtonText: 'Submit onboarding',
+    wizardTexts: { submitButtonText: 'Submit onboarding' },
     children: [
       {
         name: 'company',
@@ -231,7 +231,7 @@ const metadata: Metadata[] = [
             name: 'companyName',
             fieldOptions: { label: 'Company name' },
             restriction: { minLength: 2 },
-            fullWidth: true,
+            colSpan: 'full',
           },
           {
             name: 'industry',
@@ -268,7 +268,7 @@ const metadata: Metadata[] = [
             minOccurs: 0,
             fieldOptions: { label: 'Migrate existing customer data' },
             description: 'Turn this on when records need to be imported from another system.',
-            fullWidth: true,
+            colSpan: 'full',
           },
           // #region conditional-field
           {
@@ -278,7 +278,7 @@ const metadata: Metadata[] = [
             },
             description: 'When must all historical records be live in the new system?',
             minOccurs: 0,
-            fullWidth: true,
+            colSpan: 'full',
             validation: dateValidation,
             placeholder: 'dd/mm/yyyy',
             computedProps: [(field) => {
@@ -299,9 +299,9 @@ const metadata: Metadata[] = [
         helpText: 'What needs to connect?',
         minOccurs: 0,
         maxOccurs: 4,
-        fullWidth: true,
+        colSpan: 'full',
         explicitChoiceSelection: true,
-        choiceShowChoiceSelect: true,
+        choicePicker: { show: true },
         displayOrder: 'added',
         preserveOrder: true,
         choice: [
@@ -309,7 +309,7 @@ const metadata: Metadata[] = [
             name: 'saasTool',
             maxOccurs: 1,
             maxOccursTotal: 3,
-            fullWidth: true,
+            colSpan: 'full',
             fieldOptions: { label: 'SaaS tool' },
             description: 'An off-the-shelf tool we connect through an existing integration.',
             iconName: 'grid',
@@ -330,7 +330,7 @@ const metadata: Metadata[] = [
             name: 'apiEndpoint',
             maxOccurs: 1,
             maxOccursTotal: 3,
-            fullWidth: true,
+            colSpan: 'full',
             fieldOptions: { label: 'Custom API' },
             description: 'An in-house system we reach through a custom endpoint.',
             iconName: 'zap',
@@ -355,12 +355,14 @@ const metadata: Metadata[] = [
         fieldOptions: { label: 'Project contacts' },
         description: 'Anyone who should be looped in on the rollout.',
         helpText: 'Who should we work with?',
-        arrayItemName: 'contact',
-        arrayItemNamePlural: 'contacts',
-        arrayItemFieldForTitle: 'fullName',
+        array: {
+          itemName: 'contact',
+          itemNamePlural: 'contacts',
+          itemFieldForTitle: 'fullName',
+        },
         minOccurs: 1,
         maxOccurs: 3,
-        fullWidth: true,
+        colSpan: 'full',
         children: [
           {
             name: 'fullName',
@@ -374,7 +376,7 @@ const metadata: Metadata[] = [
           {
             name: 'role',
             type: 'select',
-            fullWidth: true,
+            colSpan: 'full',
             fieldOptions: { label: 'Role' },
             computedProps: [(field) => {
               field.options = props.optionStore.role;
@@ -388,8 +390,8 @@ const metadata: Metadata[] = [
         fieldOptions: { label: 'Launch approach' },
         description: 'Pick one. Only the selected option ends up in the submitted values, but what you filled in for the other option is kept and restored when you switch back.',
         helpText: 'How will we go live?',
-        fullWidth: true,
-        choiceShowChoiceSelect: true,
+        colSpan: 'full',
+        choicePicker: { show: true },
         explicitChoiceSelection: true,
         preserveOnSwitch: true,
         choice: [
@@ -398,7 +400,7 @@ const metadata: Metadata[] = [
             fieldOptions: { label: 'Self-serve launch' },
             description: 'The client drives the rollout themselves. Fastest path to go-live.',
             iconName: 'zap',
-            fullWidth: true,
+            colSpan: 'full',
             children: [
               {
                 name: 'goLiveDate',
@@ -417,12 +419,12 @@ const metadata: Metadata[] = [
             fieldOptions: { label: 'Guided rollout' },
             description: 'We run kickoff, training, and launch alongside the client team.',
             iconName: 'users',
-            fullWidth: true,
+            colSpan: 'full',
             children: [
               {
                 name: 'kickoffDate',
                 fieldOptions: { label: 'Kickoff call date' },
-                fullWidth: true,
+                colSpan: 'full',
                 validation: dateValidation,
                 placeholder: 'dd/mm/yyyy',
               },
@@ -432,8 +434,8 @@ const metadata: Metadata[] = [
                 minOccurs: 0,
                 fieldOptions: { label: 'Include team training' },
                 description: 'Turn on to schedule a training session during onboarding.',
-                fullWidth: true,
-                falseAsUndefined: true,
+                colSpan: 'full',
+                checkbox: { falseAsUndefined: true },
               },
               {
                 name: 'trainingFormat',
@@ -443,7 +445,7 @@ const metadata: Metadata[] = [
                   label: 'Training format',
                 },
                 description: 'Required because guided rollout includes team training.',
-                fullWidth: true,
+                colSpan: 'full',
                 computedProps: [(field) => {
                   field.options = props.optionStore.trainingFormat;
                   if (needsTraining.value)
@@ -462,9 +464,8 @@ const metadata: Metadata[] = [
         fieldOptions: { label: 'Review & submit' },
         description: 'Quick recap before we kick this off. Anything needs tweaking? Jump back to the step.',
         helpText: 'Check and submit',
-        wizardSummaryConfirmation: 'We\'ll create the onboarding workspace and email each contact an invite.',
         minOccurs: 0,
-        computedProps: [(field) => { field.wizardSummary = wizardSummary.value; }],
+        computedProps: [(field) => { field.wizardSummary = { groups: wizardSummary.value, confirmation: 'We\'ll create the onboarding workspace and email each contact an invite.' }; }],
       },
     ],
   },

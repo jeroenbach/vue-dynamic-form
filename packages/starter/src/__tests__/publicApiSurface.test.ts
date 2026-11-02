@@ -43,6 +43,8 @@ describe('public api surface matches the architecture exactly', () => {
       'AppButtonProps',
       'ChoiceOption',
       'StarterIconName',
+      'GridColumnCount',
+      'Responsive',
       'StarterFieldProperties',
       'StarterValueTypes',
       'ReviewGroupProps',

@@ -12,7 +12,7 @@ async function click(button: { trigger: (event: string) => Promise<void> }) {
 describe('component StarterFormTemplate - heading-array empty state', () => {
   it('shows the empty-state card with icon, title, hint, and a primary Add button', async () => {
     const { wrapper } = await mountInForm({
-      metadata: { ...headingArrayMetadata, minOccurs: 0, autoAddMinOccurs: false, arrayNoItemsMessage: 'No contacts yet, add one to get started.' },
+      metadata: { ...headingArrayMetadata, minOccurs: 0, autoAddMinOccurs: false, array: { ...headingArrayMetadata.array, noItemsMessage: 'No contacts yet, add one to get started.' } },
     });
 
     const empty = section(wrapper, 'contacts').find('.sft-empty');

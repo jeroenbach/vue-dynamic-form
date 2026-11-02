@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import StarterIcon from '@/StarterIcon.vue';
 import { choiceCard, choiceCards, section } from './choice.test-helpers';
@@ -76,14 +77,37 @@ describe('component StarterFormTemplate - explicit-mode choice chrome (heading-c
     expect(choiceCard(wrapper, 'launch', 'selfServe').classes()).toContain('is-selected');
     expect(choiceCard(wrapper, 'launch', 'guided').classes()).not.toContain('is-selected');
   });
+
+  it('renders no field chrome for a selected childless branch with presenceValue', async () => {
+    const { wrapper } = await mountInForm({
+      metadata: {
+        name: 'shipping',
+        type: 'heading',
+        fieldOptions: { label: 'Shipping method' },
+        explicitChoiceSelection: true,
+        choicePicker: { show: true },
+        choice: [
+          { name: 'homeDelivery', type: 'heading', fieldOptions: { label: 'Home delivery' }, presenceValue: true },
+          { name: 'pickup', type: 'text', fieldOptions: { label: 'Pickup point' } },
+        ],
+      },
+    });
+
+    await choiceCard(wrapper, 'shipping', 'homeDelivery').trigger('click');
+    await flushPromises();
+
+    expect(choiceCard(wrapper, 'shipping', 'homeDelivery').classes()).toContain('is-selected');
+    // The selected card is the branch's whole visible footprint: no FormField renders for it.
+    expect(wrapper.find('[data-testid="shipping.homeDelivery"]').exists()).toBe(false);
+  });
 });
 
-describe('component StarterFormTemplate - choiceShowChoiceSelect toggles the picker UI', () => {
-  it('renders no choice grid or add bar when choiceShowChoiceSelect is false', async () => {
-    const { wrapper: singleWrapper } = await mountInForm({ metadata: { ...explicitChoiceMetadata, choiceShowChoiceSelect: false } });
+describe('component StarterFormTemplate - choicePicker.show toggles the picker UI', () => {
+  it('renders no choice grid or add bar when choicePicker.show is false', async () => {
+    const { wrapper: singleWrapper } = await mountInForm({ metadata: { ...explicitChoiceMetadata, choicePicker: { show: false } } });
     expect(singleWrapper.find('.sft-choice-grid').exists()).toBe(false);
 
-    const { wrapper: arrayWrapper } = await mountInForm({ metadata: { ...explicitChoiceArrayMetadata, choiceShowChoiceSelect: false } });
+    const { wrapper: arrayWrapper } = await mountInForm({ metadata: { ...explicitChoiceArrayMetadata, choicePicker: { show: false } } });
     expect(arrayWrapper.find('.sft-choice-addbar').exists()).toBe(false);
   });
 });

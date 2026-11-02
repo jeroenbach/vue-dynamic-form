@@ -148,7 +148,7 @@ const metadata: Metadata[] = [
         type: 'block',
         fieldOptions: { label: 'Strength exercise' },
         children: [
-          { name: 'name', type: 'text', fullWidth: true, fieldOptions: { label: 'Exercise name' }, placeholder: 'e.g. Barbell back squat' },
+          { name: 'name', type: 'text', colSpan: 'full', fieldOptions: { label: 'Exercise name' }, placeholder: 'e.g. Barbell back squat' },
           { name: 'muscle', type: 'select', fieldOptions: { label: 'Muscle group' }, options: MUSCLE_GROUPS, restriction: { enumeration: MUSCLE_GROUPS.map(option => option.key) } },
           { name: 'type', type: 'select', fieldOptions: { label: 'Movement type' }, options: MOVEMENT_TYPES, restriction: { enumeration: MOVEMENT_TYPES.map(option => option.key) } },
           { name: 'sets', type: 'number', fieldOptions: { label: 'Sets' }, restriction: POSITIVE_NUMBER_RESTRICTION },

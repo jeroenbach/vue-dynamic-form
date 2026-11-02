@@ -6,9 +6,9 @@ Repeatable sections controlled by `minOccurs` / `maxOccurs`, with per-item titli
 
 - `minOccurs` / `maxOccurs` to control how many times a section can repeat
 - `autoAddMinOccurs: false` for opt-in (empty by default) arrays
-- `arrayItemName`, `arrayItemNamePlural` for friendly add/remove labels
-- `arrayItemFieldForTitle` to use a child field value as the item title
-- `arrayNoItemsMessage` for an empty-state prompt
+- `array.itemName`, `array.itemNamePlural` for friendly add/remove labels
+- `array.itemFieldForTitle` to use a child field value as the item title
+- `array.noItemsMessage` for an empty-state prompt
 
 ## Example
 

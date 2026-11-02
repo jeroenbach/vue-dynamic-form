@@ -19,6 +19,12 @@
   all: revert-layer;
 }
 
+/* The pre-starter docs templates marked a touched valid input with VitePress's own success
+   color; pin the starter's success border to that same theme-aware color. */
+.form-demo {
+  --sft-success: var(--vp-c-success-3);
+}
+
 .form-demo
   :is(
     h1,

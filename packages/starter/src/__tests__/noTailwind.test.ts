@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { compiledStylesheet, stylesheetSourcePath } from './helpers/compiledStylesheet';
 import { collectSourceFiles, extractClassTokens, packageDirectory } from './helpers/sourceScan';
 
 const utilityPatterns = [
@@ -36,14 +37,18 @@ describe('tailwind removal', () => {
 
   it('has no apply or tailwind directives in style blocks or the stylesheet', () => {
     const directive = /@apply|@tailwind|@import\s+['"]tailwindcss/;
-    const styleFiles = [...sources, { path: path.join(packageDirectory, 'src/style.css'), content: readFileSync(path.join(packageDirectory, 'src/style.css'), 'utf8') }];
+    const styleFiles = [...sources, { path: stylesheetSourcePath, content: readFileSync(stylesheetSourcePath, 'utf8') }];
     const hits = styleFiles.filter(file => directive.test(file.content)).map(file => path.basename(file.path));
     expect(hits).toEqual([]);
   });
 
   it('contains only sft- prefixed classes, is-* state modifiers, and the plain selectors they are nested under', () => {
-    const stylesheet = readFileSync(path.join(packageDirectory, 'src/style.css'), 'utf8');
-    const selectors = stylesheet.replace(/\{[^}]*\}/g, '{}').replace(/\/\*[\s\S]*?\*\//g, '');
+    // drop comments, then the innermost (declaration) blocks, then the leftover
+    // @media braces, so selectors inside media blocks stay in the text
+    const selectors = compiledStylesheet
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\{[^{}]*\}/g, ' ')
+      .replace(/[{}]/g, ' ');
     const classNames = [...selectors.matchAll(/\.([a-z_][\w-]*)/gi)].map(match => match[1]);
     // `dark` is the ancestor class VitePress toggles on <html>; `grow`/`cols-2` are
     // structural qualifiers on the prototype's own markup, not Tailwind utilities.

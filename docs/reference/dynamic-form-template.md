@@ -100,7 +100,7 @@ Type: `boolean`
 
 Type: `boolean`
 
-`true` when `maxOccurs === 0`. Indicates that the field (and its children) has been programmatically disabled. Typically via `computedProps` setting `field.maxOccurs = 0`.
+`true` when `maxOccurs === 0`. Indicates that the field (and its children) has been disabled, either by declaring `maxOccurs: 0` in the metadata or because a disabled ancestor propagates it down. `maxOccurs` is not writable from `computedProps`, so this slot prop cannot flip at runtime; to disable a field dynamically, declare an extended metadata property and handle it in your template (see [Dynamic Fields](/guide/dynamic-fields)).
 
 ### `index`
 

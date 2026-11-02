@@ -1,7 +1,9 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
+import type { GridColumnCount, Responsive } from '@/metadata';
 import AppButton from '@/AppButton.vue';
 import ErrorMessage from '@/ErrorMessage.vue';
+import { gridColumnsClasses, gridItemClasses } from '@/gridClasses';
 import OptionalRequiredTag from '@/OptionalRequiredTag.vue';
 
 export interface Props {
@@ -17,6 +19,12 @@ export interface Props {
   removeButtonText?: string
   errorMessage?: string
   dataTestid?: string
+  /** Column count of the children grid; the `columns` field property. */
+  columns?: Responsive<GridColumnCount>
+  /** Parent-grid columns this group spans; the `colSpan` field property. */
+  colSpan?: Responsive<GridColumnCount | 'full'>
+  /** Parent-grid column line this group starts on; the `colStart` field property. */
+  colStart?: Responsive<GridColumnCount>
 }
 
 withDefaults(defineProps<Props>(), {
@@ -34,7 +42,7 @@ defineEmits<{
   <section
     :data-testid="dataTestid"
     class="sft-group"
-    :class="{ 'is-disabled': disabled }"
+    :class="[{ 'is-disabled': disabled }, gridItemClasses(colSpan, colStart)]"
   >
     <div class="sft-group-header">
       <div class="sft-group-heading">
@@ -64,7 +72,7 @@ defineEmits<{
     </div>
     <div
       class="sft-choice-group-body"
-      :class="{ 'sft-hide-tag': showRequiredOrOptional === 'optional' }"
+      :class="[{ 'sft-hide-tag': showRequiredOrOptional === 'optional' }, gridColumnsClasses(columns)]"
     >
       <slot />
     </div>

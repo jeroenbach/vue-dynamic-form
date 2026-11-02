@@ -31,10 +31,10 @@ describe('component StarterFormTemplate - inline array chrome (default-array)', 
     expect(section(wrapper, 'tags').find('.sft-pill').text()).toBe('0 items');
   });
 
-  it('applies sft-col-span when the field is full width', async () => {
-    const { wrapper } = await mountInForm({ metadata: { ...inlineArrayMetadata, fullWidth: true }, initialValues: { tags: ['a'] } });
+  it('applies the colSpan placement through a span utility class', async () => {
+    const { wrapper } = await mountInForm({ metadata: { ...inlineArrayMetadata, colSpan: 2 }, initialValues: { tags: ['a'] } });
 
-    expect(section(wrapper, 'tags').classes()).toContain('sft-col-span');
+    expect(section(wrapper, 'tags').classes()).toContain('sft-span-2');
   });
 
   it('renders the add button inside the footer', async () => {

@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { compiledStylesheet } from './helpers/compiledStylesheet';
 import { packageDirectory } from './helpers/sourceScan';
 
 const prototypePath = path.join(packageDirectory, '../../specs/FEAT-007-starter-form-template/prototype.html');
 const prototype = readFileSync(prototypePath, 'utf8');
-const stylesheet = readFileSync(path.join(packageDirectory, 'src/style.css'), 'utf8');
+const stylesheet = compiledStylesheet;
 
 const styleBlock = /<style>([\s\S]*?)<\/style>/.exec(prototype)?.[1] ?? '';
 const packageStyles = styleBlock.slice(styleBlock.indexOf('STARTER FORM TEMPLATE PACKAGE STYLES'));

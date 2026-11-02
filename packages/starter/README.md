@@ -8,8 +8,6 @@ It is a drop-in counterpart of the core `DynamicFormTemplate`: the same slot nam
 
 ## Install
 
-The package is not published yet. The name and peer set below are final; confirm the version or tag at publish time.
-
 ```sh
 pnpm add @bach.software/vue-dynamic-form-starter @bach.software/vue-dynamic-form vee-validate vue
 ```

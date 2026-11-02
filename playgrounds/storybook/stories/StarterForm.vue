@@ -6,7 +6,7 @@ import { computed, ref } from 'vue';
 import StarterFormTemplateImplementation from '../components/StarterFormTemplateImplementation.vue';
 import '@bach.software/vue-dynamic-form-starter/style.css';
 
-const { exampleId, title, description, metadata, initialValues, bare = false, hideSubmit = false } = defineProps<StarterFormExample>();
+const { exampleId, title, description, metadata, initialValues, bare = false, hideSubmit = false, settings } = defineProps<StarterFormExample>();
 
 const { values, handleSubmit } = useDynamicForm({ initialValues });
 
@@ -50,7 +50,7 @@ const onSubmit = handleSubmit(
     </p>
 
     <form class="exampleForm" novalidate :data-testid="`form-${exampleId}`" @submit.prevent="onSubmit">
-      <DynamicForm :metadata="metadata" :template="template" />
+      <DynamicForm :metadata="metadata" :template="template" :settings="settings" />
       <div v-if="!hideSubmit" class="exampleActions">
         <button type="submit" class="sft-btn sft-btn-primary" data-testid="submit-button">
           Submit

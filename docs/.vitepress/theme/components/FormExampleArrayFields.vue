@@ -25,15 +25,17 @@ const metadata: Metadata[] = [
     description: `Any external tools we'll integrate with during onboarding.`,
     helpText: 'What needs to connect?',
     // #region array-field-options
-    arrayNoItemsMessage: `Skip this step if there's nothing to integrate.`,
-    arrayItemName: 'system',
-    arrayItemNamePlural: 'systems',
-    arrayItemFieldForTitle: 'systemName',
+    array: {
+      noItemsMessage: `Skip this step if there's nothing to integrate.`,
+      itemName: 'system',
+      itemNamePlural: 'systems',
+      itemFieldForTitle: 'systemName',
+    },
     minOccurs: 0,
     maxOccurs: 4,
     autoAddMinOccurs: false,
     // #endregion array-field-options
-    fullWidth: true,
+    colSpan: 'full',
     children: [
       {
         name: 'systemName',

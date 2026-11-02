@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
+import ExtendedFieldTypesDemo from '../components/ExtendedFieldTypesDemo.vue';
 import StarterIconCatalogue from '../components/StarterIconCatalogue.vue';
 import StarterSuccessPreview from '../components/StarterSuccessPreview.vue';
 
@@ -7,8 +8,11 @@ import {
   choiceArrayExample,
   choiceAutomaticExample,
   choiceExplicitExample,
+  gridLayoutExample,
   iconOverrideExample,
+  localizationExample,
   plainExample,
+  settingsExample,
   wizardExample,
 } from './StarterForm.examples';
 import StarterForm from './StarterForm.vue';
@@ -45,6 +49,15 @@ export const Wizard: Story = { args: wizardExample };
 /** The wrapper-component pattern overrides the #icon slot (prototype.html#icons), proving it reaches both the password toggle and a choice-card icon. */
 export const IconOverride: Story = { args: iconOverrideExample };
 
+/** The bare "grid" field type, plus the columns, colSpan, and colStart field properties that place its children. */
+export const GridLayout: Story = { args: gridLayoutExample };
+
+/** DynamicForm's showRequiredOrOptional and showValidState settings, plus disabled, suffix, and dependentOnMessage field properties. */
+export const Settings: Story = { args: settingsExample };
+
+/** Every built-in label on repeatable chrome, explicit-choice add buttons, and the password strength bar, overridden with Dutch text to prove they translate. */
+export const Localization: Story = { args: localizationExample };
+
 /** The post-submit screen (prototype.html#success), the one loading state in the package: a mixed done/pending timeline and the spinning loader glyph on the pending item. Rendered standalone, outside DynamicForm, since the engine never dispatches to it. */
 export const Success = {
   render: () => ({
@@ -58,5 +71,13 @@ export const Icons = {
   render: () => ({
     components: { StarterIconCatalogue },
     template: '<StarterIconCatalogue />',
+  }),
+};
+
+/** extendMetadata layering a project-specific "textarea" and "rating" field type on top of the starter catalogue, rendered through a thin wrapper that supplies their input slots. */
+export const ExtendedFieldTypes = {
+  render: () => ({
+    components: { ExtendedFieldTypesDemo },
+    template: '<ExtendedFieldTypesDemo />',
   }),
 };

@@ -24,10 +24,12 @@ describe('component StarterFormTemplate - overridable texts', () => {
       const metadata = wizardMetadata({
         pages: 2,
         extra: {
-          nextButtonText: 'Verder',
-          prevButtonText: 'Terug',
-          submitButtonText: 'Versturen',
-          stepText: 'Stap {current} van {total}',
+          wizardTexts: {
+            nextButtonText: 'Verder',
+            prevButtonText: 'Terug',
+            submitButtonText: 'Versturen',
+            stepText: 'Stap {current} van {total}',
+          },
         },
       });
       const { wrapper } = await mountWizardForm(metadata);
@@ -46,7 +48,7 @@ describe('component StarterFormTemplate - overridable texts', () => {
         pages: 2,
         wizard: { allowForwardJump: true },
         requiredPages: [0],
-        extra: { stepErrorsText: 'Herstel de rode stappen.' },
+        extra: { wizardTexts: { stepErrorsText: 'Herstel de rode stappen.' } },
       });
       const { wrapper } = await mountWizardForm(metadata);
 
@@ -58,7 +60,7 @@ describe('component StarterFormTemplate - overridable texts', () => {
     it('takes the stepper aria labels from the wizard field metadata', async () => {
       const metadata = wizardMetadata({
         pages: 2,
-        extra: { stepperAriaLabel: 'Voortgang', stepAriaLabel: 'Stap {number}: {title}' },
+        extra: { wizardTexts: { stepperAriaLabel: 'Voortgang', stepAriaLabel: 'Stap {number}: {title}' } },
       });
       const { wrapper } = await mountWizardForm(metadata);
 
@@ -68,7 +70,8 @@ describe('component StarterFormTemplate - overridable texts', () => {
 
     it('takes the review confirmation title from the summary field metadata', async () => {
       const metadata = wizardMetadata({ pages: 1, confirmation: 'Check everything before sending.' });
-      (metadata.children[1].children[0] as Record<string, unknown>).wizardSummaryConfirmationTitle = 'Klaar om te versturen?';
+      const summaryField = metadata.children[1].children[0] as { wizardSummary?: Record<string, unknown> };
+      summaryField.wizardSummary = { ...summaryField.wizardSummary, confirmationTitle: 'Klaar om te versturen?' };
       const { wrapper } = await mountWizardForm(metadata);
 
       expect(wrapper.find('.sft-confirm-strong').text()).toBe('Klaar om te versturen?');
@@ -103,12 +106,15 @@ describe('component StarterFormTemplate - overridable texts', () => {
   describe('heading-array chrome', () => {
     const translated = {
       ...headingArrayMetadata,
-      arrayNoItemsTitle: 'Nog geen contacten',
-      arrayAddFirstButtonText: 'Eerste contact toevoegen',
-      arrayAddButtonText: 'Contact toevoegen',
-      arrayNewItemTitle: 'Nieuw contact',
-      arrayRemoveButtonText: 'Verwijder',
-      arrayRemoveAriaLabel: 'Verwijder contact {number}',
+      array: {
+        ...headingArrayMetadata.array,
+        noItemsTitle: 'Nog geen contacten',
+        addFirstButtonText: 'Eerste contact toevoegen',
+        addButtonText: 'Contact toevoegen',
+        newItemTitle: 'Nieuw contact',
+        removeButtonText: 'Verwijder',
+        removeAriaLabel: 'Verwijder contact {number}',
+      },
     };
 
     it('takes the empty-state title and add button labels from the field metadata', async () => {
@@ -136,7 +142,7 @@ describe('component StarterFormTemplate - overridable texts', () => {
   describe('inline array chrome', () => {
     it('takes the add button label and item wording from the field metadata', async () => {
       const { wrapper } = await mountInForm({
-        metadata: { ...inlineArrayMetadata, arrayItemName: 'tag', arrayItemNamePlural: 'tags', arrayAddButtonText: 'Meer' },
+        metadata: { ...inlineArrayMetadata, array: { itemName: 'tag', itemNamePlural: 'tags', addButtonText: 'Meer' } },
         initialValues: { tags: ['one'] },
       });
 
@@ -150,8 +156,11 @@ describe('component StarterFormTemplate - overridable texts', () => {
       const { wrapper } = await mountInForm({
         metadata: {
           ...explicitChoiceArrayMetadata,
-          choiceAddButtonText: '{option} toevoegen',
-          choiceLimitReachedText: 'Limiet voor {option} bereikt.',
+          choicePicker: {
+            ...explicitChoiceArrayMetadata.choicePicker,
+            addButtonText: '{option} toevoegen',
+            limitReachedText: 'Limiet voor {option} bereikt.',
+          },
         },
         initialValues: { channels: { webhook: ['https://example.com/webhook'] } },
       });
@@ -166,9 +175,12 @@ describe('component StarterFormTemplate - overridable texts', () => {
       const { wrapper } = await mountInForm({
         metadata: {
           ...passwordMetadata,
-          showPasswordAriaLabel: 'Toon wachtwoord',
-          hidePasswordAriaLabel: 'Verberg wachtwoord',
-          passwordStrengthLabels: { weak: 'Zwak' },
+          password: {
+            ...passwordMetadata.password,
+            showAriaLabel: 'Toon wachtwoord',
+            hideAriaLabel: 'Verberg wachtwoord',
+            strengthLabels: { weak: 'Zwak' },
+          },
         },
         initialValues: { password: 'abc' },
       });

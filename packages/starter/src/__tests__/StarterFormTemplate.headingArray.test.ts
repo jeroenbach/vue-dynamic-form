@@ -29,7 +29,7 @@ describe('component StarterFormTemplate - heading-declared array chrome (heading
     }
   });
 
-  it('titles each item using arrayItemFieldForTitle', async () => {
+  it('titles each item using array.itemFieldForTitle', async () => {
     const { wrapper } = await mountInForm({ metadata: headingArrayMetadata, initialValues });
 
     const cards = itemCards(wrapper, 'contacts');
@@ -51,7 +51,7 @@ describe('component StarterFormTemplate - heading-declared array chrome (heading
     expect(section(wrapper, 'contacts').find('.sft-section-desc').text()).toBe('People to contact');
   });
 
-  it('falls back to default singular/plural item wording when arrayItemName and arrayItemNamePlural are both omitted', async () => {
+  it('falls back to default singular/plural item wording when array.itemName and array.itemNamePlural are both omitted', async () => {
     const { wrapper } = await mountInForm({
       metadata: {
         name: 'contacts',
@@ -68,7 +68,7 @@ describe('component StarterFormTemplate - heading-declared array chrome (heading
     expect(root.find('.sft-array-footer button').text()).toContain('Add item');
   });
 
-  it('falls back to default plural item wording for a zero-item empty state when arrayItemNamePlural is omitted', async () => {
+  it('falls back to default plural item wording for a zero-item empty state when array.itemNamePlural is omitted', async () => {
     const { wrapper } = await mountInForm({
       metadata: {
         name: 'contacts',

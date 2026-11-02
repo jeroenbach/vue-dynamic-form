@@ -41,7 +41,7 @@ describe('component StarterFormTemplate - password field with the strength bar a
     expect(strength.find(`.sft-strength-label.is-${tier}`).exists()).toBe(true);
   });
 
-  it('shows no strength bar when showStrengthBar is omitted', async () => {
+  it('shows no strength bar when password.showStrengthBar is omitted', async () => {
     const { wrapper } = await mountInForm({
       metadata: { name: 'password', type: 'password', fieldOptions: { label: 'Password' } },
       initialValues: { password: 'Abcdefg1!' },
@@ -50,9 +50,9 @@ describe('component StarterFormTemplate - password field with the strength bar a
     expect(wrapper.find('.sft-strength').exists()).toBe(false);
   });
 
-  it('shows no strength bar when showStrengthBar is false', async () => {
+  it('shows no strength bar when password.showStrengthBar is false', async () => {
     const { wrapper } = await mountInForm({
-      metadata: { ...passwordMetadata, showStrengthBar: false },
+      metadata: { ...passwordMetadata, password: { showStrengthBar: false } },
       initialValues: { password: 'Abcdefg1!' },
     });
 

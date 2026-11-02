@@ -49,7 +49,7 @@ export const explicitChoiceMetadata = {
   fieldOptions: { label: 'Launch approach' },
   description: 'How do you want to go live?',
   explicitChoiceSelection: true,
-  choiceShowChoiceSelect: true,
+  choicePicker: { show: true },
   choice: launchBranches,
 };
 
@@ -61,7 +61,7 @@ export const explicitChoiceArrayMetadata = {
   description: 'Add one or more ways to reach the team.',
   maxOccurs: 3,
   explicitChoiceSelection: true,
-  choiceShowChoiceSelect: true,
+  choicePicker: { show: true },
   choice: [
     { name: 'email', type: 'text', fieldOptions: { label: 'Email' } },
     { name: 'sms', type: 'text', fieldOptions: { label: 'SMS' } },

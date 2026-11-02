@@ -4,53 +4,71 @@ import type { WizardGotoStepOptions } from '@bach.software/vue-dynamic-form';
 export interface GoldenValueTypes {
   wizardSummaryPage: never
   heading: never
+  grid: never
   text: string
   select: string
   checkbox: boolean | undefined
   password: string
 }
 
+/** Independently written mirror of the responsive-value shape. */
+type GoldenResponsive<T> = T | { base?: T, md?: T, lg?: T };
+
 /** Independently written extended field properties of the built-in catalogue. */
 export interface GoldenFieldProperties {
   description?: string
   helpText?: string
-  arrayItemName?: string
-  arrayItemNamePlural?: string
-  arrayItemFieldForTitle?: string
-  arrayNoItemsMessage?: string
-  arrayNoItemsTitle?: string
-  arrayAddButtonText?: string
-  arrayAddFirstButtonText?: string
-  arrayNewItemTitle?: string
-  arrayRemoveButtonText?: string
-  arrayRemoveAriaLabel?: string
-  choiceShowChoiceSelect?: boolean
-  choiceAddButtonText?: string
-  choiceLimitReachedText?: string
-  choiceAriaLabel?: string
-  iconName?: string
   dependentOnMessage?: string
   placeholder?: string
   suffix?: string
   options?: { key: string, value: string }[]
-  fullWidth?: boolean
+  iconName?: string
+  columns?: GoldenResponsive<1 | 2 | 3 | 4 | 5 | 6>
+  colSpan?: GoldenResponsive<1 | 2 | 3 | 4 | 5 | 6 | 'full'>
+  colStart?: GoldenResponsive<1 | 2 | 3 | 4 | 5 | 6>
   disabled?: boolean
   hide?: boolean
-  showStrengthBar?: boolean
-  passwordStrengthLabels?: { weak?: string, fair?: string, good?: string, strong?: string }
-  showPasswordAriaLabel?: string
-  hidePasswordAriaLabel?: string
-  falseAsUndefined?: boolean
-  wizardSummary?: { title: string, rows: [label: string, value: string][], editButtonText?: string, dataTestid?: string }[]
-  wizardSummaryConfirmation?: string
-  wizardSummaryConfirmationTitle?: string
-  submitButtonText?: string
-  nextButtonText?: string
-  prevButtonText?: string
-  stepText?: string
-  stepperAriaLabel?: string
-  stepAriaLabel?: string
-  stepErrorsText?: string
+  array?: {
+    itemName?: string
+    itemNamePlural?: string
+    itemFieldForTitle?: string
+    noItemsMessage?: string
+    noItemsTitle?: string
+    addButtonText?: string
+    addFirstButtonText?: string
+    newItemTitle?: string
+    removeButtonText?: string
+    removeAriaLabel?: string
+  }
+  choicePicker?: {
+    show?: boolean
+    addButtonText?: string
+    limitReachedText?: string
+    ariaLabel?: string
+  }
+  password?: {
+    showStrengthBar?: boolean
+    strengthLabels?: { weak?: string, fair?: string, good?: string, strong?: string }
+    showAriaLabel?: string
+    hideAriaLabel?: string
+  }
+  checkbox?: {
+    falseAsUndefined?: boolean
+  }
+  wizardSummary?: {
+    groups?: { title: string, rows: [label: string, value: string][], editButtonText?: string, dataTestid?: string }[]
+    confirmation?: string
+    confirmationTitle?: string
+  }
+  wizardTexts?: {
+    submitButtonText?: string
+    nextButtonText?: string
+    prevButtonText?: string
+    stepText?: string
+    stepperAriaLabel?: string
+    stepAriaLabel?: string
+    stepErrorsText?: string
+  }
 }
 
 /** Independently written slot properties of the built-in catalogue. */

@@ -9,7 +9,7 @@ Split a long form into ordered steps. Steps validate as the user moves through t
 - A stepper that reflects the current step, jumps to any step, forward or back, and turns a step red when it has validation errors
 - A final step whose submit button is disabled while any step still has errors, with a message pointing at the red steps
 - A [`wizardSummaryPage`](/reference/field-metadata#wizard) step that reviews the collected values with per-section edit links
-- `submitButtonText` for the label on the final step's submit button
+- `wizardTexts.submitButtonText` for the label on the final step's submit button
 
 ## Example
 
@@ -53,7 +53,7 @@ Errors only exist once a field has been validated, so steps turn red exactly as 
 
 ## The Review Page
 
-The final step is a `wizardSummaryPage`. A `computedProps` function feeds it a `wizardSummary` array, and the template renders one review group per section with an edit link that calls `gotoStep()`:
+The final step is a `wizardSummaryPage`. A `computedProps` function feeds its `wizardSummary.groups`, and the template renders one review group per section with an edit link that calls `gotoStep()`:
 
 <<< @/.vitepress/theme/components/FormExampleWizard.vue#summary-information{ts} [FormExampleWizard.vue]
 

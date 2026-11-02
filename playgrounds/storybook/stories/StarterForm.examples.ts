@@ -8,6 +8,8 @@ export interface StarterFormExample {
   bare?: boolean
   /** The wizard brings its own submit button. */
   hideSubmit?: boolean
+  /** Forwarded to `DynamicForm`'s `settings` prop. */
+  settings?: Record<string, any>
 }
 
 const planOptions = [
@@ -56,9 +58,11 @@ export const arrayExample: StarterFormExample = {
           minOccurs: 0,
           // Without this, the engine keeps at least one placeholder item; this array demonstrates the genuine empty state instead.
           autoAddMinOccurs: false,
-          arrayItemName: 'contact',
-          arrayItemNamePlural: 'contacts',
-          arrayItemFieldForTitle: 'name',
+          array: {
+            itemName: 'contact',
+            itemNamePlural: 'contacts',
+            itemFieldForTitle: 'name',
+          },
           children: [
             { name: 'name', type: 'text', fieldOptions: { label: 'Name' } },
             { name: 'role', type: 'select', fieldOptions: { label: 'Role' }, options: [{ key: 'developer', value: 'Developer' }, { key: 'designer', value: 'Designer' }] },
@@ -70,9 +74,11 @@ export const arrayExample: StarterFormExample = {
           fieldOptions: { label: 'Vendors' },
           maxOccurs: 3,
           minOccurs: 1,
-          arrayItemName: 'vendor',
-          arrayItemNamePlural: 'vendors',
-          arrayItemFieldForTitle: 'name',
+          array: {
+            itemName: 'vendor',
+            itemNamePlural: 'vendors',
+            itemFieldForTitle: 'name',
+          },
           children: [
             { name: 'name', type: 'text', fieldOptions: { label: 'Name' } },
           ],
@@ -117,7 +123,7 @@ export const choiceExplicitExample: StarterFormExample = {
       fieldOptions: { label: 'Launch approach' },
       description: 'How do you want to go live?',
       explicitChoiceSelection: true,
-      choiceShowChoiceSelect: true,
+      choicePicker: { show: true },
       choice: [
         {
           name: 'selfServe',
@@ -151,7 +157,7 @@ export const choiceArrayExample: StarterFormExample = {
       description: 'Add one or more ways to reach the team.',
       maxOccurs: 3,
       explicitChoiceSelection: true,
-      choiceShowChoiceSelect: true,
+      choicePicker: { show: true },
       choice: [
         { name: 'email', type: 'text', fieldOptions: { label: 'Email' }, iconName: 'building2' },
         { name: 'webhook', type: 'text', fieldOptions: { label: 'Webhook' }, maxOccursTotal: 1, iconName: 'zap' },
@@ -198,11 +204,13 @@ export const wizardExample: StarterFormExample = {
               name: 'summary',
               type: 'wizardSummaryPage',
               fieldOptions: { label: 'Review and submit' },
-              wizardSummary: [
-                { title: 'Company', rows: [['Company name', 'Acme Industries'], ['Website', '']] },
-                { title: 'Plan', rows: [['Plan', 'Team']] },
-              ],
-              wizardSummaryConfirmation: 'We will email you within one business day.',
+              wizardSummary: {
+                groups: [
+                  { title: 'Company', rows: [['Company name', 'Acme Industries'], ['Website', '']] },
+                  { title: 'Plan', rows: [['Plan', 'Team']] },
+                ],
+                confirmation: 'We will email you within one business day.',
+              },
             },
           ],
         },
@@ -223,7 +231,7 @@ export const iconOverrideExample: StarterFormExample = {
       type: 'heading',
       fieldOptions: { label: 'Account' },
       children: [
-        { name: 'password', type: 'password', fieldOptions: { label: 'Password' }, showStrengthBar: true },
+        { name: 'password', type: 'password', fieldOptions: { label: 'Password' }, password: { showStrengthBar: true } },
       ],
     },
     {
@@ -231,7 +239,7 @@ export const iconOverrideExample: StarterFormExample = {
       type: 'heading',
       fieldOptions: { label: 'Launch approach' },
       explicitChoiceSelection: true,
-      choiceShowChoiceSelect: true,
+      choicePicker: { show: true },
       choice: [
         { name: 'selfServe', type: 'text', fieldOptions: { label: 'Self-serve rollout' }, iconName: 'rocket' },
         { name: 'guided', type: 'text', fieldOptions: { label: 'Guided rollout' }, iconName: 'users' },
@@ -240,4 +248,120 @@ export const iconOverrideExample: StarterFormExample = {
   ],
   initialValues: { account: { password: 'Passw0rd!99' } },
   bare: false,
+};
+
+export const gridLayoutExample: StarterFormExample = {
+  exampleId: 'gridLayout',
+  title: 'Grid layout',
+  description: 'The bare "grid" field type lays its children out in a responsive CSS grid with no card chrome. "columns" sets its own grid width per breakpoint, "colSpan" and "colStart" place a child inside that grid, and "full" spans the whole row.',
+  metadata: [
+    {
+      name: 'availability',
+      type: 'grid',
+      fieldOptions: { label: 'Weekly availability' },
+      columns: { base: 2, md: 4 },
+      children: [
+        { name: 'monday', type: 'checkbox', fieldOptions: { label: 'Mon' }, minOccurs: 0 },
+        { name: 'tuesday', type: 'checkbox', fieldOptions: { label: 'Tue' }, minOccurs: 0 },
+        { name: 'wednesday', type: 'checkbox', fieldOptions: { label: 'Wed' }, minOccurs: 0 },
+        { name: 'thursday', type: 'checkbox', fieldOptions: { label: 'Thu' }, minOccurs: 0 },
+        { name: 'manager', fieldOptions: { label: 'Approving manager' }, colStart: 3, minOccurs: 0 },
+        { name: 'notes', fieldOptions: { label: 'Notes' }, colSpan: 'full', minOccurs: 0 },
+      ],
+    },
+  ],
+  bare: true,
+};
+
+export const settingsExample: StarterFormExample = {
+  exampleId: 'settings',
+  title: 'Settings and field states',
+  description: 'DynamicForm settings tag optional fields instead of required ones (showRequiredOrOptional, optionalText) and mark a touched, valid field with a success border (showValidState). Below them: a disabled field, a field with a suffix, and a field with a dependentOnMessage that replaces its input entirely until a prerequisite is met.',
+  metadata: [
+    {
+      name: 'account',
+      type: 'heading',
+      fieldOptions: { label: 'Account' },
+      children: [
+        { name: 'firstName', fieldOptions: { label: 'First name' }, placeholder: 'Jordan' },
+        { name: 'middleName', fieldOptions: { label: 'Middle name' }, minOccurs: 0 },
+        { name: 'accountId', fieldOptions: { label: 'Account ID' }, disabled: true },
+        { name: 'monthlyBudget', fieldOptions: { label: 'Monthly budget' }, suffix: 'USD', minOccurs: 0 },
+        { name: 'referralCode', fieldOptions: { label: 'Referral code' }, minOccurs: 0, dependentOnMessage: 'Unlocks once your email address is verified.' },
+      ],
+    },
+  ],
+  initialValues: { account: { accountId: 'ACC-10293' } },
+  settings: {
+    showRequiredOrOptional: 'optional',
+    optionalText: 'Not required',
+    showValidState: true,
+  },
+  bare: true,
+};
+
+export const localizationExample: StarterFormExample = {
+  exampleId: 'localization',
+  title: 'Overridable and translatable texts',
+  description: 'Every built-in label on repeatable chrome, explicit-choice add buttons, and the password strength bar is a field property, overridden here with Dutch text instead of the English defaults.',
+  metadata: [
+    {
+      name: 'team',
+      type: 'heading',
+      fieldOptions: { label: 'Team' },
+      children: [
+        {
+          name: 'contacts',
+          type: 'heading',
+          fieldOptions: { label: 'Contactpersonen' },
+          maxOccurs: 3,
+          minOccurs: 0,
+          autoAddMinOccurs: false,
+          array: {
+            itemName: 'contactpersoon',
+            itemNamePlural: 'contactpersonen',
+            itemFieldForTitle: 'name',
+            noItemsTitle: 'Nog geen contactpersonen toegevoegd',
+            addFirstButtonText: 'Voeg een contactpersoon toe',
+            addButtonText: 'Nog een contactpersoon toevoegen',
+            removeButtonText: 'Verwijderen',
+            removeAriaLabel: 'Verwijder contactpersoon {number}',
+            newItemTitle: 'Nieuwe contactpersoon',
+          },
+          children: [
+            { name: 'name', fieldOptions: { label: 'Naam' } },
+          ],
+        },
+        {
+          name: 'reachBy',
+          type: 'heading',
+          fieldOptions: { label: 'Bereikbaarheid' },
+          description: 'Voeg een of meer manieren toe om het team te bereiken.',
+          maxOccurs: 3,
+          explicitChoiceSelection: true,
+          choicePicker: {
+            show: true,
+            addButtonText: 'Voeg {option} toe',
+            limitReachedText: 'De limiet voor {option} is bereikt.',
+          },
+          choice: [
+            { name: 'email', type: 'text', fieldOptions: { label: 'E-mail' }, iconName: 'building2' },
+            { name: 'webhook', type: 'text', fieldOptions: { label: 'Webhook' }, maxOccursTotal: 1, iconName: 'zap' },
+          ],
+        },
+        {
+          name: 'password',
+          type: 'password',
+          fieldOptions: { label: 'Wachtwoord' },
+          password: {
+            showStrengthBar: true,
+            strengthLabels: { weak: 'Zwak', fair: 'Redelijk', good: 'Goed', strong: 'Sterk' },
+            showAriaLabel: 'Wachtwoord tonen',
+            hideAriaLabel: 'Wachtwoord verbergen',
+          },
+        },
+      ],
+    },
+  ],
+  bare: true,
 };

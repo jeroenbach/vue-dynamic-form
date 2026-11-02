@@ -107,7 +107,7 @@ const metadata: Metadata[] = [
       {
         name: 'password',
         type: 'password',
-        showStrengthBar: true,
+        password: { showStrengthBar: true },
         fieldOptions: { label: 'Password' },
         description: 'Must contain 8+ characters, uppercase, lowercase, a number and a special character.',
         validation: validatePassword,
@@ -116,7 +116,7 @@ const metadata: Metadata[] = [
       {
         name: 'confirmPassword',
         type: 'password',
-        showStrengthBar: false,
+        password: { showStrengthBar: false },
         fieldOptions: { label: 'Confirm password' },
         description: 'Re-validated automatically whenever the password field changes.',
         validation: (value: unknown) => {

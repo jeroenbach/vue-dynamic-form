@@ -1,10 +1,10 @@
 {
   "name": "@bach.software/vue-dynamic-form-starter",
   "type": "module",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.0.0",
   "description": "A portable, Tailwind-free starter form template for Vue Dynamic Form",
   "author": "Jeroen Bach <jeroen@bach.software> (https://bach.software)",
+  "license": "MIT",
   "homepage": "https://github.com/jeroenbach/vue-dynamic-form",
   "repository": {
     "type": "git",
@@ -43,6 +43,7 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "test": "vitest run",
+    "prepublishOnly": "npm run ci",
     "ci": "pnpm ci:test && pnpm ci:lint && pnpm ci:typecheck",
     "ci:test": "TZ=Europe/Amsterdam vitest run",
     "ci:test:coverage": "TZ=Europe/Amsterdam vitest run --coverage",
@@ -60,7 +61,6 @@
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",
     "@bach.software/vue-dynamic-form": "workspace:*",
-    "@lucide/vue": "catalog:framework",
     "@types/node": "catalog:types",
     "@vitejs/plugin-vue": "catalog:build",
     "@vitest/coverage-v8": "catalog:test",
@@ -68,6 +68,7 @@
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
     "jsdom": "catalog:test",
+    "sass-embedded": "catalog:build",
     "tsc-alias": "catalog:build",
     "typescript": "catalog:types",
     "vee-validate": "catalog:framework",

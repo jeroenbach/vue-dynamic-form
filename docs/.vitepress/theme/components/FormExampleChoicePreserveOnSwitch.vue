@@ -21,7 +21,7 @@ const metadata: Metadata[] = [
     description: 'Fill in an address, switch to pickup, then switch back: your address is still there.',
     explicitChoiceSelection: true,
     preserveOnSwitch: true,
-    choiceShowChoiceSelect: true,
+    choicePicker: { show: true },
     choice: [
       {
         name: 'homeDelivery',

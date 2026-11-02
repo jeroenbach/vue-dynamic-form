@@ -16,7 +16,7 @@ const metadata: Metadata[] = [
     children: [
       { name: 'projectName', type: 'text', fieldOptions: { label: 'Project name' }, placeholder: 'e.g. Apollo' },
       { name: 'rating', type: 'rating', fieldOptions: { label: 'Overall rating' }, maxRating: 5 },
-      { name: 'summary', type: 'textarea', fieldOptions: { label: 'What went well?' }, rows: 4, fullWidth: true, minOccurs: 0 },
+      { name: 'summary', type: 'textarea', fieldOptions: { label: 'What went well?' }, rows: 4, colSpan: 'full', minOccurs: 0 },
     ],
   },
 ];

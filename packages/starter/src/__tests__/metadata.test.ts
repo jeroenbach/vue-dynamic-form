@@ -47,14 +47,14 @@ describe('starterMetadata', () => {
       name: 'country',
       description: 'Pick your country',
       options: [{ key: 'nl', value: 'Netherlands' }],
-      fullWidth: true,
+      colSpan: 2,
     };
-    expect(field.fullWidth).toBe(true);
+    expect(field.colSpan).toBe(2);
 
     const invalid: Field = {
       name: 'country',
-      // @ts-expect-error fullWidth only accepts a boolean
-      fullWidth: 'yes',
+      // @ts-expect-error colSpan only accepts a column count or 'full'
+      colSpan: true,
     };
     expect(invalid.name).toBe('country');
   });
