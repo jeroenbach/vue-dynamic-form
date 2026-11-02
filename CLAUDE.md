@@ -8,7 +8,7 @@ Whenever the user says **"remember this"** (or similar) about an instruction or 
 
 ## Writing Style
 
-- **Never use em dashes (—)** in any text you write: content, copy, descriptions, PR text, etc. Rephrase the sentence or use a comma, colon, or parentheses instead.
+- **Never use em dashes (—) to connect two clauses/sentences** in any text you write: content, copy, descriptions, PR text, etc. Rephrase the sentence or use a comma, colon, or parentheses instead. Other uses of the em-dash character are fine (e.g. a placeholder glyph for a missing value, a literal character being preserved from existing/ported behavior).
 
 ## Code Comments
 
@@ -20,6 +20,18 @@ Whenever the user says **"remember this"** (or similar) about an instruction or 
 
 - **Working together (interactive session)**: only make the changes, do **not** touch git state in any way: no commits, no pushes, and no staging (`git add`). Jeroen stages changes himself deliberately, so he can see what changed in the working tree; staging on his behalf destroys that overview. Read-only git commands (status, diff, log) are fine. When implementing a feature's stories (e.g. via `/spec:continue`), do **not** stop after each story: implement and verify all approved stories in dependency order in one run, leaving everything uncommitted. This overrides the "one story, then stop" wording in `.claude/commands/spec/continue.md`. Only stop early for a parked story, a story waiting on an approval gate, or a story that depends on one of those.
 - **Working autonomously (e.g. GitHub Actions, scheduled agents, or when explicitly asked to finish a task end-to-end)**: follow the full "Before Every Push" workflow below, including commits, screenshots, and the PR.
+
+## Delegating Work to Subagents
+
+When you split a task up and spawn subagents (via the Agent tool, workflows, or the spec agents), **match each agent's model to the difficulty of its slice of work**; don't let every agent silently inherit the orchestrator's model. Running an advanced model (e.g. Fable or Opus as orchestrator) on simple work wastes tokens and time without improving the result.
+
+- **Simple, mechanical, or well-specified work** (bulk renames, applying a described edit across files, running checks and reporting results, straightforward searches, boilerplate): spawn the agent with `model: "sonnet"`, or `model: "haiku"` for the most trivial lookups.
+- **Hard work** (design decisions, tricky debugging, adversarial review, anything where the spec is ambiguous and judgment matters): keep the orchestrator's model by omitting the override.
+- When in doubt between two tiers, pick the cheaper one for work whose output you will verify anyway, and the stronger one for work you will trust without review.
+
+The same applies inside Workflow scripts via the `model` option on `agent()` calls.
+
+- **Verify the model after an agent starts; never trust the override blindly.** A `model` override can silently fail to apply (and the UI label can mislead), which means an expensive model quietly burns tokens on simple work. Right after spawning an agent with a model override, ask it (via SendMessage) to report the exact model name from its own system prompt, and check the answer. If it reports a more expensive model than intended: kill and respawn it when it has just started, but let it finish when meaningful work is already done (restarting would cost more than it saves). Apply the same check to the next agents you spawn.
 
 ## Spec-Driven Development
 
@@ -36,7 +48,7 @@ When a step fails, fix the error and re-run **only that step**, don't restart th
 1. **Run all pipeline checks** — `pnpm ci` (runs tests, lint, and typecheck together). Fix every error before pushing.
 2. **Keep coverage green** — run `pnpm -r ci:test:coverage` and verify that statement/branch/function coverage does not drop compared to the baseline. The codecov integration tracks this on every PR.
 3. **Add tests** — any functional change must be accompanied by tests that exercise the new or fixed behaviour.
-   - `docs/` has its own minimal `vitest` setup (`pnpm docs:test`), scoped to pure, framework-free `.ts` modules under `docs/.vitepress/theme/components/` (no `jsdom`, no `@vue/test-utils`). It is not reached by `pnpm -r ci:test` or `pnpm -r ci:test:coverage` because `docs/` is excluded from the pnpm workspace, so run and check it separately whenever a pure docs module changes. Its coverage is not tracked by codecov.
+- `docs/` has its own minimal `vitest` setup (`pnpm docs:test`), scoped to pure, framework-free `.ts` modules under `docs/.vitepress/theme/components/` (no `jsdom`, no `@vue/test-utils`). It is not reached by `pnpm -r ci:test` or `pnpm -r ci:test:coverage` because `docs/` is excluded from the pnpm workspace, so run and check it separately whenever a pure docs module changes. Its coverage is not tracked by codecov.
 4. **Document public API changes**: any change to the published package's public surface (exports, `FieldMetadata` properties, settings, slot props, validation rules, or behaviour a consumer can observe) must be reflected in the VitePress docs. Update the matching `docs/reference/*` page, and add or adjust a `docs/guide/*` or `docs/examples/*` section when the change is about behaviour rather than just a signature. Example code under `docs/.vitepress/` does not count as documentation; only the prose pages do. In the spec workflow this is planned by the architect's Documentation impact section, done by the developer, and checked by the qa-verifier and final-reviewer.
 5. **Take screenshots** — for any visual/UI change, take a screenshot using Playwright. Chromium is pre-installed at `/opt/pw-browsers/chromium`; the `playwright` package is available under `playgrounds/storybook/node_modules/playwright`. Launch with `args: ['--no-proxy-server']` when screenshotting localhost (the environment proxy does not forward to local ports). Run the docs or Storybook server first, screenshot it, and attach the image to the PR or commit.
 6. **Check the Cloudflare Pages preview** — if `docs/` content changed, run `pnpm docs:build` locally first to confirm the VitePress site compiles. Cloudflare Pages automatically builds a preview environment for every PR (the URL is posted as a PR comment by the `cloudflare-workers-and-pages` bot). Verify the preview before merging. On merge to `main`, Cloudflare deploys to production at [vue-dynamic-form.bach.software](https://vue-dynamic-form.bach.software).
@@ -190,6 +202,7 @@ ESLint uses `@antfu/eslint-config` with `formatters: true`, `stylistic: true`, `
 Additional conventions:
 
 - **Vue: always use camelCase, never kebab-case** (component names, props, event names, ...).
+- **Never use `:style` bindings or inline `style` attributes without Jeroen's explicit approval.** Styling belongs in CSS classes in the stylesheet. When a value must vary per instance, drive it with a class chosen from a prop, not an inline style. If a case truly seems to need `:style`, stop and ask first.
 - **Every user-runnable script gets a `package.json` script.** Whenever you add a script meant to be run by the user (e.g. anything under a `scripts/` folder), add a matching entry to the `scripts` section of `package.json` so it can be run via `pnpm <name>` instead of a long raw command. Name it clearly.
 
 ## Git
