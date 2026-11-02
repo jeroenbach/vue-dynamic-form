@@ -4,25 +4,25 @@
 
 ## Props
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `metadataConfiguration` | `MetadataConfiguration` | Yes | The value returned by `defineMetadata()`. Gives TypeScript the slot and prop types. |
+| Prop                    | Type                    | Required | Description                                                                         |
+| ----------------------- | ----------------------- | -------- | ----------------------------------------------------------------------------------- |
+| `metadataConfiguration` | `MetadataConfiguration` | Yes      | The value returned by `defineMetadata()`. Gives TypeScript the slot and prop types. |
 
 ## Slots Overview
 
 For every type name `T` you declared in `defineMetadata()`, nine slots are available — each with a specific rendering role:
 
-| Slot | Role |
-|------|------|
-| `#T` | Outer wrapper (label, input, error) |
-| `#T-input` | The raw input control inside the wrapper |
-| `#T-array` | Outer container when this field is a repeatable array |
-| `#T-array-item` | Each individual item rendered inside an array |
-| `#T-choice` | Outer container when this field is a single (`maxOccurs: 1`) choice |
-| `#T-choice-array` | Outer container when this field is a repeatable (`maxOccurs > 1`) choice |
-| `#T-choice-array-item` | Each individual occurrence of a repeatable explicit choice |
-| `#T-wizard` | Outer container (chrome, navigation) when this field is a `wizard` |
-| `#T-wizard-page` | Visibility/nav wrapper around each of a wizard's pages |
+| Slot                   | Role                                                                     |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `#T`                   | Outer wrapper (label, input, error)                                      |
+| `#T-input`             | The raw input control inside the wrapper                                 |
+| `#T-array`             | Outer container when this field is a repeatable array                    |
+| `#T-array-item`        | Each individual item rendered inside an array                            |
+| `#T-choice`            | Outer container when this field is a single (`maxOccurs: 1`) choice      |
+| `#T-choice-array`      | Outer container when this field is a repeatable (`maxOccurs > 1`) choice |
+| `#T-choice-array-item` | Each individual occurrence of a repeatable explicit choice               |
+| `#T-wizard`            | Outer container (chrome, navigation) when this field is a `wizard`       |
+| `#T-wizard-page`       | Visibility/nav wrapper around each of a wizard's pages                   |
 
 All slots are optional. When a slot is missing, the library walks a fallback chain until it finds one you've defined:
 
@@ -53,28 +53,32 @@ Type: `FieldMetadata` (with your extended properties)
 The complete metadata object for this field as it was defined — including every property you set plus your extended properties. In `computedProps` this is the already-computed version, so mutations made in `computedProps` are visible here.
 
 ```vue
-<template #select-input="{ fieldMetadata }">
-  <!-- fieldMetadata.options typed from your ExtendedFieldProperties -->
-  <option v-for="opt in fieldMetadata.options" :key="opt.key">{{ opt.value }}</option>
-</template>
+<DynamicFormTemplate>
+  <template #select-input="{ fieldMetadata }">
+    <!-- fieldMetadata.options typed from your ExtendedFieldProperties -->
+    <option v-for="opt in fieldMetadata.options" :key="opt.key">
+      {{ opt.value }}
+    </option>
+  </template>
+</DynamicFormTemplate>
 ```
 
 ### `fieldContext`
 
 Type: `FieldContext<T>` — the vee-validate field context extended with `hasValue`.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `value` | `Ref<T>` | Current value of the field. Read it to display; write it to set. |
-| `handleChange` | `(e: Event \| unknown, shouldValidate?: boolean) => void` | Call on `@input` or `@change` to update the value |
-| `handleBlur` | `(e?: Event, shouldValidate?: boolean) => void` | Call on `@blur` |
-| `errors` | `Ref<string[]>` | All active validation errors |
-| `errorMessage` | `Ref<string \| undefined>` | First active error, or `undefined` |
-| `label` | `MaybeRefOrGetter<string \| undefined>` | The label (from `fieldOptions.label`). Unwrap with `toValue(label)` if needed. |
-| `hasValue` | `ComputedRef<boolean>` | `true` when this field or any of its descendants has a value |
-| `validate()` | `(opts?) => Promise<ValidationResult>` | Programmatically trigger validation |
-| `resetField()` | `(state?) => void` | Reset value and validation state |
-| `setErrors()` | `(errors: string \| string[]) => void` | Set errors programmatically |
+| Property       | Type                                                      | Description                                                                    |
+| -------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `value`        | `Ref<T>`                                                  | Current value of the field. Read it to display; write it to set.               |
+| `handleChange` | `(e: Event \| unknown, shouldValidate?: boolean) => void` | Call on `@input` or `@change` to update the value                              |
+| `handleBlur`   | `(e?: Event, shouldValidate?: boolean) => void`           | Call on `@blur`                                                                |
+| `errors`       | `Ref<string[]>`                                           | All active validation errors                                                   |
+| `errorMessage` | `Ref<string \| undefined>`                                | First active error, or `undefined`                                             |
+| `label`        | `MaybeRefOrGetter<string \| undefined>`                   | The label (from `fieldOptions.label`). Unwrap with `toValue(label)` if needed. |
+| `hasValue`     | `ComputedRef<boolean>`                                    | `true` when this field or any of its descendants has a value                   |
+| `validate()`   | `(opts?) => Promise<ValidationResult>`                    | Programmatically trigger validation                                            |
+| `resetField()` | `(state?) => void`                                        | Reset value and validation state                                               |
+| `setErrors()`  | `(errors: string \| string[]) => void`                    | Set errors programmatically                                                    |
 
 ::: tip
 `hasValue` is lazily evaluated. It only computes when accessed, so safe to use on deep field trees.
@@ -87,14 +91,16 @@ Type: `boolean`
 `true` when `minOccurs >= 1` and the field is not disabled. Use it to conditionally show a required indicator.
 
 ```vue
-<label>{{ label }}<span v-if="required"> *</span></label>
+<label>
+{{ label }}<span v-if="required"> *</span>
+</label>
 ```
 
 ### `disabled`
 
 Type: `boolean`
 
-`true` when `maxOccurs === 0`. Indicates that the field (and its children) has been programmatically disabled. Typically via `computedProps` setting `field.maxOccurs = 0`.
+`true` when `maxOccurs === 0`. Indicates that the field (and its children) has been disabled, either by declaring `maxOccurs: 0` in the metadata or because a disabled ancestor propagates it down. `maxOccurs` is not writable from `computedProps`, so this slot prop cannot flip at runtime; to disable a field dynamically, declare an extended metadata property and handle it in your template (see [Dynamic Fields](/guide/dynamic-fields)).
 
 ### `index`
 
@@ -145,12 +151,12 @@ Extra data passed down from the parent slot via `<slot :my-prop="value" />`. Acc
 
 `#default-array`, `#default-choice`, `#default-choice-array`, and all named `#T-array`, `#T-choice`, `#T-choice-array` slots receive the same props as regular slots **except** that `fieldContext` is reduced to:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `value` | `ComputedRef<T[]>` | The current array/choice values (all occurrences) |
-| `errors` | `Ref<string[]>` | Active validation errors on the container |
-| `errorMessage` | `Ref<string \| undefined>` | First active error |
-| `label` | `MaybeRefOrGetter<string \| undefined>` | Resolved label (from `fieldOptions.label`) |
+| Property       | Type                                    | Description                                       |
+| -------------- | --------------------------------------- | ------------------------------------------------- |
+| `value`        | `ComputedRef<T[]>`                      | The current array/choice values (all occurrences) |
+| `errors`       | `Ref<string[]>`                         | Active validation errors on the container         |
+| `errorMessage` | `Ref<string \| undefined>`              | First active error                                |
+| `label`        | `MaybeRefOrGetter<string \| undefined>` | Resolved label (from `fieldOptions.label`)        |
 
 All other props (`required`, `disabled`, `canAddItems`, `canRemoveItems`, `addItem`, `removeItem`, `slotProps`) are the same.
 
@@ -158,13 +164,13 @@ All other props (`required`, `disabled`, `canAddItems`, `canRemoveItems`, `addIt
 
 The choice container slots (`#T-choice`, `#default-choice`, `#T-choice-array`, `#default-choice-array`) additionally receive the explicit-selection primitives. They are mainly relevant when the choice sets `explicitChoiceSelection: true` (see [Select first, then fill in](/examples/choices#select-first-then-fill-in)):
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `addChoiceOccurrence` | `(branchKey: string) => void` | Marks a branch active (`maxOccurs: 1`) or adds one occurrence of it (`maxOccurs > 1`). No-op when `canAddChoiceOccurrence(branchKey)` is `false`. |
-| `removeChoiceOccurrence` | `(branchKey: string, index?: number) => void` | Removes an occurrence. `index` is required for a repeatable choice; for `maxOccurs: 1` it is ignored and the active branch is deselected. |
-| `canAddChoiceOccurrence` | `(branchKey: string) => boolean` | `false` when the branch's own budget or the choice's shared occurrence budget is exhausted, or the choice is disabled. |
-| `activeChoiceOccurrences` | `{ branchKey: string, index: number }[]` | Every currently active occurrence, grouped by branch declaration order, then by index within the branch. |
-| `usedChoiceOccurrences` | `number` | Choice slots currently consumed, in choice-occurrence units (a repeatable branch's items are batched by its own `maxOccurs`), the same unit `xsd_choiceMinOccurs` counts in. |
+| Property                  | Type                                          | Description                                                                                                                                                                  |
+| ------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `addChoiceOccurrence`     | `(branchKey: string) => void`                 | Marks a branch active (`maxOccurs: 1`) or adds one occurrence of it (`maxOccurs > 1`). No-op when `canAddChoiceOccurrence(branchKey)` is `false`.                            |
+| `removeChoiceOccurrence`  | `(branchKey: string, index?: number) => void` | Removes an occurrence. `index` is required for a repeatable choice; for `maxOccurs: 1` it is ignored and the active branch is deselected.                                    |
+| `canAddChoiceOccurrence`  | `(branchKey: string) => boolean`              | `false` when the branch's own budget or the choice's shared occurrence budget is exhausted, or the choice is disabled.                                                       |
+| `activeChoiceOccurrences` | `{ branchKey: string, index: number }[]`      | Every currently active occurrence, grouped by branch declaration order, then by index within the branch.                                                                     |
+| `usedChoiceOccurrences`   | `number`                                      | Choice slots currently consumed, in choice-occurrence units (a repeatable branch's items are batched by its own `maxOccurs`), the same unit `xsd_choiceMinOccurs` counts in. |
 
 ::: tip
 `#T-array-item` / `#default-array-item` and `#T-choice-array-item` / `#default-choice-array-item` are **not** container slots — they render each individual occurrence, so they receive the full `fieldContext` including `value`, `handleChange`, `errors`, etc. The choice-array-item slots additionally receive `branchKey`, the choice branch the occurrence belongs to, and their `addItem` / `canAddItems` / `removeItem` operate on that branch's occurrences.
@@ -178,18 +184,18 @@ A `wizard: true` field (see [`wizard`](/reference/field-metadata#wizard)) render
 
 Receives everything above **except** `fieldContext` is reduced to `LimitedFieldContext` (like the array/choice container slots), plus the navigation bundle:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `pages` | `FieldMetadata[]` | The engine's resolved page list — the corrected page metadata nodes, in page order. Build your stepper from this, never from `fieldMetadata.children`, so it can never desync from what is actually rendered. |
-| `pageCount` | `number` | `pages.length` |
-| `currentStepIndex` | `number` | The zero-based index of the currently visible page |
-| `isFirst` | `boolean` | `true` on the first page |
-| `isLast` | `boolean` | `true` on the last page — use this to switch your "Next" control to a "Submit" control |
-| `isValidating` | `boolean` | `true` while a `next()` or a validating `gotoStep()` call is in flight |
-| `wizardConfig` | `Required<WizardConfig>` | The wizard's navigation config with defaults applied (`{ allowForwardJump, validateOnJump }`). Read `allowForwardJump` to decide whether your stepper enables jumps to not-yet-visited steps, so the chrome matches how `next()`/`gotoStep()` behave. Prefer this over re-reading `fieldMetadata.wizard`, which is the raw `boolean \| WizardConfig` before defaults |
-| `next()` | `() => Promise<void>` | In a linear wizard, validates the current page (`validateSection`) and advances only on success. In a non-linear wizard (`allowForwardJump`), surfaces the page's errors but always advances |
-| `prev()` | `() => void` | Moves back one page unconditionally, no validation |
-| `gotoStep(index, options?)` | `(index: number, options?: WizardGotoStepOptions) => Promise<void> \| void` | Jumps to `index` (clamped to a valid page). Backward jumps are always free; forward jumps require `allowForwardJump` (config or `options`), then surface the current page's errors without blocking. Set `validateOnJump: false` for a silent jump that skips validation |
+| Property                    | Type                                                                        | Description                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pages`                     | `FieldMetadata[]`                                                           | The engine's resolved page list — the corrected page metadata nodes, in page order. Build your stepper from this, never from `fieldMetadata.children`, so it can never desync from what is actually rendered.                                                                                                                                                        |
+| `pageCount`                 | `number`                                                                    | `pages.length`                                                                                                                                                                                                                                                                                                                                                       |
+| `currentStepIndex`          | `number`                                                                    | The zero-based index of the currently visible page                                                                                                                                                                                                                                                                                                                   |
+| `isFirst`                   | `boolean`                                                                   | `true` on the first page                                                                                                                                                                                                                                                                                                                                             |
+| `isLast`                    | `boolean`                                                                   | `true` on the last page — use this to switch your "Next" control to a "Submit" control                                                                                                                                                                                                                                                                               |
+| `isValidating`              | `boolean`                                                                   | `true` while a `next()` or a validating `gotoStep()` call is in flight                                                                                                                                                                                                                                                                                               |
+| `wizardConfig`              | `Required<WizardConfig>`                                                    | The wizard's navigation config with defaults applied (`{ allowForwardJump, validateOnJump }`). Read `allowForwardJump` to decide whether your stepper enables jumps to not-yet-visited steps, so the chrome matches how `next()`/`gotoStep()` behave. Prefer this over re-reading `fieldMetadata.wizard`, which is the raw `boolean \| WizardConfig` before defaults |
+| `next()`                    | `() => Promise<void>`                                                       | In a linear wizard, validates the current page (`validateSection`) and advances only on success. In a non-linear wizard (`allowForwardJump`), surfaces the page's errors but always advances                                                                                                                                                                         |
+| `prev()`                    | `() => void`                                                                | Moves back one page unconditionally, no validation                                                                                                                                                                                                                                                                                                                   |
+| `gotoStep(index, options?)` | `(index: number, options?: WizardGotoStepOptions) => Promise<void> \| void` | Jumps to `index` (clamped to a valid page). Backward jumps are always free; forward jumps require `allowForwardJump` (config or `options`), then surface the current page's errors without blocking. Set `validateOnJump: false` for a silent jump that skips validation                                                                                             |
 
 `<slot />` inside this container renders every page's `#T-wizard-page` wrapper.
 
@@ -197,10 +203,10 @@ Receives everything above **except** `fieldContext` is reduced to `LimitedFieldC
 
 One shape-agnostic wrapper per page, rendered for **every** page (not only the current one) so pages stay mounted and their values survive navigation. Receives:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `isCurrent` | `boolean` | `true` when this page is the one currently visible |
-| `pageIndex` | `number` | This page's index |
+| Property                                                                            | Type                  | Description                                                                            |
+| ----------------------------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------- |
+| `isCurrent`                                                                         | `boolean`             | `true` when this page is the one currently visible                                     |
+| `pageIndex`                                                                         | `number`              | This page's index                                                                      |
 | `currentStepIndex`, `isFirst`, `isLast`, `wizardConfig`, `next`, `prev`, `gotoStep` | same as the container | Lets a page build its own controls (e.g. a summary page's "edit" links via `gotoStep`) |
 
 `<slot />` inside this wrapper renders the page's own content through **its own shape** — a parent page's children directly, an array page through `-array`, a choice page through `-choice` — exactly as if it were not inside a wizard at all. There is no `-wizard-page-array` / `-wizard-page-choice` combinatorial family.
@@ -208,45 +214,61 @@ One shape-agnostic wrapper per page, rendered for **every** page (not only the c
 Like at every other template level, attributes bound on this `<slot />` arrive in the page content's `slotProps` (see [Passing Data to Child Slots](#passing-data-to-child-slots)). Binding `:gotoStep="gotoStep"` here is how a summary page's slot gets to render "edit" links that jump back to an earlier step. Bindings whose values do not change between renders (like `gotoStep`) are free; binding a value that changes on navigation (like `isCurrent`) re-renders the mounted pages on every step change, so prefer reading such values from the wrapper's own slot props instead of forwarding them.
 
 ::: warning Gate visibility with `v-show`, never `v-if`
+
 ```vue
 <!-- Correct: page stays mounted, values and validation state survive navigation -->
-<template #default-wizard-page="{ isCurrent }">
-  <div v-show="isCurrent"><slot /></div>
-</template>
+<DynamicFormTemplate>
+  <template #default-wizard-page="{ isCurrent }">
+    <div v-show="isCurrent">
+      <slot />
+    </div>
+  </template>
+</DynamicFormTemplate>
 
 <!-- Wrong: unmounts the page on navigation, clearing its values and deregistering its fields -->
-<template #default-wizard-page="{ isCurrent }">
-  <div v-if="isCurrent"><slot /></div>
-</template>
+<DynamicFormTemplate>
+  <template #default-wizard-page="{ isCurrent }">
+    <div v-if="isCurrent"><slot /></div>
+  </template>
+</DynamicFormTemplate>
 ```
+
 A `v-if` here unmounts the page's `DynamicFormItem` subtree when it stops being current. That clears the page's values (unless `keepValuesOnUnmount` is set) **and** deregisters its fields from vee-validate, so a later "Submit" would send that page's data unvalidated even if the value happened to survive. `v-if` is acceptable only for a genuinely field-less page — a static summary or review step with nothing to lose.
 :::
 
 ```vue
-<template #default-wizard="{ pages, currentStepIndex, isFirst, isLast, isValidating, wizardConfig, next, prev, gotoStep }">
-  <nav>
-    <!-- Forward steps are clickable only in a non-linear wizard; wizardConfig has defaults applied. -->
-    <button
-      v-for="(page, i) in pages"
-      :key="page.path"
-      :disabled="!wizardConfig.allowForwardJump && i > currentStepIndex"
-      @click="gotoStep(i)"
-    >
-      {{ page.name }}
-    </button>
-  </nav>
-  <slot />
-  <footer>
-    <button type="button" :disabled="isFirst" @click="prev">Back</button>
-    <button v-if="!isLast" type="button" :disabled="isValidating" @click="next">Next</button>
-    <button v-else type="submit">Submit</button>
-  </footer>
-</template>
+<DynamicFormTemplate>
+  <template #default-wizard="{ pages, currentStepIndex, isFirst, isLast, isValidating, wizardConfig, next, prev, gotoStep }">
+    <nav>
+      <!-- Forward steps are clickable only in a non-linear wizard; wizardConfig has defaults applied. -->
+      <button
+        v-for="(page, i) in pages"
+        :key="page.path"
+        :disabled="!wizardConfig.allowForwardJump && i > currentStepIndex"
+        @click="gotoStep(i)"
+      >
+        {{ page.name }}
+      </button>
+    </nav>
+    <slot />
+    <footer>
+      <button type="button" :disabled="isFirst" @click="prev">
+        Back
+      </button>
+      <button v-if="!isLast" type="button" :disabled="isValidating" @click="next">
+        Next
+      </button>
+      <button v-else type="submit">
+        Submit
+      </button>
+    </footer>
+  </template>
 
-<template #default-wizard-page="{ isCurrent, gotoStep }">
-  <!-- The gotoStep binding lands in the page content's slotProps, e.g. for a summary page's edit links. -->
-  <div v-show="isCurrent"><slot :gotoStep="gotoStep" /></div>
-</template>
+  <template #default-wizard-page="{ isCurrent, gotoStep }">
+    <!-- The gotoStep binding lands in the page content's slotProps, e.g. for a summary page's edit links. -->
+    <div v-show="isCurrent"><slot :gotoStep="gotoStep" /></div>
+  </template>
+</DynamicFormTemplate>
 ```
 
 ## The `<slot />` Inside Your Slot Templates
@@ -264,22 +286,26 @@ Bind extra values to `<slot />` to make them available to all slots rendered bel
 
 ```vue
 <!-- Parent's #default slot -->
-<template #default="{ fieldMetadata }">
-  <div :class="{ 'col-span-2': fieldMetadata.fullWidth }">
-    <slot :hide-label="fieldMetadata.hideLabel" :depth="1" />
-  </div>
-</template>
+<DynamicFormTemplate>
+  <template #default="{ fieldMetadata }">
+    <div :class="{ 'col-span-2': fieldMetadata.fullWidth }">
+      <slot :hide-label="fieldMetadata.hideLabel" :depth="1" />
+    </div>
+  </template>
+</DynamicFormTemplate>
 ```
 
 Any field slot rendered inside this wrapper receives the extra values through `slotProps`:
 
 ```vue
 <!-- Child field's slot -->
-<template #default="{ fieldContext: { label }, slotProps }">
-  <label v-if="!slotProps?.hideLabel">{{ label }}</label>
-  <span>Depth: {{ slotProps?.depth }}</span>
-  <slot />
-</template>
+<DynamicFormTemplate>
+  <template #default="{ fieldContext: { label }, slotProps }">
+    <label v-if="!slotProps?.hideLabel">{{ label }}</label>
+    <span>Depth: {{ slotProps?.depth }}</span>
+    <slot />
+  </template>
+</DynamicFormTemplate>
 ```
 
 ::: warning
@@ -293,18 +319,19 @@ Any field slot rendered inside this wrapper receives the extra values through `s
 import { defineMetadata, DynamicFormTemplate } from '@bach.software/vue-dynamic-form';
 
 const metadata = defineMetadata<
-  { text: string; select: string; checkbox: boolean; heading: never },
-  { description?: string; options?: { key: string; value: string }[]; disabled?: boolean }
+  { text: string, select: string, checkbox: boolean, heading: never },
+  { description?: string, options?: { key: string, value: string }[], disabled?: boolean }
 >();
 </script>
 
 <template>
   <DynamicFormTemplate :metadata-configuration="metadata">
-
     <!-- Section heading -->
     <template #heading="{ fieldContext: { label }, fieldMetadata }">
       <h2>{{ label }}</h2>
-      <p v-if="fieldMetadata.description" class="hint">{{ fieldMetadata.description }}</p>
+      <p v-if="fieldMetadata.description" class="hint">
+        {{ fieldMetadata.description }}
+      </p>
       <slot />
     </template>
 
@@ -313,7 +340,9 @@ const metadata = defineMetadata<
       <section>
         <h3>{{ label }}<span v-if="required"> *</span></h3>
         <slot />
-        <button type="button" v-if="canAddItems" @click="addItem">+ Add</button>
+        <button v-if="canAddItems" type="button" @click="addItem">
+          + Add
+        </button>
         <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
       </section>
     </template>
@@ -333,7 +362,9 @@ const metadata = defineMetadata<
         <label :for="fieldMetadata.path">{{ label }}<span v-if="required"> *</span></label>
         <slot />
         <span v-if="errorMessage.value" class="error">{{ errorMessage.value }}</span>
-        <button v-if="canRemoveItems" type="button" @click="removeItem">Remove</button>
+        <button v-if="canRemoveItems" type="button" @click="removeItem">
+          Remove
+        </button>
       </div>
     </template>
 
@@ -346,7 +377,9 @@ const metadata = defineMetadata<
         @change="handleChange"
         @blur="handleBlur"
       >
-        <option value="">— Select —</option>
+        <option value="">
+          — Select —
+        </option>
         <option v-for="opt in fieldMetadata.options" :key="opt.key" :value="opt.key">
           {{ opt.value }}
         </option>
@@ -356,13 +389,13 @@ const metadata = defineMetadata<
     <!-- Checkbox input -->
     <template #checkbox-input="{ fieldMetadata, fieldContext: { value, handleChange, handleBlur }, disabled }">
       <input
-        type="checkbox"
         :id="fieldMetadata.path"
+        type="checkbox"
         :checked="value.value"
         :disabled="disabled"
         @change="handleChange(($event.target as HTMLInputElement).checked)"
         @blur="handleBlur"
-      />
+      >
     </template>
 
     <!-- Default text input (fallback for all other types) -->
@@ -373,9 +406,8 @@ const metadata = defineMetadata<
         :disabled="disabled"
         @input="handleChange"
         @blur="handleBlur"
-      />
+      >
     </template>
-
   </DynamicFormTemplate>
 </template>
 ```

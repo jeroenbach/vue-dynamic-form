@@ -1,0 +1,65 @@
+<script lang="ts" setup>
+import type { MaybeRefOrGetter } from 'vue';
+import type { GridColumnCount, Responsive } from '@/metadata';
+import AppButton from '@/AppButton.vue';
+import ErrorMessage from '@/ErrorMessage.vue';
+import { gridItemClasses } from '@/gridClasses';
+import OptionalRequiredTag from '@/OptionalRequiredTag.vue';
+
+export interface Props {
+  inputId?: string
+  label?: MaybeRefOrGetter<string | undefined>
+  description?: string
+  disabled?: boolean
+  required?: boolean
+  showRequiredOrOptional?: 'optional' | 'required'
+  optionalText?: string
+  dependentOnMessage?: string
+  errorMessage?: string
+  canRemoveItems?: boolean
+  removeButtonText?: string
+  dataTestid?: string
+  /** Parent-grid columns this field spans; the `colSpan` field property. */
+  colSpan?: Responsive<GridColumnCount | 'full'>
+  /** Parent-grid column line this field starts on; the `colStart` field property. */
+  colStart?: Responsive<GridColumnCount>
+}
+withDefaults(defineProps<Props>(), {
+  removeButtonText: 'Remove',
+});
+defineEmits<{
+  removeItem: []
+}>();
+</script>
+
+<template>
+  <div
+    :data-testid="dataTestid"
+    class="sft-field"
+    :class="[{ 'is-disabled': disabled }, gridItemClasses(colSpan, colStart)]"
+  >
+    <label class="sft-field-label" :for="inputId">
+      {{ label }}
+      <OptionalRequiredTag :required :show-required-or-optional :optionalText />
+    </label>
+    <div v-if="dependentOnMessage" class="sft-dependent">
+      {{ dependentOnMessage }}
+    </div>
+    <div v-else class="sft-field-control-row">
+      <div class="sft-field-control">
+        <slot />
+      </div>
+      <AppButton
+        v-if="canRemoveItems"
+        :label="removeButtonText"
+        variant="danger"
+        :dataTestid="dataTestid ? `${dataTestid}-remove-button` : undefined"
+        @click="$emit('removeItem')"
+      />
+    </div>
+    <p v-if="description" class="sft-field-desc">
+      {{ description }}
+    </p>
+    <ErrorMessage :errorMessage="errorMessage" :dataTestid="dataTestid" />
+  </div>
+</template>

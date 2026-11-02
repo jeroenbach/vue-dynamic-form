@@ -236,6 +236,7 @@ const settings: DynamicFormSettings = {
   // reader tabs away from an empty field, not wait for a later value change or submit attempt.
   validateOnBlur: true,
   messages: MESSAGES,
+  showValidState: true,
 };
 
 // #region metadata

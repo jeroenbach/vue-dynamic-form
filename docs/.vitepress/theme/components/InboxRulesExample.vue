@@ -60,6 +60,7 @@ const routedInbox = computed(() => routeInbox(collectRules(values.rules), TEST_I
 
 const settings: DynamicFormSettings = {
   messages: MESSAGES,
+  showValidState: true,
 };
 
 // Reads a dot/bracket-notation path off a plain reactive object, e.g.

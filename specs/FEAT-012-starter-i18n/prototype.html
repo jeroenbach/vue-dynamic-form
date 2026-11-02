@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Starter i18n - design prototype</title>
+<style>
+/* =========================================================================
+   PROTOTYPE HARNESS (not part of the package)
+   Neutral scaffolding: page background, section dividers, annotations,
+   theme toggle, and the pack-highlight toggle. None of this ships.
+   ========================================================================= */
+:root { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #f1f5f9;
+  color: #0f172a;
+  transition: background-color .2s ease, color .2s ease;
+}
+html.dark body { background: #020617; color: #e2e8f0; }
+
+.harness { max-width: 860px; margin: 0 auto; padding: 28px 20px 140px; }
+.harness-head h1 { font-size: 22px; margin: 0 0 4px; }
+.harness-head p { margin: 0 0 6px; font-size: 14px; color: #64748b; }
+html.dark .harness-head p { color: #94a3b8; }
+
+.divider {
+  margin: 52px 0 6px; padding-bottom: 6px;
+  border-bottom: 2px solid #cbd5e1;
+  font-size: 12px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: #475569;
+}
+html.dark .divider { border-color: #334155; color: #94a3b8; }
+.divider small { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; color: #94a3b8; margin-top: 3px; font-size: 11px; }
+
+.anno { font-size: 11px; line-height: 1.5; color: #94a3b8; margin: 8px 0 16px; font-style: italic; }
+.anno code { font-style: normal; background: rgba(148,163,184,.18); padding: 1px 4px; border-radius: 4px; }
+
+.two-col { display: grid; grid-template-columns: 1fr; gap: 20px; }
+@media (min-width: 820px) { .two-col { grid-template-columns: 1fr 1fr; } }
+.pack-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #475569; margin: 0 0 10px;
+}
+html.dark .pack-label { color: #94a3b8; }
+.pack-label .flag { font-size: 14px; }
+.pack-label .tag { background: rgba(79,57,246,.12); color: #4f39f6; border-radius: 9999px; padding: 1px 8px; letter-spacing: .02em; }
+html.dark .pack-label .tag { background: rgba(163,179,255,.18); color: #a3b3ff; }
+
+.controls {
+  position: fixed; top: 14px; right: 14px; z-index: 50;
+  display: flex; gap: 8px; align-items: center;
+}
+.controls button, .controls label {
+  border: 1px solid #cbd5e1; background: #fff; color: #0f172a;
+  border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600;
+  cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.1); user-select: none;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+html.dark .controls button, html.dark .controls label { background: #0f172a; color: #e2e8f0; border-color: #334155; }
+.controls input { accent-color: #4f39f6; }
+
+/* pack-string highlighting: outlines every string the active language pack supplies,
+   distinguishing pack defaults from consumer-authored content and from per-field overrides.
+   This encodes real information (which strings the pack owns), it is not decoration. */
+.pk { border-radius: 3px; }
+body.show-packs .pk { outline: 1px dashed #4f39f6; outline-offset: 2px; background: rgba(79,57,246,.07); }
+html.dark body.show-packs .pk { outline-color: #a3b3ff; background: rgba(163,179,255,.1); }
+body.show-packs .pk.ov { outline: 1.5px solid #d97706; background: rgba(217,119,6,.12); }
+html.dark body.show-packs .pk.ov { outline-color: #f59e0b; background: rgba(245,158,11,.14); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #475569; margin: 4px 0 14px; }
+html.dark .legend { color: #94a3b8; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 22px; height: 12px; border-radius: 3px; display: inline-block; }
+.legend .l-pack { outline: 1px dashed #4f39f6; background: rgba(79,57,246,.07); }
+.legend .l-ov { outline: 1.5px solid #d97706; background: rgba(217,119,6,.12); }
+.legend .l-content { border: 1px solid #cbd5e1; }
+
+/* =========================================================================
+   STARTER FORM TEMPLATE PACKAGE STYLES
+   Faithful flattened port of packages/starter/src/style.scss (the shipped
+   ./style.css). Classes are `sft-` prefixed. Theme vars live on :root and
+   :root.dark; VitePress toggles `.dark` on <html>, which the harness mimics.
+   Only the subset this prototype renders is included.
+   ========================================================================= */
+:root {
+  --sft-card-bg:#fff; --sft-card-border:#e2e8f0;
+  --sft-card-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);
+  --sft-muted-bg:#f8fafc; --sft-muted-border:#cad5e2;
+  --sft-text:#0f172b; --sft-text-strong:#1d293d; --sft-text-muted:#45556c;
+  --sft-text-subtle:#62748e; --sft-heading:#0f172b; --sft-placeholder:#90a1b9;
+  --sft-input-bg:#fff; --sft-input-border:#e5e7eb;
+  --sft-input-disabled-bg:#f8fafc; --sft-input-disabled-text:#62748e;
+  --sft-accent:#0084d1; --sft-accent-hover:#0069a8; --sft-focus-border:#00a6f4; --sft-focus-ring:#b8e6fe;
+  --sft-choice:#4f39f6; --sft-choice-border-hover:#a3b3ff; --sft-choice-ring:#a3b3ff;
+  --sft-choice-grad-top:#eef2ff; --sft-choice-grad-bottom:#fff;
+  --sft-pill-bg:#eef2ff; --sft-pill-text:#432dd7;
+  --sft-danger-border:#fb2c36; --sft-danger-focus-border:#fb2c36; --sft-danger-text:#e7000b;
+  --sft-danger-ring:#ffc9c9; --sft-danger-soft-bg:#fef2f2; --sft-danger-soft-border:#ffc9c9;
+  --sft-danger-soft-text:#c10007;
+  --sft-success:#00bc7d; --sft-track:#e2e8f0;
+  --sft-confirm-bg:#ecfdf5; --sft-confirm-border:#a4f4cf; --sft-confirm-text:#004f3b;
+  --sft-success-badge-bg:#d0fae5; --sft-success-badge-text:#009966;
+}
+html.dark {
+  --sft-card-bg:#0f172b; --sft-card-border:#314158; --sft-muted-bg:#1d293d; --sft-muted-border:#45556c;
+  --sft-text:#f1f5f9; --sft-text-strong:#e2e8f0; --sft-text-muted:#90a1b9;
+  --sft-text-subtle:#90a1b9; --sft-heading:#f1f5f9; --sft-placeholder:#62748e;
+  --sft-input-bg:#0f172b; --sft-input-disabled-bg:#1d293d; --sft-input-disabled-text:#90a1b9;
+  --sft-choice-grad-top:#1e1a4d; --sft-choice-grad-bottom:#0f172b;
+  --sft-danger-border:#ec003f; --sft-danger-focus-border:#f43f5e; --sft-danger-text:#ff637e;
+  --sft-danger-ring:#8b0836; --sft-danger-soft-bg:#4d0218; --sft-danger-soft-border:#a50036; --sft-danger-soft-text:#ff637e;
+  --sft-track:#314158;
+}
+
+.sft-section { border:1px solid var(--sft-card-border); background:var(--sft-card-bg); border-radius:12px; padding:24px; box-shadow:var(--sft-card-shadow); }
+.sft-section-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; }
+.sft-section-title { margin:0; font-size:18px; line-height:28px; font-weight:600; color:var(--sft-heading); }
+.sft-section-desc { margin:0; font-size:14px; line-height:24px; color:var(--sft-text-muted); }
+.sft-pill { display:inline-flex; align-items:center; white-space:nowrap; border-radius:9999px; background:var(--sft-pill-bg); color:var(--sft-pill-text); padding:2px 10px; font-size:12px; font-weight:600; }
+.sft-grid { display:grid; grid-template-columns:1fr; gap:16px; margin-top:20px; }
+@media (min-width:768px){ .sft-grid { grid-template-columns:1fr 1fr; } }
+
+.sft-field { display:flex; flex-direction:column; gap:8px; }
+.sft-field.span-full { grid-column:1 / -1; }
+.sft-field-label { display:flex; justify-content:space-between; font-size:14px; font-weight:500; color:var(--sft-text-strong); }
+.sft-field-desc { margin:0; font-size:14px; line-height:20px; color:var(--sft-text-subtle); }
+.sft-field-control-row { display:flex; align-items:flex-start; gap:8px; }
+.sft-field-control-row > .sft-field-control { flex:1 1 auto; }
+
+.sft-tag-optional { display:inline-flex; align-items:center; border-radius:9999px; background:#f1f5f9; color:#45556c; padding:2px 8px; font-size:12px; line-height:16px; font-weight:600; }
+html.dark .sft-tag-optional { background:#314158; color:#90a1b9; }
+.sft-tag-required { color:#fb2c36; }
+html.dark .sft-tag-required { color:#ff637e; }
+.sft-hide-tag .sft-tag-optional, .sft-hide-tag .sft-tag-required { display:none; }
+
+.sft-error { font-size:14px; color:var(--sft-danger-text); }
+
+.sft-input, .sft-select { height:40px; width:100%; box-sizing:border-box; border:1px solid var(--sft-input-border); border-radius:8px; background:var(--sft-input-bg); color:var(--sft-text); padding:8px 12px; font-size:14px; font-family:inherit; transition:color .15s,background-color .15s,border-color .15s; }
+.sft-input:focus, .sft-select:focus { outline:none; border-color:var(--sft-focus-border); box-shadow:0 0 0 2px var(--sft-focus-ring); }
+.sft-input:disabled { cursor:not-allowed; background:var(--sft-input-disabled-bg); color:var(--sft-input-disabled-text); }
+.sft-input.is-invalid { border-color:var(--sft-danger-border); }
+.sft-input.is-invalid:focus { border-color:var(--sft-danger-focus-border); box-shadow:0 0 0 2px var(--sft-danger-ring); }
+.sft-input.is-valid { border-color:var(--sft-success); }
+.sft-input::placeholder { color:var(--sft-placeholder); }
+
+.sft-input-suffix-row { display:flex; align-items:center; gap:8px; }
+.sft-input-suffix-row > .sft-input-suffix-input { flex:1 1 auto; }
+.sft-input-suffix { font-size:14px; color:var(--sft-text-muted); white-space:nowrap; }
+
+.sft-password { position:relative; }
+.sft-password .sft-input { padding-right:40px; }
+.sft-password-toggle { position:absolute; inset:0 0 0 auto; display:flex; align-items:center; padding-right:12px; background:none; border:0; cursor:pointer; color:#90a1b9; }
+.sft-password-toggle:hover { color:#45556c; }
+html.dark .sft-password-toggle:hover { color:#cad5e2; }
+.sft-strength { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
+.sft-strength-track { display:flex; gap:4px; }
+.sft-strength-seg { height:6px; flex:1; border-radius:9999px; background:var(--sft-track); }
+.sft-strength-seg.is-on-good { background:#00bcff; }
+.sft-strength-seg.is-on-strong { background:#00bc7d; }
+.sft-strength-label { font-size:12px; font-weight:500; }
+.sft-strength-label.is-good { color:#00a6f4; }
+.sft-strength-label.is-strong { color:#009966; }
+html.dark .sft-strength-label.is-strong { color:#00d492; }
+
+.sft-btn { display:inline-flex; align-items:center; gap:8px; border-radius:6px; padding:8px 12px; font-size:14px; line-height:20px; font-weight:500; cursor:pointer; transition:background-color .15s,border-color .15s,color .15s; border:0; background:none; font-family:inherit; }
+.sft-btn:disabled { cursor:not-allowed; opacity:.4; }
+.sft-btn-default { border:1px solid #cad5e2; background:var(--sft-card-bg); color:#314158; }
+html.dark .sft-btn-default { border-color:#45556c; color:#cad5e2; }
+.sft-btn-default:hover { border-color:#90a1b9; background:#f8fafc; }
+html.dark .sft-btn-default:hover { border-color:#62748e; background:#1d293d; }
+.sft-btn-primary { border:1px solid #cad5e2; background:var(--sft-accent); color:#fff; }
+.sft-btn-primary:hover { background:var(--sft-accent-hover); }
+.sft-btn-danger { border:1px solid #ffc9c9; background:#fef2f2; color:#c10007; }
+html.dark .sft-btn-danger { border-color:#a50036; background:#4d0218; color:#ff637e; }
+.sft-btn-danger-light { color:#c10007; }
+html.dark .sft-btn-danger-light { color:#ff637e; }
+.sft-btn-danger-light:hover { background:#fef2f2; }
+html.dark .sft-btn-danger-light:hover { background:#4d0218; }
+.sft-btn-ghost { color:var(--sft-text-muted); }
+.sft-btn-ghost:hover { background:#f1f5f9; color:var(--sft-text); }
+html.dark .sft-btn-ghost:hover { background:#314158; color:#f1f5f9; }
+
+.sft-repeater { border:1px solid var(--sft-card-border); background:var(--sft-card-bg); border-radius:12px; padding:16px; }
+.sft-repeater-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.sft-repeater-title-group { display:flex; align-items:center; gap:8px; }
+.sft-repeater-badge { display:grid; place-items:center; height:28px; width:28px; border-radius:9999px; background:var(--sft-pill-bg); color:var(--sft-pill-text); font-size:12px; font-weight:600; }
+.sft-repeater-title { font-size:14px; line-height:20px; font-weight:600; color:var(--sft-text-strong); margin:0; }
+
+.sft-empty { border:1px dashed var(--sft-muted-border); background:var(--sft-muted-bg); border-radius:12px; padding:32px; text-align:center; }
+.sft-empty .sft-btn { margin-top:16px; }
+.sft-empty-icon { color:#90a1b9; margin:0 auto 8px; display:block; }
+html.dark .sft-empty-icon { color:#62748e; }
+.sft-empty-title { font-size:14px; font-weight:500; color:#314158; margin:0; }
+html.dark .sft-empty-title { color:#cad5e2; }
+.sft-empty-hint { font-size:12px; color:var(--sft-text-subtle); margin:4px 0 0; }
+.sft-array-items { display:grid; grid-template-columns:1fr; gap:16px; margin-top:0; }
+.sft-array-footer { margin-top:16px; }
+
+.sft-choice-addbar { display:flex; flex-wrap:wrap; gap:16px; }
+.sft-choice-addbar-item { display:flex; flex-direction:column; gap:4px; }
+.sft-choice-addbar-reason { font-size:12px; line-height:16px; color:var(--sft-text-subtle); margin:0; }
+
+.sft-wizard-head { margin-bottom:24px; }
+.sft-wizard-eyebrow { font-size:12px; line-height:16px; text-transform:uppercase; letter-spacing:.05em; color:var(--sft-text-subtle); margin:0; }
+.sft-wizard-title { font-size:24px; line-height:32px; font-weight:600; color:var(--sft-heading); margin:0; }
+.sft-stepper { margin-bottom:32px; }
+.sft-stepper ol { display:flex; align-items:center; list-style:none; margin:0; padding:0; }
+.sft-stepper li { display:flex; align-items:center; }
+.sft-stepper li.grow { flex:1; }
+.sft-step { display:flex; flex-direction:column; align-items:center; gap:4px; background:none; border:0; cursor:pointer; padding:0; }
+.sft-step-dot { display:grid; place-items:center; height:32px; width:32px; border-radius:9999px; font-size:12px; font-weight:600; background:#e2e8f0; color:#62748e; }
+html.dark .sft-step-dot { background:#314158; color:#90a1b9; }
+.sft-step.is-done .sft-step-dot { background:#00bc7d; color:#fff; }
+.sft-step.is-current .sft-step-dot { background:var(--sft-accent); color:#fff; box-shadow:0 0 0 4px #dff2fe; }
+html.dark .sft-step.is-current .sft-step-dot { box-shadow:0 0 0 4px rgba(14,165,233,.2); }
+.sft-step.is-error .sft-step-dot { background:var(--sft-danger-border); color:#fff; }
+.sft-step-label { font-size:12px; line-height:16px; color:#90a1b9; }
+html.dark .sft-step-label { color:#62748e; }
+.sft-step.is-done .sft-step-label { color:#009966; }
+.sft-step.is-current .sft-step-label { font-weight:600; color:var(--sft-text); }
+.sft-step.is-error .sft-step-label { color:var(--sft-danger-text); }
+@media (max-width:640px){ .sft-step-label { display:none; } }
+.sft-step-connector { margin:0 8px; height:2px; flex:1; background:#e2e8f0; }
+html.dark .sft-step-connector { background:#314158; }
+.sft-step-connector.is-done { background:#00bc7d; }
+html.dark .sft-step-connector.is-done { background:#00bc7d; }
+
+.sft-wizard-alert { margin-top:32px; border-radius:8px; padding:12px; font-size:14px; border:1px solid var(--sft-danger-soft-border); background:var(--sft-danger-soft-bg); color:var(--sft-danger-soft-text); }
+.sft-wizard-footer { margin-top:32px; display:flex; align-items:center; justify-content:space-between; }
+.sft-wizard-footer.is-tight { margin-top:16px; }
+.sft-wizard-footer .is-hidden { visibility:hidden; }
+.sft-wizard-back { padding-left:16px; padding-right:16px; }
+.sft-wizard-helper { font-size:12px; line-height:16px; color:var(--sft-text-subtle); margin:0; }
+@media (max-width:640px){ .sft-wizard-helper { display:none; } }
+
+.sft-review-group { margin-bottom:16px; overflow:hidden; border:1px solid var(--sft-card-border); border-radius:12px; }
+.sft-review-header { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--sft-card-border); background:var(--sft-muted-bg); padding:8px 16px; }
+.sft-review-title { font-size:14px; line-height:20px; font-weight:600; color:var(--sft-text-strong); margin:0; }
+.sft-review-list { margin:0; }
+.sft-review-row { display:flex; align-items:flex-start; gap:16px; padding:10px 16px; border-top:1px solid #f1f5f9; }
+html.dark .sft-review-row { border-top-color:#314158; }
+.sft-review-row:first-child { border-top:0; }
+.sft-review-key { width:144px; flex-shrink:0; font-size:12px; line-height:16px; color:var(--sft-text-subtle); margin:0; }
+.sft-review-val { font-size:14px; line-height:20px; color:var(--sft-text-strong); margin:0; }
+.sft-confirm { margin-top:24px; border-radius:12px; padding:16px; font-size:14px; line-height:20px; border:1px solid var(--sft-confirm-border); background:var(--sft-confirm-bg); color:var(--sft-confirm-text); }
+.sft-confirm p { margin:0; }
+.sft-confirm p + p { margin-top:2px; }
+.sft-confirm-strong { font-weight:600; }
+
+.sft-success-hero { display:flex; flex-direction:column; align-items:center; text-align:center; }
+.sft-success-badge { display:grid; place-items:center; height:64px; width:64px; border-radius:9999px; background:var(--sft-success-badge-bg); color:var(--sft-success-badge-text); }
+.sft-success-title { margin:16px 0 0; font-size:20px; font-weight:600; color:var(--sft-heading); }
+.sft-success-ref { margin:4px 0 0; font-size:14px; color:var(--sft-text-muted); }
+.sft-success-ref code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:500; color:var(--sft-text-strong); }
+.sft-timeline { margin-top:32px; border:1px solid var(--sft-card-border); background:var(--sft-muted-bg); border-radius:12px; padding:20px; }
+.sft-timeline ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
+.sft-timeline li { display:flex; align-items:center; gap:12px; font-size:14px; color:var(--sft-text-strong); }
+.sft-timeline li.is-pending { color:var(--sft-text-subtle); }
+.sft-timeline-title { font-size:14px; font-weight:600; color:var(--sft-text-strong); margin:0 0 12px; }
+.sft-timeline-dot { display:grid; place-items:center; height:20px; width:20px; flex-shrink:0; }
+.sft-timeline-dot.is-done { color:#00bc7d; }
+.sft-timeline-dot.is-pending { color:#90a1b9; }
+html.dark .sft-timeline-dot.is-pending { color:#62748e; }
+.sft-spin { animation:sft-spin 1s linear infinite; }
+@keyframes sft-spin { to { transform:rotate(360deg); } }
+.sft-success-actions { margin-top:24px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+
+svg { display:block; }
+</style>
+</head>
+<body>
+<div class="controls">
+  <label><input type="checkbox" id="packToggle"> Highlight pack text</label>
+  <button id="themeToggle">Dark</button>
+</div>
+
+<div class="harness">
+  <div class="harness-head">
+    <h1>Starter template internationalization</h1>
+    <p>Selecting one language pack supplies a default for every chrome string the starter package owns, while any explicit per-field or settings value keeps winning. Field labels, descriptions and option text are consumer content and are never touched by a pack. Flip "Highlight pack text" to outline exactly which strings a pack supplies.</p>
+  </div>
+  <div class="legend">
+    <span><i class="l-pack"></i> supplied by the active pack</span>
+    <span><i class="l-ov"></i> explicit per-field override (wins over the pack)</span>
+    <span><i class="l-content"></i> consumer content (labels, values, never translated)</span>
+  </div>
+
+  <!-- =====================================================================
+       SECTION 1 - FULL CHROME IN THE ENGLISH PACK
+       ===================================================================== -->
+  <div class="divider">1 - English pack, full chrome
+    <small>The built-in fallback and the English pack agree, so an existing consumer sees no change. Shows the filled array state, add/remove, choice add bar, password strength, and the wizard footer mid-flow.</small>
+  </div>
+  <p class="anno">Icons, spacing and colour are the shipped <code>sft-</code> styles. Only the outlined strings come from the pack; everything else (step labels "Your details", field labels, option names) is written by the consumer and stays as authored in both packs.</p>
+
+  <section id="pack-english" class="sft-section">
+    <header class="sft-wizard-head">
+      <p class="sft-wizard-eyebrow">Conference registration</p>
+      <h2 class="sft-wizard-title">Attendees &amp; tickets</h2>
+    </header>
+
+    <nav class="sft-stepper" aria-label="Progress">
+      <ol>
+        <li class="grow"><button class="sft-step is-done" type="button"><span class="sft-step-dot">✓</span><span class="sft-step-label">Your details</span></button><span class="sft-step-connector is-done"></span></li>
+        <li class="grow"><button class="sft-step is-current" type="button"><span class="sft-step-dot">2</span><span class="sft-step-label">Tickets</span></button><span class="sft-step-connector"></span></li>
+        <li class="grow"><button class="sft-step" type="button"><span class="sft-step-dot">3</span><span class="sft-step-label">Preferences</span></button><span class="sft-step-connector"></span></li>
+        <li><button class="sft-step" type="button"><span class="sft-step-dot">4</span><span class="sft-step-label">Review</span></button></li>
+      </ol>
+    </nav>
+
+    <div class="sft-grid">
+      <div class="sft-field">
+        <label class="sft-field-label" for="e-name">Lead attendee<span class="sft-tag-required">*</span></label>
+        <input id="e-name" class="sft-input" value="Ada Lovelace">
+      </div>
+      <div class="sft-field">
+        <label class="sft-field-label" for="e-vat">VAT number<span class="pk sft-tag-optional">Optional</span></label>
+        <input id="e-vat" class="sft-input" placeholder="Leave blank if not applicable">
+      </div>
+
+      <div class="sft-field span-full">
+        <label class="sft-field-label" for="e-pass">Account password<span class="sft-tag-required">*</span></label>
+        <div class="sft-password">
+          <input id="e-pass" class="sft-input" type="password" value="correct-horse" aria-label="Account password">
+          <button class="sft-password-toggle" type="button" aria-label="Show password" title="aria-label: &quot;Show password&quot; / &quot;Hide password&quot;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="sft-strength">
+          <div class="sft-strength-track"><span class="sft-strength-seg is-on-strong"></span><span class="sft-strength-seg is-on-strong"></span><span class="sft-strength-seg is-on-strong"></span><span class="sft-strength-seg"></span></div>
+          <span class="sft-strength-label is-good pk">Good</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- filled repeatable array: count pill, remove buttons, add button -->
+    <div style="margin-top:20px">
+      <section class="sft-repeater">
+        <div class="sft-repeater-header">
+          <div class="sft-repeater-title-group">
+            <span class="sft-repeater-badge">1</span>
+            <p class="sft-repeater-title">Jean Bartik</p>
+          </div>
+          <button class="sft-btn sft-btn-danger-light" type="button" aria-label="Remove attendee 1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg>
+            <span class="pk">Remove</span>
+          </button>
+        </div>
+        <div class="sft-field">
+          <label class="sft-field-label" for="e-a1">Full name<span class="sft-tag-required">*</span></label>
+          <input id="e-a1" class="sft-input" value="Jean Bartik">
+        </div>
+      </section>
+      <div class="sft-array-footer">
+        <button class="sft-btn sft-btn-default" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="pk">Add another</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- repeatable choice add bar: one at its limit shows the limit-reached text -->
+    <div class="sft-choice-addbar" style="margin-top:20px">
+      <div class="sft-choice-addbar-item">
+        <button class="sft-btn sft-btn-default" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="pk">Add standard ticket</span>
+        </button>
+      </div>
+      <div class="sft-choice-addbar-item">
+        <button class="sft-btn sft-btn-default" type="button" disabled aria-describedby="e-reason">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="pk">Add VIP ticket</span>
+        </button>
+        <p id="e-reason" class="sft-choice-addbar-reason pk">The limit for VIP ticket has been reached.</p>
+      </div>
+    </div>
+
+    <footer class="sft-wizard-footer">
+      <button class="sft-btn sft-btn-default sft-wizard-back" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="pk">Back</span>
+      </button>
+      <p class="sft-wizard-helper"><span class="pk">Step 2 of 4</span> · Tickets</p>
+      <button class="sft-btn sft-btn-primary" type="button">
+        <span class="pk">Continue</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </footer>
+  </section>
+
+  <!-- =====================================================================
+       SECTION 2 - FULL CHROME IN THE DUTCH PACK
+       ===================================================================== -->
+  <div class="divider">2 - Dutch pack, full chrome
+    <small>Identical metadata tree, one setting changed. Shows the array empty state (noItemsTitle + first-add), the last-step submit + error banner, the review card and the submission-success screen, so every remaining chrome string is covered too.</small>
+  </div>
+  <p class="anno">Same consumer content as section 1 (a real Dutch form would also localize its own labels, but that is the consumer's text, not the pack's). Only the outlined strings flip to Dutch.</p>
+
+  <section id="pack-dutch" class="sft-section">
+    <nav class="sft-stepper" aria-label="Voortgang" title="aria-label &quot;Progress&quot; -> &quot;Voortgang&quot;">
+      <ol>
+        <li class="grow"><button class="sft-step is-done" type="button"><span class="sft-step-dot">✓</span><span class="sft-step-label">Your details</span></button><span class="sft-step-connector is-done"></span></li>
+        <li class="grow"><button class="sft-step is-done" type="button"><span class="sft-step-dot">✓</span><span class="sft-step-label">Tickets</span></button><span class="sft-step-connector is-done"></span></li>
+        <li class="grow"><button class="sft-step is-error" type="button"><span class="sft-step-dot">!</span><span class="sft-step-label">Preferences</span></button><span class="sft-step-connector is-done"></span></li>
+        <li><button class="sft-step is-current" type="button"><span class="sft-step-dot">4</span><span class="sft-step-label">Review</span></button></li>
+      </ol>
+    </nav>
+
+    <!-- array empty state -->
+    <section class="sft-empty">
+      <svg class="sft-empty-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <p class="sft-empty-title pk">Nog geen deelnemers toegevoegd</p>
+      <p class="sft-empty-hint">Voeg de mensen toe die deze registratie dekt.</p>
+      <button class="sft-btn sft-btn-primary" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span class="pk">Een deelnemer toevoegen</span>
+      </button>
+    </section>
+
+    <!-- review card -->
+    <div class="sft-review-group" style="margin-top:20px">
+      <header class="sft-review-header">
+        <p class="sft-review-title">Deelnemers</p>
+        <button class="sft-btn sft-btn-danger-light" type="button">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          <span class="pk">Bewerken</span>
+        </button>
+      </header>
+      <dl class="sft-review-list">
+        <div class="sft-review-row"><dt class="sft-review-key">Hoofddeelnemer</dt><dd class="sft-review-val">Ada Lovelace</dd></div>
+        <div class="sft-review-row"><dt class="sft-review-key">BTW-nummer</dt><dd class="sft-review-val">—</dd></div>
+      </dl>
+    </div>
+    <div class="sft-confirm">
+      <p class="sft-confirm-strong pk">Klaar om te versturen?</p>
+      <p>Controleer bovenstaande gegevens en verstuur om je plekken vast te leggen.</p>
+    </div>
+
+    <!-- last-step error banner + submit -->
+    <p class="sft-wizard-alert pk" role="alert">Sommige stappen bevatten nog fouten. Corrigeer de rood gemarkeerde stappen voordat je verstuurt.</p>
+    <footer class="sft-wizard-footer is-tight">
+      <button class="sft-btn sft-btn-default sft-wizard-back" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="pk">Terug</span>
+      </button>
+      <p class="sft-wizard-helper"><span class="pk">Stap 4 van 4</span> · Review</p>
+      <button class="sft-btn sft-btn-primary" type="button" disabled>
+        <span class="pk">Versturen</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      </button>
+    </footer>
+  </section>
+
+  <p class="anno">Submission-success screen, Dutch pack. Its labels (<code>referenceLabel</code>, <code>viewJsonText</code>, <code>resetButtonText</code>, timeline title) are pack strings too.</p>
+  <section id="pack-dutch-success" class="sft-section" style="margin-top:16px">
+    <div class="sft-success-hero">
+      <div class="sft-success-badge">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <h2 class="sft-success-title">Registratie ontvangen</h2>
+      <p class="sft-success-ref"><span class="pk">Referentie</span> <code>CONF-2026-0481</code></p>
+    </div>
+    <div class="sft-timeline">
+      <p class="sft-timeline-title">Wat er nu gebeurt</p>
+      <ul>
+        <li><span class="sft-timeline-dot is-done"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg></span><span>Bevestigingsmail verstuurd</span></li>
+        <li class="is-pending"><span class="sft-timeline-dot is-pending"><svg class="sft-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg></span><span>Tickets worden aangemaakt</span></li>
+      </ul>
+    </div>
+    <div class="sft-success-actions">
+      <button class="sft-btn sft-btn-ghost" type="button"><span class="pk">Verzonden JSON tonen</span></button>
+      <button class="sft-btn sft-btn-primary" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.65 4.36A9 9 0 0 0 20.5 15"/></svg>
+        <span class="pk">Nieuwe registratie starten</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       SECTION 3 - PRECEDENCE
+       ===================================================================== -->
+  <div class="divider">3 - Precedence: explicit override beats the pack
+    <small>Dutch pack active. Two sibling repeatable sections. The left reads its add-button text from the pack; the right has an explicit per-field override that wins, exactly as extendMetadata's "more specific wins" rule already works.</small>
+  </div>
+  <p class="anno">Resolution order, highest first: explicit per-field / settings value (amber) &rarr; active pack (indigo) &rarr; built-in English fallback. The pack only fills strings nobody has set, so no existing consumer value changes.</p>
+
+  <section id="precedence" class="sft-section">
+    <div class="two-col">
+      <div>
+        <p class="pack-label"><span class="flag">resolved from pack</span></p>
+        <section class="sft-repeater">
+          <div class="sft-repeater-header">
+            <div class="sft-repeater-title-group"><span class="sft-repeater-badge">1</span><p class="sft-repeater-title">Deelnemer</p></div>
+          </div>
+          <div class="sft-array-footer" style="margin-top:0">
+            <button class="sft-btn sft-btn-default" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              <span class="pk">Nog een toevoegen</span>
+            </button>
+          </div>
+        </section>
+        <p class="anno">No <code>array.addButtonText</code> set on this field, so the Dutch pack's default shows.</p>
+      </div>
+
+      <div>
+        <p class="pack-label"><span class="flag">field sets its own text</span></p>
+        <section class="sft-repeater">
+          <div class="sft-repeater-header">
+            <div class="sft-repeater-title-group"><span class="sft-repeater-badge">1</span><p class="sft-repeater-title">Workshop</p></div>
+          </div>
+          <div class="sft-array-footer" style="margin-top:0">
+            <button class="sft-btn sft-btn-default" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              <span class="pk ov">Kies een workshop</span>
+            </button>
+          </div>
+        </section>
+        <p class="anno">This field sets <code>array.addButtonText: "Kies een workshop"</code>; it overrides the pack's "Nog een toevoegen".</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       SECTION 4 - VALIDATION MESSAGES IN BOTH PACKS
+       ===================================================================== -->
+  <div class="divider">4 - Validation messages per pack
+    <small>Delivered through the engine's existing settings.messages / ValidationMessage channel. The pack supplies a translated default for every xsd_* / vdf_* rule; a consumer's own per-rule message still wins. Placeholders ({field}, {min}, {fractionDigits}) resolve identically whatever the source.</small>
+  </div>
+  <p class="anno">Invalid-with-message and valid states here; the pristine (default) input style is shown in sections 1 and 5. The field label (e.g. "Lead attendee") is consumer content and feeds the <code>{field}</code> placeholder; the message template around it is the pack's.</p>
+
+  <section id="validation" class="sft-section">
+    <div class="two-col">
+      <div>
+        <p class="pack-label"><span class="flag">English pack</span></p>
+        <div class="sft-grid" style="margin-top:0; grid-template-columns:1fr;">
+          <div class="sft-field">
+            <label class="sft-field-label" for="v-e1">Lead attendee<span class="sft-tag-required">*</span></label>
+            <input id="v-e1" class="sft-input is-invalid" value="" aria-invalid="true">
+            <p class="sft-error pk">Lead attendee is required</p>
+          </div>
+          <div class="sft-field">
+            <label class="sft-field-label" for="v-e2">Promo code<span class="pk sft-tag-optional">Optional</span></label>
+            <input id="v-e2" class="sft-input is-invalid" value="AB" aria-invalid="true">
+            <p class="sft-error pk">Promo code must be at least 4 characters</p>
+          </div>
+          <div class="sft-field">
+            <label class="sft-field-label" for="v-e3">Ticket price<span class="sft-tag-required">*</span></label>
+            <div class="sft-input-suffix-row">
+              <input id="v-e3" class="sft-input is-invalid sft-input-suffix-input" value="49.999" aria-invalid="true">
+              <span class="sft-input-suffix">EUR</span>
+            </div>
+            <p class="sft-error pk">Ticket price may have at most 2 decimal places</p>
+          </div>
+          <div class="sft-field">
+            <label class="sft-field-label" for="v-e4">Company email<span class="pk sft-tag-optional">Optional</span></label>
+            <input id="v-e4" class="sft-input is-valid" value="ada@analytical.co">
+            <p class="anno" style="margin:0">Valid: no message, success border (opt-in showValidState).</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="pack-label"><span class="flag">Dutch pack</span></p>
+        <div class="sft-grid" style="margin-top:0; grid-template-columns:1fr;">
+          <div class="sft-field">
+            <label class="sft-field-label" for="v-n1">Lead attendee<span class="pk sft-tag-required">*</span></label>
+            <input id="v-n1" class="sft-input is-invalid" value="" aria-invalid="true">
+            <p class="sft-error pk">Lead attendee is verplicht</p>
+          </div>
+          <div class="sft-field">
+            <label class="sft-field-label" for="v-n2">Promo code<span class="pk sft-tag-optional">Optioneel</span></label>
+            <input id="v-n2" class="sft-input is-invalid" value="AB" aria-invalid="true">
+            <p class="sft-error pk">Promo code moet minstens 4 tekens bevatten</p>
+          </div>
+          <div class="sft-field">
+            <label class="sft-field-label" for="v-n3">Ticket price<span class="pk sft-tag-required">*</span></label>
+            <div class="sft-input-suffix-row">
+              <input id="v-n3" class="sft-input is-invalid sft-input-suffix-input" value="49,999" aria-invalid="true">
+              <span class="sft-input-suffix">EUR</span>
+            </div>
+            <p class="sft-error pk">Ticket price mag maximaal 2 decimalen hebben</p>
+          </div>
+          <div class="sft-field">
+            <label class="sft-field-label" for="v-n4">Company email<span class="pk sft-tag-optional">Optioneel</span></label>
+            <input id="v-n4" class="sft-input is-valid" value="ada@analytical.co">
+            <p class="anno" style="margin:0">Geldig: geen melding, groene rand.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       SECTION 5 - LOCALE NUMBER FORMATTING
+       ===================================================================== -->
+  <div class="divider">5 - Locale number formatting
+    <small>A field whose fractionDigits / totalDigits restriction makes the convention visible formats and accepts numbers in the active locale (via native Intl), rather than always behaving like an English-formatted string.</small>
+  </div>
+  <p class="anno">Same underlying value, two locales. The decimal separator and the digit-grouping separator swap; the stored value is still the canonical number. Hover/focus and disabled states are the standard input states shown in sections 1 and 4.</p>
+
+  <section id="number-formatting" class="sft-section">
+    <div class="two-col">
+      <div>
+        <p class="pack-label"><span class="flag">en-US</span></p>
+        <div class="sft-grid" style="margin-top:0; grid-template-columns:1fr;">
+          <div class="sft-field">
+            <label class="sft-field-label" for="n-e1">Ticket price<span class="sft-tag-required">*</span></label>
+            <div class="sft-input-suffix-row">
+              <input id="n-e1" class="sft-input sft-input-suffix-input" value="1,234.56" inputmode="decimal">
+              <span class="sft-input-suffix">EUR</span>
+            </div>
+            <p class="sft-field-desc">fractionDigits: 2 &middot; grouping comma, decimal point</p>
+          </div>
+          <div class="sft-field">
+            <label class="sft-field-label" for="n-e2">Seats reserved<span class="sft-tag-required">*</span></label>
+            <input id="n-e2" class="sft-input" value="1,500" inputmode="numeric">
+            <p class="sft-field-desc">integer &middot; thousands grouped with a comma</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="pack-label"><span class="flag">nl-NL</span></p>
+        <div class="sft-grid" style="margin-top:0; grid-template-columns:1fr;">
+          <div class="sft-field">
+            <label class="sft-field-label" for="n-n1">Ticket price<span class="pk sft-tag-required">*</span></label>
+            <div class="sft-input-suffix-row">
+              <input id="n-n1" class="sft-input sft-input-suffix-input" value="1.234,56" inputmode="decimal">
+              <span class="sft-input-suffix">EUR</span>
+            </div>
+            <p class="sft-field-desc">fractionDigits: 2 &middot; punt groepeert, komma scheidt decimalen</p>
+          </div>
+          <div class="sft-field">
+            <label class="sft-field-label" for="n-n2">Seats reserved<span class="pk sft-tag-required">*</span></label>
+            <input id="n-n2" class="sft-input" value="1.500" inputmode="numeric">
+            <p class="sft-field-desc">geheel getal &middot; duizendtallen met een punt</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="anno">Open question 7 (per-pack default locale vs. a separate locale setting) is not resolved here; the prototype simply shows both conventions so the visible difference is agreed before the architecture decides where the BCP 47 tag lives.</p>
+  </section>
+
+</div>
+
+<script>
+  const root = document.documentElement;
+  const themeBtn = document.getElementById('themeToggle');
+  themeBtn.addEventListener('click', function () {
+    root.classList.toggle('dark');
+    themeBtn.textContent = root.classList.contains('dark') ? 'Light' : 'Dark';
+  });
+  document.getElementById('packToggle').addEventListener('change', function (e) {
+    document.body.classList.toggle('show-packs', e.target.checked);
+  });
+</script>
+</body>
+</html>

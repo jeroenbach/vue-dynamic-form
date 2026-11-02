@@ -1,12 +1,11 @@
 <!-- #region client-onboarding-planner-example -->
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
-import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
-import type { TimelineItem } from './SubmissionSuccess.vue';
+import type { ReviewGroupProps, TimelineItem } from '@bach.software/vue-dynamic-form-starter';
+import type { Metadata } from './AdvancedForm.vue';
 import { removeNullValues, useDynamicForm } from '@bach.software/vue-dynamic-form';
+import { SubmissionSuccess } from '@bach.software/vue-dynamic-form-starter';
 import { computed, onMounted, ref, watch } from 'vue';
 import AdvancedForm from './AdvancedForm.vue';
-import SubmissionSuccess from './SubmissionSuccess.vue';
 
 // #region shared-types
 export interface SelectOption {
@@ -172,6 +171,14 @@ const wizardSummary = computed<ReviewGroupProps[]>(() => {
       : systems.map((s, i): [string, string] => [`System ${i + 1}`, s.text]);
   };
 
+  const dataMigrationLabel = (): string => {
+    if (!values?.company?.requiresMigration)
+      return 'No';
+    if (!values?.company?.migrationDeadline)
+      return 'Yes';
+    return `Yes (by ${values.company.migrationDeadline})`;
+  };
+
   return [
     {
       title: 'Company',
@@ -179,7 +186,7 @@ const wizardSummary = computed<ReviewGroupProps[]>(() => {
         ['Company name', values?.company?.companyName || '—'],
         ['Industry', industryLabel.value || '—'],
         ['Team size', values?.company?.teamSize || '—'],
-        ['Data migration', values?.company?.requiresMigration ? `Yes${values?.company?.migrationDeadline ? ` (by ${values.company.migrationDeadline})` : ''}` : 'No'],
+        ['Data migration', dataMigrationLabel()],
       ],
     },
     {
@@ -211,7 +218,7 @@ const metadata: Metadata[] = [
     wizard: true,
     fieldOptions: { label: formName },
     description: 'New client setup',
-    submitButtonText: 'Submit onboarding',
+    wizardTexts: { submitButtonText: 'Submit onboarding' },
     children: [
       {
         name: 'company',
@@ -224,7 +231,7 @@ const metadata: Metadata[] = [
             name: 'companyName',
             fieldOptions: { label: 'Company name' },
             restriction: { minLength: 2 },
-            fullWidth: true,
+            colSpan: 'full',
           },
           {
             name: 'industry',
@@ -261,7 +268,7 @@ const metadata: Metadata[] = [
             minOccurs: 0,
             fieldOptions: { label: 'Migrate existing customer data' },
             description: 'Turn this on when records need to be imported from another system.',
-            fullWidth: true,
+            colSpan: 'full',
           },
           // #region conditional-field
           {
@@ -271,7 +278,7 @@ const metadata: Metadata[] = [
             },
             description: 'When must all historical records be live in the new system?',
             minOccurs: 0,
-            fullWidth: true,
+            colSpan: 'full',
             validation: dateValidation,
             placeholder: 'dd/mm/yyyy',
             computedProps: [(field) => {
@@ -292,9 +299,9 @@ const metadata: Metadata[] = [
         helpText: 'What needs to connect?',
         minOccurs: 0,
         maxOccurs: 4,
-        fullWidth: true,
+        colSpan: 'full',
         explicitChoiceSelection: true,
-        choiceShowChoiceSelect: true,
+        choicePicker: { show: true },
         displayOrder: 'added',
         preserveOrder: true,
         choice: [
@@ -302,7 +309,7 @@ const metadata: Metadata[] = [
             name: 'saasTool',
             maxOccurs: 1,
             maxOccursTotal: 3,
-            fullWidth: true,
+            colSpan: 'full',
             fieldOptions: { label: 'SaaS tool' },
             description: 'An off-the-shelf tool we connect through an existing integration.',
             iconName: 'grid',
@@ -323,10 +330,10 @@ const metadata: Metadata[] = [
             name: 'apiEndpoint',
             maxOccurs: 1,
             maxOccursTotal: 3,
-            fullWidth: true,
+            colSpan: 'full',
             fieldOptions: { label: 'Custom API' },
             description: 'An in-house system we reach through a custom endpoint.',
-            iconName: 'bolt',
+            iconName: 'zap',
             children: [
               {
                 name: 'url',
@@ -348,12 +355,14 @@ const metadata: Metadata[] = [
         fieldOptions: { label: 'Project contacts' },
         description: 'Anyone who should be looped in on the rollout.',
         helpText: 'Who should we work with?',
-        arrayItemName: 'contact',
-        arrayItemNamePlural: 'contacts',
-        arrayItemFieldForTitle: 'fullName',
+        array: {
+          itemName: 'contact',
+          itemNamePlural: 'contacts',
+          itemFieldForTitle: 'fullName',
+        },
         minOccurs: 1,
         maxOccurs: 3,
-        fullWidth: true,
+        colSpan: 'full',
         children: [
           {
             name: 'fullName',
@@ -362,12 +371,12 @@ const metadata: Metadata[] = [
           {
             name: 'email',
             fieldOptions: { label: 'Work email' },
-            restriction: { pattern: '^.+@.+\\..+$' },
+            restriction: { pattern: String.raw`^.+@.+\..+$` },
           },
           {
             name: 'role',
             type: 'select',
-            fullWidth: true,
+            colSpan: 'full',
             fieldOptions: { label: 'Role' },
             computedProps: [(field) => {
               field.options = props.optionStore.role;
@@ -381,8 +390,8 @@ const metadata: Metadata[] = [
         fieldOptions: { label: 'Launch approach' },
         description: 'Pick one. Only the selected option ends up in the submitted values, but what you filled in for the other option is kept and restored when you switch back.',
         helpText: 'How will we go live?',
-        fullWidth: true,
-        choiceShowChoiceSelect: true,
+        colSpan: 'full',
+        choicePicker: { show: true },
         explicitChoiceSelection: true,
         preserveOnSwitch: true,
         choice: [
@@ -390,8 +399,8 @@ const metadata: Metadata[] = [
             name: 'selfServe',
             fieldOptions: { label: 'Self-serve launch' },
             description: 'The client drives the rollout themselves. Fastest path to go-live.',
-            iconName: 'bolt',
-            fullWidth: true,
+            iconName: 'zap',
+            colSpan: 'full',
             children: [
               {
                 name: 'goLiveDate',
@@ -410,12 +419,12 @@ const metadata: Metadata[] = [
             fieldOptions: { label: 'Guided rollout' },
             description: 'We run kickoff, training, and launch alongside the client team.',
             iconName: 'users',
-            fullWidth: true,
+            colSpan: 'full',
             children: [
               {
                 name: 'kickoffDate',
                 fieldOptions: { label: 'Kickoff call date' },
-                fullWidth: true,
+                colSpan: 'full',
                 validation: dateValidation,
                 placeholder: 'dd/mm/yyyy',
               },
@@ -425,8 +434,8 @@ const metadata: Metadata[] = [
                 minOccurs: 0,
                 fieldOptions: { label: 'Include team training' },
                 description: 'Turn on to schedule a training session during onboarding.',
-                fullWidth: true,
-                falseAsUndefined: true,
+                colSpan: 'full',
+                checkbox: { falseAsUndefined: true },
               },
               {
                 name: 'trainingFormat',
@@ -436,7 +445,7 @@ const metadata: Metadata[] = [
                   label: 'Training format',
                 },
                 description: 'Required because guided rollout includes team training.',
-                fullWidth: true,
+                colSpan: 'full',
                 computedProps: [(field) => {
                   field.options = props.optionStore.trainingFormat;
                   if (needsTraining.value)
@@ -455,9 +464,8 @@ const metadata: Metadata[] = [
         fieldOptions: { label: 'Review & submit' },
         description: 'Quick recap before we kick this off. Anything needs tweaking? Jump back to the step.',
         helpText: 'Check and submit',
-        wizardSummaryConfirmation: 'We\'ll create the onboarding workspace and email each contact an invite.',
         minOccurs: 0,
-        computedProps: [(field) => { field.wizardSummary = wizardSummary.value; }],
+        computedProps: [(field) => { field.wizardSummary = { groups: wizardSummary.value, confirmation: 'We\'ll create the onboarding workspace and email each contact an invite.' }; }],
       },
     ],
   },
@@ -484,9 +492,10 @@ watch(submitted, async (submittedValues) => {
     { id: 'integrations', label: `${systemCount} system integration${systemCount !== 1 ? 's' : ''} added to backlog`, status: 'pending' },
   ];
 
-  for (let i = 0; i < timeline.value.length; i++) {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    timeline.value[i].status = 'done';
+  for (const item of timeline.value) {
+    // Sequential by design: each step must wait for the previous one's delay to stagger the reveal.
+    await new Promise(resolve => setTimeout(resolve, 800)); // NOSONAR
+    item.status = 'done';
   }
 });
 // #endregion timeline

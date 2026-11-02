@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
+import type { Metadata } from './AdvancedForm.vue';
 import { useDynamicForm } from '@bach.software/vue-dynamic-form';
 import AdvancedForm from './AdvancedForm.vue';
 
@@ -20,7 +20,7 @@ const metadata: Metadata[] = [
     fieldOptions: { label: 'Preferred contact' },
     description: 'Nothing renders until you pick a method. Picking the other one afterwards clears what you filled in.',
     explicitChoiceSelection: true,
-    choiceShowChoiceSelect: true,
+    choicePicker: { show: true },
     choice: [
       {
         name: 'email',

@@ -1,9 +1,8 @@
 <script lang="ts" setup>
 import type { WorkoutBranchShape } from './workoutPlanMath';
+import { AppButton, StarterIcon } from '@bach.software/vue-dynamic-form-starter';
 import { useFormContext } from 'vee-validate';
 import { computed } from 'vue';
-import AppButton from './AppButton.vue';
-import AppIcon from './AppIcon.vue';
 import { checkConventions, collectBlocks, readPath } from './workoutPlanMath';
 
 /**
@@ -95,7 +94,7 @@ function moveDown() {
           :dataTestid="path ? `${path}-move-up` : undefined"
           @click="moveUp"
         >
-          <AppIcon name="chevronUp" />
+          <StarterIcon name="chevronUp" />
         </AppButton>
         <AppButton
           variant="ghost"
@@ -104,7 +103,7 @@ function moveDown() {
           :dataTestid="path ? `${path}-move-down` : undefined"
           @click="moveDown"
         >
-          <AppIcon name="chevronDown" />
+          <StarterIcon name="chevronDown" />
         </AppButton>
       </div>
     </div>
@@ -135,7 +134,7 @@ function moveDown() {
       :dataTestid="path ? `${path}-remove-button` : undefined"
       @click="$emit('remove')"
     >
-      <AppIcon name="bin" />
+      <StarterIcon name="trash" />
     </AppButton>
   </article>
 </template>

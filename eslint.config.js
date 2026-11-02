@@ -9,7 +9,7 @@ export default antfu({
     'style/semi': ['error', 'always'],
   },
 }, {
-  files: ['docs/**/*.vue'],
+  files: ['docs/**/*.vue', 'packages/starter/**/*.vue', 'playgrounds/storybook/**/*.vue'],
   rules: {
     'vue/attribute-hyphenation': 'off',
     'vue/v-on-event-hyphenation': 'off',

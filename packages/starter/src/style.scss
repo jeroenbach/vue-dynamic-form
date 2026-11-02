@@ -1,0 +1,1458 @@
+/* =========================================================================
+   STARTER FORM TEMPLATE STYLESHEET
+   Authored in SCSS, shipped as plain flat CSS (dist/style.css). Sass is
+   used for two things only: nesting, so a component's state and dark-mode
+   variants sit next to its base rule, and loops that generate the grid
+   utility classes at the end of the file. Semantic classes, no Tailwind.
+   Every class is prefixed `sft-` (starter-form-template). State is
+   carried by `is-*` modifier classes on the same element, never by
+   swapping unrelated class strings.
+
+   Theme-carrying values live in CSS custom properties declared once on
+   `:root`, re-declared under `:root.dark` for the dark skin. They are the
+   runtime theming API, so they must stay custom properties and never
+   become Sass variables (those compile away). The engine renders this
+   package's template once per node with no single wrapping element for
+   the whole form, so the variables live at document-root scope instead of
+   a form-local wrapper; a consumer (or VitePress's existing `.dark`
+   toggle on `<html>`) only needs to toggle `.dark` on the document root.
+   ========================================================================= */
+
+// Media query tiers. Compile-time only; the comment above the generated
+// grid utilities explains how a consumer overrides the compiled widths.
+$breakpoint-sm: 640px; // below this, step labels and the wizard helper hide
+$breakpoint-md: 768px; // two-column grids switch on here
+$breakpoint-lg: 1024px; // widest grid utility tier
+
+:root {
+  /* surfaces */
+  --sft-card-bg: #ffffff;
+  --sft-card-border: #e2e8f0;
+  --sft-card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --sft-muted-bg: #f8fafc;
+  --sft-muted-border: #cad5e2;
+
+  /* text */
+  --sft-text: #0f172b;
+  --sft-text-strong: #1d293d;
+  --sft-text-muted: #45556c;
+  --sft-text-subtle: #62748e;
+  --sft-heading: #0f172b;
+  --sft-placeholder: #90a1b9;
+
+  /* inputs */
+  --sft-input-bg: #ffffff;
+  --sft-input-border: #e5e7eb;
+  --sft-input-disabled-bg: #f8fafc;
+  --sft-input-disabled-text: #62748e;
+
+  /* primary / focus accent (sky) */
+  --sft-accent: #0084d1;
+  --sft-accent-hover: #0069a8;
+  --sft-focus-border: #00a6f4;
+  --sft-focus-ring: #b8e6fe;
+
+  /* choice accent (indigo) */
+  --sft-choice: #4f39f6;
+  --sft-choice-border-hover: #a3b3ff;
+  --sft-choice-ring: #a3b3ff;
+  --sft-choice-grad-top: #eef2ff;
+  --sft-choice-grad-bottom: #ffffff;
+
+  /* accent pill (indigo soft) - intentionally identical in both modes */
+  --sft-pill-bg: #eef2ff;
+  --sft-pill-text: #432dd7;
+
+  /* danger */
+  --sft-danger-border: #fb2c36;
+  --sft-danger-focus-border: #fb2c36;
+  --sft-danger-text: #e7000b;
+  --sft-danger-ring: #ffc9c9;
+  --sft-danger-soft-bg: #fef2f2;
+  --sft-danger-soft-border: #ffc9c9;
+  --sft-danger-soft-text: #c10007;
+  --sft-danger-soft-hover-bg: #ffe2e2;
+
+  /* status */
+  --sft-success: #00bc7d;
+  --sft-track: #e2e8f0;
+
+  /* faithfully ported color spots with no dark variant today,
+     kept as variables so a future dark variant is a one-line change */
+  --sft-confirm-bg: #ecfdf5;
+  --sft-confirm-border: #a4f4cf;
+  --sft-confirm-text: #004f3b;
+  --sft-success-badge-bg: #d0fae5;
+  --sft-success-badge-text: #009966;
+}
+
+:root.dark {
+  --sft-card-bg: #0f172b;
+  --sft-card-border: #314158;
+  --sft-muted-bg: #1d293d;
+  --sft-muted-border: #45556c;
+
+  --sft-text: #f1f5f9;
+  --sft-text-strong: #e2e8f0;
+  --sft-text-muted: #90a1b9;
+  --sft-text-subtle: #90a1b9;
+  --sft-heading: #f1f5f9;
+  --sft-placeholder: #62748e;
+
+  --sft-input-bg: #0f172b;
+  /* input border deliberately stays light gray: the source has no dark
+     variant for the resting input border. Preserved as a faithful port. */
+  --sft-input-disabled-bg: #1d293d;
+  --sft-input-disabled-text: #90a1b9;
+
+  /* no dark variant in the source: the choice-card hover border stays indigo-300 in both modes */
+  --sft-choice-grad-top: #1e1a4d;
+  --sft-choice-grad-bottom: #0f172b;
+
+  --sft-danger-border: #ec003f;
+  --sft-danger-focus-border: #f43f5e;
+  --sft-danger-text: #ff637e;
+  --sft-danger-ring: #8b0836;
+  --sft-danger-soft-bg: #4d0218;
+  --sft-danger-soft-border: #a50036;
+  --sft-danger-soft-text: #ff637e;
+  --sft-danger-soft-hover-bg: #8b0836;
+
+  --sft-track: #314158;
+
+  /* same values as light: no new dark variant added, see the header above */
+  --sft-confirm-bg: #ecfdf5;
+  --sft-confirm-border: #a4f4cf;
+  --sft-confirm-text: #004f3b;
+  --sft-success-badge-bg: #d0fae5;
+  --sft-success-badge-text: #009966;
+}
+
+/* ---- section card --------------------------------------------------- */
+.sft-section {
+  border: 1px solid var(--sft-card-border);
+  background: var(--sft-card-bg);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--sft-card-shadow);
+
+  &.is-disabled {
+    opacity: 0.6;
+  }
+}
+.sft-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.sft-section-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 600;
+  color: var(--sft-heading);
+}
+.sft-section-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--sft-text-muted);
+}
+.sft-pill {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: 9999px;
+  background: var(--sft-pill-bg);
+  color: var(--sft-pill-text);
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+/* responsive two-column field grid: one column on small screens, two columns at >=768px.
+   The `sft-cols-*` utilities at the end of this file override the column count. */
+.sft-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 20px;
+
+  @media (min-width: $breakpoint-md) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+/* bare layout container rendered by the `grid` field type; one column until `sft-cols-*` says otherwise */
+.sft-grid-plain {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+/* ---- field wrapper -------------------------------------------------- */
+.sft-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &.is-disabled {
+    opacity: 0.6;
+  }
+}
+/* nested group separator: a group field sits below its siblings with a divider above it */
+.sft-group {
+  border-top: 1px solid var(--sft-card-border);
+  padding-top: 24px;
+  margin-top: 24px;
+
+  &.is-disabled {
+    opacity: 0.6;
+  }
+
+  /* the group header already carries the gap above the body; drop the body's own top margin
+     (which the choice group relies on, since it has no separate header block) */
+  > .sft-choice-group-body {
+    margin-top: 0;
+  }
+}
+/* group header: heading block and add/remove buttons stack on small screens,
+   sit on one row (buttons top-right) from 768px up */
+.sft-group-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  @media (min-width: $breakpoint-md) {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+.sft-group-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+
+  > .sft-choice-group-title {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  > .sft-field-desc {
+    color: var(--sft-text-muted);
+  }
+}
+.sft-group-actions {
+  display: flex;
+  gap: 8px;
+}
+.sft-field-label {
+  display: flex;
+  justify-content: space-between;
+}
+.sft-field-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--sft-text-subtle);
+}
+.sft-field-control-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  > .sft-field-control {
+    flex: 1 1 auto;
+  }
+}
+
+.sft-tag-optional {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: #45556c;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+
+  :root.dark & {
+    background: #314158;
+    color: #90a1b9;
+  }
+}
+.sft-tag-required {
+  color: #fb2c36;
+
+  :root.dark & {
+    color: #ff637e;
+  }
+}
+/* repeater/group items hide the per-field optional/required marker */
+.sft-hide-tag {
+  .sft-tag-optional,
+  .sft-tag-required {
+    display: none;
+  }
+}
+
+.sft-error {
+  font-size: 14px;
+  color: var(--sft-danger-text);
+}
+
+.sft-dependent {
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--sft-muted-border);
+  background: var(--sft-muted-bg);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--sft-text-subtle);
+}
+
+/* Form controls do not inherit the page font on their own; the template this package was
+   ported from relied on Tailwind preflight doing exactly this. */
+.sft-input,
+.sft-select,
+.sft-btn,
+.sft-step,
+.sft-choice-card,
+.sft-switch {
+  font-family: inherit;
+}
+
+/* ---- inputs --------------------------------------------------------- */
+.sft-input,
+.sft-select {
+  height: 40px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--sft-input-border);
+  border-radius: 8px;
+  background: var(--sft-input-bg);
+  color: var(--sft-text);
+  padding: 8px 12px;
+  /* inherit below 768px (keeps mobile inputs at the page's ~16px, avoiding iOS focus zoom);
+     the 768px rule below pins 14px on desktop, matching the source's `md:text-sm`. */
+  font-size: inherit;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+
+  @media (min-width: $breakpoint-md) {
+    font-size: 14px;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--sft-focus-border);
+    box-shadow: 0 0 0 2px var(--sft-focus-ring);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: var(--sft-input-disabled-bg);
+    color: var(--sft-input-disabled-text);
+  }
+
+  &.is-invalid {
+    border-color: var(--sft-danger-border);
+
+    &:focus {
+      border-color: var(--sft-danger-focus-border);
+      box-shadow: 0 0 0 2px var(--sft-danger-ring);
+    }
+  }
+
+  /* opt-in via the showValidState setting: a touched, valid field gets a subtle success border */
+  &.is-valid {
+    border-color: var(--sft-success);
+  }
+}
+.sft-input::placeholder {
+  color: var(--sft-placeholder);
+}
+
+/* ---- input suffix (e.g. a unit label) -------------------------------- */
+.sft-input-suffix-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  > .sft-input-suffix-input {
+    flex: 1 1 auto;
+  }
+}
+.sft-input-suffix {
+  font-size: 14px;
+  color: var(--sft-text-muted);
+  white-space: nowrap;
+}
+
+/* password */
+.sft-password {
+  position: relative;
+
+  .sft-input {
+    padding-right: 40px;
+  }
+}
+.sft-password-toggle {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding-right: 12px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  /* source has no dark variant: the toggle glyph stays slate-400 in both modes */
+  color: #90a1b9;
+
+  &:hover {
+    color: #45556c;
+
+    :root.dark & {
+      color: #cad5e2;
+    }
+  }
+}
+.sft-strength {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sft-strength-track {
+  display: flex;
+  gap: 4px;
+}
+.sft-strength-seg {
+  height: 6px;
+  flex: 1;
+  border-radius: 9999px;
+  background: var(--sft-track);
+  transition: background 0.3s ease;
+
+  &.is-on-weak {
+    background: #fb2c36;
+  }
+  &.is-on-fair {
+    background: #ffb900;
+  }
+  &.is-on-good {
+    background: #00bcff;
+  }
+  &.is-on-strong {
+    background: #00bc7d;
+  }
+}
+/* enter/leave fade for the strength bar (and any other sft-fade transition) */
+.sft-fade-enter-active,
+.sft-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.sft-fade-enter-from,
+.sft-fade-leave-to {
+  opacity: 0;
+}
+.sft-strength-label {
+  font-size: 12px;
+  font-weight: 500;
+  transition: color 0.3s ease;
+
+  &.is-weak {
+    color: #fb2c36;
+  }
+  &.is-fair {
+    color: #fe9a00;
+  }
+  &.is-good {
+    color: #00a6f4;
+  }
+  &.is-strong {
+    color: #009966;
+
+    :root.dark & {
+      color: #00d492;
+    }
+  }
+}
+
+/* ---- toggle switch -------------------------------------------------- */
+.sft-switch-field {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--sft-muted-bg);
+  border: 1px solid var(--sft-card-border);
+
+  &.is-invalid {
+    border-color: var(--sft-danger-border);
+  }
+  &.is-disabled {
+    opacity: 0.6;
+  }
+}
+.sft-switch-field-label {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--sft-text-strong);
+  margin: 0;
+}
+.sft-switch-field-desc {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--sft-text-subtle);
+  margin: 2px 0 0;
+}
+.sft-switch {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  cursor: pointer;
+
+  &.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  /* keyboard focus ring on the track (matches the source's peer-focus-visible outline) */
+  &:focus-visible {
+    outline: none;
+
+    .sft-switch-track {
+      outline: 2px solid #00a6f4;
+      outline-offset: 2px;
+    }
+  }
+}
+.sft-switch-track {
+  height: 24px;
+  width: 44px;
+  border-radius: 9999px;
+  background: #cad5e2;
+  transition: background 0.15s ease;
+
+  :root.dark & {
+    background: #45556c;
+  }
+
+  /* placed after the dark rule: both selectors weigh the same, so the on-state
+     must come later to win in dark mode */
+  .sft-switch.is-on & {
+    background: var(--sft-accent);
+  }
+}
+.sft-switch-thumb {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  height: 20px;
+  width: 20px;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.15s ease;
+
+  :root.dark & {
+    background: #e2e8f0;
+  }
+
+  .sft-switch.is-on & {
+    transform: translateX(20px);
+  }
+}
+
+/* ---- buttons -------------------------------------------------------- */
+.sft-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+  border: 0;
+  background: none;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+}
+.sft-btn-default {
+  border: 1px solid #cad5e2;
+  background: var(--sft-card-bg);
+  color: #314158;
+
+  :root.dark & {
+    border-color: #45556c;
+    color: #cad5e2;
+  }
+
+  &:hover {
+    border-color: #90a1b9;
+    background: #f8fafc;
+
+    :root.dark & {
+      border-color: #62748e;
+      background: #1d293d;
+    }
+  }
+}
+.sft-btn-primary {
+  border: 1px solid #cad5e2;
+  background: var(--sft-accent);
+  color: #ffffff;
+
+  &:hover {
+    background: var(--sft-accent-hover);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 0 4px #74d4ff;
+  }
+}
+.sft-btn-danger {
+  border: 1px solid #ffc9c9;
+  background: #fef2f2;
+  color: #c10007;
+
+  :root.dark & {
+    border-color: #a50036;
+    background: #4d0218;
+    color: #ff637e;
+  }
+
+  &:hover {
+    border-color: #ff6467;
+    background: #ffe2e2;
+
+    :root.dark & {
+      border-color: #ec003f;
+      background: #8b0836;
+    }
+  }
+}
+.sft-btn-danger-light {
+  color: #c10007;
+
+  :root.dark & {
+    color: #ff637e;
+  }
+
+  &:hover {
+    background: #fef2f2;
+
+    :root.dark & {
+      background: #4d0218;
+    }
+  }
+
+  &:disabled:hover {
+    background: transparent;
+  }
+}
+.sft-btn-ghost {
+  color: var(--sft-text-muted);
+
+  &:hover {
+    background: #f1f5f9;
+    color: var(--sft-text);
+
+    :root.dark & {
+      background: #314158;
+      color: #f1f5f9;
+    }
+  }
+}
+
+/* ---- repeatable arrays ---------------------------------------------- */
+.sft-repeater {
+  border: 1px solid var(--sft-card-border);
+  background: var(--sft-card-bg);
+  border-radius: 12px;
+  padding: 16px;
+}
+.sft-repeater-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.sft-repeater-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sft-repeater-badge {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  width: 28px;
+  border-radius: 9999px;
+  background: var(--sft-pill-bg);
+  color: var(--sft-pill-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.sft-repeater-title {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--sft-text-strong);
+  margin: 0;
+}
+
+.sft-empty {
+  border: 1px dashed var(--sft-muted-border);
+  background: var(--sft-muted-bg);
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+
+  .sft-btn {
+    margin-top: 16px;
+  }
+}
+.sft-empty-icon {
+  color: #90a1b9;
+  margin: 0 auto 8px;
+  display: block;
+
+  :root.dark & {
+    color: #62748e;
+  }
+}
+.sft-empty-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #314158;
+  margin: 0;
+
+  :root.dark & {
+    color: #cad5e2;
+  }
+}
+.sft-empty-hint {
+  font-size: 12px;
+  color: var(--sft-text-subtle);
+  margin: 4px 0 0;
+}
+/* an inline array stacks its items in a single column at every width (its items are single
+   fields, unlike the two-column grid a group/section card lays its children out in).
+   Single-class on purpose: it wins over `.sft-grid` by order, and the `sft-cols-*` utilities
+   at the end of the file can still win over it. */
+.sft-array-items {
+  grid-template-columns: 1fr;
+  margin-top: 0;
+}
+.sft-array-footer {
+  margin-top: 16px;
+}
+
+/* ---- choice cards --------------------------------------------------- */
+.sft-choice-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  grid-column: 1 / -1;
+
+  @media (min-width: $breakpoint-md) {
+    &.cols-2 {
+      grid-template-columns: 1fr 1fr;
+    }
+    &.cols-3 {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+  }
+}
+.sft-choice-card {
+  display: flex;
+  align-items: flex-start;
+  border: 1px solid var(--sft-card-border);
+  background: var(--sft-card-bg);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+
+  &:not(.is-disabled):hover {
+    border-color: var(--sft-choice-border-hover);
+  }
+
+  &.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--sft-choice-ring);
+  }
+
+  &.is-selected {
+    border-color: var(--sft-choice);
+    background: var(--sft-card-bg) linear-gradient(to bottom, var(--sft-choice-grad-top), var(--sft-choice-grad-bottom));
+    box-shadow:
+      0 0 0 1px var(--sft-choice),
+      var(--sft-card-shadow);
+  }
+}
+.sft-choice-body {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 12px;
+}
+.sft-choice-radio {
+  margin-top: 2px;
+  display: grid;
+  place-items: center;
+  height: 16px;
+  width: 16px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 2px solid #cad5e2;
+  transition: border-color 0.15s ease;
+
+  :root.dark & {
+    border-color: #45556c;
+  }
+
+  /* placed after the dark rule: both selectors weigh the same, so the selected
+     state must come later to win in dark mode */
+  .sft-choice-card.is-selected & {
+    border-color: var(--sft-choice);
+  }
+}
+.sft-choice-radio-dot {
+  height: 8px;
+  width: 8px;
+  border-radius: 9999px;
+  background: var(--sft-choice);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+
+  .sft-choice-card.is-selected & {
+    transform: scale(1);
+  }
+}
+.sft-choice-text {
+  flex: 1;
+}
+.sft-choice-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sft-choice-icon {
+  color: var(--sft-pill-text);
+  display: inline-flex;
+}
+.sft-choice-title {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--sft-text);
+  margin: 0;
+}
+.sft-choice-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.625;
+  color: var(--sft-text-muted);
+}
+
+/* explicit / automatic choice group (dashed container) */
+.sft-choice-group {
+  border: 1px dashed var(--sft-muted-border);
+  background: var(--sft-muted-bg);
+  border-radius: 8px;
+  padding: 16px;
+  grid-column: 1 / -1;
+}
+.sft-choice-group-title {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--sft-text);
+
+  &.is-disabled {
+    color: #90a1b9;
+
+    :root.dark & {
+      color: #62748e;
+    }
+  }
+}
+.sft-choice-group-desc {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--sft-text-muted);
+  margin: 4px 0 0;
+}
+.sft-choice-group-body {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+
+  @media (min-width: $breakpoint-md) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* repeatable choice: add-button bar */
+.sft-choice-addbar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.sft-choice-addbar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sft-choice-addbar-reason {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--sft-text-subtle);
+  margin: 0;
+}
+
+/* ---- stepper / wizard ----------------------------------------------- */
+.sft-wizard-head {
+  margin-bottom: 24px;
+}
+.sft-wizard-eyebrow {
+  font-size: 12px;
+  line-height: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sft-text-subtle);
+  margin: 0;
+}
+.sft-wizard-title {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  color: var(--sft-heading);
+  margin: 0;
+}
+
+.sft-stepper {
+  margin-bottom: 32px;
+
+  ol {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+
+    &.grow {
+      flex: 1;
+    }
+  }
+}
+.sft-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+.sft-step-dot {
+  display: grid;
+  place-items: center;
+  height: 32px;
+  width: 32px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  background: #e2e8f0;
+  color: #62748e;
+
+  :root.dark & {
+    background: #314158;
+    color: #90a1b9;
+  }
+
+  .sft-step.is-done & {
+    background: #00bc7d;
+    color: #fff;
+  }
+
+  .sft-step.is-current & {
+    background: var(--sft-accent);
+    color: #fff;
+    box-shadow: 0 0 0 4px #dff2fe;
+
+    :root.dark & {
+      box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.2);
+    }
+  }
+
+  /* error state overrides is-done/is-current, placed after both so it always wins */
+  .sft-step.is-error & {
+    background: var(--sft-danger-border);
+    color: #fff;
+  }
+  .sft-step.is-current.is-error & {
+    box-shadow: 0 0 0 4px var(--sft-danger-ring);
+  }
+}
+.sft-step-label {
+  font-size: 12px;
+  line-height: 16px;
+  color: #90a1b9;
+
+  @media (max-width: $breakpoint-sm) {
+    display: none;
+  }
+
+  :root.dark & {
+    color: #62748e;
+  }
+
+  .sft-step.is-done & {
+    color: #009966;
+  }
+
+  .sft-step.is-current & {
+    font-weight: 600;
+    color: var(--sft-text);
+  }
+
+  /* error state overrides is-done/is-current, placed after both so it always wins */
+  .sft-step.is-error & {
+    color: var(--sft-danger-text);
+  }
+}
+.sft-step-connector {
+  margin: 0 8px;
+  height: 2px;
+  flex: 1;
+  background: #e2e8f0;
+  transition: background 0.2s ease;
+
+  :root.dark & {
+    background: #314158;
+  }
+
+  &.is-done {
+    background: #00bc7d;
+
+    /* the dark rule above outweighs this single-class state, so dark mode
+       needs its own done rule to keep finished connectors green */
+    :root.dark & {
+      background: #00bc7d;
+    }
+  }
+}
+
+.sft-wizard-alert {
+  margin-top: 32px;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  border: 1px solid var(--sft-danger-soft-border);
+  background: var(--sft-danger-soft-bg);
+  color: var(--sft-danger-soft-text);
+}
+.sft-wizard-footer {
+  margin-top: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  /* the alert above already carries its own top margin, so the footer needs less of its own */
+  &.is-tight {
+    margin-top: 16px;
+  }
+
+  .is-hidden {
+    visibility: hidden;
+  }
+}
+/* the back button carries wider horizontal padding than the default button chrome */
+.sft-wizard-back {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.sft-wizard-helper {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--sft-text-subtle);
+  margin: 0;
+
+  @media (max-width: $breakpoint-sm) {
+    display: none;
+  }
+}
+
+/* ---- review step ---------------------------------------------------- */
+.sft-review-group {
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid var(--sft-card-border);
+  border-radius: 12px;
+  grid-column: 1 / -1;
+}
+.sft-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--sft-card-border);
+  background: var(--sft-muted-bg);
+  padding: 8px 16px;
+}
+.sft-review-title {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--sft-text-strong);
+  margin: 0;
+}
+.sft-review-list {
+  margin: 0;
+}
+.sft-review-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 10px 16px;
+  border-top: 1px solid #f1f5f9;
+
+  :root.dark & {
+    border-top-color: #314158;
+  }
+
+  &:first-child {
+    border-top: 0;
+  }
+}
+.sft-review-key {
+  width: 144px;
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--sft-text-subtle);
+  margin: 0;
+}
+.sft-review-val {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--sft-text-strong);
+  margin: 0;
+}
+.sft-confirm {
+  grid-column: 1 / -1;
+  margin-top: 24px;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 20px;
+  border: 1px solid var(--sft-confirm-border);
+  background: var(--sft-confirm-bg);
+  color: var(--sft-confirm-text);
+
+  p {
+    margin: 0;
+  }
+
+  p + p {
+    margin-top: 2px;
+  }
+}
+.sft-confirm-strong {
+  font-weight: 500;
+}
+
+/* ---- submission success --------------------------------------------- */
+.sft-success-hero {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.sft-success-badge {
+  display: grid;
+  place-items: center;
+  height: 64px;
+  width: 64px;
+  border-radius: 9999px;
+  background: var(--sft-success-badge-bg);
+  color: var(--sft-success-badge-text);
+}
+.sft-success-title {
+  margin: 16px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--sft-heading);
+}
+.sft-success-ref {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--sft-text-muted);
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 500;
+    color: var(--sft-text-strong);
+  }
+}
+.sft-timeline {
+  grid-column: 1 / -1;
+  margin-top: 32px;
+  border: 1px solid var(--sft-card-border);
+  background: var(--sft-muted-bg);
+  border-radius: 12px;
+  padding: 20px;
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--sft-text-strong);
+    transition: color 0.15s ease;
+
+    &.is-pending {
+      color: var(--sft-text-subtle);
+    }
+  }
+}
+.sft-timeline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sft-text-strong);
+  margin: 0 0 12px;
+}
+.sft-timeline-dot {
+  display: grid;
+  place-items: center;
+  height: 20px;
+  width: 20px;
+  flex-shrink: 0;
+
+  &.is-done {
+    color: #00bc7d;
+  }
+
+  &.is-pending {
+    color: #90a1b9;
+
+    :root.dark & {
+      color: #62748e;
+    }
+  }
+}
+.sft-spin {
+  animation: sft-spin 1s linear infinite;
+}
+@keyframes sft-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Wraps a consumer-supplied icon override so classes like .sft-spin have a box to animate; display: contents would not work here since a box-less element cannot transform. */
+.sft-icon-host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sft-success-actions {
+  grid-column: 1 / -1;
+  margin-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+
+  @media (max-width: $breakpoint-sm) {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+}
+.sft-json-chevron {
+  display: inline-flex;
+  transition: transform 0.2s ease;
+
+  &.is-open {
+    transform: rotate(90deg);
+  }
+}
+.sft-json {
+  grid-column: 1 / -1;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f3f4f6;
+  color: var(--sft-text);
+
+  :root.dark & {
+    background: #1d293d;
+  }
+}
+/* enter/leave reveal for the submitted-JSON panel */
+.sft-reveal-enter-active {
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out;
+}
+.sft-reveal-leave-active {
+  transition:
+    opacity 0.15s ease-in,
+    transform 0.15s ease-in;
+}
+.sft-reveal-enter-from {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.sft-reveal-leave-to {
+  opacity: 0;
+}
+
+/* ---- icon catalogue demo ------------------------------------------- */
+.sft-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+.sft-icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border: 1px solid var(--sft-card-border);
+  border-radius: 10px;
+  background: var(--sft-card-bg);
+  color: var(--sft-text-muted);
+
+  code {
+    font-size: 11px;
+    color: var(--sft-text-subtle);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+}
+
+/* ---- grid utility classes ------------------------------------------- */
+/* One class per value of the `columns`, `colSpan` and `colStart` field properties, like a
+   small Tailwind, generated per tier by the loops below. Mobile-first tiers: `-base-` applies
+   at every width, the plain class from 768px up (below that every built-in grid is one
+   column), `-lg-` from 1024px up. Declared last so they win over the component defaults
+   above by order. The `sft-col-start-*` group sits after the `sft-span-*` group so an
+   explicit start line always wins over the start a span shorthand sets. To change the tier
+   widths, redeclare these media blocks in your own CSS with your widths; every rule is
+   single-class, so yours win by order. */
+$grid-tiers: (
+  'base-': null,
+  '': $breakpoint-md,
+  'lg-': $breakpoint-lg,
+);
+$grid-max-columns: 6;
+
+// wraps one tier's rules in its media query; the base tier has none
+@mixin grid-tier($min-width) {
+  @if $min-width {
+    @media (min-width: $min-width) {
+      @content;
+    }
+  } @else {
+    @content;
+  }
+}
+
+@each $tier, $min-width in $grid-tiers {
+  @include grid-tier($min-width) {
+    @for $i from 1 through $grid-max-columns {
+      .sft-cols-#{$tier}#{$i} {
+        grid-template-columns: repeat(#{$i}, minmax(0, 1fr));
+      }
+    }
+  }
+}
+
+@each $tier, $min-width in $grid-tiers {
+  @include grid-tier($min-width) {
+    /* `full` comes before the numeric spans: every chrome component that is not a plain
+       input field (cards, groups, choices, repeater items) carries `sft-span-full` on its
+       own root as its full-row default, and an explicit numeric `colSpan` must win by
+       order. Only input fields flow per column. */
+    .sft-span-#{$tier}full {
+      grid-column: 1 / -1;
+    }
+    @for $i from 1 through $grid-max-columns {
+      .sft-span-#{$tier}#{$i} {
+        grid-column: span #{$i} / span #{$i};
+      }
+    }
+  }
+}
+
+@each $tier, $min-width in $grid-tiers {
+  @include grid-tier($min-width) {
+    @for $i from 1 through $grid-max-columns {
+      .sft-col-start-#{$tier}#{$i} {
+        grid-column-start: #{$i};
+      }
+    }
+  }
+}

@@ -10,7 +10,7 @@ Simple forms are cheap. The forms that matter are not simple:
 
 - **Repeating sections.** "Add another applicant", "add another vehicle", "add another income source", each with its own rules and validation.
 - **Conditional logic.** "If the account type is business, require a VAT number." Dozens of these rules, interacting.
-- **Either/or branches.** The user is a person *or* a company, pays by card *or* by invoice, and each branch has its own fields.
+- **Either/or branches.** The user is a person _or_ a company, pays by card _or_ by invoice, and each branch has its own fields.
 - **Validation that must match the back office.** The data has to arrive in exactly the shape your systems, standards, or regulators expect.
 
 Teams usually hand-build this. The rules end up scattered across the user interface code: a hidden field here, a disabled button there, a special case in a change handler somewhere else. Six months later, nobody can safely answer "what happens if I change this field?" Every change request is slow, every release is risky, and when a second brand or client needs the same form, it gets rebuilt from scratch.
@@ -39,14 +39,14 @@ For organisations whose data standards are literally defined in XSD (common in D
 
 The form-tool market is crowded, so it is fair to ask what is genuinely different here. The honest summary: most tools either sell you a platform and own your UI, or give you a free engine whose schema is a component tree with conditions attached, not a data model with occurrence and choice semantics.
 
-| | Vue Dynamic Form | FormVueLate | SurveyJS | Form.io | FormKit | Vueform | JSONForms / JSON Schema tools |
-|---|---|---|---|---|---|---|---|
-| Engine licence | MIT, everything free | MIT, everything free | Free core, commercial builder, PDF and dashboards | MIT renderer, OSL server, paid platform modules | MIT core, paid Pro inputs | MIT framework, commercial builder | Open source (MIT / Apache-2.0) |
-| Who owns the HTML | **You, completely** | You (bring your own components) | Their widgets, themeable | Their renderer | Their structure, configurable | Their components, themeable | Their renderer sets |
-| Vue-native | **Yes, built for Vue 3** | Yes, built for Vue 3 | Supported binding | Wrapper around their JS renderer | Yes (Vue-origin, now also React) | Yes | Supported binding |
-| Repeating sections with per-row logic | **First-class** | Rows via `SchemaArray` (`min`/`max` bounds), per-row rules hand-coded | Yes (panel-scoped expressions) | Via advanced conditions (`row` variable) | Workarounds (index-based) | Yes (wildcard conditions) | Detail layouts only, not in table view |
-| Either/or branches in the model | **First-class (choice), optional data preservation on switch** | Hand-coded (`condition` functions) | Via visibility expressions | Via visibility expressions | Via conditions | Via conditions | `oneOf` (clears data on switch) |
-| Validation engine | vee-validate (the standard Vue validation library) | vee-validate (via plugin) | Own built-in rules | Own built-in rules | Own built-in rules | Own built-in rules | AJV |
+|                                       | Vue Dynamic Form                                               | FormVueLate                                                           | SurveyJS                                          | Form.io                                         | FormKit                          | Vueform                           | JSONForms / JSON Schema tools          |
+| ------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------- | -------------------------------- | --------------------------------- | -------------------------------------- |
+| Engine licence                        | MIT, everything free                                           | MIT, everything free                                                  | Free core, commercial builder, PDF and dashboards | MIT renderer, OSL server, paid platform modules | MIT core, paid Pro inputs        | MIT framework, commercial builder | Open source (MIT / Apache-2.0)         |
+| Who owns the HTML                     | **You, completely**                                            | You (bring your own components)                                       | Their widgets, themeable                          | Their renderer                                  | Their structure, configurable    | Their components, themeable       | Their renderer sets                    |
+| Vue-native                            | **Yes, built for Vue 3**                                       | Yes, built for Vue 3                                                  | Supported binding                                 | Wrapper around their JS renderer                | Yes (Vue-origin, now also React) | Yes                               | Supported binding                      |
+| Repeating sections with per-row logic | **First-class**                                                | Rows via `SchemaArray` (`min`/`max` bounds), per-row rules hand-coded | Yes (panel-scoped expressions)                    | Via advanced conditions (`row` variable)        | Workarounds (index-based)        | Yes (wildcard conditions)         | Detail layouts only, not in table view |
+| Either/or branches in the model       | **First-class (choice), optional data preservation on switch** | Hand-coded (`condition` functions)                                    | Via visibility expressions                        | Via visibility expressions                      | Via conditions                   | Via conditions                    | `oneOf` (clears data on switch)        |
+| Validation engine                     | vee-validate (the standard Vue validation library)             | vee-validate (via plugin)                                             | Own built-in rules                                | Own built-in rules                              | Own built-in rules               | Own built-in rules                | AJV                                    |
 
 A few of these deserve a sentence:
 

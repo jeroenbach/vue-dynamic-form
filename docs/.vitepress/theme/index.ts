@@ -8,13 +8,16 @@ import FormExampleChoiceExplicitSingle from './components/FormExampleChoiceExpli
 import FormExampleChoiceFields from './components/FormExampleChoiceFields.vue';
 import FormExampleChoicePreserveOnSwitch from './components/FormExampleChoicePreserveOnSwitch.vue';
 import FormExampleChoiceRepeatableBranch from './components/FormExampleChoiceRepeatableBranch.vue';
+import FormExampleProjectFields from './components/FormExampleProjectFields.vue';
 import FormExampleValidation from './components/FormExampleValidation.vue';
 import FormExampleWizard from './components/FormExampleWizard.vue';
 import InboxRulesExample from './components/InboxRulesExample.vue';
-import WorkoutPlanExample from './components/WorkoutPlanExample.vue';
 import RunOfShowExample from './components/RunOfShowExample.vue';
+import WorkoutPlanExample from './components/WorkoutPlanExample.vue';
 import FormExampleClientOnboardingPlannerContext from './context/FormExampleClientOnboardingPlannerContext.vue';
 import FormExampleDynamicFieldsContext from './context/FormExampleDynamicFieldsContext.vue';
+// The starter package's stylesheet is pulled in from custom.css (as a layered @import), not
+// here, so it can be ordered relative to Tailwind's cascade layers.
 import './custom.css';
 
 export default {
@@ -28,6 +31,7 @@ export default {
     app.component('FormExampleChoiceExplicitRepeatable', FormExampleChoiceExplicitRepeatable);
     app.component('FormExampleChoicePreserveOnSwitch', FormExampleChoicePreserveOnSwitch);
     app.component('FormExampleChoiceRepeatableBranch', FormExampleChoiceRepeatableBranch);
+    app.component('FormExampleProjectFields', FormExampleProjectFields);
     app.component('FormExampleWizard', FormExampleWizard);
     app.component('FormExampleClientOnboardingPlannerContext', FormExampleClientOnboardingPlannerContext);
     app.component('FormExampleDynamicFieldsContext', FormExampleDynamicFieldsContext);

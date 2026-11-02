@@ -10,7 +10,7 @@ Looking for a one-page checkout instead of a multi-step wizard? See the [Checkou
 - `computedProps` making fields conditionally required or hidden at runtime
 - A repeatable choice (`maxOccurs > 1`) mixing two kinds of systems, with [`displayOrder: 'added'` and `preserveOrder`](/examples/choices#showing-occurrences-in-the-order-they-were-added) so the add order is shown live and written into the submitted values
 - `choice` branches with a custom change handler and icon labels
-- Repeatable array pages (`minOccurs`, `maxOccurs`, `arrayItemName`)
+- Repeatable array pages (`minOccurs`, `maxOccurs`, `array.itemName`)
 - Dynamic options loaded from an external source, cascaded between fields
 - `wizardSummaryPage` for a pre-submit review with edit links
 - Animated submission timeline after a successful submit
@@ -33,4 +33,4 @@ Looking for a one-page checkout instead of a multi-step wizard? See the [Checkou
 
 - [FormExampleClientOnboardingPlanner.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleClientOnboardingPlanner.vue)
 - [FormExampleClientOnboardingPlannerContext.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/context/FormExampleClientOnboardingPlannerContext.vue)
-- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)
+- [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)

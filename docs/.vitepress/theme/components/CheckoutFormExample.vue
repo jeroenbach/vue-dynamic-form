@@ -204,6 +204,7 @@ const canSubmit = computed(() => meta.value.valid);
 // shipping-inclusive total, which changes live with the shipping method.
 const settings = computed<DynamicFormSettings>(() => ({
   orderTotal: total.value,
+  showValidState: true,
   messages: MESSAGES,
 }));
 
@@ -218,6 +219,7 @@ const metadata: Metadata[] = [
     fieldOptions: { label: 'How would you like to check out?' },
     description: 'Choose one. Express skips the form; manual reveals it.',
     explicitChoiceSelection: true,
+    choicePicker: { show: true },
     preserveOnSwitch: true,
     choice: [
       {
@@ -241,7 +243,7 @@ const metadata: Metadata[] = [
             fieldOptions: { label: 'Contact' },
             description: 'We only use this to send your order confirmation.',
             children: [
-              { name: 'fullName', fieldOptions: { label: 'Full name' }, placeholder: 'e.g. Anna de Vries', fullWidth: true },
+              { name: 'fullName', fieldOptions: { label: 'Full name' }, placeholder: 'e.g. Anna de Vries', colSpan: 'full' },
               { name: 'email', type: 'email', fieldOptions: { label: 'Email' }, validation: emailValidation },
               { name: 'phone', type: 'tel', minOccurs: 0, fieldOptions: { label: 'Phone' }, placeholder: '+31 6 1234 5678' },
             ],
@@ -262,7 +264,7 @@ const metadata: Metadata[] = [
             minOccurs: 0,
             children: [
               // #region business-vat-toggle
-              { name: 'isBusiness', type: 'checkbox', minOccurs: 0, fullWidth: true, fieldOptions: { label: 'I am ordering as a business' } },
+              { name: 'isBusiness', type: 'checkbox', minOccurs: 0, colSpan: 'full', fieldOptions: { label: 'I am ordering as a business' } },
               {
                 name: 'company',
                 fieldOptions: { label: 'Company name' },
@@ -298,6 +300,7 @@ const metadata: Metadata[] = [
             type: 'heading',
             fieldOptions: { label: 'Shipping method' },
             explicitChoiceSelection: true,
+            choicePicker: { show: true },
             choice: [
               {
                 name: 'homeDelivery',
@@ -322,13 +325,15 @@ const metadata: Metadata[] = [
             type: 'heading',
             fieldOptions: { label: 'How would you like to pay?' },
             explicitChoiceSelection: true,
+            choicePicker: { show: true },
             // While split payment is active this choice is disabled and deselected, so the two
-            // payment paths never compete: maxOccurs 0 is the engine's own disable switch (it
-            // stands down the choice's validation and disables every field beneath it), and the
-            // template deselects a disabled choice, which also clears a previously chosen
-            // method out of the order values.
+            // payment paths never compete. `disabled` is the starter template's extended flag:
+            // the template greys out a disabled choice and deselects it, which also clears a
+            // previously chosen method out of the order values. Dropping minOccurs to 0 stands
+            // down the "pick one" validation at the same time.
             computedProps: [(thisField) => {
-              thisField.maxOccurs = splitPaymentActive.value ? 0 : 1;
+              thisField.disabled = splitPaymentActive.value;
+              thisField.minOccurs = splitPaymentActive.value ? 0 : 1;
             }],
             // #region payment-choice
             choice: [
@@ -337,7 +342,8 @@ const metadata: Metadata[] = [
                 fieldOptions: { label: '💳 Card' },
                 inertPaymentDisclaimer: true,
                 children: [
-                  { name: 'cardNumber', fieldOptions: { label: 'Card number' }, placeholder: '1234 5678 9012 3456', fullWidth: true },
+                  { name: 'disclaimer', type: 'disclaimer' },
+                  { name: 'cardNumber', fieldOptions: { label: 'Card number' }, placeholder: '1234 5678 9012 3456', colSpan: 'full' },
                   { name: 'expiry', fieldOptions: { label: 'Expiry' }, placeholder: 'MM / YY' },
                   { name: 'cvc', fieldOptions: { label: 'CVC' }, placeholder: '123' },
                 ],
@@ -347,7 +353,8 @@ const metadata: Metadata[] = [
                 fieldOptions: { label: 'iDEAL' },
                 inertPaymentDisclaimer: true,
                 children: [
-                  { name: 'bank', type: 'select', fieldOptions: { label: 'Your bank' }, fullWidth: true, options: BANK_OPTIONS, restriction: { enumeration: BANK_OPTIONS.map(option => option.key) } },
+                  { name: 'disclaimer', type: 'disclaimer' },
+                  { name: 'bank', type: 'select', fieldOptions: { label: 'Your bank' }, colSpan: 'full', options: BANK_OPTIONS, restriction: { enumeration: BANK_OPTIONS.map(option => option.key) } },
                 ],
               },
               {
@@ -364,7 +371,7 @@ const metadata: Metadata[] = [
                     name: 'installmentPlan',
                     type: 'select',
                     fieldOptions: { label: 'Installment plan' },
-                    fullWidth: true,
+                    colSpan: 'full',
                     options: klarnaOptionsFor(ORDER_TOTAL),
                     restriction: { enumeration: KLARNA_MONTHS.map(String) },
                     computedProps: [(thisField) => {
@@ -380,7 +387,7 @@ const metadata: Metadata[] = [
             name: 'splitPaymentActive',
             type: 'checkbox',
             minOccurs: 0,
-            fullWidth: true,
+            colSpan: 'full',
             fieldOptions: { label: 'Split your payment across multiple methods' },
           },
           // #region split-payment-choice
@@ -432,7 +439,7 @@ const metadata: Metadata[] = [
                 fieldOptions: { label: '💳 Card' },
                 description: 'Covers the remainder',
                 children: [
-                  { name: 'cardNumber', fieldOptions: { label: 'Card number' }, fullWidth: true, placeholder: '1234 5678 9012 3456', validation: splitCardNumberValidation, computedProps: [(thisField, fieldValue) => setupSplitPaymentField(thisField, fieldValue, SPLIT_PAYMENT_SEEDS.cardNumber)] },
+                  { name: 'cardNumber', fieldOptions: { label: 'Card number' }, colSpan: 'full', placeholder: '1234 5678 9012 3456', validation: splitCardNumberValidation, computedProps: [(thisField, fieldValue) => setupSplitPaymentField(thisField, fieldValue, SPLIT_PAYMENT_SEEDS.cardNumber)] },
                 ],
               },
               {
@@ -441,7 +448,7 @@ const metadata: Metadata[] = [
                 fieldOptions: { label: 'PayPal' },
                 description: 'Covers the remainder',
                 children: [
-                  { name: 'account', type: 'email', fieldOptions: { label: 'Account' }, fullWidth: true, placeholder: 'you@example.com', validation: splitAccountValidation, computedProps: [(thisField, fieldValue) => setupSplitPaymentField(thisField, fieldValue, SPLIT_PAYMENT_SEEDS.payPalAccount)] },
+                  { name: 'account', type: 'email', fieldOptions: { label: 'Account' }, colSpan: 'full', placeholder: 'you@example.com', validation: splitAccountValidation, computedProps: [(thisField, fieldValue) => setupSplitPaymentField(thisField, fieldValue, SPLIT_PAYMENT_SEEDS.payPalAccount)] },
                 ],
               },
             ],
@@ -471,12 +478,12 @@ const metadata: Metadata[] = [
             // Optional as a whole: left untouched whenever no gift message is added.
             minOccurs: 0,
             children: [
-              { name: 'addGiftMessage', type: 'checkbox', minOccurs: 0, fullWidth: true, fieldOptions: { label: 'Add a gift message' } },
+              { name: 'addGiftMessage', type: 'checkbox', minOccurs: 0, colSpan: 'full', fieldOptions: { label: 'Add a gift message' } },
               {
                 name: 'message',
                 type: 'textareaWithCounter',
                 minOccurs: 0,
-                fullWidth: true,
+                colSpan: 'full',
                 fieldOptions: { label: 'Gift message' },
                 placeholder: 'Write a short note…',
                 // The engine's own maxLength rule enforces the limit directly off this
@@ -504,7 +511,7 @@ const metadata: Metadata[] = [
             minOccurs: 0,
             // #region billing-reuse
             children: [
-              { name: 'sameAsShipping', type: 'checkbox', minOccurs: 0, fullWidth: true, fieldOptions: { label: 'Billing address is the same as shipping' } },
+              { name: 'sameAsShipping', type: 'checkbox', minOccurs: 0, colSpan: 'full', fieldOptions: { label: 'Billing address is the same as shipping' } },
               ...createAddressFields(),
             ],
             // #endregion billing-reuse
@@ -674,7 +681,7 @@ function createAddressFields(): Metadata[] {
       name: 'street',
       fieldOptions: { label: 'Street and number' },
       placeholder: 'e.g. Keizersgracht 123',
-      fullWidth: true,
+      colSpan: 'full',
       computedProps: [(thisField) => {
         const isActive = readPath(values, `${thisField.parent.path}.sameAsShipping`) !== true;
         thisField.hide = !isActive;

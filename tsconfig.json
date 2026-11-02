@@ -16,7 +16,7 @@
   },
   "references": [
     { "path": "./packages/core" },
-    { "path": "./packages/element-plus" }
+    { "path": "./packages/starter" }
   ],
   "files": [],
   "include": []

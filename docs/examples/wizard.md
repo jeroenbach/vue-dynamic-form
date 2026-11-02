@@ -9,7 +9,7 @@ Split a long form into ordered steps. Steps validate as the user moves through t
 - A stepper that reflects the current step, jumps to any step, forward or back, and turns a step red when it has validation errors
 - A final step whose submit button is disabled while any step still has errors, with a message pointing at the red steps
 - A [`wizardSummaryPage`](/reference/field-metadata#wizard) step that reviews the collected values with per-section edit links
-- `submitButtonText` for the label on the final step's submit button
+- `wizardTexts.submitButtonText` for the label on the final step's submit button
 
 ## Example
 
@@ -32,11 +32,11 @@ Wizard page slots gate visibility with `v-show`, never `v-if`. Every page stays 
 The example above is non-linear because it sets `allowForwardJump`. Without it, `wizard: true` gives a linear wizard: `next()` blocks on an invalid step, and the stepper only jumps backward to already-visited steps, so the user must complete each step in order before moving on.
 
 ```ts
-{
+const registration = {
   name: 'registration',
   wizard: true, // linear: next() blocks, stepper is backward-only
   children: [/* ... */],
-}
+};
 ```
 
 `allowForwardJump` makes forward movement non-blocking: both `next()` and forward jumps from the stepper surface the current step's errors but let the user continue anyway. Validation still fires so errors stay visible; to move without validating at all, add `validateOnJump: false` for a silent jump.
@@ -47,13 +47,13 @@ A non-linear wizard lets the user walk past invalid steps, so the stepper double
 
 The engine does not track per-step validity; the template derives it. Each page in the `pages` slot prop carries its `path`, and vee-validate exposes all current errors keyed by field path via `useFormErrors()`, so the template marks a step as erroneous when any error path falls at or under the page's path (the exported `isPathInSection` helper does that matching, the same one `validateSection` uses internally):
 
-<<< @/.vitepress/theme/components/AdvancedFormTemplate.vue#wizard-step-errors{ts} [AdvancedFormTemplate.vue]
+<<< @/../packages/starter/src/StarterFormTemplate.vue#wizard-step-errors{ts} [StarterFormTemplate.vue]
 
 Errors only exist once a field has been validated, so steps turn red exactly as validation surfaces them: when `next()` or a forward jump validates the page being left, or when a submit attempt validates the whole form. A not-yet-visited step is never falsely red, and a red step clears as soon as its fields are fixed, re-enabling the submit button.
 
 ## The Review Page
 
-The final step is a `wizardSummaryPage`. A `computedProps` function feeds it a `wizardSummary` array, and the template renders one review group per section with an edit link that calls `gotoStep()`:
+The final step is a `wizardSummaryPage`. A `computedProps` function feeds its `wizardSummary.groups`, and the template renders one review group per section with an edit link that calls `gotoStep()`:
 
 <<< @/.vitepress/theme/components/FormExampleWizard.vue#summary-information{ts} [FormExampleWizard.vue]
 
@@ -68,6 +68,6 @@ For a production-scale wizard that layers conditional fields, dynamic options, r
 ## Related Source
 
 - [FormExampleWizard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleWizard.vue)
-- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)
-- [FormWizard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormWizard.vue)
-- [Stepper.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/Stepper.vue)
+- [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)
+- [FormWizard.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/FormWizard.vue)
+- [Stepper.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/Stepper.vue)

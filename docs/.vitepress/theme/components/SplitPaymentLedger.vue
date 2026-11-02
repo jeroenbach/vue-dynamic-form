@@ -1,10 +1,10 @@
 <script lang="ts" setup>
+import type { ChoiceOption } from '@bach.software/vue-dynamic-form-starter';
 import type { MaybeRefOrGetter } from 'vue';
-import type { ChoiceOption } from './ChoiceSectionCard.vue';
 import type { SplitPaymentBranchShape } from './splitPaymentLedgerMath';
+import { ChoiceArraySectionCard } from '@bach.software/vue-dynamic-form-starter';
 import { useFormContext } from 'vee-validate';
 import { computed } from 'vue';
-import ChoiceArraySectionCard from './ChoiceArraySectionCard.vue';
 import {
   collectSplitPaymentOccurrences,
   computeSplitPaymentLedger,

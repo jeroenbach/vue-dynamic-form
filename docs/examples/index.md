@@ -9,12 +9,13 @@ Runnable examples that cover the main features. Each page embeds the live compon
 - [Choice Fields](/examples/choices): mutually exclusive branches
 - [Dynamic Fields](/examples/dynamic-fields): options loaded from an external source
 - [Validation](/examples/validation): restrictions, async checks, password strength, and cross-field rules
+- [Extending The Starter Template](/examples/extending-starter): project-specific field types on top of the starter template
 - [Wizard](/examples/wizard): multi-step form with per-step validation and a review page
+- [Client Onboarding Wizard](/examples/advanced): full-featured client onboarding wizard
 - [Checkout](/examples/checkout): a complete one-page webshop checkout with a split-payment finale
 - [Inbox Rules Builder](/examples/inbox-rules): a reorderable, ordered list of rules where order is the whole point
-- [Workout Plan Builder](/examples/workout-plan): a repeatable ordered choice where reordering alone satisfies or breaks published coaching conventions
 - [Run of Show Builder](/examples/run-of-show): a repeatable ordered choice where reordering changes a computed clock and whether an amplified-music curfew is met
-- [Advanced Wizard](/examples/advanced): full-featured client onboarding wizard
+- [Workout Plan Builder](/examples/workout-plan): a repeatable ordered choice where reordering alone satisfies or breaks published coaching conventions
 
 ## Quick Overview
 

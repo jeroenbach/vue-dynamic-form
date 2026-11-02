@@ -9,7 +9,7 @@ Invoke the **product-owner** agent (model: sonnet, pass this explicitly on the A
 
 An epic is a lightweight container only: it holds vision and the feature breakdown, and has **no** design or architecture of its own (those live at feature level). The epic lifecycle is `draft → [awaiting-discussion] → awaiting-approval → approved → in-progress → done`. The product-owner stops at `awaiting-discussion` if it listed any open question (the usual outcome for an epic proposing real scope) or `awaiting-approval` if it listed none. Only Jeroen sets `status: approved`.
 
-After approval, elaborate each candidate feature with `/spec:feature <idea> EPIC-XXX`, which stamps `epic: EPIC-XXX` on the new feature (flat model: features live at the top level of `specs/`, never nested under the epic folder) and adds it to the epic's Features section. The epic moves to `in-progress` when its first feature starts, and to `done` when every child feature is `done`.
+After approval, `/spec:continue EPIC-XXX` drives the epic: it elaborates the next candidate feature whose dependencies are `done` (via `/spec:feature`, which stamps `epic: EPIC-XXX` on the new feature; flat model: features live at the top level of `specs/`, never nested under the epic folder, and are added to the epic's Features section) and advances every existing child feature to its next gate. Individual candidates can still be elaborated by hand with `/spec:feature <idea> EPIC-XXX`. The epic moves to `in-progress` when its first feature starts, and to `done` when every child feature is `done`.
 
 Epic idea:
 

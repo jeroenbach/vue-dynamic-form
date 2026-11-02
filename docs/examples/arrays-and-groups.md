@@ -6,9 +6,9 @@ Repeatable sections controlled by `minOccurs` / `maxOccurs`, with per-item titli
 
 - `minOccurs` / `maxOccurs` to control how many times a section can repeat
 - `autoAddMinOccurs: false` for opt-in (empty by default) arrays
-- `arrayItemName`, `arrayItemNamePlural` for friendly add/remove labels
-- `arrayItemFieldForTitle` to use a child field value as the item title
-- `arrayNoItemsMessage` for an empty-state prompt
+- `array.itemName`, `array.itemNamePlural` for friendly add/remove labels
+- `array.itemFieldForTitle` to use a child field value as the item title
+- `array.noItemsMessage` for an empty-state prompt
 
 ## Example
 
@@ -27,4 +27,4 @@ The array behaviour is configured directly on the heading field:
 ## Related Source
 
 - [FormExampleArrayFields.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleArrayFields.vue)
-- [AdvancedFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/AdvancedFormTemplate.vue)
+- [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)

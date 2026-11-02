@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import type { GetMetadataType } from '@bach.software/vue-dynamic-form';
 import { defineMetadata, DynamicFormTemplate } from '@bach.software/vue-dynamic-form';
-import ErrorMessage from './ErrorMessage.vue';
 import FormField from './FormField.vue';
 import SectionCard from './SectionCard.vue';
 import TextInput from './TextInput.vue';
@@ -30,7 +29,7 @@ const metadata = defineMetadata<
       </SectionCard>
     </template>
 
-    <template #default="{ fieldMetadata, fieldContext: { errorMessage, label }, required }">
+    <template #default="{ fieldMetadata, fieldContext: { label }, required }">
       <FormField :input-id="fieldMetadata.path" :dataTestid="fieldMetadata.path" :label :required>
         <slot />
       </FormField>

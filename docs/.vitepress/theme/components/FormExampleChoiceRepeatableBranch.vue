@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
+import type { Metadata } from './AdvancedForm.vue';
 import { useDynamicForm } from '@bach.software/vue-dynamic-form';
 import AdvancedForm from './AdvancedForm.vue';
 
@@ -20,13 +20,13 @@ const metadata: Metadata[] = [
     fieldOptions: { label: 'Notification channel' },
     description: 'Pick exactly one channel. The SMS branch itself repeats: once selected, you can add up to 3 phone numbers for that single selection.',
     explicitChoiceSelection: true,
-    choiceShowChoiceSelect: true,
+    choicePicker: { show: true },
     choice: [
       {
         name: 'phoneNumbers',
         type: 'text',
         maxOccurs: 3,
-        fullWidth: true,
+        colSpan: 'full',
         fieldOptions: { label: 'SMS' },
         description: 'Up to 3 phone numbers.',
         placeholder: 'e.g. +31 6 12345678',

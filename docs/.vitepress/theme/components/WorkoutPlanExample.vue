@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { WorkoutBranchShape } from './workoutPlanMath';
-import type { Metadata } from './WorkoutPlanTemplate.vue';
+import type { DynamicFormSettings, Metadata } from './WorkoutPlanTemplate.vue';
 import { DynamicForm, removeNullValues, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { computed, ref } from 'vue';
 import { collectBlocks, summarizePlan } from './workoutPlanMath';
@@ -102,6 +102,11 @@ const {
   initialValues: INITIAL_PLAN_VALUES,
 });
 
+const settings: DynamicFormSettings = {
+  messages: MESSAGES,
+  showValidState: true,
+};
+
 const isSubmitting = ref(false);
 const submitted = ref<WorkoutPlanValues>();
 
@@ -143,7 +148,7 @@ const metadata: Metadata[] = [
         type: 'block',
         fieldOptions: { label: 'Strength exercise' },
         children: [
-          { name: 'name', type: 'text', fullWidth: true, fieldOptions: { label: 'Exercise name' }, placeholder: 'e.g. Barbell back squat' },
+          { name: 'name', type: 'text', colSpan: 'full', fieldOptions: { label: 'Exercise name' }, placeholder: 'e.g. Barbell back squat' },
           { name: 'muscle', type: 'select', fieldOptions: { label: 'Muscle group' }, options: MUSCLE_GROUPS, restriction: { enumeration: MUSCLE_GROUPS.map(option => option.key) } },
           { name: 'type', type: 'select', fieldOptions: { label: 'Movement type' }, options: MOVEMENT_TYPES, restriction: { enumeration: MOVEMENT_TYPES.map(option => option.key) } },
           { name: 'sets', type: 'number', fieldOptions: { label: 'Sets' }, restriction: POSITIVE_NUMBER_RESTRICTION },
@@ -196,7 +201,7 @@ function buildAnotherPlan() {
 <template>
   <div class="form-demo workout-layout">
     <form class="flex flex-col gap-6" @submit="onSubmit">
-      <DynamicForm :template="WorkoutPlanTemplate" :metadata :settings="{ messages: MESSAGES }" />
+      <DynamicForm :template="WorkoutPlanTemplate" :metadata :settings />
 
       <div v-if="!submitted" class="flex flex-col gap-3">
         <button

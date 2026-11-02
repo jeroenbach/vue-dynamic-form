@@ -2,6 +2,10 @@
   "name": "vue-dynamic-form-workspace",
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@11.4.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "postinstall": "(cd docs && pnpm i) & (cd playgrounds/storybook && pnpm i) & wait",
     "dev": "pnpm build:watch & pnpm --prefix playgrounds/storybook dev",
@@ -14,21 +18,17 @@
     "build:watch": "pnpm -r build && pnpm -r --parallel build:watch",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm -r typecheck && pnpm --prefix playgrounds/storybook typecheck",
     "ci": "pnpm -r ci && pnpm --prefix docs ci:test",
     "ci:lint": "pnpm -r ci:lint",
     "ci:test": "pnpm -r ci:test && pnpm --prefix docs ci:test",
     "ci:test:coverage": "pnpm -r ci:test:coverage && pnpm --prefix docs ci:test",
-    "ci:typecheck": "pnpm -r ci:typecheck",
+    "ci:typecheck": "pnpm -r ci:typecheck && pnpm --prefix playgrounds/storybook ci:typecheck",
     "ci:build": "pnpm -r ci:build",
     "changeset": "changeset"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",
     "@changesets/cli": "catalog:tooling"
-  },
-  "engines": {
-    "node": ">=22.13.0"
-  },
-  "packageManager": "pnpm@11.4.0"
+  }
 }

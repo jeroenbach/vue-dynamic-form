@@ -27,7 +27,7 @@ features:
 
 ## The Problem It Solves
 
-The forms that matter are never three fields and a button. They repeat ("add another applicant"), they branch (person *or* company), and they carry rules ("if business, require a VAT number"). Hand-built, those rules end up scattered through the UI code until nobody can safely answer "what happens if I change this field?"
+The forms that matter are never three fields and a button. They repeat ("add another applicant"), they branch (person _or_ company), and they carry rules ("if business, require a VAT number"). Hand-built, those rules end up scattered through the UI code until nobody can safely answer "what happens if I change this field?"
 
 Vue Dynamic Form separates **how a form behaves** from **how it looks**. The behaviour lives in one plain, readable definition, built on a model inspired by XSD (the schema language behind government, insurance, customs, and tax systems), so the hard cases were battle-tested long before this library existed. The look is built entirely from your own components on top of `vee-validate`, the most widely used Vue validation library. The whole engine is MIT licensed: no per-developer fees, no production licences, no paywalled features.
 
@@ -42,6 +42,8 @@ Curious how it stacks up against SurveyJS, FormKit, Form.io and the JSON Schema 
 Most form logic comes down to "if this field has a certain value, show/hide/require/change that other field", and it usually ends up scattered across `v-if`s, computed properties, and `watch()` calls. Here it lives with the field itself: the **form definition decides when** something happens, and your **template decides what that looks like** in HTML.
 
 ::: code-group
+
+<!-- eslint-skip -->
 
 ```ts{8} [Form definition: the when]
 const fields: Metadata[] = [

@@ -3,28 +3,39 @@
   "type": "module",
   "private": true,
   "description": "VitePress manual for vue-dynamic-form, including interactive demo forms that reuse the repository examples.",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "vitepress dev .",
     "build": "vitepress build .",
     "preview": "vitepress preview .",
     "test": "vitest run",
-    "ci:test": "TZ=Europe/Amsterdam vitest run"
+    "ci:test": "TZ=Europe/Amsterdam vitest run",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "vue-tsc --noEmit",
+    "test:render": "node scripts/verifyDogfoodRender.mjs"
   },
   "dependencies": {
     "@bach.software/vue-dynamic-form": "link:../packages/core",
+    "@bach.software/vue-dynamic-form-starter": "link:../packages/starter",
     "@vee-validate/rules": "4.15.1",
     "vee-validate": "4.15.1",
     "vue": "3.5.44"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "5.2.1",
     "@tailwindcss/vite": "4.1.12",
     "@types/node": "24.2.1",
+    "eslint": "9.33.0",
+    "eslint-plugin-format": "1.0.1",
+    "playwright": "1.54.2",
     "tailwindcss": "4.1.12",
+    "typescript": "5.9.2",
     "vite-plugin-vue-devtools": "^7.7.9",
     "vitepress": "1.6.4",
-    "vitest": "3.2.6"
-  },
-  "engines": {
-    "node": ">=22.13.0"
+    "vitest": "3.2.6",
+    "vue-tsc": "3.0.5"
   }
 }

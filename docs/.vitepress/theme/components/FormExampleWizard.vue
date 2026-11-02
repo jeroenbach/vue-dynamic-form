@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
-import type { Props as ReviewGroupProps } from './ReviewGroup.vue';
+import type { ReviewGroupProps } from '@bach.software/vue-dynamic-form-starter';
+import type { Metadata } from './AdvancedForm.vue';
 import { removeNullValues, useDynamicForm } from '@bach.software/vue-dynamic-form';
+import { SubmissionSuccess } from '@bach.software/vue-dynamic-form-starter';
 import { computed, ref } from 'vue';
 import AdvancedForm from './AdvancedForm.vue';
-import SubmissionSuccess from './SubmissionSuccess.vue';
 
 // #region shared-types
 export interface EventRegistrationValues {
@@ -84,7 +84,7 @@ const metadata: Metadata[] = [
     wizard: { allowForwardJump: true },
     fieldOptions: { label: formName },
     description: 'Reserve your spot',
-    submitButtonText: 'Complete registration',
+    wizardTexts: { submitButtonText: 'Complete registration' },
     children: [
       {
         name: 'attendee',
@@ -97,13 +97,13 @@ const metadata: Metadata[] = [
             name: 'fullName',
             fieldOptions: { label: 'Full name' },
             restriction: { minLength: 2 },
-            fullWidth: true,
+            colSpan: 'full',
           },
           {
             name: 'email',
             fieldOptions: { label: 'Email' },
             restriction: { pattern: '^.+@.+\\..+$' },
-            fullWidth: true,
+            colSpan: 'full',
           },
         ],
       },
@@ -151,7 +151,7 @@ const metadata: Metadata[] = [
             type: 'checkbox',
             minOccurs: 0,
             fieldOptions: { label: 'Send me event updates by email' },
-            fullWidth: true,
+            colSpan: 'full',
           },
         ],
       },
@@ -161,9 +161,8 @@ const metadata: Metadata[] = [
         fieldOptions: { label: 'Review & submit' },
         description: 'Check everything before you register. Jump to any step to make a change.',
         helpText: 'Confirm',
-        wizardSummaryConfirmation: 'We\'ll email your ticket and a calendar invite to confirm your spot.',
         minOccurs: 0,
-        computedProps: [(field) => { field.wizardSummary = wizardSummary.value; }],
+        computedProps: [(field) => { field.wizardSummary = { groups: wizardSummary.value, confirmation: 'We\'ll email your ticket and a calendar invite to confirm your spot.' }; }],
       },
     ],
   },

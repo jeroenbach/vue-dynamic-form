@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Metadata } from './AdvancedFormTemplate.vue';
+import type { Metadata } from './AdvancedForm.vue';
 import { useDynamicForm } from '@bach.software/vue-dynamic-form';
 import AdvancedForm from './AdvancedForm.vue';
 
@@ -21,7 +21,7 @@ const metadata: Metadata[] = [
     description: 'Fill in an address, switch to pickup, then switch back: your address is still there.',
     explicitChoiceSelection: true,
     preserveOnSwitch: true,
-    choiceShowChoiceSelect: true,
+    choicePicker: { show: true },
     choice: [
       {
         name: 'homeDelivery',

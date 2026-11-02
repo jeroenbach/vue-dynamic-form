@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
 import type { ProgramBranchShape } from './runOfShowMath';
+import { AppButton, StarterIcon } from '@bach.software/vue-dynamic-form-starter';
 import { useFormContext } from 'vee-validate';
 import { computed, toValue } from 'vue';
-import AppButton from './AppButton.vue';
-import AppIcon from './AppIcon.vue';
 import {
   collectProgramOccurrences,
   computeTimeline,
@@ -223,7 +222,7 @@ function moveDown() {
             :dataTestid="dataTestid ? `${dataTestid}-move-up` : undefined"
             @click="moveUp"
           >
-            <AppIcon name="chevronUp" />
+            <StarterIcon name="chevronUp" />
           </AppButton>
           <AppButton
             variant="ghost"
@@ -232,7 +231,7 @@ function moveDown() {
             :dataTestid="dataTestid ? `${dataTestid}-move-down` : undefined"
             @click="moveDown"
           >
-            <AppIcon name="chevronDown" />
+            <StarterIcon name="chevronDown" />
           </AppButton>
           <AppButton
             variant="danger-light"
@@ -241,7 +240,7 @@ function moveDown() {
             :dataTestid="dataTestid ? `${dataTestid}-remove-button` : undefined"
             @click="$emit('remove')"
           >
-            <AppIcon name="bin" />
+            <StarterIcon name="trash" />
           </AppButton>
         </div>
       </div>

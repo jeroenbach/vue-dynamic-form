@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
 import type { SplitPaymentBranchShape } from './splitPaymentLedgerMath';
+import { AppButton, StarterIcon } from '@bach.software/vue-dynamic-form-starter';
 import { useFormContext } from 'vee-validate';
 import { computed, toValue } from 'vue';
-import AppButton from './AppButton.vue';
-import AppIcon from './AppIcon.vue';
 import {
   collectSplitPaymentOccurrences,
   computeSplitPaymentLedger,
@@ -96,7 +95,7 @@ function moveDown() {
           :dataTestid="dataTestid ? `${dataTestid}-move-up` : undefined"
           @click="moveUp"
         >
-          <AppIcon name="chevronUp" />
+          <StarterIcon name="chevronUp" />
         </AppButton>
         <AppButton
           variant="ghost"
@@ -105,7 +104,7 @@ function moveDown() {
           :dataTestid="dataTestid ? `${dataTestid}-move-down` : undefined"
           @click="moveDown"
         >
-          <AppIcon name="chevronDown" />
+          <StarterIcon name="chevronDown" />
         </AppButton>
       </div>
     </div>
@@ -136,7 +135,7 @@ function moveDown() {
       :dataTestid="dataTestid ? `${dataTestid}-remove-button` : undefined"
       @click="$emit('remove')"
     >
-      <AppIcon name="bin" />
+      <StarterIcon name="trash" />
     </AppButton>
   </article>
 </template>

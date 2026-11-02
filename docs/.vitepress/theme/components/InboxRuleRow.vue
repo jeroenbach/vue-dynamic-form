@@ -1,9 +1,8 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
+import { AppButton, StarterIcon } from '@bach.software/vue-dynamic-form-starter';
 import { useFormContext } from 'vee-validate';
 import { computed, toValue } from 'vue';
-import AppButton from './AppButton.vue';
-import AppIcon from './AppIcon.vue';
 import { collectRules, findUnreachableRules, planReorderSwap } from './inboxRoutingMath';
 
 /**
@@ -88,7 +87,7 @@ function applySwap(swap: ReturnType<typeof planReorderSwap>) {
           :dataTestid="`${path}-move-up`"
           @click="applySwap(upSwap)"
         >
-          <AppIcon name="chevronUp" />
+          <StarterIcon name="chevronUp" />
         </AppButton>
         <AppButton
           variant="ghost"
@@ -97,7 +96,7 @@ function applySwap(swap: ReturnType<typeof planReorderSwap>) {
           :dataTestid="`${path}-move-down`"
           @click="applySwap(downSwap)"
         >
-          <AppIcon name="chevronDown" />
+          <StarterIcon name="chevronDown" />
         </AppButton>
       </div>
     </div>
@@ -135,7 +134,7 @@ function applySwap(swap: ReturnType<typeof planReorderSwap>) {
       :dataTestid="`${path}-remove-button`"
       @click="$emit('remove')"
     >
-      <AppIcon name="bin" />
+      <StarterIcon name="trash" />
     </AppButton>
   </article>
 </template>

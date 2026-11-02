@@ -7,7 +7,7 @@ The library extends `vee-validate` with metadata-driven rules and message resolu
 The `restriction` property on a field definition is the primary way to add validation. The library translates each key into a registered vee-validate rule automatically:
 
 ```ts
-{
+const field = {
   name: 'username',
   type: 'text',
   fieldOptions: { label: 'Username' },
@@ -16,44 +16,44 @@ The `restriction` property on a field definition is the primary way to add valid
     maxLength: 20,
     pattern: '^[a-zA-Z0-9_]+$',
   },
-}
+};
 ```
 
-| Restriction | What it validates |
-|-------------|-------------------|
-| `minLength` / `maxLength` | String length |
-| `length` | Exact string length |
-| `pattern` | Regex pattern |
-| `minInclusive` / `maxInclusive` | Numeric range (inclusive) |
-| `minExclusive` / `maxExclusive` | Numeric range (exclusive) |
-| `enumeration` | Value must be one of the listed options |
-| `fractionDigits` | Maximum number of decimal places |
-| `totalDigits` | Maximum total significant digits |
-| `whiteSpace` | `'preserve'`, `'replace'` (no tabs/newlines), or `'collapse'` (no leading/trailing/multiple spaces) |
+| Restriction                     | What it validates                                                                                   |
+| ------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `minLength` / `maxLength`       | String length                                                                                       |
+| `length`                        | Exact string length                                                                                 |
+| `pattern`                       | Regex pattern                                                                                       |
+| `minInclusive` / `maxInclusive` | Numeric range (inclusive)                                                                           |
+| `minExclusive` / `maxExclusive` | Numeric range (exclusive)                                                                           |
+| `enumeration`                   | Value must be one of the listed options                                                             |
+| `fractionDigits`                | Maximum number of decimal places                                                                    |
+| `totalDigits`                   | Maximum total significant digits                                                                    |
+| `whiteSpace`                    | `'preserve'`, `'replace'` (no tabs/newlines), or `'collapse'` (no leading/trailing/multiple spaces) |
 
 ## Built-in Rules
 
 Each `restriction` key maps to an XSD-inspired vee-validate rule registered by the library:
 
-| Restriction | Rule |
-|-------------|------|
-| *(required field)* | `xsd_required` |
-| *(array minOccurs)* | `xsd_minOccurs` |
-| *(array maxOccurs)* | `xsd_maxOccurs` |
-| *(choice minOccurs)* | `xsd_choiceMinOccurs` |
-| *(choice maxOccurs)* | `xsd_choiceMaxOccurs` |
-| `minLength` | `xsd_minLength` |
-| `maxLength` | `xsd_maxLength` |
-| `length` | `xsd_length` |
-| `pattern` | `xsd_pattern` |
-| `minInclusive` | `xsd_minInclusive` |
-| `maxInclusive` | `xsd_maxInclusive` |
-| `minExclusive` | `xsd_minExclusive` |
-| `maxExclusive` | `xsd_maxExclusive` |
-| `enumeration` | `xsd_enumeration` |
-| `whiteSpace` | `xsd_whiteSpace` |
-| `fractionDigits` | `xsd_fractionDigits` |
-| `totalDigits` | `xsd_totalDigits` |
+| Restriction          | Rule                  |
+| -------------------- | --------------------- |
+| _(required field)_   | `xsd_required`        |
+| _(array minOccurs)_  | `xsd_minOccurs`       |
+| _(array maxOccurs)_  | `xsd_maxOccurs`       |
+| _(choice minOccurs)_ | `xsd_choiceMinOccurs` |
+| _(choice maxOccurs)_ | `xsd_choiceMaxOccurs` |
+| `minLength`          | `xsd_minLength`       |
+| `maxLength`          | `xsd_maxLength`       |
+| `length`             | `xsd_length`          |
+| `pattern`            | `xsd_pattern`         |
+| `minInclusive`       | `xsd_minInclusive`    |
+| `maxInclusive`       | `xsd_maxInclusive`    |
+| `minExclusive`       | `xsd_minExclusive`    |
+| `maxExclusive`       | `xsd_maxExclusive`    |
+| `enumeration`        | `xsd_enumeration`     |
+| `whiteSpace`         | `xsd_whiteSpace`      |
+| `fractionDigits`     | `xsd_fractionDigits`  |
+| `totalDigits`        | `xsd_totalDigits`     |
 
 These rules are attached automatically — you never reference them by name unless writing custom `validation` expressions.
 
@@ -98,11 +98,11 @@ The message resolver supports:
 You can still provide custom `vee-validate` validation expressions in metadata:
 
 ```ts
-{
+const field = {
   name: 'text',
   type: 'text',
   validation: 'xsd_minLength:3|xsd_maxLength:10',
-}
+};
 ```
 
 The library splits multi-rule expressions into separate validation functions so multiple errors can be collected consistently.
@@ -124,4 +124,5 @@ const settings = {
 ```
 
 ## Interactive Example
+
 <FormExampleValidation />

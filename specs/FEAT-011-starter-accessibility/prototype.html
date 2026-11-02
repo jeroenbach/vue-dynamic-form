@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FEAT-011 Starter template accessibility (WCAG 2.2 AA) prototype</title>
+<style>
+/* =========================================================================
+   This prototype is a faithful flattening of packages/starter/src/style.scss
+   (the shipped dist/style.css), plus the NEW focus / live-region treatments
+   this feature introduces. New rules are grouped under the clearly labelled
+   "FEAT-011 ADDITIONS" block near the bottom so they read as a delta over the
+   existing stylesheet, not a rewrite of it.
+
+   Theme-carrying values are the real --sft-* custom properties, declared on
+   :root and re-declared under :root.dark exactly as the package does, so the
+   light/dark toggle (top-right) drives the whole surface the same way
+   VitePress's .dark-on-<html> toggle does in production.
+   ========================================================================= */
+
+:root {
+  --sft-card-bg: #ffffff;
+  --sft-card-border: #e2e8f0;
+  --sft-card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --sft-muted-bg: #f8fafc;
+  --sft-muted-border: #cad5e2;
+
+  --sft-text: #0f172b;
+  --sft-text-strong: #1d293d;
+  --sft-text-muted: #45556c;
+  --sft-text-subtle: #62748e;
+  --sft-heading: #0f172b;
+  --sft-placeholder: #90a1b9;
+
+  --sft-input-bg: #ffffff;
+  --sft-input-border: #e5e7eb;
+  --sft-input-disabled-bg: #f8fafc;
+  --sft-input-disabled-text: #62748e;
+
+  --sft-accent: #0084d1;
+  --sft-accent-hover: #0069a8;
+  --sft-focus-border: #00a6f4;
+  --sft-focus-ring: #b8e6fe;
+
+  --sft-choice: #4f39f6;
+  --sft-choice-border-hover: #a3b3ff;
+  --sft-choice-ring: #a3b3ff;
+  --sft-choice-grad-top: #eef2ff;
+  --sft-choice-grad-bottom: #ffffff;
+
+  --sft-pill-bg: #eef2ff;
+  --sft-pill-text: #432dd7;
+
+  --sft-danger-border: #fb2c36;
+  --sft-danger-focus-border: #fb2c36;
+  --sft-danger-text: #e7000b;
+  --sft-danger-ring: #ffc9c9;
+  --sft-danger-soft-bg: #fef2f2;
+  --sft-danger-soft-border: #ffc9c9;
+  --sft-danger-soft-text: #c10007;
+  --sft-danger-soft-hover-bg: #ffe2e2;
+
+  --sft-success: #00bc7d;
+  --sft-track: #e2e8f0;
+
+  /* NEW (FEAT-011): one focus-indicator colour per accent family, chosen to
+     clear the 3:1 non-text-contrast bar against the card surfaces in BOTH
+     modes. Sky for every sky-accented control, indigo for choice cards. */
+  --sft-focus-visible: #0084d1;        /* 4.0:1 vs white card */
+  --sft-focus-visible-choice: #4f39f6; /* strong indigo, high contrast vs white */
+}
+
+:root.dark {
+  --sft-card-bg: #0f172b;
+  --sft-card-border: #314158;
+  --sft-muted-bg: #1d293d;
+  --sft-muted-border: #45556c;
+
+  --sft-text: #f1f5f9;
+  --sft-text-strong: #e2e8f0;
+  --sft-text-muted: #90a1b9;
+  --sft-text-subtle: #90a1b9;
+  --sft-heading: #f1f5f9;
+  --sft-placeholder: #62748e;
+
+  --sft-input-bg: #0f172b;
+  --sft-input-disabled-bg: #1d293d;
+  --sft-input-disabled-text: #90a1b9;
+
+  --sft-choice-grad-top: #1e1a4d;
+  --sft-choice-grad-bottom: #0f172b;
+
+  --sft-danger-border: #ec003f;
+  --sft-danger-focus-border: #f43f5e;
+  --sft-danger-text: #ff637e;
+  --sft-danger-ring: #8b0836;
+  --sft-danger-soft-bg: #4d0218;
+  --sft-danger-soft-border: #a50036;
+  --sft-danger-soft-text: #ff637e;
+  --sft-danger-soft-hover-bg: #8b0836;
+
+  --sft-track: #314158;
+
+  /* NEW (FEAT-011): dark mode can run brighter rings; the near-black card
+     gives both plenty of headroom (8:1+). */
+  --sft-focus-visible: #38bdf8;
+  --sft-focus-visible-choice: #a3b3ff;
+}
+
+/* ---- prototype chrome (NOT part of the package) --------------------- */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--sft-muted-bg);
+  color: var(--sft-text);
+  -webkit-font-smoothing: antialiased;
+}
+.proto-wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 120px; }
+.proto-title { font-size: 22px; font-weight: 700; color: var(--sft-heading); margin: 0 0 4px; }
+.proto-sub { font-size: 14px; color: var(--sft-text-muted); margin: 0 0 8px; }
+.proto-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 48px 0 20px; color: var(--sft-text-subtle);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.proto-divider::after { content: ""; flex: 1; height: 1px; background: var(--sft-card-border); }
+.anno {
+  font-size: 12px; line-height: 1.5; color: var(--sft-text-subtle);
+  background: var(--sft-muted-bg); border: 1px dashed var(--sft-muted-border);
+  border-radius: 6px; padding: 6px 10px; margin: 8px 0 0;
+}
+.anno strong { color: var(--sft-text-muted); font-weight: 600; }
+.proto-section { display: flex; flex-direction: column; gap: 16px; }
+.theme-toggle {
+  position: fixed; top: 16px; right: 16px; z-index: 50;
+  border: 1px solid var(--sft-card-border); background: var(--sft-card-bg);
+  color: var(--sft-text); border-radius: 8px; padding: 8px 12px;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  box-shadow: var(--sft-card-shadow);
+}
+
+/* a visualised screen-reader-only region so the live-region copy is readable
+   in the prototype; the real utility (below) hides it from sighted users */
+.sr-demo {
+  font-size: 12px; color: var(--sft-text-subtle);
+  border-left: 3px solid var(--sft-accent); padding: 2px 10px; margin-top: 6px;
+}
+.sr-demo b { color: var(--sft-text-muted); }
+
+/* ===================================================================== */
+/*  PACKAGE STYLES (flattened from style.scss)                           */
+/* ===================================================================== */
+
+.sft-section {
+  border: 1px solid var(--sft-card-border);
+  background: var(--sft-card-bg);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--sft-card-shadow);
+}
+.sft-section.is-disabled { opacity: 0.6; }
+.sft-section-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.sft-section-title { margin: 0; font-size: 18px; line-height: 28px; font-weight: 600; color: var(--sft-heading); }
+.sft-section-desc { margin: 0; font-size: 14px; line-height: 24px; color: var(--sft-text-muted); }
+.sft-pill {
+  display: inline-flex; align-items: center; white-space: nowrap; border-radius: 9999px;
+  background: var(--sft-pill-bg); color: var(--sft-pill-text); padding: 2px 10px; font-size: 12px; font-weight: 600;
+}
+.sft-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 20px; }
+@media (min-width: 768px) { .sft-grid { grid-template-columns: 1fr 1fr; } .sft-col-span { grid-column: 1 / -1; } }
+
+.sft-field { display: flex; flex-direction: column; gap: 8px; }
+.sft-field.is-disabled { opacity: 0.6; }
+.sft-field-label { display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: var(--sft-text-strong); }
+.sft-field-desc { margin: 0; font-size: 14px; line-height: 20px; color: var(--sft-text-subtle); }
+.sft-field-control-row { display: flex; align-items: flex-start; gap: 8px; }
+.sft-field-control-row > .sft-field-control { flex: 1 1 auto; }
+
+.sft-tag-optional {
+  display: inline-flex; align-items: center; border-radius: 9999px;
+  background: #f1f5f9; color: #45556c; padding: 2px 8px; font-size: 12px; line-height: 16px; font-weight: 600;
+}
+:root.dark .sft-tag-optional { background: #314158; color: #90a1b9; }
+.sft-tag-required { color: #fb2c36; }
+:root.dark .sft-tag-required { color: #ff637e; }
+
+.sft-error { font-size: 14px; color: var(--sft-danger-text); }
+
+/* ---- inputs --- */
+.sft-input, .sft-select {
+  height: 40px; width: 100%; box-sizing: border-box;
+  border: 1px solid var(--sft-input-border); border-radius: 8px;
+  background: var(--sft-input-bg); color: var(--sft-text); padding: 8px 12px;
+  font-size: 14px; font-family: inherit;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.sft-input::placeholder { color: var(--sft-placeholder); }
+.sft-input:disabled, .sft-select:disabled { cursor: not-allowed; background: var(--sft-input-disabled-bg); color: var(--sft-input-disabled-text); }
+.sft-input.is-valid, .sft-select.is-valid { border-color: var(--sft-success); }
+
+.sft-input-suffix-row { display: flex; align-items: center; gap: 8px; }
+.sft-input-suffix-row > .sft-input-suffix-input { flex: 1 1 auto; }
+.sft-input-suffix { font-size: 14px; color: var(--sft-text-muted); white-space: nowrap; }
+
+.sft-password { position: relative; }
+.sft-password .sft-input { padding-right: 40px; }
+.sft-password-toggle {
+  position: absolute; inset: 0 0 0 auto; display: flex; align-items: center;
+  padding-right: 12px; background: none; border: 0; cursor: pointer; color: #90a1b9; border-radius: 6px;
+}
+.sft-password-toggle:hover { color: #45556c; }
+:root.dark .sft-password-toggle:hover { color: #cad5e2; }
+
+.sft-strength { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.sft-strength-track { display: flex; gap: 4px; }
+.sft-strength-seg { height: 6px; flex: 1; border-radius: 9999px; background: var(--sft-track); }
+.sft-strength-seg.is-on-weak { background: #fb2c36; }
+.sft-strength-seg.is-on-fair { background: #ffb900; }
+.sft-strength-seg.is-on-good { background: #00bcff; }
+.sft-strength-seg.is-on-strong { background: #00bc7d; }
+.sft-strength-label { font-size: 12px; font-weight: 500; }
+.sft-strength-label.is-weak { color: #fb2c36; }
+.sft-strength-label.is-fair { color: #fe9a00; }
+.sft-strength-label.is-good { color: #00a6f4; }
+.sft-strength-label.is-strong { color: #009966; }
+:root.dark .sft-strength-label.is-strong { color: #00d492; }
+
+/* ---- toggle switch --- */
+.sft-switch-field {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 16px; border-radius: 12px; background: var(--sft-muted-bg); border: 1px solid var(--sft-card-border);
+}
+.sft-switch-field.is-invalid { border-color: var(--sft-danger-border); }
+.sft-switch-field.is-disabled { opacity: 0.6; }
+.sft-switch-field label { cursor: pointer; }
+.sft-switch-field-label { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--sft-text-strong); margin: 0; }
+.sft-switch-field-desc { font-size: 12px; line-height: 16px; color: var(--sft-text-subtle); margin: 2px 0 0; }
+.sft-switch { position: relative; display: inline-flex; flex-shrink: 0; align-items: center; cursor: pointer; }
+.sft-switch.is-disabled { cursor: not-allowed; opacity: 0.5; }
+.sft-switch-track { height: 24px; width: 44px; border-radius: 9999px; background: #cad5e2; transition: background .15s ease; }
+:root.dark .sft-switch-track { background: #45556c; }
+.sft-switch.is-on .sft-switch-track { background: var(--sft-accent); }
+.sft-switch-thumb {
+  position: absolute; left: 2px; top: 2px; height: 20px; width: 20px; border-radius: 9999px; background: #fff;
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1); transition: transform .15s ease;
+}
+:root.dark .sft-switch-thumb { background: #e2e8f0; }
+.sft-switch.is-on .sft-switch-thumb { transform: translateX(20px); }
+
+/* ---- buttons --- */
+.sft-btn {
+  display: inline-flex; align-items: center; gap: 8px; border-radius: 6px; padding: 8px 12px;
+  font-size: 14px; line-height: 20px; font-weight: 500; cursor: pointer; font-family: inherit;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease; border: 0; background: none;
+}
+.sft-btn:disabled { cursor: not-allowed; opacity: 0.4; }
+.sft-btn-default { border: 1px solid #cad5e2; background: var(--sft-card-bg); color: #314158; }
+:root.dark .sft-btn-default { border-color: #45556c; color: #cad5e2; }
+.sft-btn-default:hover { border-color: #90a1b9; background: #f8fafc; }
+:root.dark .sft-btn-default:hover { border-color: #62748e; background: #1d293d; }
+.sft-btn-primary { border: 1px solid #cad5e2; background: var(--sft-accent); color: #fff; }
+.sft-btn-primary:hover { background: var(--sft-accent-hover); }
+.sft-btn-danger-light { color: #c10007; }
+:root.dark .sft-btn-danger-light { color: #ff637e; }
+.sft-btn-danger-light:hover { background: #fef2f2; }
+:root.dark .sft-btn-danger-light:hover { background: #4d0218; }
+
+/* ---- repeatable arrays --- */
+.sft-repeater { border: 1px solid var(--sft-card-border); background: var(--sft-card-bg); border-radius: 12px; padding: 16px; }
+.sft-repeater-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sft-repeater-title-group { display: flex; align-items: center; gap: 8px; }
+.sft-repeater-badge {
+  display: grid; place-items: center; height: 28px; width: 28px; border-radius: 9999px;
+  background: var(--sft-pill-bg); color: var(--sft-pill-text); font-size: 12px; font-weight: 600;
+}
+.sft-repeater-title { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--sft-text-strong); margin: 0; }
+.sft-empty { border: 1px dashed var(--sft-muted-border); background: var(--sft-muted-bg); border-radius: 12px; padding: 32px; text-align: center; }
+.sft-empty .sft-btn { margin-top: 16px; }
+.sft-empty-icon { color: #90a1b9; margin: 0 auto 8px; display: block; }
+:root.dark .sft-empty-icon { color: #62748e; }
+.sft-empty-title { font-size: 14px; font-weight: 500; color: #314158; margin: 0; }
+:root.dark .sft-empty-title { color: #cad5e2; }
+.sft-empty-hint { font-size: 12px; color: var(--sft-text-subtle); margin: 4px 0 0; }
+.sft-array-items { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.sft-array-footer { margin-top: 16px; }
+
+/* ---- choice cards --- */
+.sft-choice-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 768px) { .sft-choice-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; } .sft-choice-grid.cols-2 { grid-template-columns: 1fr 1fr; } }
+.sft-choice-card {
+  display: flex; align-items: flex-start; border: 1px solid var(--sft-card-border); background: var(--sft-card-bg);
+  border-radius: 12px; padding: 16px; text-align: left; cursor: pointer; font-family: inherit;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.sft-choice-card:not(.is-disabled):hover { border-color: var(--sft-choice-border-hover); }
+.sft-choice-card.is-disabled { cursor: not-allowed; opacity: 0.5; }
+.sft-choice-card.is-selected {
+  border-color: var(--sft-choice);
+  background: var(--sft-card-bg) linear-gradient(to bottom, var(--sft-choice-grad-top), var(--sft-choice-grad-bottom));
+  box-shadow: 0 0 0 1px var(--sft-choice), var(--sft-card-shadow);
+}
+.sft-choice-body { display: flex; width: 100%; align-items: flex-start; gap: 12px; }
+.sft-choice-radio { margin-top: 2px; display: grid; place-items: center; height: 16px; width: 16px; flex-shrink: 0; border-radius: 9999px; border: 2px solid #cad5e2; transition: border-color .15s ease; }
+:root.dark .sft-choice-radio { border-color: #45556c; }
+.sft-choice-card.is-selected .sft-choice-radio { border-color: var(--sft-choice); }
+.sft-choice-radio-dot { height: 8px; width: 8px; border-radius: 9999px; background: var(--sft-choice); transform: scale(0); transition: transform .15s ease; }
+.sft-choice-card.is-selected .sft-choice-radio-dot { transform: scale(1); }
+.sft-choice-text { flex: 1; }
+.sft-choice-title-row { display: flex; align-items: center; gap: 8px; }
+.sft-choice-icon { color: var(--sft-pill-text); display: inline-flex; }
+.sft-choice-title { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--sft-text); margin: 0; }
+.sft-choice-desc { margin: 4px 0 0; font-size: 12px; line-height: 1.625; color: var(--sft-text-muted); }
+
+/* ---- stepper / wizard --- */
+.sft-wizard-head { margin-bottom: 24px; }
+.sft-wizard-eyebrow { font-size: 12px; line-height: 16px; text-transform: uppercase; letter-spacing: .05em; color: var(--sft-text-subtle); margin: 0; }
+.sft-wizard-title { font-size: 24px; line-height: 32px; font-weight: 600; color: var(--sft-heading); margin: 0; }
+.sft-stepper { margin-bottom: 32px; }
+.sft-stepper ol { display: flex; align-items: center; list-style: none; margin: 0; padding: 0; }
+.sft-stepper li { display: flex; align-items: center; }
+.sft-stepper li.grow { flex: 1; }
+.sft-step { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; cursor: pointer; padding: 0; font-family: inherit; }
+.sft-step:disabled { cursor: not-allowed; }
+.sft-step-dot { display: grid; place-items: center; height: 32px; width: 32px; border-radius: 9999px; font-size: 12px; font-weight: 600; transition: all .2s ease; background: #e2e8f0; color: #62748e; }
+:root.dark .sft-step-dot { background: #314158; color: #90a1b9; }
+.sft-step.is-done .sft-step-dot { background: #00bc7d; color: #fff; }
+.sft-step.is-current .sft-step-dot { background: var(--sft-accent); color: #fff; box-shadow: 0 0 0 4px #dff2fe; }
+:root.dark .sft-step.is-current .sft-step-dot { box-shadow: 0 0 0 4px rgba(14,165,233,.2); }
+.sft-step-label { font-size: 12px; line-height: 16px; color: #90a1b9; }
+:root.dark .sft-step-label { color: #62748e; }
+.sft-step.is-done .sft-step-label { color: #009966; }
+.sft-step.is-current .sft-step-label { font-weight: 600; color: var(--sft-text); }
+.sft-step-connector { margin: 0 8px; height: 2px; flex: 1; background: #e2e8f0; transition: background .2s ease; }
+:root.dark .sft-step-connector { background: #314158; }
+.sft-step-connector.is-done { background: #00bc7d; }
+:root.dark .sft-step-connector.is-done { background: #00bc7d; }
+.sft-wizard-footer { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
+.sft-wizard-footer .is-hidden { visibility: hidden; }
+.sft-wizard-back { padding-left: 16px; padding-right: 16px; }
+.sft-wizard-helper { font-size: 12px; line-height: 16px; color: var(--sft-text-subtle); margin: 0; }
+@media (max-width: 640px) { .sft-step-label, .sft-wizard-helper { display: none; } }
+
+/* ===================================================================== */
+/*  FEAT-011 ADDITIONS (the actual design delta)                         */
+/* ===================================================================== */
+
+/* 1. Screen-reader-only utility. New: the package has no offscreen-text
+      helper today, and several additions below need a visually-hidden live
+      region (password-strength announcement, and any target the focus
+      management wants to label without showing a visible control). */
+.sft-sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* 2. Unified focus-visible policy.
+      Existing rings that already clear 3:1 are kept. Controls that had NO
+      focus style, or a ring that fails 3:1 against the card, get a 2px solid
+      outline in --sft-focus-visible with a 2px offset. Using :focus-visible
+      (not :focus) so a mouse click never paints the ring, matching the
+      package's existing use of :focus-visible on the primary button/toggle. */
+
+/* text / select inputs: strengthen the resting focus border to clear 3:1 in
+   light mode (the shipped #00a6f4 is ~2.7:1 on white); keep the pale ring. */
+.sft-input:focus, .sft-select:focus {
+  outline: none;
+  border-color: var(--sft-focus-visible);
+  box-shadow: 0 0 0 2px var(--sft-focus-ring);
+}
+.sft-input.is-invalid:focus, .sft-select.is-invalid:focus {
+  border-color: var(--sft-danger-focus-border);
+  box-shadow: 0 0 0 2px var(--sft-danger-ring);
+}
+
+/* password reveal button: was keyboard-unreachable (tabindex="-1") and had no
+   focus style at all. Now a normal tab stop with a visible ring. */
+.sft-password-toggle:focus-visible {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 2px;
+}
+
+/* all buttons (Add / Remove / Back / Continue / Submit): only the primary
+   button had a focus ring before. One consistent outline for every variant. */
+.sft-btn:focus-visible {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 2px;
+}
+
+/* stepper step buttons: native buttons, but no focus style before. */
+.sft-step:focus-visible { outline: none; }
+.sft-step:focus-visible .sft-step-dot {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 3px;
+}
+
+/* toggle switch: keep the shipped outline treatment, but route it through the
+   shared token so light mode clears 3:1 (shipped #00a6f4 was borderline). */
+.sft-switch:focus-visible { outline: none; }
+.sft-switch:focus-visible .sft-switch-track {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 2px;
+}
+
+/* choice cards: the shipped focus ring used the pale hover colour (#a3b3ff,
+   ~2.0:1 on white). Use the strong indigo so the keyboard ring is visible. */
+.sft-choice-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--sft-focus-visible-choice);
+}
+
+/* wizard page heading as a focus landing target. Not an interactive control,
+   so the ring is deliberately lighter than a control's; it only ever shows
+   when focus is moved there programmatically (tabindex="-1"). */
+.sft-wizard-title:focus-visible,
+.sft-section-title:focus-visible {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* 3. demo-only: statically paints the SAME ring a :focus-visible state would,
+      so a keyboard-focus state is visible in this file without scripting it.
+      Not shipped. */
+.demo-focus.sft-input { border-color: var(--sft-focus-visible); box-shadow: 0 0 0 2px var(--sft-focus-ring); }
+.demo-focus.sft-password-toggle { outline: 2px solid var(--sft-focus-visible); outline-offset: 2px; }
+.demo-focus.sft-btn { outline: 2px solid var(--sft-focus-visible); outline-offset: 2px; }
+.demo-focus.sft-choice-card { box-shadow: 0 0 0 2px var(--sft-focus-visible-choice); }
+.demo-focus.sft-step .sft-step-dot { outline: 2px solid var(--sft-focus-visible); outline-offset: 3px; }
+.demo-focus.sft-switch .sft-switch-track { outline: 2px solid var(--sft-focus-visible); outline-offset: 2px; }
+.demo-focus.sft-wizard-title { outline: 2px solid var(--sft-focus-visible); outline-offset: 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<button class="theme-toggle" type="button" id="themeToggle" aria-pressed="false">Dark mode</button>
+
+<div class="proto-wrap">
+  <p class="proto-title">Starter template accessibility (WCAG 2.2 AA)</p>
+  <p class="proto-sub">
+    FEAT-011 visual surface. Every section reuses the shipped <code>sft-*</code> classes and
+    <code>--sft-*</code> tokens; the only visual change this feature makes is focus indicators and
+    a couple of contrast corrections. Toggle light/dark, top right.
+  </p>
+  <p class="anno">
+    <strong>Static focus demo:</strong> a <code>.demo-focus</code> helper paints the exact ring a
+    real keyboard <code>:focus-visible</code> would, so focus states are visible without tabbing.
+    Error text and password strength are shown with a blue bar marking the copy a screen reader
+    announces through a live region (<code>role="alert"</code> / <code>aria-live</code>); that copy
+    is offscreen in production.
+  </p>
+
+  <!-- ============================================================= -->
+  <div class="proto-divider">Text field</div>
+  <section class="proto-section" id="text-field">
+    <div class="sft-section">
+      <div class="sft-grid">
+        <!-- pristine -->
+        <div class="sft-field">
+          <label class="sft-field-label" for="fullName">Full name</label>
+          <div class="sft-field-control-row"><div class="sft-field-control">
+            <input id="fullName" class="sft-input" type="text" value="Marta Nowak">
+          </div></div>
+        </div>
+        <!-- focused -->
+        <div class="sft-field">
+          <label class="sft-field-label" for="jobTitle">Job title</label>
+          <div class="sft-field-control-row"><div class="sft-field-control">
+            <input id="jobTitle" class="sft-input demo-focus" type="text" value="Product designer">
+          </div></div>
+          <p class="anno" style="grid-column:auto"><strong>Keyboard focus.</strong> 2px outline colour strengthened to <code>#0084d1</code> so the border clears 3:1 against a white input (shipped <code>#00a6f4</code> is ~2.7:1). Dark mode already clears it.</p>
+        </div>
+        <!-- invalid + announced error -->
+        <div class="sft-field">
+          <label class="sft-field-label" for="workEmail">Work email</label>
+          <div class="sft-field-control-row"><div class="sft-field-control">
+            <input id="workEmail" class="sft-input is-invalid" type="text" value="marta@"
+                   aria-invalid="true" aria-describedby="workEmail-desc workEmail-error">
+          </div></div>
+          <p id="workEmail-desc" class="sft-field-desc">We only use this to send your sign-in link.</p>
+          <span id="workEmail-error" class="sft-error" role="alert">Enter a valid email address, like name@company.com.</span>
+          <p class="anno"><strong>Error association + announcement.</strong> <code>aria-describedby</code> chains description then error (<code>"workEmail-desc workEmail-error"</code>); the error <code>&lt;span&gt;</code> gains an <code>id</code> and <code>role="alert"</code> so it is announced the moment it appears, mirroring the wizard banner.</p>
+          <div class="sr-demo"><b>Announced:</b> "Enter a valid email address, like name@company.com."</div>
+        </div>
+        <!-- valid (opt-in showValidState) -->
+        <div class="sft-field">
+          <label class="sft-field-label" for="phone">Phone<span class="sft-tag-optional">Optional</span></label>
+          <div class="sft-field-control-row"><div class="sft-field-control">
+            <input id="phone" class="sft-input is-valid" type="text" value="+48 22 123 45 67" aria-invalid="false">
+          </div></div>
+          <p class="anno"><strong>Valid state</strong> (opt-in <code>showValidState</code>). Green border only; <code>aria-invalid="false"</code>. Unchanged by this feature.</p>
+        </div>
+        <!-- disabled -->
+        <div class="sft-field is-disabled">
+          <label class="sft-field-label" for="org">Organisation</label>
+          <div class="sft-field-control-row"><div class="sft-field-control">
+            <input id="org" class="sft-input" type="text" value="Bach Software" disabled>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <div class="proto-divider">Select field</div>
+  <section class="proto-section" id="select-field">
+    <div class="sft-section">
+      <div class="sft-grid">
+        <div class="sft-field">
+          <label class="sft-field-label" for="country">Country</label>
+          <div class="sft-field-control-row"><div class="sft-field-control">
+            <select id="country" class="sft-select">
+              <option value="">Select a country</option>
+              <option value="pl" selected>Poland</option>
+              <option value="nl">Netherlands</option>
+              <option value="de">Germany</option>
+            </select>
+          </div></div>
+        </div>
+        <div class="sft-field">
+          <label class="sft-field-label" for="timezone">Time zone</label>
+          <div class="sft-field-control-row"><div class="sft-field-control">
+            <select id="timezone" class="sft-select is-invalid" aria-invalid="true" aria-describedby="timezone-error">
+              <option value="" selected>Select a time zone</option>
+              <option value="cet">Central European Time</option>
+            </select>
+          </div></div>
+          <span id="timezone-error" class="sft-error" role="alert">Select a time zone to continue.</span>
+          <div class="sr-demo"><b>Announced:</b> "Select a time zone to continue."</div>
+        </div>
+      </div>
+      <p class="anno"><strong>Focus.</strong> Selects share the input focus rule, so no separate design. Keyboard focus demonstrated on the text field above.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <div class="proto-divider">Password field</div>
+  <section class="proto-section" id="password-field">
+    <div class="sft-section">
+      <div class="sft-grid">
+        <div class="sft-field sft-col-span">
+          <label class="sft-field-label" for="password">Password</label>
+          <div class="sft-field-control-row"><div class="sft-field-control">
+            <div class="sft-password">
+              <input id="password" class="sft-input" type="password" value="Spring2026" aria-describedby="password-desc">
+              <button type="button" class="sft-password-toggle demo-focus" aria-label="Show password">
+                <!-- eye icon -->
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="sft-strength" aria-hidden="true">
+              <div class="sft-strength-track">
+                <span class="sft-strength-seg is-on-good"></span>
+                <span class="sft-strength-seg is-on-good"></span>
+                <span class="sft-strength-seg is-on-good"></span>
+                <span class="sft-strength-seg"></span>
+              </div>
+              <p class="sft-strength-label is-good">Good</p>
+            </div>
+            <span class="sft-sr-only" aria-live="polite">Password strength: Good</span>
+          </div></div>
+          <p id="password-desc" class="sft-field-desc">At least 8 characters, with a number and an uppercase letter.</p>
+          <p class="anno"><strong>Reveal button is now a real tab stop.</strong> The shipped <code>tabindex="-1"</code> is removed, and the button gains a focus ring (shown). Its <code>aria-label</code> stays "Show password" / "Hide password".</p>
+          <p class="anno"><strong>Strength announcement.</strong> The coloured bar is decorative (<code>aria-hidden</code>); the tier is mirrored into an <code>aria-live</code> region so a screen reader hears it change. Politeness level and debounce / announce-on-blur are an open question, so this prototype only fixes the shape, not the timing.</p>
+          <div class="sr-demo"><b>Announced:</b> "Password strength: Good"</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <div class="proto-divider">Choice cards</div>
+  <section class="proto-section" id="choice-cards">
+    <div class="sft-section">
+      <header class="sft-section-header">
+        <div>
+          <h2 class="sft-section-title">Choose a plan</h2>
+          <p class="sft-section-desc">You can change this later from billing settings.</p>
+        </div>
+      </header>
+      <div class="sft-choice-grid cols-3" role="radiogroup" aria-label="Choose a plan">
+        <!-- keyboard-focused card -->
+        <button type="button" role="radio" aria-checked="false" class="sft-choice-card demo-focus">
+          <div class="sft-choice-body">
+            <span class="sft-choice-radio"><span class="sft-choice-radio-dot"></span></span>
+            <div class="sft-choice-text">
+              <div class="sft-choice-title-row"><p class="sft-choice-title">Starter</p></div>
+              <p class="sft-choice-desc">For one person getting set up.</p>
+            </div>
+          </div>
+        </button>
+        <!-- selected card -->
+        <button type="button" role="radio" aria-checked="true" class="sft-choice-card is-selected">
+          <div class="sft-choice-body">
+            <span class="sft-choice-radio"><span class="sft-choice-radio-dot"></span></span>
+            <div class="sft-choice-text">
+              <div class="sft-choice-title-row"><p class="sft-choice-title">Team</p></div>
+              <p class="sft-choice-desc">Up to 10 people, shared workspaces.</p>
+            </div>
+          </div>
+        </button>
+        <!-- disabled card -->
+        <button type="button" role="radio" aria-checked="false" class="sft-choice-card is-disabled" disabled>
+          <div class="sft-choice-body">
+            <span class="sft-choice-radio"><span class="sft-choice-radio-dot"></span></span>
+            <div class="sft-choice-text">
+              <div class="sft-choice-title-row"><p class="sft-choice-title">Enterprise</p></div>
+              <p class="sft-choice-desc">Contact sales to enable.</p>
+            </div>
+          </div>
+        </button>
+      </div>
+      <p class="anno"><strong>Keyboard focus ring strengthened.</strong> First card shows the focus ring; it now uses the strong indigo <code>#4f39f6</code> (shipped pale <code>#a3b3ff</code> is ~2.0:1 on white, below the 3:1 bar). The <code>radiogroup</code>/<code>radio</code> roles are unchanged.</p>
+      <p class="anno"><strong>Open question (not resolved here):</strong> whether Tab reaches every card (today) or the group is one tab stop with arrow-key roving selection (ARIA APG). The focus ring looks the same either way; only the tab order differs.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <div class="proto-divider">Array item removal &amp; focus</div>
+  <section class="proto-section" id="array-remove">
+    <div class="sft-section">
+      <header class="sft-section-header">
+        <div>
+          <h2 class="sft-section-title">Team members</h2>
+          <p class="sft-section-desc">Invite the people who should have access.</p>
+        </div>
+        <span class="sft-pill">2 members</span>
+      </header>
+      <div class="sft-array-items">
+        <article class="sft-repeater">
+          <header class="sft-repeater-header">
+            <div class="sft-repeater-title-group">
+              <span class="sft-repeater-badge">1</span>
+              <p class="sft-repeater-title">Marta Nowak</p>
+            </div>
+            <button type="button" class="sft-btn sft-btn-danger-light demo-focus" aria-label="Remove member 1">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+              Remove
+            </button>
+          </header>
+          <div class="sft-grid">
+            <div class="sft-field">
+              <label class="sft-field-label" for="m1-name">Name</label>
+              <div class="sft-field-control-row"><div class="sft-field-control"><input id="m1-name" class="sft-input" value="Marta Nowak"></div></div>
+            </div>
+            <div class="sft-field">
+              <label class="sft-field-label" for="m1-email">Email</label>
+              <div class="sft-field-control-row"><div class="sft-field-control"><input id="m1-email" class="sft-input" value="marta@bach.software"></div></div>
+            </div>
+          </div>
+        </article>
+        <article class="sft-repeater">
+          <header class="sft-repeater-header">
+            <div class="sft-repeater-title-group">
+              <span class="sft-repeater-badge">2</span>
+              <p class="sft-repeater-title">Jonas Berg</p>
+            </div>
+            <button type="button" class="sft-btn sft-btn-danger-light" aria-label="Remove member 2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+              Remove
+            </button>
+          </header>
+          <div class="sft-grid">
+            <div class="sft-field">
+              <label class="sft-field-label" for="m2-name">Name</label>
+              <div class="sft-field-control-row"><div class="sft-field-control"><input id="m2-name" class="sft-input" value="Jonas Berg"></div></div>
+            </div>
+            <div class="sft-field">
+              <label class="sft-field-label" for="m2-email">Email</label>
+              <div class="sft-field-control-row"><div class="sft-field-control"><input id="m2-email" class="sft-input" value="jonas@bach.software"></div></div>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div class="sft-array-footer">
+        <button type="button" class="sft-btn sft-btn-default">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Add member
+        </button>
+      </div>
+      <p class="anno"><strong>Focus after remove.</strong> Pressing a member's Remove (focus shown on member 1's button) deletes that item, so the button vanishes and focus is currently dropped to <code>&lt;body&gt;</code>. New behaviour: move focus to the <em>previous</em> item's Remove button, or to the <strong>Add member</strong> button when the removed item was the first/only one. Remove buttons also gain the shared focus ring (none before).</p>
+    </div>
+
+    <div class="sft-section">
+      <header class="sft-section-header">
+        <div>
+          <h2 class="sft-section-title">Team members</h2>
+          <p class="sft-section-desc">Invite the people who should have access.</p>
+        </div>
+        <span class="sft-pill">0 members</span>
+      </header>
+      <div class="sft-grid">
+        <div class="sft-col-span sft-empty">
+          <svg class="sft-empty-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <p class="sft-empty-title">No members added yet</p>
+          <p class="sft-empty-hint">Add the first teammate to share this workspace.</p>
+          <button type="button" class="sft-btn sft-btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            Add a member
+          </button>
+        </div>
+      </div>
+      <p class="anno"><strong>Empty state.</strong> Removing the last item lands here; focus moves to the empty-state <strong>Add a member</strong> button so the keyboard user can act straight away. Unchanged visually.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <div class="proto-divider">Wizard step transition</div>
+  <section class="proto-section" id="wizard-step">
+    <div class="sft-section">
+      <header class="sft-wizard-head">
+        <p class="sft-wizard-eyebrow">New account</p>
+        <h1 class="sft-wizard-title demo-focus" tabindex="-1">Your profile</h1>
+      </header>
+
+      <nav class="sft-stepper" aria-label="Progress">
+        <ol>
+          <li class="grow">
+            <button type="button" class="sft-step is-done" aria-label="Step 1: Account">
+              <span class="sft-step-dot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+              <span class="sft-step-label">Account</span>
+            </button>
+            <span class="sft-step-connector is-done"></span>
+          </li>
+          <li class="grow">
+            <button type="button" class="sft-step is-current demo-focus" aria-current="step" aria-label="Step 2: Profile">
+              <span class="sft-step-dot">2</span>
+              <span class="sft-step-label">Profile</span>
+            </button>
+            <span class="sft-step-connector"></span>
+          </li>
+          <li>
+            <button type="button" class="sft-step" disabled aria-label="Step 3: Review">
+              <span class="sft-step-dot">3</span>
+              <span class="sft-step-label">Review</span>
+            </button>
+          </li>
+        </ol>
+      </nav>
+
+      <main>
+        <div class="sft-grid">
+          <div class="sft-field">
+            <label class="sft-field-label" for="w-role">Role</label>
+            <div class="sft-field-control-row"><div class="sft-field-control"><input id="w-role" class="sft-input" value="Product designer"></div></div>
+          </div>
+          <div class="sft-field">
+            <label class="sft-field-label" for="w-team">Team size</label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <select id="w-team" class="sft-select"><option>Just me</option><option selected>2 to 10</option><option>11 to 50</option></select>
+            </div></div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="sft-wizard-footer">
+        <button type="button" class="sft-btn sft-btn-default sft-wizard-back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          Back
+        </button>
+        <p class="sft-wizard-helper">Step 2 of 3 · Tell us about your role</p>
+        <button type="button" class="sft-btn sft-btn-primary">
+          Continue
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </footer>
+
+      <p class="anno"><strong>Focus on step change.</strong> After Continue/Back moves pages (pages stay mounted; visibility is toggled with <code>v-show</code>), focus moves to the new page so the user is not stranded on a button that silently changed pages. Here the heading <code>&lt;h1&gt;</code> is the target: it takes <code>tabindex="-1"</code> and shows the lighter heading-focus ring. The stepper step also gains its own focus ring (shown on step 2).</p>
+      <p class="anno"><strong>Open question (not resolved here):</strong> whether the target is the page heading (shown) or the first focusable field. Both are drawn consistently with the "focus first invalid field on failed submit" behaviour; the architect/Jeroen pick one.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <div class="proto-divider">Toggle switch &amp; checkbox field</div>
+  <section class="proto-section" id="toggle-field">
+    <div class="sft-section">
+      <div class="sft-grid">
+        <!-- off -->
+        <div class="sft-switch-field sft-col-span">
+          <label for="t-off">
+            <p class="sft-switch-field-label">Email me product updates</p>
+            <p class="sft-switch-field-desc">Occasional news about new features. No more than once a month.</p>
+          </label>
+          <span id="t-off" class="sft-switch" role="switch" tabindex="0" aria-checked="false" aria-label="Email me product updates">
+            <span class="sft-switch-track"></span><span class="sft-switch-thumb"></span>
+          </span>
+        </div>
+        <!-- on + focused -->
+        <div class="sft-switch-field sft-col-span">
+          <label for="t-on">
+            <p class="sft-switch-field-label">Two-factor authentication</p>
+            <p class="sft-switch-field-desc">Require a code at sign-in for extra security.</p>
+          </label>
+          <span id="t-on" class="sft-switch is-on demo-focus" role="switch" tabindex="0" aria-checked="true" aria-label="Two-factor authentication">
+            <span class="sft-switch-track"></span><span class="sft-switch-thumb"></span>
+          </span>
+        </div>
+        <!-- invalid -->
+        <div class="sft-switch-field is-invalid sft-col-span">
+          <label for="t-terms">
+            <p class="sft-switch-field-label">Accept the terms of service</p>
+            <p class="sft-switch-field-desc">You need to accept before creating an account.</p>
+            <span id="t-terms-error" class="sft-error" role="alert">Accept the terms to continue.</span>
+          </label>
+          <span id="t-terms" class="sft-switch" role="switch" tabindex="0" aria-checked="false"
+                aria-invalid="true" aria-describedby="t-terms-error" aria-label="Accept the terms of service">
+            <span class="sft-switch-track"></span><span class="sft-switch-thumb"></span>
+          </span>
+        </div>
+        <!-- disabled -->
+        <div class="sft-switch-field is-disabled sft-col-span">
+          <label for="t-disabled">
+            <p class="sft-switch-field-label">Beta features</p>
+            <p class="sft-switch-field-desc">Available on the Team plan.</p>
+          </label>
+          <span id="t-disabled" class="sft-switch is-disabled" role="switch" tabindex="-1" aria-checked="false" aria-disabled="true" aria-label="Beta features">
+            <span class="sft-switch-track"></span><span class="sft-switch-thumb"></span>
+          </span>
+        </div>
+      </div>
+      <p class="anno"><strong>Toggle focus ring routed through the shared token</strong> so light mode clears 3:1 (shipped <code>#00a6f4</code> was borderline). <code>role="switch"</code>, Space/Enter handlers and the <code>disabled</code>-aware <code>tabindex</code> are unchanged. New here: <code>aria-invalid</code> + <code>aria-describedby</code> to the error, matching the text inputs.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+  const root = document.documentElement;
+  const btn = document.getElementById('themeToggle');
+  btn.addEventListener('click', () => {
+    const dark = root.classList.toggle('dark');
+    btn.textContent = dark ? 'Light mode' : 'Dark mode';
+    btn.setAttribute('aria-pressed', String(dark));
+  });
+</script>
+</body>
+</html>
