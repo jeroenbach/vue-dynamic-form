@@ -140,14 +140,6 @@ jobs:
           json-summary-path: packages/core/coverage/coverage-summary.json
           json-final-path: packages/core/coverage/coverage-final.json
 
-      - name: Report Coverage (element-plus)
-        if: always()
-        uses: davelosert/vitest-coverage-report-action@v2
-        with:
-          name: element-plus
-          json-summary-path: packages/element-plus/coverage/coverage-summary.json
-          json-final-path: packages/element-plus/coverage/coverage-final.json
-
       - name: Upload coverage for SonarQube
         if: always()
         uses: actions/upload-artifact@v4
@@ -155,7 +147,6 @@ jobs:
           name: coverage-lcov
           path: |
             packages/core/coverage/lcov.info
-            packages/element-plus/coverage/lcov.info
           retention-days: 1
 
   sonar:

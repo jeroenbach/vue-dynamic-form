@@ -1,6 +1,6 @@
 ---
-description: "Run a spec through every phase up to the next approval gate: design and arch, story prep, or implement and verify"
-argument-hint: "FEAT-XXX (or ST-YY for one story, or QUICK-XXX) [--autonomous]"
+description: "Run a spec through every phase up to the next approval gate: design and arch, story prep, or implement and verify; an epic loops this over its features"
+argument-hint: "FEAT-XXX (or EPIC-XXX for a whole epic, ST-YY for one story, or QUICK-XXX) [--autonomous]"
 model: opus
 ---
 
@@ -8,7 +8,7 @@ Read `CLAUDE.md`, `specs/RESEARCH-AND-DECIDE.md`, and the referenced spec before
 
 This command runs the phases between two approval gates unattended, so Jeroen types one command instead of several and comes back to a spec that has moved as far as it can without him. **It never crosses a gate.** It stops the moment the next thing needed is Jeroen's approval, and it never sets `status: approved`.
 
-There are three chains, one for each stretch between gates. The same command runs all three; it works out which from the spec's status. A quick spec has the same gates but fewer phases, so it runs collapsed versions of chains 1 and 3 (see "Quick specs" below).
+There are three chains, one for each stretch between gates. The same command runs all three; it works out which from the spec's status. A quick spec has the same gates but fewer phases, so it runs collapsed versions of chains 1 and 3 (see "Quick specs" below). An epic has one phase of its own (elaborating the next candidate feature) and is otherwise driven by looping the three chains over its child features (see "Epics" below).
 
 | # | Chain | From | Runs | Ends at |
 | --- | --- | --- | --- | --- |
@@ -60,7 +60,22 @@ Only when every remaining story is blocked on Jeroen (waiting at a gate, parked,
 
 **Anything in `deferred`:** stop. Reviving it is Jeroen's call.
 
-**Epics:** there is nothing to chain, so say so and stop. An epic has no intermediate phases: `/spec:epic` takes it straight to `awaiting-approval`. If one is sitting in `draft`, its creating command did not finish; report that rather than inventing a phase for it.
+**Epics (`EPIC-XXX`):** an epic is a container, so continuing one means driving its child features. Dispatch on the epic's status:
+
+- `draft` → its creating command did not finish; report that rather than inventing a phase for it.
+- `awaiting-approval` or `awaiting-discussion` → stop. This is Jeroen's epic-direction gate, same as for a feature.
+- `approved` or `in-progress` → run the epic loop below.
+- `done` → archive the folder if it is still at the top level of `specs/`, otherwise report there is nothing to do.
+
+**The epic loop.** Walk the epic's Feature breakdown in its stated order. For each candidate feature:
+
+1. **Already elaborated** (a `FEAT-XXX` with `epic: EPIC-XXX` exists for it): advance that feature using the normal feature dispatch above, whatever chain its status calls for. When it stops at one of Jeroen's gates (`awaiting-approval` or `awaiting-discussion`), note it and treat later candidates that depend on it as blocked.
+2. **Not yet elaborated, and every feature it depends on (the breakdown's "Depends on" line) is `done`:** elaborate it now. Run `/spec:feature` (product-owner, sonnet) with the candidate's name and scope paragraph verbatim from the breakdown plus the parent `EPIC-XXX` id, so the product-owner reads the epic's decisions and builds on them. Then run chain 1 on the new feature, ending at Jeroen's gate. If this created the epic's first child feature, set the epic to `in-progress`.
+3. **Not yet elaborated with unmet dependencies:** skip it, naming the features it is waiting for.
+
+The run ends when every candidate is `done`, waiting at one of Jeroen's gates, or blocked on one that is. As with chains 2 and 3, advance everything that can advance before stopping, and report the whole set at once. When the last feature reaches `done`, chain 3's step 7 already closes and archives the epic; the loop adds nothing there.
+
+Features are deliberately elaborated **one dependency layer at a time**, not all up front: a feature's design and architecture must be built against the library as its predecessors actually left it, and specs written months ahead of their build go stale. So a typical epic run ends at exactly one new gate (the freshly elaborated feature at `awaiting-discussion`), and Jeroen drives the whole epic by alternating `/spec:continue EPIC-XXX` with the approvals it stops at.
 
 **Quick specs (`QUICK-XXX`):** the quick lane has no design, architecture, qa plan, or split, so the chains collapse to two short ones. Dispatch on the spec's status:
 
@@ -153,7 +168,7 @@ Parking should be rare. At story level, most open points are implementation deta
 
 ## Model discipline
 
-Claude Code does **not** honor the `model:` field in an agent's own frontmatter: a subagent silently inherits the calling session's model instead (see the known-limitation note in `specs/README.md`). Passing `model` explicitly on the Agent tool call is the only mechanism that actually works. This command chains eight agents across three different models, so getting it wrong here is both easy and invisible, and a sonnet-driven run would quietly downgrade every opus or fable phase.
+Claude Code does **not** honor the `model:` field in an agent's own frontmatter: a subagent silently inherits the calling session's model instead (see the known-limitation note in `specs/README.md`). Passing `model` explicitly on the Agent tool call is the only mechanism that actually works. This command chains nine agents across three different models, so getting it wrong here is both easy and invisible, and a sonnet-driven run would quietly downgrade every opus or fable phase.
 
 **Before the first agent call, run a config pre-flight.** For every phase this run will execute, read two files and compare:
 
@@ -162,7 +177,7 @@ Claude Code does **not** honor the `model:` field in an agent's own frontmatter:
 
 They should agree, and both should match the Model column of the command reference table in `specs/README.md`. **If any two disagree, stop before running anything** and report the mismatch with the file paths and the conflicting values. A disagreement means the config has drifted and nobody can say which model was intended; resolving that is a decision for Jeroen, not a guess for you. Do not fall back to a default.
 
-The expected mapping, to be confirmed rather than assumed: ui-designer opus, architect opus, adversarial-reviewer opus, scrum-master sonnet, qa-planner sonnet, developer sonnet, qa-verifier sonnet, final-reviewer fable.
+The expected mapping, to be confirmed rather than assumed: product-owner sonnet (epic loop only), ui-designer opus, architect opus, adversarial-reviewer opus, scrum-master sonnet, qa-planner sonnet, developer sonnet, qa-verifier sonnet, final-reviewer fable.
 
 **On every Agent tool call, pass `model` explicitly**, taken from the pre-flight, never from memory and never omitted.
 

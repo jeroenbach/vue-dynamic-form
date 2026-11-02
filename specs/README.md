@@ -88,7 +88,7 @@ Most work starts at feature level. When an initiative is too big for one feature
 
 - It holds a vision and a **feature breakdown** (candidate features with a one-line scope each and rough order). It has **no** design, prototype, or architecture of its own; those always live at feature level.
 - The link is **flat**: a feature belonging to an epic sets `epic: EPIC-XXX` in its frontmatter. Feature folders are **never** nested inside the epic folder; epic folders and feature folders both sit at the top of `specs/`. This keeps every feature independently designed, approved, and shipped.
-- Create one with `/spec:epic <idea>` (product-owner in EPIC mode). After Jeroen approves the epic, elaborate each candidate feature with `/spec:feature <idea> EPIC-XXX`, which stamps `epic: EPIC-XXX` on the new feature and links it under the epic's Features section. The epic moves to `in-progress` when its first feature starts and to `done` when all its features are `done`.
+- Create one with `/spec:epic <idea>` (product-owner in EPIC mode). After Jeroen approves the epic, `/spec:continue EPIC-XXX` drives it: it elaborates the next candidate feature whose dependencies are `done` (via `/spec:feature`, which stamps `epic: EPIC-XXX` on the new feature and links it under the epic's Features section) and advances every existing child feature to its next gate. Candidates can also be elaborated by hand with `/spec:feature <idea> EPIC-XXX`. The epic moves to `in-progress` when its first feature starts and to `done` when all its features are `done`.
 
 Epics are optional. A standalone feature just leaves `epic: ""` and behaves exactly as before.
 
@@ -112,6 +112,7 @@ Related hard rules: each agent only advances the status for its own phase, after
 | --- | --- | --- |
 | `/spec:epic <idea>` | product-owner (EPIC mode) creates an epic that decomposes into candidate features | sonnet |
 | **APPROVE** (`/spec:approve EPIC-XXX`) | Jeroen sets `status: approved` on the epic (optional; only when grouping features) | (no agent) |
+| ↓ `/spec:continue EPIC-XXX` drives the approved epic: elaborates the next ready candidate feature and advances every child feature to its next gate | | opus |
 | `/spec:feature <idea> [EPIC-XXX]` | product-owner creates the feature spec from an idea (optionally under an epic) | sonnet |
 | ↓ `/spec:continue FEAT-XXX` runs the next three in one go | | opus |
 | `/spec:design FEAT-XXX` | ui-designer builds the cohesive prototype for the ENTIRE feature (skipped for features with no UI) | opus |
@@ -146,6 +147,8 @@ The table above is the full set of phases, but Jeroen rarely wants to type them 
 It never crosses a gate and never sets `status: approved`. Chains 1 and 2 deliberately behave differently about open questions, which is the heart of the design below; chain 3 behaves differently depending on whether it is running on Jeroen's machine.
 
 A `QUICK-XXX` id works too: the quick lane runs collapsed versions of chain 1 (just the lite review and the research step, no design or architecture) and chain 3 (implement → verify → fix findings, no split and no final audit, archiving the spec on `done`), stopping at the same gate in between.
+
+An `EPIC-XXX` id works too: from an `approved` (or `in-progress`) epic, the command loops the three chains over the child features. It walks the feature breakdown in order, advances every existing child feature to its next gate, and elaborates the next candidate whose dependencies are all `done` (via `/spec:feature`, product-owner) followed by chain 1 on the new feature. Candidates are deliberately elaborated one dependency layer at a time, against the library as their predecessors actually left it, never all up front. One command therefore drives a whole epic: Jeroen alternates `/spec:continue EPIC-XXX` with the approvals it stops at, exactly the rhythm of a single feature, scaled up.
 
 **Chains 2 and 3 run to the end.** They never halt the whole run over one undecidable item. If a story hits something that genuinely cannot be settled without Jeroen, that **single story** is parked at `awaiting-discussion` with a note saying what is missing, and the chain moves on to its siblings. Jeroen comes back to a feature where everything that could progress has progressed, plus a short list of what stalled. See the tie-breaker ladder below for why parking should almost never happen.
 
@@ -269,7 +272,7 @@ This creates a `QUICK-XXX-<name>/spec.md` (problem, proposed change, affected fi
 
 ### Grouping several features under an epic (optional)
 
-For a bigger initiative, start one level up with `/spec:epic <idea>`. The **product-owner** (EPIC mode) creates `specs/EPIC-XXX-<name>/spec.md` with the vision, scope, and a feature breakdown, then stops at Jeroen's gate. After approval, elaborate each feature with `/spec:feature <idea> EPIC-XXX`; each runs the exact flow above. `/spec:status` shows the features grouped under the epic, and the epic is `done` once all of them are.
+For a bigger initiative, start one level up with `/spec:epic <idea>`. The **product-owner** (EPIC mode) creates `specs/EPIC-XXX-<name>/spec.md` with the vision, scope, and a feature breakdown, then stops at Jeroen's gate. After approval, `/spec:continue EPIC-XXX` drives the epic: it elaborates the next candidate feature whose dependencies are `done` and runs each child feature through the exact flow above, stopping at the same gates. Individual candidates can still be elaborated by hand with `/spec:feature <idea> EPIC-XXX`. `/spec:status` shows the features grouped under the epic, and the epic is `done` once all of them are.
 
 ## Folder structure
 

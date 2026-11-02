@@ -4,6 +4,8 @@ packages:
   - '!docs'
 
 allowBuilds:
+  # sass pulls this in optionally; its prebuilt binaries make the build script unnecessary
+  '@parcel/watcher': false
   '@tailwindcss/oxide': true
   esbuild: true
   vue-demi: true
@@ -30,12 +32,8 @@ catalogs:
     '@bach.software/vue-dynamic-form': '>=0.1.0'
     '@lucide/vue': '>=1 <2'
     '@vee-validate/rules': '>=4.12'
-    element-plus: '>=2.0.0'
     vee-validate: '>=4.12'
     vue: '^3.5.44'
-
-  framework-pinned:
-    element-plus: 2.14.2
 
   test:
     '@vitest/coverage-v8': 3.2.6

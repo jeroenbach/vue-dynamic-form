@@ -2,7 +2,7 @@
 
 A portable, Tailwind-free default form template for [`@bach.software/vue-dynamic-form`](https://github.com/jeroenbach/vue-dynamic-form). Hand it to `DynamicForm` and every field, group, array, choice, wizard, and review step in your metadata renders with a complete, good-looking skin, with no CSS framework to install and no template to write yourself.
 
-This is an installable dependency, not a cloneable scaffold. "Starter" describes the result it gives you (a complete starting look for your form), not a project generator: you `pnpm add` it like any other package and keep it as a dependency, the same way you would `@bach.software/vue-dynamic-form-element-plus`. There is no CLI, no copied source, nothing to detach from.
+This is an installable dependency, not a cloneable scaffold. "Starter" describes the result it gives you (a complete starting look for your form), not a project generator: you `pnpm add` it like any other package and keep it as a dependency. There is no CLI, no copied source, nothing to detach from.
 
 It is a drop-in counterpart of the core `DynamicFormTemplate`: the same slot names, the same priority fallback, and every slot overridable with the starter markup as its default content.
 
