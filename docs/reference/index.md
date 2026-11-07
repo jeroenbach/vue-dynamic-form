@@ -5,7 +5,7 @@ Complete API documentation for every public surface of the two published package
 ## Core (`@bach.software/vue-dynamic-form`)
 
 | Page                                                           | What it covers                                                                          |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | [defineMetadata()](/reference/define-metadata)                 | Creating a typed field-type configuration                                               |
 | [DynamicFormTemplate](/reference/dynamic-form-template)        | All slots and slot props for your template SFC                                          |
 | [DynamicForm](/reference/dynamic-form)                         | The `DynamicForm` component, `useDynamicForm()`, settings, and exported types/utilities |
@@ -16,7 +16,7 @@ Complete API documentation for every public surface of the two published package
 ## Starter Template (`@bach.software/vue-dynamic-form-starter`)
 
 | Page                                                      | What it covers                                                               |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | [StarterFormTemplate](/reference/starter-form-template)   | The component, the wrapper pattern, every slot, icons, and all other exports |
 | [Field Types](/reference/starter-field-types)             | Every `type` the catalogue ships and the value each one stores               |
 | [Field Properties](/reference/starter-field-properties)   | Every property a metadata node can set, including grid layout                |

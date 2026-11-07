@@ -1,7 +1,7 @@
 ---
 id: FEAT-013
 type: feature
-status: in-progress
+status: done
 approved_by: Jeroen
 epic: ""
 ---
@@ -233,3 +233,50 @@ Split along the three slicing seams above. Implementation order matches dependen
 1. **[ST-01: Radius and typography tokens, full retrofit, and the contract guard tests](stories/ST-01-radius-typography-tokens-and-guard-tests/spec.md)** - declares the 14 new `--sft-*` tokens, swaps all ~85 confirmed call sites to `var()`, and extends `themeScope.test.ts` with the pinned-name, dark-identity, and leftover-literal guard checks. No dependencies; the foundation slice that freezes the token names everything else references.
 2. **[ST-02: README theming contract table and semver rule](stories/ST-02-readme-theming-contract/spec.md)** - adds the complete `--sft-*` contract table (55 variables, purpose, default value) and the add-is-minor/rename-or-remove-is-major semver rule to `packages/starter/README.md`. Depends on ST-01 for the frozen token names.
 3. **[ST-03: Starter template docs reference/guide split](stories/ST-03-docs-reference-split/spec.md)** - adds `docs/reference/starter-template.md` (props, slots, field-type catalogue, `extendMetadata` generics, and the mirrored theming table) and trims `docs/guide/starter-template.md` to pure how-to content pointing at it. Depends on ST-02 for the final table content; its non-theming restructuring work can proceed in parallel with ST-01.
+
+## Final review
+
+**Verdict: findings** (one nice-to-have, documentation only; the docs gap is resolved, see below; no bugs).
+
+The branch delta was verified mechanically, not just read:
+
+- **Zero visual change proven byte-for-byte.** Compiled main's `style.scss` and the branch's, substituted the 14 token defaults into every `var()` reference, removed the token declaration block, and diffed: the two compiled stylesheets are identical. The hard constraint holds exactly.
+- **Guard tests mutation-tested.** Re-applied the leftover-literal scan from `themeScope.test.ts` against compiled CSS with three injected regressions (a radius call site, a font-weight call site, and the mono stack reverted to literals): each mutation is caught. The clean stylesheet passes. The `:root`/`:root.dark` block-stripping regexes match exactly one block each in the compiled output, so the scan cannot silently strip too much or too little.
+- **Contract tables cross-checked three ways.** The 55 names pinned in `CONTRACT_VARIABLES` equal the names declared on `:root`; the README table's 55 rows match the stylesheet's names and default values exactly; the reference page's table matches the README row for row (name, purpose, and value all identical).
+- **Checks run:** starter vitest (414 pass; the one failing file is the pre-existing, unrelated `prototypeParity.test.ts`, see housekeeping), docs vitest (91 pass, including the new `starterTemplateDocs.test.ts`), `pnpm run ci:lint`, `pnpm run ci:typecheck`, docs `vue-tsc`, and `pnpm docs:build` (compiles clean, dead-link check included).
+
+### Bugs
+
+None found. No unverified questions remain.
+
+| # | Severity | Where | Finding | Evidence | Suggested fix |
+|---|---|---|---|---|---|
+| 1 | nice-to-have | `packages/starter/src/__tests__/themeScope.test.ts`, last test, final assertion | `expect(inScopeLiterals).not.toContain('inherit')` compares a hardcoded array against a hardcoded string, so it is true by construction and asserts nothing about the stylesheet | Both operands are literals in the test file itself; no stylesheet input reaches the assertion | Delete the assertion; the two real assertions above it (both `inherit` call sites still present) already carry the test |
+
+### Test gaps
+
+None. Every behaviour the branch adds is exercised: the 14 declarations with exact values, full call-site wiring (leftover-literal scan, mutation-verified), the pinned 55-name set with a missing/unexpected diff in the failure output, the no-dark-override invariant, the no-`var()`-fallback invariant, the banner grouping, the README/reference table mirroring, the reference-index row, and the guide trimming. The deliberate absence of an automated README-vs-stylesheet cross-check follows the recorded decision in Guard test design (the pinned array is the machine-checked half); I verified manually that the two are in sync today.
+
+### Manual test gaps
+
+None blocking. Every docs example and the Storybook `StarterForm` story render through the starter stylesheet, so a human rethemes radius and typography by overriding a `--sft-*` variable on `:root` (devtools or own CSS), the same hands-on path the colour tokens already had. The one improvement is folded into the docs gap below. Note for hand-testing against the docs site: the demos read the starter's built `dist/style.css`, so rebuild the starter before judging rendered output (the dist in the tree is current and minified, 30 `sft-radius` occurrences confirmed).
+
+### Docs gaps
+
+| # | Where | Gap | Status |
+|---|---|---|---|
+| 1 | `docs/guide/starter-template.md`, "Theming with CSS variables" | The prose promised colour, radius, and typography, but the only copyable example overrode colour variables | **Resolved.** The `:root` example now includes `--sft-radius-xl: 4px;` and `--sft-font-size-md: 15px;` alongside the colour overrides, matching the prose. `starterTemplateDocs.test.ts` pins exactly one representative radius and one font-size override in the theming section (an absent example fails the test loudly). Re-verified: `pnpm docs:test` (91 pass) and `pnpm docs:build` (clean). The optional README mirror was left for Jeroen, as the original finding allowed. |
+
+### Re-audit of the fix diff
+
+The fix touched only the guide's `:root` example and the `guide theming section is trimmed` test. Reviewed with the same hostility as the original diff: the example overrides real contract tokens with values that visibly differ from the defaults (12px radius to 4px, 14px body size to 15px), so a human copying the snippet sees the change; the `toHaveLength(1)` assertions fail on both removal (null match) and duplication; the section slice runs from the theming heading to end of file, so stray radius/font-size tokens later in the guide would also trip it. No new issues.
+
+### Housekeeping (pre-existing, not this feature's work order)
+
+- `packages/starter/src/__tests__/prototypeParity.test.ts` fails with ENOENT: it still reads `specs/FEAT-007-starter-form-template`, archived to `specs/archive/` before this branch started. Confirmed unrelated.
+- `docs/` lint (`pnpm --prefix docs lint`) fails on a `ts` code block in `docs/guide/starter-template.md` ("Responsive values" section: bare `columns: { base: 2, lg: 4 },` members are not parseable as a standalone module). Present on main unchanged; CI never runs docs lint, so it only bites locally.
+- The new docs test (like the existing ones under `docs/.vitepress/theme/__tests__/`) is not reached by CI because `docs/` sits outside the pnpm workspace; it only runs via `pnpm docs:test`. Structural, acknowledged in CLAUDE.md.
+
+### What was reviewed
+
+Merge base `43a5a82` (origin/main). The committed part of the branch (`b5271aa`) touches only `specs/` and `research/`; all FEAT-013 code is uncommitted working-tree state. Reviewed in full: `packages/starter/src/style.scss`, `packages/starter/src/__tests__/themeScope.test.ts` (plus its `compiledStylesheet` helper), `packages/starter/README.md`, `docs/reference/starter-template.md` (new), `docs/guide/starter-template.md`, `docs/reference/index.md`, `docs/.vitepress/config.ts`, `docs/.vitepress/theme/__tests__/starterTemplateDocs.test.ts` (new), `.changeset/radius-typography-tokens.md` (new), `specs/components.md`, and the three story specs. Reference-page claims were checked against the source (`optionalText` and `showValidState` exist on `StarterSettingsProperties`; the `metadataConfiguration` prop and `extendMetadata` generics match `StarterFormTemplate.vue` and `metadata.ts`; linked anchors and pages resolve). Deliberately skipped: the coverage run (no TypeScript source in any published package changed, only a stylesheet, tests, and markdown) and screenshots (the byte-identical compiled CSS proof is stronger than a pixel comparison).
