@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useId } from 'vue';
 import StarterIcon from '@/StarterIcon.vue';
 
 export interface Step {
@@ -19,6 +20,12 @@ interface Props {
   /** Appended to a step's aria-label when it has errors. */
   stepErrorAriaLabelSuffix?: string
   dataTestid?: string
+  /**
+   * Prefix for each step label's id, so a caller (the wizard page container)
+   * can point its own `aria-labelledby` at the exact same id. Generated locally
+   * when not given, so the label always has an id to be referenced by.
+   */
+  stepLabelIdPrefix?: string
 }
 
 interface Emits {
@@ -37,6 +44,19 @@ function stepLabel(index: number): string {
     .replace('{number}', String(index + 1))
     .replace('{title}', props.steps[index]?.title ?? '');
   return props.steps[index]?.hasError ? `${label}${props.stepErrorAriaLabelSuffix}` : label;
+}
+
+// Independent of dataTestid, which is a test-selector convention that a
+// consumer is free to leave unset; the label's id must exist regardless so
+// aria-labelledby always has something real to point at.
+const fallbackIdPrefix = useId();
+
+/**
+ * Id for a step's title, so the wizard page container can point its
+ * aria-labelledby at the same text the stepper already shows for that step.
+ */
+function stepLabelId(index: number): string {
+  return `${props.stepLabelIdPrefix ?? fallbackIdPrefix}-step-label-${index}`;
 }
 </script>
 
@@ -64,7 +84,7 @@ function stepLabel(index: number): string {
             <StarterIcon v-else-if="i < currentStep" name="check" :size="14" :strokeWidth="3" />
             <span v-else>{{ i + 1 }}</span>
           </span>
-          <span class="sft-step-label">{{ step.title }}</span>
+          <span :id="stepLabelId(i)" class="sft-step-label">{{ step.title }}</span>
         </button>
         <span
           v-if="i < steps.length - 1"

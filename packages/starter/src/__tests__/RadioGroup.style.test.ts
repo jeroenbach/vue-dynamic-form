@@ -38,7 +38,7 @@ describe('sft-radio-* styling', () => {
   it('rings the circle with a 2px sky outline on keyboard focus', () => {
     const block = blockOf('.sft-radio-input:focus-visible + .sft-radio-control');
     expect(block).not.toBe('');
-    expect(block).toContain('outline: 2px solid var(--sft-focus-border)');
+    expect(block).toContain('outline: 2px solid var(--sft-focus-visible)');
     expect(block).toContain('outline-offset: 2px');
   });
 

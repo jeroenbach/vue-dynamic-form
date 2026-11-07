@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import ChoiceSectionCard from '@/ChoiceSectionCard.vue';
+import { expectNoAxeViolations } from './helpers/axe';
 
 describe('component ChoiceSectionCard', () => {
   it('renders no choice grid when options are omitted', () => {
@@ -19,6 +20,20 @@ describe('component ChoiceSectionCard', () => {
     const wrapper = mount(ChoiceSectionCard, { props: { options: [{ value: 'a', title: 'Alpha' }] } });
 
     expect(wrapper.find('.sft-choice-grid').attributes('aria-label')).toBe('Choose an option');
+  });
+
+  it('marks the radiogroup aria-invalid when the choice has a validation error', () => {
+    const wrapper = mount(ChoiceSectionCard, {
+      props: { options: [{ value: 'a', title: 'Alpha' }], errorMessage: 'Pick one' },
+    });
+
+    expect(wrapper.find('.sft-choice-grid').attributes('aria-invalid')).toBe('true');
+  });
+
+  it('omits aria-invalid from the radiogroup when the choice has no error', () => {
+    const wrapper = mount(ChoiceSectionCard, { props: { options: [{ value: 'a', title: 'Alpha' }] } });
+
+    expect(wrapper.find('.sft-choice-grid').attributes('aria-invalid')).toBeUndefined();
   });
 
   it('omits the per-card data-testid when no dataTestid prop is given', () => {
@@ -73,5 +88,34 @@ describe('component ChoiceSectionCard', () => {
     await wrapper.setProps({ disabled: false });
 
     expect(removeChoiceOccurrence).not.toHaveBeenCalled();
+  });
+
+  describe('accessibility', () => {
+    const options = [
+      { value: 'selfServe', title: 'Self-serve rollout', description: 'Configure and launch on your own.' },
+      { value: 'guided', title: 'Guided rollout', description: 'A specialist plans it with you.' },
+      { value: 'legacy', title: 'Legacy migration', description: 'Migrate existing data.' },
+    ];
+
+    it('has no violations for a full group with one card selected', async () => {
+      const wrapper = mount(ChoiceSectionCard, {
+        props: { label: 'Launch approach', options, activeChoiceOccurrences: [{ branchKey: 'guided', index: 0 }] },
+        attachTo: document.body,
+      });
+
+      await expectNoAxeViolations(wrapper.element);
+    });
+
+    it('has no violations for a group that includes a disabled card', async () => {
+      const wrapper = mount(ChoiceSectionCard, {
+        props: {
+          label: 'Launch approach',
+          options: options.map(option => option.value === 'guided' ? { ...option, disabled: true } : option),
+        },
+        attachTo: document.body,
+      });
+
+      await expectNoAxeViolations(wrapper.element);
+    });
   });
 });

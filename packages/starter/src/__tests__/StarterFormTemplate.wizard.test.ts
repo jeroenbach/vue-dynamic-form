@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { wizardMetadata } from './fixtures/wizardMetadata';
+import { expectNoAxeViolations } from './helpers/axe';
 import {
   click,
   isHidden,
@@ -69,6 +70,18 @@ describe('component StarterFormTemplate - wizard chrome', () => {
 
     expect(isHidden(wrapper.find('[data-testid="wizard.page0-page"]'))).toBe(true);
     expect(isHidden(wrapper.find('[data-testid="wizard.page1-page"]'))).toBe(false);
+  });
+
+  it('has no accessibility violations on the step-errors banner once a failed step reaches the last page', async () => {
+    const { wrapper } = await mountWizardForm(wizardMetadata({ pages: 2, requiredPages: [0], wizard: { allowForwardJump: true } }));
+
+    await click(nextButton(wrapper));
+    expect(stepButton(wrapper, 0).attributes('aria-invalid')).toBe('true');
+
+    await click(stepButton(wrapper, 1));
+    expect(wrapper.find('.sft-wizard-alert').attributes('role')).toBe('alert');
+
+    await expectNoAxeViolations(wrapper.element);
   });
 });
 

@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import type { MaybeRefOrGetter } from 'vue';
 import type { Step } from '@/Stepper.vue';
-import { computed } from 'vue';
+import { computed, nextTick, ref, useId, watch } from 'vue';
 import AppButton from '@/AppButton.vue';
+import { focusFirstInvalid, focusWithTemporaryTabindex } from '@/focus';
 import StarterIcon from '@/StarterIcon.vue';
 import Stepper from '@/Stepper.vue';
 
@@ -45,6 +46,48 @@ const helperText = computed(() => {
     .replace('{total}', String(props.steps?.length ?? 0));
   return [progress, currentStep.value?.description || currentStep.value?.title].join(' · ');
 });
+
+const mainEl = ref<HTMLElement>();
+
+// Generated once per wizard instance, independent of dataTestid (an optional
+// test-selector prop), so the step-change accessible name always has a real
+// id to point at, even for a consumer who never sets dataTestid.
+const stepLabelIdPrefix = useId();
+
+function pageContainer(index: number): HTMLElement | null {
+  return mainEl.value?.querySelector<HTMLElement>(`[data-page="${index}"]`) ?? null;
+}
+
+// Pages never unmount (the engine keeps every step mounted and toggles v-show),
+// so there is no mount/unmount hook to react to a step change. currentStepIndex
+// is the reactive stand-in for that: it changes exactly when the visible page does.
+// A counter guards against a stale focus call landing after a newer step change
+// (e.g. a double-clicked Continue), since nextTick lets two watch runs overlap.
+let latestStepChange = 0;
+watch(() => props.currentStepIndex, async (newIndex) => {
+  const thisStepChange = ++latestStepChange;
+  await nextTick();
+  if (thisStepChange !== latestStepChange)
+    return;
+
+  const page = pageContainer(newIndex);
+  if (!page)
+    return;
+  page.setAttribute('aria-labelledby', `${stepLabelIdPrefix}-step-label-${newIndex}`);
+  focusWithTemporaryTabindex(page);
+});
+
+// next() is the engine's own validate-then-advance call. When it fails, currentStepIndex
+// stays put (so the watch above never fires) and focus goes to the first invalid field on
+// the current page instead, taking the user straight to what needs fixing.
+async function handleNext() {
+  const from = props.currentStepIndex;
+  await props.next();
+  await nextTick();
+  if (props.currentStepIndex !== from)
+    return;
+  focusFirstInvalid(pageContainer(from));
+}
 </script>
 
 <template>
@@ -58,7 +101,7 @@ const helperText = computed(() => {
       </h1>
     </header>
 
-    <Stepper :steps="steps ?? []" :currentStep="currentStepIndex" :allowForwardJump :ariaLabel="stepperAriaLabel" :stepAriaLabel :dataTestid @goto="gotoStep" />
+    <Stepper :steps="steps ?? []" :currentStep="currentStepIndex" :allowForwardJump :ariaLabel="stepperAriaLabel" :stepAriaLabel :dataTestid :stepLabelIdPrefix @goto="gotoStep" />
 
     <!--
       Pages stay mounted at all times; the engine's -wizard-page wrapper (rendered inside this
@@ -67,7 +110,7 @@ const helperText = computed(() => {
       and clears their values unless keepValuesOnUnmount is set; the deregistration happens either
       way, so v-show stays required for any page with fields.
     -->
-    <main>
+    <main ref="mainEl">
       <slot />
     </main>
 
@@ -112,7 +155,7 @@ const helperText = computed(() => {
         variant="primary"
         :disabled="isValidating"
         :dataTestid="dataTestid ? `${dataTestid}-next-button` : undefined"
-        @click="next"
+        @click="handleNext"
       >
         {{ nextButton }}
         <StarterIcon name="chevronRight" />

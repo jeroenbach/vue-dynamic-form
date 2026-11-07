@@ -25,13 +25,14 @@ import { starterMetadata as starterMetadataFromModule } from '@/metadata';
 type Config = typeof api.starterMetadata;
 
 describe('package entry', () => {
-  it('exports exactly the nine runtime values the architecture lists', () => {
+  it('exports exactly the ten runtime values the architecture lists', () => {
     expect(api.StarterFormTemplate).toBeDefined();
     expect(api.StarterIcon).toBeDefined();
     expect(api.ReviewGroup).toBeDefined();
     expect(api.SubmissionSuccess).toBeDefined();
     expect(api.AppButton).toBeDefined();
     expect(api.ChoiceArraySectionCard).toBeDefined();
+    expect(api.focusFirstInvalid).toBeDefined();
     expect(Object.keys(api).sort()).toEqual([
       'AppButton',
       'ChoiceArraySectionCard',
@@ -40,6 +41,7 @@ describe('package entry', () => {
       'StarterIcon',
       'SubmissionSuccess',
       'extendMetadata',
+      'focusFirstInvalid',
       'starterIconNames',
       'starterMetadata',
     ]);

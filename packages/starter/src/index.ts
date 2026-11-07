@@ -6,6 +6,9 @@ export { default as AppButton } from '@/AppButton.vue';
 export type { Props as AppButtonProps } from '@/AppButton.vue';
 export { default as ChoiceArraySectionCard } from '@/ChoiceArraySectionCard.vue';
 export type { ChoiceOption } from '@/ChoiceSectionCard.vue';
+// Focus management: call from a non-wizard form's own onInvalidSubmit handler;
+// the wizard moves focus on its own for step navigation and blocked steps.
+export { focusFirstInvalid } from '@/focus';
 export { starterIconNames } from '@/icons';
 export type { StarterIconName } from '@/icons';
 // Metadata

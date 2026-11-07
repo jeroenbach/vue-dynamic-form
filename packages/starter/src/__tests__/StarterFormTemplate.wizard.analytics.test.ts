@@ -13,9 +13,12 @@ describe('component StarterFormTemplate - wizard page-switch render counts', () 
 
     const untouchedBefore = renderCount(wrapper, 'wizard.page1.field1');
     const siblingBefore = renderCount(wrapper, 'sibling');
+    expect(untouchedBefore).toBe(1);
 
     await click(nextButton(wrapper));
 
+    // The step-change focus move is a DOM-only side effect (an attribute and a .focus() call);
+    // it writes to no reactive state, so becoming the current page renders no extra time.
     expect(renderCount(wrapper, 'wizard.page1.field1')).toBe(untouchedBefore);
     expect(renderCount(wrapper, 'sibling')).toBe(siblingBefore);
   });

@@ -10,6 +10,7 @@ Split a long form into ordered steps. Steps validate as the user moves through t
 - A final step whose submit button is disabled while any step still has errors, with a message pointing at the red steps
 - A [`wizardSummaryPage`](/reference/field-metadata#wizard) step that reviews the collected values with per-section edit links
 - `wizardTexts.submitButtonText` for the label on the final step's submit button
+- Focus moving automatically: to the new step on navigation, to the first invalid field on a blocked step, and to the first invalid field on a failed final submit
 
 ## Example
 
@@ -59,11 +60,21 @@ The final step is a `wizardSummaryPage`. A `computedProps` function feeds its `w
 
 ## Handling Submit
 
-The final step's button is a native `type="submit"` control, so the wrapping form forwards its submit event to your own `handleSubmit` from [`useDynamicForm`](/reference/use-validate-partial-form):
+The final step's button is a native `type="submit"` control, so the wrapping form forwards its submit event to your own `handleSubmit` from [`useDynamicForm`](/reference/use-validate-partial-form). The `onInvalid` callback calls `focusFirstInvalid()`, so a failed submit takes the user straight to the first invalid field (see [Focus Management](#focus-management) below):
 
 <<< @/.vitepress/theme/components/FormExampleWizard.vue#submit{ts} [FormExampleWizard.vue]
 
 For a production-scale wizard that layers conditional fields, dynamic options, repeatable steps, and a choice-based branch on top of these basics, see the [Client Onboarding Wizard](/examples/client-onboarding).
+
+## Focus Management
+
+The starter template's `FormWizard` moves keyboard focus for you, so a screen-reader or keyboard-only user is never left stranded after navigating:
+
+- **On a successful step change**, focus moves to the new page's container, which carries an accessible name tied to its step title. A screen reader announces which step the user landed on before reaching the first field.
+- **On a blocked `next()`** (the step the user tried to leave has validation errors), focus moves to the first invalid field on the current page instead, taking the user straight to what needs fixing.
+- **On a failed final submit**, the wizard cannot see the consumer's own submit handler (its last-step button is a plain `type="submit"`, left to whatever `<form>` wraps the template), so this case is wired the same way a non-wizard form would be: by calling the exported `focusFirstInvalid()` helper from the `onInvalid` callback, shown above under [Handling Submit](#handling-submit).
+
+None of this needs any extra metadata or settings; it is on by default for every wizard the starter template renders.
 
 ## Related Source
 

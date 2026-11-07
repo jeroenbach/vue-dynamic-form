@@ -4,8 +4,8 @@ import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { starterMetadata } from '@/metadata';
-import { addButton, click } from './choice.test-helpers';
-import { autoChoiceMetadata, explicitChoiceArrayMetadata } from './fixtures/choiceMetadata';
+import { addButton, choiceCard, click, focusElement } from './choice.test-helpers';
+import { autoChoiceMetadata, explicitChoiceArrayMetadata, explicitChoiceMetadata } from './fixtures/choiceMetadata';
 import { mountInForm } from './fixtures/mountInForm';
 import { renderCount } from './fixtures/renderCount';
 
@@ -54,6 +54,29 @@ describe('component StarterFormTemplate - choice-array render counts', () => {
     await flushPromises();
 
     expect(renderCount(wrapper, 'channels.sms[0]') - before).toBe(0);
+  });
+});
+
+describe('component StarterFormTemplate - choice-card arrow-key roving render counts', () => {
+  it('re-renders an unrelated sibling field no more via ArrowRight selection than via click selection', async () => {
+    const metadata = [explicitChoiceMetadata, { name: 'sibling', type: 'text' }];
+
+    const viaClick = await mountInForm({ metadata, settings: { analytics: true } });
+    const viaArrow = await mountInForm({ metadata, settings: { analytics: true } });
+
+    const clickBefore = renderCount(viaClick.wrapper, 'sibling');
+    const arrowBefore = renderCount(viaArrow.wrapper, 'sibling');
+
+    await click(choiceCard(viaClick.wrapper, 'launch', 'guided'));
+
+    focusElement(choiceCard(viaArrow.wrapper, 'launch', 'selfServe'));
+    await choiceCard(viaArrow.wrapper, 'launch', 'selfServe').trigger('keydown.right');
+    await flushPromises();
+
+    const clickDelta = renderCount(viaClick.wrapper, 'sibling') - clickBefore;
+    const arrowDelta = renderCount(viaArrow.wrapper, 'sibling') - arrowBefore;
+
+    expect(arrowDelta).toBeLessThanOrEqual(clickDelta);
   });
 });
 

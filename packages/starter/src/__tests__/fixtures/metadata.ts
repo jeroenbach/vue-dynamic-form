@@ -83,3 +83,15 @@ export const headingArrayMetadata = {
     { name: 'last', type: 'text', fieldOptions: { label: 'Last' } },
   ],
 };
+
+/** No `heading` type, so each item renders through the `default` slot's `GroupField`, not `RepeaterCard`. */
+export const groupArrayMetadata = {
+  name: 'members',
+  fieldOptions: { label: 'Members' },
+  maxOccurs: 3,
+  minOccurs: 0,
+  array: { itemName: 'member', itemNamePlural: 'members' },
+  children: [
+    { name: 'name', type: 'text', fieldOptions: { label: 'Name' } },
+  ],
+};

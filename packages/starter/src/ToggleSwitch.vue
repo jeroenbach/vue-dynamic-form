@@ -1,10 +1,12 @@
 <script setup lang="ts">
-const { checked = false, label = '', disabled = false, falseAsUndefined = false, dataTestid } = defineProps<{
+const { checked = false, label = '', disabled = false, falseAsUndefined = false, dataTestid, ariaInvalid = undefined, ariaDescribedby = undefined } = defineProps<{
   checked?: boolean
   label?: string
   disabled?: boolean
   falseAsUndefined?: boolean
   dataTestid?: string
+  ariaInvalid?: boolean
+  ariaDescribedby?: string
 }>();
 const emit = defineEmits<{
   'update:checked': [value: boolean | undefined]
@@ -36,6 +38,8 @@ function onBlur(event: FocusEvent) {
     :aria-checked="!!checked"
     :aria-label="label || undefined"
     :aria-disabled="disabled || undefined"
+    :aria-invalid="ariaInvalid"
+    :aria-describedby="ariaDescribedby"
     @click="toggle"
     @keydown.space.prevent="toggle"
     @keydown.enter.prevent="toggle"

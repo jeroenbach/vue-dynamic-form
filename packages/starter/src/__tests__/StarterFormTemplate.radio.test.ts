@@ -9,7 +9,7 @@ describe('component StarterFormTemplate - radio field', () => {
 
     const field = wrapper.find('.sft-field');
     expect(field.exists()).toBe(true);
-    expect(field.find('label').text()).toContain('How should we contact you?');
+    expect(field.find('.sft-field-label').text()).toContain('How should we contact you?');
 
     const group = field.find('.sft-radio-group');
     expect(group.exists()).toBe(true);

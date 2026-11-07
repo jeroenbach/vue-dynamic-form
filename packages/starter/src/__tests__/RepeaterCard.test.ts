@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import RepeaterCard from '@/RepeaterCard.vue';
+import { expectNoAxeViolations } from './helpers/axe';
 
 describe('component RepeaterCard', () => {
   it('omits the remove button data-testid when no dataTestid prop is given, and still emits remove on click', async () => {
@@ -24,5 +25,13 @@ describe('component RepeaterCard', () => {
     const wrapper = mount(RepeaterCard, { props: { index: 0 } });
 
     expect(wrapper.classes()).toContain('sft-span-full');
+  });
+
+  describe('accessibility', () => {
+    it('has no violations with a title and a remove button', async () => {
+      const wrapper = mount(RepeaterCard, { props: { index: 0, title: 'Jordan Fay' }, attachTo: document.body });
+
+      await expectNoAxeViolations(wrapper.element);
+    });
   });
 });
