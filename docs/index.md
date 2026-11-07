@@ -74,7 +74,7 @@ const fields: Metadata[] = [
 
 Vue tracks whatever the function reads and re-runs it when that changes, no `watch()` needed. And `disabled` isn't a built-in: it's a property you declare in your template's metadata contract, so the vocabulary of behaviours is entirely yours. Components stay clean and reusable; the form definition is the single source of truth for behaviour.
 
-[Learn how →](/guide/dynamic-fields)
+[Learn how →](/guide/reactive-fields)
 
 ## Next Steps
 

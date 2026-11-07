@@ -9,13 +9,18 @@ import FormExampleChoiceFields from './components/FormExampleChoiceFields.vue';
 import FormExampleChoicePreserveOnSwitch from './components/FormExampleChoicePreserveOnSwitch.vue';
 import FormExampleChoiceRepeatableBranch from './components/FormExampleChoiceRepeatableBranch.vue';
 import FormExampleProjectFields from './components/FormExampleProjectFields.vue';
-import FormExampleValidation from './components/FormExampleValidation.vue';
+import FormExampleValidationAsync from './components/FormExampleValidationAsync.vue';
+import FormExampleValidationConfirmPassword from './components/FormExampleValidationConfirmPassword.vue';
+import FormExampleValidationDateRange from './components/FormExampleValidationDateRange.vue';
+import FormExampleValidationPassword from './components/FormExampleValidationPassword.vue';
+import FormExampleValidationRestrictions from './components/FormExampleValidationRestrictions.vue';
+import FormExampleValidationWebsite from './components/FormExampleValidationWebsite.vue';
 import FormExampleWizard from './components/FormExampleWizard.vue';
 import InboxRulesExample from './components/InboxRulesExample.vue';
 import RunOfShowExample from './components/RunOfShowExample.vue';
 import WorkoutPlanExample from './components/WorkoutPlanExample.vue';
 import FormExampleClientOnboardingPlannerContext from './context/FormExampleClientOnboardingPlannerContext.vue';
-import FormExampleDynamicFieldsContext from './context/FormExampleDynamicFieldsContext.vue';
+import FormExampleReactiveFieldsContext from './context/FormExampleReactiveFieldsContext.vue';
 // The starter package's stylesheet is pulled in from custom.css (as a layered @import), not
 // here, so it can be ordered relative to Tailwind's cascade layers.
 import './custom.css';
@@ -24,7 +29,12 @@ export default {
   extends: DefaultTheme,
   enhanceApp({ app }) {
     app.component('FormExampleBasic', FormExampleBasic);
-    app.component('FormExampleValidation', FormExampleValidation);
+    app.component('FormExampleValidationRestrictions', FormExampleValidationRestrictions);
+    app.component('FormExampleValidationAsync', FormExampleValidationAsync);
+    app.component('FormExampleValidationPassword', FormExampleValidationPassword);
+    app.component('FormExampleValidationConfirmPassword', FormExampleValidationConfirmPassword);
+    app.component('FormExampleValidationDateRange', FormExampleValidationDateRange);
+    app.component('FormExampleValidationWebsite', FormExampleValidationWebsite);
     app.component('FormExampleArrayFields', FormExampleArrayFields);
     app.component('FormExampleChoiceFields', FormExampleChoiceFields);
     app.component('FormExampleChoiceExplicitSingle', FormExampleChoiceExplicitSingle);
@@ -34,7 +44,7 @@ export default {
     app.component('FormExampleProjectFields', FormExampleProjectFields);
     app.component('FormExampleWizard', FormExampleWizard);
     app.component('FormExampleClientOnboardingPlannerContext', FormExampleClientOnboardingPlannerContext);
-    app.component('FormExampleDynamicFieldsContext', FormExampleDynamicFieldsContext);
+    app.component('FormExampleReactiveFieldsContext', FormExampleReactiveFieldsContext);
     app.component('CheckoutFormExample', CheckoutFormExample);
     app.component('InboxRulesExample', InboxRulesExample);
     app.component('WorkoutPlanExample', WorkoutPlanExample);

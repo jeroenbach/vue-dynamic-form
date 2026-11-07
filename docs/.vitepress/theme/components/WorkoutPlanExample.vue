@@ -200,7 +200,7 @@ function buildAnotherPlan() {
 
 <template>
   <div class="form-demo workout-layout">
-    <form class="flex flex-col gap-6" @submit="onSubmit">
+    <form class="flex flex-col gap-6" novalidate @submit.prevent="onSubmit">
       <DynamicForm :template="WorkoutPlanTemplate" :metadata :settings />
 
       <div v-if="!submitted" class="flex flex-col gap-3">

@@ -4,16 +4,20 @@ import { extendMetadata } from '@bach.software/vue-dynamic-form-starter';
 // #region metadata-configuration
 /**
  * The starter catalogue plus the field types this project needs:
- * a multi-line `textarea` and a star `rating`.
+ * a slider `range` and a star `rating`.
  */
 export const projectMetadata = extendMetadata<
   {
-    textarea: string
+    range: string
     rating: number
   },
   {
-    /** Visible rows of the textarea control. */
-    rows?: number
+    /** Lowest selectable value of the range control. */
+    min?: number
+    /** Highest selectable value of the range control. */
+    max?: number
+    /** Step size of the range control. */
+    step?: number
     /** Highest selectable rating. */
     maxRating?: number
   }

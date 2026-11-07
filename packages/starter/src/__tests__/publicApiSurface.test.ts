@@ -45,7 +45,9 @@ describe('public api surface matches the architecture exactly', () => {
       'StarterIconName',
       'GridColumnCount',
       'Responsive',
+      'StarterDynamicFormSettings',
       'StarterFieldProperties',
+      'StarterMetadata',
       'StarterValueTypes',
       'ReviewGroupProps',
       'TimelineItem',
@@ -57,7 +59,7 @@ describe('public api surface matches the architecture exactly', () => {
   });
 
   it('never exports an internal chrome component', () => {
-    const internalChrome = ['FormField', 'GroupField', 'SectionCard', 'ArraySectionCard', 'ArrayField', 'RepeaterCard', 'ChoiceCard', 'ChoiceField', 'ChoiceSectionCard', 'FormWizard', 'Stepper', 'TextInput', 'SelectInput', 'CheckboxField', 'ToggleSwitch', 'PasswordInput', 'PasswordStrengthBar', 'ErrorMessage', 'OptionalRequiredTag'];
+    const internalChrome = ['FormField', 'GroupField', 'SectionCard', 'ArraySectionCard', 'ArrayField', 'RepeaterCard', 'ChoiceCard', 'ChoiceField', 'ChoiceSectionCard', 'FormWizard', 'Stepper', 'TextInput', 'SelectInput', 'CheckboxField', 'ToggleSwitch', 'PasswordInput', 'PasswordStrengthBar', 'ErrorMessage', 'OptionalRequiredTag', 'Textarea', 'RadioGroup', 'FileInput'];
     for (const name of internalChrome)
       expect(valueExports).not.toContain(name);
   });

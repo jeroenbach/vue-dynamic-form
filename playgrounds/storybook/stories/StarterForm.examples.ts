@@ -1,8 +1,4 @@
-import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
-import type { starterMetadata } from '@bach.software/vue-dynamic-form-starter';
-
-type StarterMetadata = GetMetadataType<typeof starterMetadata>;
-type StarterSettings = GetDynamicFormSettingsType<typeof starterMetadata>;
+import type { StarterDynamicFormSettings as StarterSettings, StarterMetadata } from '@bach.software/vue-dynamic-form-starter';
 
 export interface StarterFormExample {
   exampleId: string
@@ -303,6 +299,136 @@ export const settingsExample: StarterFormExample = {
     showRequiredOrOptional: 'optional',
     optionalText: 'Not required',
     showValidState: true,
+  },
+  bare: true,
+};
+
+export const textModesExample: StarterFormExample = {
+  exampleId: 'textModes',
+  title: 'HTML5 text-mode field types',
+  description: 'The number, email, tel, url, date, time, and datetime-local types, rendered through the existing text-input chrome with no extendMetadata step. Age shows the native spinner from number.min/max/step (prototype.html#text-modes).',
+  metadata: [
+    {
+      name: 'contact',
+      type: 'heading',
+      fieldOptions: { label: 'Contact details' },
+      children: [
+        { name: 'age', type: 'number', fieldOptions: { label: 'Age' }, number: { min: 0, max: 120, step: 1 } },
+        { name: 'email', type: 'email', fieldOptions: { label: 'Email' }, restriction: { pattern: '^[^@]+@[^@]+\\.[^@]+$' } },
+        { name: 'phone', type: 'tel', fieldOptions: { label: 'Phone' }, minOccurs: 0 },
+        { name: 'website', type: 'url', fieldOptions: { label: 'Website' }, minOccurs: 0 },
+        { name: 'birthDate', type: 'date', fieldOptions: { label: 'Birth date' }, minOccurs: 0 },
+        { name: 'preferredTime', type: 'time', fieldOptions: { label: 'Preferred callback time' }, minOccurs: 0 },
+        { name: 'meeting', type: 'datetime-local', fieldOptions: { label: 'Meeting' }, minOccurs: 0 },
+      ],
+    },
+  ],
+  bare: true,
+};
+
+export const textareaExample: StarterFormExample = {
+  exampleId: 'textarea',
+  title: 'Textarea field type',
+  description: 'The textarea type, rendered through the new textarea-input slot (prototype.html#textarea). An empty required field, a pre-filled one, and a disabled one, side by side. Click Submit to see the empty field\'s error state.',
+  metadata: [
+    {
+      name: 'application',
+      type: 'heading',
+      fieldOptions: { label: 'Application' },
+      children: [
+        { name: 'bio', type: 'textarea', fieldOptions: { label: 'Bio' }, placeholder: 'Share a few sentences on why this role is a fit.', restriction: { minLength: 50 } },
+        {
+          name: 'coverLetter',
+          type: 'textarea',
+          fieldOptions: { label: 'Cover letter' },
+          minOccurs: 0,
+        },
+        { name: 'internalNotes', type: 'textarea', fieldOptions: { label: 'Internal notes' }, disabled: true, minOccurs: 0 },
+      ],
+    },
+  ],
+  initialValues: {
+    application: {
+      coverLetter: 'I have led three design-system rebuilds and care about accessible, themeable form UI.',
+      internalNotes: 'Submitted applications cannot be edited.',
+    },
+  },
+  bare: true,
+};
+
+export const radioExample: StarterFormExample = {
+  exampleId: 'radio',
+  title: 'Radio group field type',
+  description: 'The radio type, rendered through the new radio-input slot (prototype.html#radio): a flat rendering of the same options property select reads, a sibling of select rather than the structural choice concept. An empty required field, a pre-selected one, and a disabled one, side by side. Click Submit to see the empty field\'s error state.',
+  metadata: [
+    {
+      name: 'application',
+      type: 'heading',
+      fieldOptions: { label: 'Application' },
+      children: [
+        {
+          name: 'howHeard',
+          type: 'radio',
+          fieldOptions: { label: 'How did you hear about us?' },
+          options: [
+            { key: 'search', value: 'A search engine' },
+            { key: 'referral', value: 'A friend or colleague' },
+            { key: 'social', value: 'Social media' },
+          ],
+        },
+        {
+          name: 'preferredContact',
+          type: 'radio',
+          fieldOptions: { label: 'Preferred contact method' },
+          options: [
+            { key: 'email', value: 'Email' },
+            { key: 'phone', value: 'Phone' },
+          ],
+          minOccurs: 0,
+        },
+        {
+          name: 'accountTier',
+          type: 'radio',
+          fieldOptions: { label: 'Account tier' },
+          options: [
+            { key: 'free', value: 'Free' },
+            { key: 'pro', value: 'Pro' },
+          ],
+          disabled: true,
+          minOccurs: 0,
+        },
+      ],
+    },
+  ],
+  initialValues: {
+    application: {
+      preferredContact: 'email',
+      accountTier: 'pro',
+    },
+  },
+  bare: true,
+};
+
+export const fileExample: StarterFormExample = {
+  exampleId: 'file',
+  title: 'File input field type',
+  description: 'The file type, rendered through the new file-input slot (prototype.html#file): the one uncontrolled control in the package. An empty required field, one already holding a file, and a disabled one, side by side. Click Submit to see the empty field\'s error state.',
+  metadata: [
+    {
+      name: 'application',
+      type: 'heading',
+      fieldOptions: { label: 'Application' },
+      children: [
+        { name: 'resume', type: 'file', fieldOptions: { label: 'Resume' }, description: 'PDF or Word document, up to 5 MB.', file: { accept: '.pdf,.doc,.docx' } },
+        { name: 'portfolio', type: 'file', fieldOptions: { label: 'Portfolio' }, description: 'Optional, any file type.', minOccurs: 0 },
+        { name: 'referenceLetter', type: 'file', fieldOptions: { label: 'Reference letter' }, disabled: true, minOccurs: 0 },
+      ],
+    },
+  ],
+  initialValues: {
+    application: {
+      portfolio: new File(['placeholder content'], 'jeroen-bach-portfolio.pdf', { type: 'application/pdf' }),
+    },
   },
   bare: true,
 };

@@ -323,7 +323,8 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-btn,
 .sft-step,
 .sft-choice-card,
-.sft-switch {
+.sft-switch,
+.sft-textarea {
   font-family: inherit;
 }
 
@@ -394,6 +395,251 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   font-size: 14px;
   color: var(--sft-text-muted);
   white-space: nowrap;
+}
+
+/* ---- textarea --------------------------------------------------------
+   Same chrome tokens as .sft-input (border, radius, background, text, focus
+   ring, invalid, disabled), but auto height with a min-height and a vertical
+   resize handle instead of the fixed 40px row.
+   TODO: switch border-radius/font-size below to the starter theme radius and font
+   tokens once that work ships; those tokens do not exist in this file yet. */
+.sft-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 104px;
+  border: 1px solid var(--sft-input-border);
+  border-radius: 8px;
+  background: var(--sft-input-bg);
+  color: var(--sft-text);
+  padding: 8px 12px;
+  font-size: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+
+  @media (min-width: $breakpoint-md) {
+    font-size: 14px;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--sft-focus-border);
+    box-shadow: 0 0 0 2px var(--sft-focus-ring);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: var(--sft-input-disabled-bg);
+    color: var(--sft-input-disabled-text);
+    resize: none;
+  }
+
+  &.is-invalid {
+    border-color: var(--sft-danger-border);
+
+    &:focus {
+      border-color: var(--sft-danger-focus-border);
+      box-shadow: 0 0 0 2px var(--sft-danger-ring);
+    }
+  }
+
+  /* opt-in via the showValidState setting: a touched, valid field gets a subtle success border */
+  &.is-valid {
+    border-color: var(--sft-success);
+  }
+}
+.sft-textarea::placeholder {
+  color: var(--sft-placeholder);
+}
+
+/* ---- radio group -------------------------------------------------------
+   A different rendering of the same flat `options` data `select` already
+   reads: "which one value does this field hold". A sibling of `select`, not
+   the structural choice concept (choice cards stay indigo); this one uses
+   the sky accent, a smaller dot, no icon, no per-option description. Rows
+   are full-width tap targets, analogous to the switch/select chrome.
+   TODO: switch border-radius below to the starter theme radius token once
+   that work ships; it does not exist in this file yet. */
+.sft-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sft-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--sft-input-border);
+  border-radius: 8px;
+  background: var(--sft-input-bg);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+
+  &:not(.is-disabled):hover {
+    border-color: var(--sft-focus-border);
+  }
+
+  &.is-selected {
+    border-color: var(--sft-accent);
+  }
+
+  &.is-disabled {
+    cursor: not-allowed;
+  }
+}
+/* the native input is the real control; kept accessible but visually replaced */
+.sft-radio-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.sft-radio-control {
+  display: grid;
+  place-items: center;
+  height: 16px;
+  width: 16px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 2px solid #cad5e2;
+  transition: border-color 0.15s ease;
+
+  :root.dark & {
+    border-color: #45556c;
+  }
+
+  /* placed after the dark rule: both selectors weigh the same, so the selected
+     state must come later to win in dark mode */
+  .sft-radio-option.is-selected & {
+    border-color: var(--sft-accent);
+  }
+}
+.sft-radio-input:focus-visible + .sft-radio-control {
+  outline: 2px solid var(--sft-focus-border);
+  outline-offset: 2px;
+}
+/* invalid: the resting circles pick up the danger border, and a focused
+   circle swaps its outline to the same danger-focus token .sft-input uses */
+.sft-radio-group.is-invalid .sft-radio-control {
+  border-color: var(--sft-danger-border);
+}
+.sft-radio-group.is-invalid .sft-radio-input:focus-visible + .sft-radio-control {
+  outline-color: var(--sft-danger-focus-border);
+}
+.sft-radio-dot {
+  height: 8px;
+  width: 8px;
+  border-radius: 9999px;
+  background: var(--sft-accent);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+
+  .sft-radio-option.is-selected & {
+    transform: scale(1);
+  }
+}
+.sft-radio-label {
+  font-size: 14px;
+  color: var(--sft-text);
+}
+
+/* ---- file input -------------------------------------------------------
+   The one uncontrolled control: a native <input type="file"> cannot take a
+   :value, so it is visually hidden and a styled label stands in as the
+   trigger. The displayed filename always comes from the field value, never
+   from state local to this component, so a reset never leaves a stale name
+   on screen; only the native element's own value is reset imperatively.
+   TODO: switch border-radius below to the starter theme radius token once
+   that work ships; it does not exist in this file yet. */
+.sft-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* the native input is the real control; kept accessible but visually replaced */
+.sft-file-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.sft-file-trigger:focus-within {
+  outline: none;
+  border-color: var(--sft-focus-border);
+  box-shadow: 0 0 0 2px var(--sft-focus-ring);
+}
+.sft-file-name {
+  font-size: 14px;
+  color: var(--sft-text-strong);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sft-file-name.is-empty {
+  color: var(--sft-text-subtle);
+}
+.sft-file-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  width: 28px;
+  border-radius: 6px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--sft-text-subtle);
+
+  &:hover {
+    background: var(--sft-muted-bg);
+    color: var(--sft-text);
+  }
+}
+/* invalid: the danger border lands on the trigger button, never the hidden native input */
+.sft-file.is-invalid .sft-file-trigger {
+  border-color: var(--sft-danger-border);
+  color: var(--sft-danger-text);
+
+  &:focus-within {
+    border-color: var(--sft-danger-focus-border);
+    box-shadow: 0 0 0 2px var(--sft-danger-ring);
+  }
+}
+/* disabled: the native input being disabled does not stop its wrapping label
+   from reacting to hover, so the inert trigger needs its own cursor and a
+   hover gate back to the resting look */
+.sft-file.is-disabled .sft-file-trigger {
+  cursor: not-allowed;
+
+  &:hover {
+    border-color: #cad5e2;
+    background: var(--sft-card-bg);
+
+    /* repeated explicitly (not left to the --sft-card-bg variable alone): a plain
+       :hover selector here ties in specificity with .sft-btn-default's own dark
+       :hover override declared later in the file, so without this the later rule
+       would win and the disabled trigger would still darken on hover */
+    :root.dark & {
+      border-color: #45556c;
+      background: var(--sft-card-bg);
+    }
+  }
 }
 
 /* password */

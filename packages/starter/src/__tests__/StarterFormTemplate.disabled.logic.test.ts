@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkboxMetadata, groupMetadata, inlineArrayMetadata, passwordMetadata, selectMetadata, textMetadata } from './fixtures/metadata';
+import { checkboxMetadata, emailMetadata, fileMetadata, groupMetadata, inlineArrayMetadata, passwordMetadata, radioMetadata, selectMetadata, textareaMetadata, textMetadata } from './fixtures/metadata';
 import { mountInForm } from './fixtures/mountInForm';
 
 const sources: [string, Record<string, unknown>][] = [
@@ -32,6 +32,35 @@ describe('component StarterFormTemplate - disabled state', () => {
       const { wrapper } = await mountInForm({ metadata: { ...passwordMetadata, minOccurs: 0, ...disabling } });
 
       expect(wrapper.find('input.sft-input').attributes('disabled')).toBeDefined();
+    });
+
+    it('textarea: disables the control and drops the resize handle', async () => {
+      const { wrapper } = await mountInForm({ metadata: { ...textareaMetadata, minOccurs: 0, ...disabling } });
+
+      expect(wrapper.find('textarea.sft-textarea').attributes('disabled')).toBeDefined();
+      expect(wrapper.find('.sft-field').classes()).toContain('is-disabled');
+    });
+
+    it('email: disables the input, confirming the mechanism is not special-cased to the original types', async () => {
+      const { wrapper } = await mountInForm({ metadata: { ...emailMetadata, minOccurs: 0, ...disabling } });
+
+      expect(wrapper.find('input.sft-input').attributes('disabled')).toBeDefined();
+      expect(wrapper.find('.sft-field').classes()).toContain('is-disabled');
+    });
+
+    it('radio: disables every option', async () => {
+      const { wrapper } = await mountInForm({ metadata: { ...radioMetadata, minOccurs: 0, ...disabling } });
+
+      for (const input of wrapper.findAll('input[type="radio"]'))
+        expect(input.attributes('disabled')).toBeDefined();
+      expect(wrapper.find('.sft-field').classes()).toContain('is-disabled');
+    });
+
+    it('file: disables the native input, making the trigger inert, and dims the field', async () => {
+      const { wrapper } = await mountInForm({ metadata: { ...fileMetadata, minOccurs: 0, ...disabling } });
+
+      expect(wrapper.find('input.sft-file-native').attributes('disabled')).toBeDefined();
+      expect(wrapper.find('.sft-field').classes()).toContain('is-disabled');
     });
   });
 

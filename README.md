@@ -36,6 +36,7 @@ import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import MyFormTemplate from './MyFormTemplate.vue';
 
 const { handleSubmit } = useDynamicForm();
+const onSubmit = handleSubmit(values => console.log(values));
 
 const metadata = [{
   name: 'person',
@@ -48,7 +49,7 @@ const metadata = [{
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit(values => console.log(values))">
+  <form novalidate @submit.prevent="onSubmit">
     <DynamicForm :metadata :template="MyFormTemplate" />
   </form>
 </template>

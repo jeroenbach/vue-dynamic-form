@@ -63,7 +63,7 @@ The final step's button is a native `type="submit"` control, so the wrapping for
 
 <<< @/.vitepress/theme/components/FormExampleWizard.vue#submit{ts} [FormExampleWizard.vue]
 
-For a production-scale wizard that layers conditional fields, dynamic options, repeatable steps, and a choice-based branch on top of these basics, see the [Client Onboarding Wizard](/examples/advanced).
+For a production-scale wizard that layers conditional fields, dynamic options, repeatable steps, and a choice-based branch on top of these basics, see the [Client Onboarding Wizard](/examples/client-onboarding).
 
 ## Related Source
 

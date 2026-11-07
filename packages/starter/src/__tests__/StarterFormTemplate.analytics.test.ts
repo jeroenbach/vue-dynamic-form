@@ -8,6 +8,9 @@ const fieldTypes: [string, Record<string, unknown>][] = [
   ['select', { type: 'select', options: [{ key: 'a', value: 'A' }] }],
   ['checkbox', { type: 'checkbox' }],
   ['password', { type: 'password' }],
+  ['number', { type: 'number', number: { min: 0, max: 50, step: 1 } }],
+  ['textarea', { type: 'textarea' }],
+  ['file', { type: 'file' }],
 ];
 
 describe('component StarterFormTemplate - render counts', () => {

@@ -39,7 +39,7 @@ The example template in this repository is here:
 
 ## Example Snippet
 
-```vue
+```vue-html
 <DynamicFormTemplate :metadata-configuration="metadata">
   <template #default="{ fieldMetadata, fieldContext: { errorMessage, label } }">
     <label :for="fieldMetadata.path">{{ label }}</label>

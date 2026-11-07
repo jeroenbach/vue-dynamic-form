@@ -12,7 +12,9 @@ import type {
   GetMetadataType as FromStarterGetMetadataType,
   MetadataConfiguration as FromStarterMetadataConfiguration,
   ReviewGroupProps,
+  StarterDynamicFormSettings,
   StarterFieldProperties,
+  StarterMetadata,
   StarterValueTypes,
   TimelineItem,
 } from '@/index';
@@ -63,6 +65,11 @@ describe('package entry', () => {
 
     const option: ChoiceOption = { value: 'card', title: 'Card' };
     expect(option.value).toBe('card');
+  });
+
+  it('exports ready-made metadata and settings types for the built-in catalogue', () => {
+    expectTypeOf<StarterMetadata>().toEqualTypeOf<GetMetadataType<Config>>();
+    expectTypeOf<StarterDynamicFormSettings>().toEqualTypeOf<GetDynamicFormSettingsType<Config>>();
   });
 
   it('re-exports the convenience types from the core package', () => {

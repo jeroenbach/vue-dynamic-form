@@ -89,6 +89,7 @@ import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import MyFormTemplate from './MyFormTemplate.vue';
 
 const { handleSubmit } = useDynamicForm();
+const onSubmit = handleSubmit(values => console.log(values));
 
 const fields: Metadata[] = [
   {
@@ -104,7 +105,7 @@ const fields: Metadata[] = [
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit(values => console.log(values))">
+  <form novalidate @submit.prevent="onSubmit">
     <DynamicForm :metadata="fields" :template="MyFormTemplate" />
   </form>
 </template>
@@ -208,7 +209,7 @@ Full manual, API reference, and interactive demos at **[vue-dynamic-form.bach.so
 - [Getting started](https://vue-dynamic-form.bach.software/guide/getting-started)
 - [How it works](https://vue-dynamic-form.bach.software/guide/how-it-works)
 - [Building templates](https://vue-dynamic-form.bach.software/guide/building-templates)
-- [Dynamic fields](https://vue-dynamic-form.bach.software/guide/dynamic-fields)
+- [Reactive fields](https://vue-dynamic-form.bach.software/guide/reactive-fields)
 - [Validation](https://vue-dynamic-form.bach.software/guide/validation)
 - [Examples](https://vue-dynamic-form.bach.software/examples/)
 - [Reference](https://vue-dynamic-form.bach.software/reference/)

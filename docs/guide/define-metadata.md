@@ -43,36 +43,12 @@ const metadata = defineMetadata<
 
 These properties become part of `FieldMetadata` and show up in your template's slot props as `fieldMetadata.description`, `fieldMetadata.options`, and so on.
 
-## Passing Data Between Template Slots (Slot Properties)
+## The Other Two Generic Parameters
 
-The third generic parameter declares properties you can forward from an outer slot down to inner slots by adding attributes on the `<slot />` element. This is useful for communicating context between nested template levels — for example, a nesting depth counter or a flag that indicates the field is inside a choice branch.
+`defineMetadata` takes two more generic parameters you will reach for later:
 
-```ts
-const metadata = defineMetadata<
-  { text: string, heading: never },
-  { description?: string },
-  {
-    level?: number // nesting depth, incremented at each heading
-    belowChoiceField?: boolean
-  }
->();
-```
-
-In your template, bind the properties on `<slot />` and read them from `slotProps` in the child:
-
-```vue
-<DynamicFormTemplate>
-  <template #heading="{ slotProps }">
-    <div>
-      <slot :level="(slotProps?.level ?? 0) + 1" />
-    </div>
-  </template>
-
-  <template #default="{ slotProps }">
-    <!-- slotProps.level is now available here -->
-  </template>
-</DynamicFormTemplate>
-```
+- **Slot properties** (third parameter): values an outer slot can forward down to inner slots by binding them on `<slot />`, e.g. a nesting depth counter. See [Passing Data to Child Slots](/reference/dynamic-form-template#passing-data-to-child-slots).
+- **Extended settings** (fourth parameter): extra properties on the form-wide `settings` object every slot receives, e.g. a display mode flag. See [`ExtendedSettingsProperties`](/reference/define-metadata#extendedsettingsproperties).
 
 ## How This Unlocks Intellisense
 
@@ -120,21 +96,7 @@ const fields: Metadata[] = [
 
 ## The `default` Type
 
-Any field type that has no dedicated slot in your template falls back to the `#default` slot automatically. This means you don't need a slot for every type — unknown types are caught by `#default` and rendered there. Because `default` is used internally as this fallback, it is reserved and should not be declared in your type map.
-
-## Reserved Type Names
-
-Avoid using these names as field type keys because they clash with the built-in fallback slot names that `DynamicFormTemplate` resolves to:
-
-| Name                        | Internal use                                                 |
-| --------------------------- | ------------------------------------------------------------ |
-| `default`                   | Fallback slot for any field type                             |
-| `default-input`             | Fallback slot for input variants                             |
-| `default-array`             | Fallback slot for the outer array container                  |
-| `default-array-item`        | Fallback slot for each array occurrence                      |
-| `default-choice`            | Fallback slot for the outer container of a single choice     |
-| `default-choice-array`      | Fallback slot for the outer container of a repeatable choice |
-| `default-choice-array-item` | Fallback slot for each repeatable-choice occurrence          |
+Any field type that has no dedicated slot in your template falls back to the `#default` slot automatically. This means you don't need a slot for every type — unknown types are caught by `#default` and rendered there. Because `default` is used internally as this fallback, it is reserved: never declare it (or any `default-*` name) in your type map. The full list of reserved names and the naming pitfalls to avoid are in [Built-in Type](/reference/define-metadata#built-in-type) in the reference.
 
 ---
 

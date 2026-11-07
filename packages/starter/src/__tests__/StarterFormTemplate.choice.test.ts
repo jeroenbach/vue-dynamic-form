@@ -64,6 +64,22 @@ describe('component StarterFormTemplate - explicit-mode choice chrome (heading-c
     expect(card.find('.sft-choice-desc').text()).toBe('Your team configures and launches at its own pace.');
   });
 
+  it('shows choicePicker.description on the picker card in place of description when set', async () => {
+    const { wrapper } = await mountInForm({ metadata: explicitChoiceMetadata });
+
+    const card = choiceCard(wrapper, 'launch', 'guided');
+    expect(card.find('.sft-choice-desc').text()).toBe('Best for teams without release-engineering time.');
+  });
+
+  it('keeps showing description in the branch body once selected, even when choicePicker.description is set', async () => {
+    const { wrapper } = await mountInForm({ metadata: explicitChoiceMetadata });
+
+    await choiceCard(wrapper, 'launch', 'guided').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="launch.guided"] .sft-field-desc').text()).toBe('A specialist plans kickoff, training and go-live with you.');
+  });
+
   it('starts with no card selected and marks is-selected only once a branch is active', async () => {
     const { wrapper } = await mountInForm({ metadata: explicitChoiceMetadata });
 

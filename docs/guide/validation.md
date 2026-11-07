@@ -1,8 +1,10 @@
 # Validation
 
-The library extends `vee-validate` with metadata-driven rules and message resolution.
+The library extends `vee-validate` with metadata-driven rules and message resolution. This chapter shows the one thing you do day to day: constrain a field with `restriction`. The full rule catalogue and every edge case live in the [Validation Rules reference](/reference/validation-rules).
 
 ## Using `restriction`
+
+Restrictions are inspired by [XSD](https://www.w3.org/TR/xmlschema-2/) (XML Schema), where they come built in as so-called facets: minLength, maxLength, pattern, fractionDigits, and so on. They proved to be a well-rounded set of declarative validations, so the library adopted them as-is. A nice bonus: when you generate a form from an XSD, its restrictions port over one-to-one.
 
 The `restriction` property on a field definition is the primary way to add validation. The library translates each key into a registered vee-validate rule automatically:
 
@@ -31,67 +33,7 @@ const field = {
 | `totalDigits`                   | Maximum total significant digits                                                                    |
 | `whiteSpace`                    | `'preserve'`, `'replace'` (no tabs/newlines), or `'collapse'` (no leading/trailing/multiple spaces) |
 
-## Built-in Rules
-
-Each `restriction` key maps to an XSD-inspired vee-validate rule registered by the library:
-
-| Restriction          | Rule                  |
-| -------------------- | --------------------- |
-| _(required field)_   | `xsd_required`        |
-| _(array minOccurs)_  | `xsd_minOccurs`       |
-| _(array maxOccurs)_  | `xsd_maxOccurs`       |
-| _(choice minOccurs)_ | `xsd_choiceMinOccurs` |
-| _(choice maxOccurs)_ | `xsd_choiceMaxOccurs` |
-| `minLength`          | `xsd_minLength`       |
-| `maxLength`          | `xsd_maxLength`       |
-| `length`             | `xsd_length`          |
-| `pattern`            | `xsd_pattern`         |
-| `minInclusive`       | `xsd_minInclusive`    |
-| `maxInclusive`       | `xsd_maxInclusive`    |
-| `minExclusive`       | `xsd_minExclusive`    |
-| `maxExclusive`       | `xsd_maxExclusive`    |
-| `enumeration`        | `xsd_enumeration`     |
-| `whiteSpace`         | `xsd_whiteSpace`      |
-| `fractionDigits`     | `xsd_fractionDigits`  |
-| `totalDigits`        | `xsd_totalDigits`     |
-
-These rules are attached automatically — you never reference them by name unless writing custom `validation` expressions.
-
-### Array occurrence maximum (`xsd_maxOccurs`)
-
-An array field fails `xsd_maxOccurs` once it holds more raw items than `maxOccurs` allows, counting empty placeholders the same way the "Add" affordance's own cap does. This only matters for data that arrives already over the limit (loaded `initialValues`, a prop set programmatically, an API response), since the "Add" affordance already stops a user from reaching that state through the UI.
-
-XSD's `maxOccurs` has no `unbounded` representation in this library: `FieldMetadata.maxOccurs` is a plain `number` with a default of `1`, so an "unlimited" field needs a large finite number instead. That number is now a hard cap enforced by `xsd_maxOccurs`, not only a UI suggestion, so a large placeholder value used as a stand-in for "no limit" behaves as a real ceiling once data can exceed it.
-
-If metadata mistakenly declares `minOccurs` above `maxOccurs`, the `xsd_maxOccurs` rule is skipped for that field: the engine auto-fills the array up to `minOccurs`, and applying the cap anyway would make the field permanently invalid with no way for the user to fix it.
-
-### Choice occurrence maximum (`xsd_choiceMaxOccurs`)
-
-A choice field fails `xsd_choiceMaxOccurs` once its `usedChoiceOccurrences` (the same choice-occurrence unit `xsd_choiceMinOccurs` and the "Add" affordance already use) exceeds the choice's own `maxOccurs`, in both automatic and explicit selection modes. As with the array rule, this only fires on data that arrives already over the limit.
-
-### The `maxOccursTotal` backstop (`vdf_maxOccursTotal`, non-XSD)
-
-The `maxOccursTotal` metadata cap is backed by a registered validation rule named `vdf_maxOccursTotal`. It is a **non-XSD extension**: it carries the library's own `vdf_` prefix instead of `xsd_` because it has no `<xs:choice>` equivalent. Plain `<xs:choice>` can bound how many times the choice repeats and how large one branch's own batch is, but it has no way to say "at most N of this branch across the whole choice"; that gap is exactly what `maxOccursTotal` fills for a choice branch that opts in. See [Capping a branch's total count](/examples/choices#capping-a-branch-s-total-count-maxoccurstotal) in the Choice Fields example for the full picture.
-
-The rule fires when any branch's raw occurrence count exceeds that branch's own `maxOccursTotal`. Three things to keep in mind when reading its message:
-
-- **It is a single choice-level aggregate, not a per-branch error.** `{field}` resolves to the choice's own anchor label, never the branch's, so the message cannot tell you which branch is over its cap. When several branches breach their own `maxOccursTotal` at once, `{max}`/`{0}` carry only the first offending branch's cap in declaration order, not every breached cap.
-- **It can fire alongside the branch's own `xsd_maxOccurs`.** In automatic mode (and in a `maxOccurs: 1` choice whose branch is itself an array), an over-limit branch renders as a real array field whose own headroom is clamped to `maxOccursTotal`, so its inline `xsd_maxOccurs` error can appear at the branch's own slot at the same time as the choice-level `vdf_maxOccursTotal` error at the choice's anchor. This is expected, not a duplicate or conflicting signal: the inline error renders at the offending branch itself, while the aggregate confirms the choice-level cap.
-- **A single-branch choice reports through the branch instead.** A choice with exactly one branch (and no `explicitChoiceSelection`) renders that branch directly and skips choice-level validation entirely; its `maxOccursTotal` still clamps the branch's headroom, so an over-limit load fails the branch's own `xsd_maxOccurs` rather than the choice-level rule.
-
-## Message Sources
-
-Messages resolve in this order:
-
-1. `settings.messages`
-2. `vee-validate` `configure({ generateMessage })`
-3. default rule output
-
-The message resolver supports:
-
-- positional placeholders like `{0}`
-- named placeholders like `{min}`, `{length}`, `{digits}`
-- context placeholders like `{field}`
+Requiredness and repetition are validated from the same properties that drive rendering: `minOccurs` makes a field required, `maxOccurs` caps an array, and a choice validates its branch count in choice-occurrence units. Each maps to a registered `xsd_*` rule (plus one `vdf_*` extension); the mapping and the per-rule edge cases are documented in the [Validation Rules reference](/reference/validation-rules).
 
 ## Custom Validation
 
@@ -107,7 +49,9 @@ const field = {
 
 The library splits multi-rule expressions into separate validation functions so multiple errors can be collected consistently.
 
-## Example Configuration
+## Customizing Messages
+
+Messages resolve from `settings.messages` first, then vee-validate's `generateMessage`, then the rule's default. Templates support `{field}`, `{min}`, `{max}`, `{length}`, and positional placeholders:
 
 ```ts
 const settings = {
@@ -116,13 +60,17 @@ const settings = {
     minOccurs: 'At least {min} items required',
     maxOccurs: 'At most {max} items allowed',
     choiceMinOccurs: 'Select at least {min} value(s) in {field}',
-    choiceMaxOccurs: 'Select at most {max} value(s) in {field}',
-    maxOccursTotal: 'At most {max} of this kind allowed',
     minLength: 'The minimum length of {field} is {length}',
   },
 };
 ```
 
+The full key list is in [Message Overrides](/reference/dynamic-form#message-overrides).
+
 ## Interactive Example
 
-<FormExampleValidation />
+Every restriction below is declared in metadata, with no validation code:
+
+<FormExampleValidationRestrictions />
+
+For the other strategies (custom functions, async server-side checks, cross-field rules), each with its own live form, see the [Validation example](/examples/validation).

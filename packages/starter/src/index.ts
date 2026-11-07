@@ -10,7 +10,7 @@ export { starterIconNames } from '@/icons';
 export type { StarterIconName } from '@/icons';
 // Metadata
 export { extendMetadata, starterMetadata } from '@/metadata';
-export type { GridColumnCount, Responsive, StarterFieldProperties, StarterValueTypes } from '@/metadata';
+export type { GridColumnCount, Responsive, StarterDynamicFormSettings, StarterFieldProperties, StarterMetadata, StarterValueTypes } from '@/metadata';
 export { default as ReviewGroup } from '@/ReviewGroup.vue';
 export type { Props as ReviewGroupProps } from '@/ReviewGroup.vue';
 // Template

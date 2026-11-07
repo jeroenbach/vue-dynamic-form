@@ -33,7 +33,7 @@ const settings = {
 </script>
 
 <template>
-  <form>
+  <form novalidate @submit.prevent>
     <DynamicForm
       :template="BasicFormTemplate"
       :metadata="metadata"

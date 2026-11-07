@@ -26,4 +26,16 @@ describe('package readme', () => {
   it('states explicitly that #icon is only reachable through the wrapper pattern', () => {
     expect(readme).toContain('`#icon` is only reachable through this wrapper pattern, never by passing it directly to `DynamicForm`.');
   });
+
+  it('lists the textarea-input slot among the supported input slots', () => {
+    expect(readme).toContain('textarea-input');
+  });
+
+  it('lists the radio-input slot among the supported input slots', () => {
+    expect(readme).toContain('radio-input');
+  });
+
+  it('lists the file-input slot among the supported input slots', () => {
+    expect(readme).toContain('file-input');
+  });
 });

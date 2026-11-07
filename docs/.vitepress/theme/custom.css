@@ -94,3 +94,18 @@
 .inbox-rules-page .VPDoc .content-container {
   max-width: 1100px;
 }
+
+/* Template-only snippets are fenced as `vue-html` so Shiki colors them properly: the `vue`
+   grammar only understands full SFCs (top-level <template>/<script> blocks) and leaves bare
+   fragments almost uncolored. VitePress renders those blocks with the class and badge text
+   "template". For readers they are still just Vue code, so relabel the badge to "vue". The
+   badge text is real DOM text, so hide it with font-size: 0 and draw the replacement via
+   ::after. */
+.vp-doc div[class~='language-template'] > span.lang {
+  font-size: 0;
+}
+
+.vp-doc div[class~='language-template'] > span.lang::after {
+  content: 'vue';
+  font-size: 12px;
+}

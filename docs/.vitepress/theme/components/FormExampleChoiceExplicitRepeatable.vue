@@ -14,8 +14,8 @@ export interface ExplicitChoiceRepeatableValues {
 // Both flags are reactive engine metadata: flipping them through the computed metadata below
 // takes effect in place, no remount needed. Turning preserveOrder on seeds `order` into the
 // existing occurrences, turning it off strips it again; both are visible live in the values dump.
-const displayOrder = ref<'grouped' | 'added'>('grouped');
-const preserveOrder = ref(false);
+const displayOrder = ref<'grouped' | 'added'>('added');
+const preserveOrder = ref(true);
 
 const { values, meta } = useDynamicForm<ExplicitChoiceRepeatableValues>();
 

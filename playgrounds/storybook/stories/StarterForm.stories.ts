@@ -8,11 +8,15 @@ import {
   choiceArrayExample,
   choiceAutomaticExample,
   choiceExplicitExample,
+  fileExample,
   gridLayoutExample,
   iconOverrideExample,
   localizationExample,
   plainExample,
+  radioExample,
   settingsExample,
+  textareaExample,
+  textModesExample,
   wizardExample,
 } from './StarterForm.examples';
 import StarterForm from './StarterForm.vue';
@@ -54,6 +58,18 @@ export const GridLayout: Story = { args: gridLayoutExample };
 
 /** DynamicForm's showRequiredOrOptional and showValidState settings, plus disabled, suffix, and dependentOnMessage field properties. */
 export const Settings: Story = { args: settingsExample };
+
+/** number/email/tel/url/date/time/datetime-local, every one rendered through the existing text-input chrome with no new component (prototype.html#text-modes). */
+export const TextModes: Story = { args: textModesExample };
+
+/** The textarea type (prototype.html#textarea): empty and required, pre-filled, and disabled, side by side. Submit to see the empty field's error state. */
+export const Textarea: Story = { args: textareaExample };
+
+/** The radio type (prototype.html#radio): empty and required, pre-selected, and disabled, side by side. Submit to see the empty field's error state. */
+export const Radio: Story = { args: radioExample };
+
+/** The file type (prototype.html#file): empty and required, already holding a file, and disabled, side by side. Submit to see the empty field's error state. */
+export const File: Story = { args: fileExample };
 
 /** Every built-in label on repeatable chrome, explicit-choice add buttons, and the password strength bar, overridden with Dutch text to prove they translate. */
 export const Localization: Story = { args: localizationExample };

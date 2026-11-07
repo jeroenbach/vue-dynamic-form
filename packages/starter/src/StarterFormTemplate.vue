@@ -14,6 +14,7 @@ import CheckboxField from '@/CheckboxField.vue';
 import ChoiceArraySectionCard from '@/ChoiceArraySectionCard.vue';
 import ChoiceField from '@/ChoiceField.vue';
 import ChoiceSectionCard from '@/ChoiceSectionCard.vue';
+import FileInput from '@/FileInput.vue';
 import FormField from '@/FormField.vue';
 import FormWizard from '@/FormWizard.vue';
 import { gridColumnsClasses, gridItemClasses } from '@/gridClasses';
@@ -22,10 +23,12 @@ import { iconOverrideKey } from '@/iconOverride';
 import { starterMetadata } from '@/metadata';
 import PasswordInput from '@/PasswordInput.vue';
 import PasswordStrengthBar from '@/PasswordStrengthBar.vue';
+import RadioGroup from '@/RadioGroup.vue';
 import RepeaterCard from '@/RepeaterCard.vue';
 import ReviewGroup from '@/ReviewGroup.vue';
 import SectionCard from '@/SectionCard.vue';
 import SelectInput from '@/SelectInput.vue';
+import Textarea from '@/Textarea.vue';
 import TextInput from '@/TextInput.vue';
 import ToggleSwitch from '@/ToggleSwitch.vue';
 
@@ -108,6 +111,9 @@ const handledSlotNames = new Set([
   'default-choice-array-item',
   'default-input',
   'select-input',
+  'textarea-input',
+  'radio-input',
+  'file-input',
   'checkbox-input',
   'password-input',
   'default-wizard',
@@ -347,7 +353,7 @@ function passthroughSlotNames() {
           :description="s.fieldMetadata.description"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
-          :options="s.fieldMetadata.choicePicker?.show ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
+          :options="s.fieldMetadata.choicePicker?.show ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.choicePicker?.description ?? x.description, icon: x.iconName })) : undefined"
           :activeChoiceOccurrences="s.activeChoiceOccurrences"
           :addChoiceOccurrence="s.addChoiceOccurrence"
           :removeChoiceOccurrence="s.removeChoiceOccurrence"
@@ -371,7 +377,7 @@ function passthroughSlotNames() {
           :description="s.fieldMetadata.description"
           :errorMessage="s.fieldContext.errorMessage.value"
           :dataTestid="s.fieldMetadata.path"
-          :options="s.fieldMetadata.choicePicker?.show ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.description, icon: x.iconName })) : undefined"
+          :options="s.fieldMetadata.choicePicker?.show ? s.fieldMetadata.choice.map((x: any) => ({ value: x.name, title: toValue(x.fieldOptions?.label), description: x.choicePicker?.description ?? x.description, icon: x.iconName })) : undefined"
           :addChoiceOccurrence="s.addChoiceOccurrence"
           :canAddChoiceOccurrence="s.canAddChoiceOccurrence"
           :usedChoiceOccurrences="s.usedChoiceOccurrences"
@@ -446,6 +452,9 @@ function passthroughSlotNames() {
             :dataTestid="`${s.fieldMetadata.path}-input`"
             :value="s.fieldContext.value.value"
             :type="s.fieldMetadata.type"
+            :min="s.fieldMetadata.number?.min"
+            :max="s.fieldMetadata.number?.max"
+            :step="s.fieldMetadata.number?.step"
             :disabled="s.fieldMetadata.disabled || s.disabled"
             :errorMessage="s.fieldContext.errorMessage.value"
             :placeholder="s.fieldMetadata.placeholder"
@@ -463,6 +472,9 @@ function passthroughSlotNames() {
           :dataTestid="`${s.fieldMetadata.path}-input`"
           :value="s.fieldContext.value.value"
           :type="s.fieldMetadata.type"
+          :min="s.fieldMetadata.number?.min"
+          :max="s.fieldMetadata.number?.max"
+          :step="s.fieldMetadata.number?.step"
           :disabled="s.fieldMetadata.disabled || s.disabled"
           :errorMessage="s.fieldContext.errorMessage.value"
           :placeholder="s.fieldMetadata.placeholder"
@@ -486,6 +498,54 @@ function passthroughSlotNames() {
           :errorMessage="s.fieldContext.errorMessage.value"
           :data-field-state="s.settings.showValidState ? inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) : undefined"
           :class="{ 'is-valid': s.settings.showValidState && inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) === 'valid' }"
+          @change="s.fieldContext.handleChange"
+          @blur="s.fieldContext.handleBlur"
+        />
+      </slot>
+    </template>
+
+    <template #textarea-input="s">
+      <slot name="textarea-input" v-bind="s">
+        <Textarea
+          :id="s.fieldMetadata.path"
+          :dataTestid="`${s.fieldMetadata.path}-input`"
+          :value="s.fieldContext.value.value"
+          :disabled="s.fieldMetadata.disabled || s.disabled"
+          :errorMessage="s.fieldContext.errorMessage.value"
+          :placeholder="s.fieldMetadata.placeholder"
+          :data-field-state="s.settings.showValidState ? inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) : undefined"
+          :class="{ 'is-valid': s.settings.showValidState && inputFieldState(s.fieldContext.meta, !!s.fieldContext.errorMessage.value) === 'valid' }"
+          @input="s.fieldContext.handleChange(($event.target as HTMLTextAreaElement).value)"
+          @blur="s.fieldContext.handleBlur"
+        />
+      </slot>
+    </template>
+
+    <template #radio-input="s">
+      <slot name="radio-input" v-bind="s">
+        <RadioGroup
+          :id="s.fieldMetadata.path"
+          :dataTestid="`${s.fieldMetadata.path}-input`"
+          :value="s.fieldContext.value.value"
+          :options="s.fieldMetadata.options"
+          :disabled="s.fieldMetadata.disabled || s.disabled"
+          :errorMessage="s.fieldContext.errorMessage.value"
+          @change="s.fieldContext.handleChange"
+          @blur="s.fieldContext.handleBlur"
+        />
+      </slot>
+    </template>
+
+    <template #file-input="s">
+      <slot name="file-input" v-bind="s">
+        <FileInput
+          :id="s.fieldMetadata.path"
+          :dataTestid="`${s.fieldMetadata.path}-input`"
+          :value="s.fieldContext.value.value"
+          :accept="s.fieldMetadata.file?.accept"
+          :clearAriaLabel="s.fieldMetadata.file?.clearAriaLabel"
+          :disabled="s.fieldMetadata.disabled || s.disabled"
+          :errorMessage="s.fieldContext.errorMessage.value"
           @change="s.fieldContext.handleChange"
           @blur="s.fieldContext.handleBlur"
         />

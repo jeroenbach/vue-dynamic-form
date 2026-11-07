@@ -1,6 +1,6 @@
 # Validation
 
-A focused showcase of every validation strategy the library supports, all in a single form: declarative restrictions, custom validation functions, async server-side checks, and reactive cross-field rules.
+A focused showcase of every validation strategy the library supports: declarative restrictions, custom validation functions, async server-side checks, and reactive cross-field rules. Each chapter pairs a small live form with the code that drives it, so you can try the behaviour right where it is explained.
 
 ## What It Demonstrates
 
@@ -10,27 +10,25 @@ A focused showcase of every validation strategy the library supports, all in a s
 - Cross-field validation: the rule re-runs automatically when the referenced field changes using `computedProps`
 - A custom `password` field type with a show/hide toggle and animated strength indicator
 
-## Example
-
-<FormExampleValidation />
-
 ## Restrictions: No Code Required
+
+Restrictions are inspired by [XSD](https://www.w3.org/TR/xmlschema-2/) (XML Schema), where they come built in as so-called facets: minLength, maxLength, pattern, fractionDigits, and so on. They proved to be a well-rounded set of declarative validations, so the library adopted them as-is. A nice bonus: when you generate a form from an XSD, its restrictions port over one-to-one.
 
 Restrictions are declared inline on the field and automatically converted to vee-validate rules by the library. No `validation` function is needed.
 
-The `username` field combines three restrictions at once: length bounds and a character-set pattern:
+<FormExampleValidationRestrictions />
 
-<<< @/.vitepress/theme/components/FormExampleValidation.vue#restriction-example{ts} [FormExampleValidation.vue]
+<<< @/.vitepress/theme/components/FormExampleValidationRestrictions.vue#metadata{ts} [FormExampleValidationRestrictions.vue]
 
-Other restriction flavours used in this example:
+The restriction flavours at work above:
 
-| Field                   | Restriction                                                   | What it enforces                                  |
-| ----------------------- | ------------------------------------------------------------- | ------------------------------------------------- |
-| `displayName`           | `whiteSpace: 'collapse'`                                      | Rejects leading/trailing spaces and double spaces |
-| `bio`                   | `maxLength: 200`                                              | Hard character cap                                |
-| `startDate` / `endDate` | `pattern: '^\\d{4}-\\d{2}-\\d{2}$'`                           | YYYY-MM-DD format                                 |
-| `amount`                | `minExclusive: 0`, `maxInclusive: 10000`, `fractionDigits: 2` | Positive monetary value, max 2 decimals           |
-| `promoCode`             | `pattern: '^[A-Z0-9]{4,8}$'`                                  | 4–8 uppercase alphanumeric chars                  |
+| Field         | Restriction                                                   | What it enforces                                  |
+| ------------- | ------------------------------------------------------------- | ------------------------------------------------- |
+| `username`    | `minLength: 3`, `maxLength: 20`, `pattern`                    | Length bounds plus a character-set pattern        |
+| `displayName` | `whiteSpace: 'collapse'`                                      | Rejects leading/trailing spaces and double spaces |
+| `bio`         | `maxLength: 200`                                              | Hard character cap                                |
+| `amount`      | `minExclusive: 0`, `maxInclusive: 10000`, `fractionDigits: 2` | Positive monetary value, max 2 decimals           |
+| `promoCode`   | `pattern: '^[A-Z0-9]{4,8}$'`                                  | 4–8 uppercase alphanumeric chars                  |
 
 ## Async Validation
 
@@ -38,7 +36,15 @@ The `validation` property accepts a function that returns a `Promise`. vee-valid
 
 The email field first checks the format via a `restriction`, then calls the async function to simulate a round-trip to the server. Try entering `admin@example.com` to see the taken-email error.
 
-<<< @/.vitepress/theme/components/FormExampleValidation.vue#async-validation{ts} [FormExampleValidation.vue]
+<FormExampleValidationAsync />
+
+The async check itself:
+
+<<< @/.vitepress/theme/components/FormExampleValidationAsync.vue#async-validation{ts} [FormExampleValidationAsync.vue]
+
+And the field that wires it up, combining a format `restriction` with the async `validation`:
+
+<<< @/.vitepress/theme/components/FormExampleValidationAsync.vue#metadata{ts} [FormExampleValidationAsync.vue]
 
 ::: tip
 You can combine `restriction` and `validation` on the same field. The restriction runs first; the async function only fires if the value already passes it.
@@ -48,11 +54,13 @@ You can combine `restriction` and `validation` on the same field. The restrictio
 
 The `validation` function on the password field checks five criteria and lists any that are still missing:
 
-<<< @/.vitepress/theme/components/FormExampleValidation.vue#password-validation{ts} [FormExampleValidation.vue]
+<FormExampleValidationPassword />
+
+<<< @/.vitepress/theme/components/FormExampleValidationPassword.vue#password-validation{ts} [FormExampleValidationPassword.vue]
 
 The animated strength bar (`PasswordStrengthBar.vue`) is rendered directly inside the custom `#password-input` slot in `StarterFormTemplate`. It reads the same `value.value` ref that vee-validate tracks, so the bar updates on every keystroke without any extra wiring.
 
-The new `password` field type was added to the template by:
+The `password` field type was added to the template by:
 
 1. Registering `password: string` in `defineMetadata`
 2. Adding a `password: { showStrengthBar?: boolean }` extended property
@@ -60,15 +68,19 @@ The new `password` field type was added to the template by:
 
 ## Cross-field Validation
 
-Each field's `validation` function is a plain closure that reads a reactive ref at the moment it runs. The validation for `confirmPassword` and `endDate` both do exactly that:
+Each field's `validation` function is a plain closure that reads a reactive ref at the moment it runs.
 
 **Confirm password** reads `passwordValue.value` at validation time:
 
-<<< @/.vitepress/theme/components/FormExampleValidation.vue#cross-field-password{ts} [FormExampleValidation.vue]
+<FormExampleValidationConfirmPassword />
+
+<<< @/.vitepress/theme/components/FormExampleValidationConfirmPassword.vue#example{ts} [FormExampleValidationConfirmPassword.vue]
 
 **End date** reads `startDateValue.value` at validation time. YYYY-MM-DD strings compare correctly as plain strings, so no date parsing is needed:
 
-<<< @/.vitepress/theme/components/FormExampleValidation.vue#cross-field-date{ts} [FormExampleValidation.vue]
+<FormExampleValidationDateRange />
+
+<<< @/.vitepress/theme/components/FormExampleValidationDateRange.vue#example{ts} [FormExampleValidationDateRange.vue]
 
 ### Re-triggering when the source field changes
 
@@ -80,15 +92,18 @@ A `validation` function only runs when its own field is validated (on blur, inpu
 
 A plain synchronous function validates the URL format. Using the browser's built-in `URL` constructor keeps the code short and handles edge cases correctly:
 
-<<< @/.vitepress/theme/components/FormExampleValidation.vue#website-validation{ts} [FormExampleValidation.vue]
+<FormExampleValidationWebsite />
 
-## Full Metadata
-
-<<< @/.vitepress/theme/components/FormExampleValidation.vue#metadata{ts} [FormExampleValidation.vue]
+<<< @/.vitepress/theme/components/FormExampleValidationWebsite.vue#website-validation{ts} [FormExampleValidationWebsite.vue]
 
 ## Related Source
 
-- [FormExampleValidation.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleValidation.vue)
+- [FormExampleValidationRestrictions.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleValidationRestrictions.vue)
+- [FormExampleValidationAsync.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleValidationAsync.vue)
+- [FormExampleValidationPassword.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleValidationPassword.vue)
+- [FormExampleValidationConfirmPassword.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleValidationConfirmPassword.vue)
+- [FormExampleValidationDateRange.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleValidationDateRange.vue)
+- [FormExampleValidationWebsite.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/FormExampleValidationWebsite.vue)
 - [PasswordStrengthBar.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/PasswordStrengthBar.vue)
 - [PasswordInput.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/PasswordInput.vue)
 - [StarterFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/packages/starter/src/StarterFormTemplate.vue)

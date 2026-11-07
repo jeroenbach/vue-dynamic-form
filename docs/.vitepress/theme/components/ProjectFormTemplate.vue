@@ -13,17 +13,24 @@ import { projectMetadata } from './ProjectFormTemplate';
       <slot name="attributes" v-bind="s" />
     </template>
 
-    <template #textarea-input="{ fieldContext, fieldMetadata, disabled }">
-      <textarea
-        :id="fieldMetadata.path"
-        class="sft-input"
-        :rows="fieldMetadata.rows ?? 4"
-        :value="fieldContext.value.value"
-        :placeholder="fieldMetadata.placeholder"
-        :disabled="disabled || fieldMetadata.disabled"
-        @input="fieldContext.handleChange(($event.target as HTMLTextAreaElement).value)"
-        @blur="fieldContext.handleBlur"
-      />
+    <template #range-input="{ fieldContext, fieldMetadata, disabled }">
+      <div class="rangeInput">
+        <input
+          :id="fieldMetadata.path"
+          type="range"
+          class="sft-input"
+          :min="fieldMetadata.min ?? 0"
+          :max="fieldMetadata.max ?? 10"
+          :step="fieldMetadata.step ?? 1"
+          :value="fieldContext.value.value ?? String(fieldMetadata.min ?? 0)"
+          :disabled="disabled || fieldMetadata.disabled"
+          @input="fieldContext.handleChange(($event.target as HTMLInputElement).value)"
+          @blur="fieldContext.handleBlur"
+        >
+        <output class="rangeValue" :for="fieldMetadata.path">
+          {{ fieldContext.value.value ?? fieldMetadata.min ?? 0 }}
+        </output>
+      </div>
     </template>
 
     <template #rating-input="{ fieldContext, fieldMetadata, disabled }">
@@ -49,6 +56,22 @@ import { projectMetadata } from './ProjectFormTemplate';
 </template>
 
 <style scoped>
+.rangeInput {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.rangeInput input {
+  flex: 1;
+}
+
+.rangeValue {
+  min-width: 2ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .ratingInput {
   display: flex;
   gap: 0.25rem;
