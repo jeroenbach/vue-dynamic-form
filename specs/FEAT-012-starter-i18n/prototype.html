@@ -294,10 +294,10 @@ svg { display:block; }
   <!-- =====================================================================
        SECTION 1 - FULL CHROME IN THE ENGLISH PACK
        ===================================================================== -->
-  <div class="divider">1 - English pack, full chrome
+  <div class="divider">1 - English pack (shipped), full chrome
     <small>The built-in fallback and the English pack agree, so an existing consumer sees no change. Shows the filled array state, add/remove, choice add bar, password strength, and the wizard footer mid-flow.</small>
   </div>
-  <p class="anno">Icons, spacing and colour are the shipped <code>sft-</code> styles. Only the outlined strings come from the pack; everything else (step labels "Your details", field labels, option names) is written by the consumer and stays as authored in both packs.</p>
+  <p class="anno">Icons, spacing and colour are the shipped <code>sft-</code> styles. Only the outlined strings come from the pack; everything else (step labels "Your details", field labels, option names) is written by the consumer, not the pack.</p>
 
   <section id="pack-english" class="sft-section">
     <header class="sft-wizard-head">
@@ -398,18 +398,18 @@ svg { display:block; }
   <!-- =====================================================================
        SECTION 2 - FULL CHROME IN THE DUTCH PACK
        ===================================================================== -->
-  <div class="divider">2 - Dutch pack, full chrome
-    <small>Identical metadata tree, one setting changed. Shows the array empty state (noItemsTitle + first-add), the last-step submit + error banner, the review card and the submission-success screen, so every remaining chrome string is covered too.</small>
+  <div class="divider">2 - Dutch pack (worked example, not shipped), full chrome
+    <small>Written as complete, documented source demonstrating the extension point, not exported from the package. Identical metadata tree, one setting changed. Shows the array empty state (noItemsTitle + first-add), the last-step submit + error banner, the review card and the submission-success screen, so every remaining chrome string is covered too.</small>
   </div>
-  <p class="anno">Same consumer content as section 1 (a real Dutch form would also localize its own labels, but that is the consumer's text, not the pack's). Only the outlined strings flip to Dutch.</p>
+  <p class="anno">This section's own consumer content (step labels, participant/VAT labels, the confirm copy, the timeline text) is shown translated too, un-outlined, the way a real Dutch form would write it. That is the point of the outline device: even here, where everything reads as Dutch, only the outlined strings are pack-controlled.</p>
 
   <section id="pack-dutch" class="sft-section">
     <nav class="sft-stepper" aria-label="Voortgang" title="aria-label &quot;Progress&quot; -> &quot;Voortgang&quot;">
       <ol>
-        <li class="grow"><button class="sft-step is-done" type="button"><span class="sft-step-dot">✓</span><span class="sft-step-label">Your details</span></button><span class="sft-step-connector is-done"></span></li>
+        <li class="grow"><button class="sft-step is-done" type="button"><span class="sft-step-dot">✓</span><span class="sft-step-label">Jouw gegevens</span></button><span class="sft-step-connector is-done"></span></li>
         <li class="grow"><button class="sft-step is-done" type="button"><span class="sft-step-dot">✓</span><span class="sft-step-label">Tickets</span></button><span class="sft-step-connector is-done"></span></li>
-        <li class="grow"><button class="sft-step is-error" type="button"><span class="sft-step-dot">!</span><span class="sft-step-label">Preferences</span></button><span class="sft-step-connector is-done"></span></li>
-        <li><button class="sft-step is-current" type="button"><span class="sft-step-dot">4</span><span class="sft-step-label">Review</span></button></li>
+        <li class="grow"><button class="sft-step is-error" type="button"><span class="sft-step-dot">!</span><span class="sft-step-label">Voorkeuren</span></button><span class="sft-step-connector is-done"></span></li>
+        <li><button class="sft-step is-current" type="button"><span class="sft-step-dot">4</span><span class="sft-step-label">Overzicht</span></button></li>
       </ol>
     </nav>
 

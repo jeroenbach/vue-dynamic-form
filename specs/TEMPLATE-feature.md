@@ -35,7 +35,7 @@ Filled by adversarial-reviewer at feature level. Findings and resolutions.
 ## Constraints & assumptions
 
 ## Open questions
-Questions for Jeroen. Must be resolved before approval.
+Questions for the maintainer. Must be resolved before approval.
 
 ## Stories
 Filled by scrum-master AFTER approval. Links to story folders with implementation order and dependency notes.

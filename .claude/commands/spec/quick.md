@@ -35,9 +35,9 @@ Quick lane lifecycle: `draft → adversarial-review → [awaiting-discussion] �
 
 2. Invoke the **adversarial-reviewer** agent (model: opus, pass this explicitly on the Agent tool call, see `.claude/agents/adversarial-reviewer.md`) in STORY (lite) mode on the new spec.
 
-3. STOP for Jeroen's review at whichever status the reviewer set: `awaiting-approval` if it left nothing open, `awaiting-discussion` if it left an unresolved blocker or should-fix. For a genuinely quick fix, expect the former; landing in `awaiting-discussion` is a hint the change is not actually quick-lane material. Only Jeroen may set `status: approved`.
+3. STOP for the maintainer's review at whichever status the reviewer set: `awaiting-approval` if it left nothing open, `awaiting-discussion` if it left an unresolved blocker or should-fix. For a genuinely quick fix, expect the former; landing in `awaiting-discussion` is a hint the change is not actually quick-lane material. Only the maintainer may set `status: approved`.
 
-After approval, `/spec:continue QUICK-XXX` runs the rest unattended: `/spec:implement` (developer), then `/spec:verify` (qa-verifier) with its fix loop, and archives the folder to `specs/archive/` on `done`. Running `/spec:implement QUICK-XXX` directly still works when Jeroen only wants the implementation step. Both honour the `specs/components.md` update obligation, the test obligation, and the changeset rule for `packages/core/src/` changes.
+After approval, `/spec:continue QUICK-XXX` runs the rest unattended: `/spec:implement` (developer), then `/spec:verify` (qa-verifier) with its fix loop, and archives the folder to `specs/archive/` on `done`. Running `/spec:implement QUICK-XXX` directly still works when the maintainer only wants the implementation step. Both honour the `specs/components.md` update obligation, the test obligation, and the changeset rule for `packages/core/src/` changes.
 
 If this command was interrupted before the review ran (the spec sits in `draft` or `adversarial-review`), `/spec:continue QUICK-XXX` finishes the prep and review and stops at the same gate.
 

@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FEAT-014 · Starter field types prototype</title>
+<style>
+/* =========================================================================
+   STARTER THEME TOKENS (ported verbatim from packages/starter/src/style.scss)
+   The engine renders the starter template once per node with no single
+   wrapping element, so theme variables live at document-root scope and the
+   whole package re-skins when `.dark` is toggled on <html> (which is exactly
+   how VitePress drives dark mode). This prototype does the same.
+   ========================================================================= */
+:root {
+  --sft-card-bg: #ffffff;
+  --sft-card-border: #e2e8f0;
+  --sft-card-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1);
+  --sft-muted-bg: #f8fafc;
+  --sft-muted-border: #cad5e2;
+
+  --sft-text: #0f172b;
+  --sft-text-strong: #1d293d;
+  --sft-text-muted: #45556c;
+  --sft-text-subtle: #62748e;
+  --sft-heading: #0f172b;
+  --sft-placeholder: #90a1b9;
+
+  --sft-input-bg: #ffffff;
+  --sft-input-border: #e5e7eb;
+  --sft-input-disabled-bg: #f8fafc;
+  --sft-input-disabled-text: #62748e;
+
+  --sft-accent: #0084d1;
+  --sft-accent-hover: #0069a8;
+  --sft-focus-border: #00a6f4;
+  --sft-focus-ring: #b8e6fe;
+
+  --sft-danger-border: #fb2c36;
+  --sft-danger-focus-border: #fb2c36;
+  --sft-danger-text: #e7000b;
+  --sft-danger-ring: #ffc9c9;
+
+  --sft-success: #00bc7d;
+  --sft-track: #e2e8f0;
+
+  /* prototype-only page chrome (not part of the package) */
+  --proto-page-bg: #eef2f6;
+  --proto-panel-bg: #ffffff;
+  --proto-panel-border: #e2e8f0;
+  --proto-note: #64748b;
+  --proto-divider: #cbd5e1;
+  --proto-heading: #0f172b;
+  --proto-cell-bg: #ffffff;
+  --proto-cell-border: #e5e9f0;
+}
+:root.dark {
+  --sft-card-bg: #0f172b;
+  --sft-card-border: #314158;
+  --sft-muted-bg: #1d293d;
+  --sft-muted-border: #45556c;
+
+  --sft-text: #f1f5f9;
+  --sft-text-strong: #e2e8f0;
+  --sft-text-muted: #90a1b9;
+  --sft-text-subtle: #90a1b9;
+  --sft-heading: #f1f5f9;
+  --sft-placeholder: #62748e;
+
+  --sft-input-bg: #0f172b;
+  /* resting input border deliberately keeps the light gray from --sft-input-border:
+     the ported source has no dark variant for it. Preserved faithfully. */
+  --sft-input-disabled-bg: #1d293d;
+  --sft-input-disabled-text: #90a1b9;
+
+  --sft-danger-border: #ec003f;
+  --sft-danger-focus-border: #f43f5e;
+  --sft-danger-text: #ff637e;
+  --sft-danger-ring: #8b0836;
+
+  --sft-track: #314158;
+
+  --proto-page-bg: #020617;
+  --proto-panel-bg: #0b1324;
+  --proto-panel-border: #1e293b;
+  --proto-note: #94a3b8;
+  --proto-divider: #334155;
+  --proto-heading: #f1f5f9;
+  --proto-cell-bg: #0b1324;
+  --proto-cell-border: #1e293b;
+}
+
+/* ---- prototype page scaffold (NOT shipped) -------------------------- */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--proto-page-bg);
+  color: var(--sft-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+.proto-wrap { max-width: 1040px; margin: 0 auto; padding: 48px 24px 120px; }
+.proto-masthead { margin-bottom: 8px; }
+.proto-masthead h1 {
+  font-size: 26px; font-weight: 700; margin: 0 0 6px; color: var(--proto-heading);
+}
+.proto-masthead p { margin: 0; color: var(--proto-note); font-size: 14px; max-width: 70ch; }
+.proto-legend {
+  margin: 20px 0 8px; font-size: 13px; color: var(--proto-note);
+  border: 1px dashed var(--proto-divider); border-radius: 8px; padding: 12px 14px;
+}
+.proto-legend b { color: var(--sft-text); font-weight: 600; }
+
+.proto-section { margin-top: 48px; }
+.proto-divider {
+  display: flex; align-items: baseline; gap: 12px;
+  border-top: 2px solid var(--proto-divider); padding-top: 14px; margin-bottom: 4px;
+}
+.proto-divider h2 { font-size: 19px; font-weight: 700; margin: 0; color: var(--proto-heading); }
+.proto-divider .proto-mech {
+  font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  color: var(--sft-text-subtle); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.proto-section > p.proto-intro { margin: 2px 0 20px; color: var(--proto-note); font-size: 14px; max-width: 76ch; }
+
+/* a panel mimics the page surface a starter form renders onto */
+.proto-panel {
+  background: var(--proto-panel-bg);
+  border: 1px solid var(--proto-panel-border);
+  border-radius: 14px;
+  padding: 24px;
+}
+.proto-states { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.proto-cell {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.proto-caption {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--proto-note);
+}
+.proto-caption .dot { height: 7px; width: 7px; border-radius: 50%; background: var(--proto-divider); }
+.proto-note {
+  font-size: 12px; color: var(--proto-note); margin: 2px 0 0; line-height: 1.5;
+}
+.proto-note code, .proto-intro code, .proto-legend code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em;
+  background: var(--sft-muted-bg); border: 1px solid var(--sft-muted-border);
+  border-radius: 4px; padding: 0 4px; color: var(--sft-text-muted);
+}
+
+/* prototype-only helper: paints the real :focus treatment on a resting element
+   so the focus state is visible in the stacked view. Annotated where used. */
+.proto-showfocus { border-color: var(--sft-focus-border) !important; box-shadow: 0 0 0 2px var(--sft-focus-ring) !important; }
+.proto-showfocus.is-invalid { border-color: var(--sft-danger-focus-border) !important; box-shadow: 0 0 0 2px var(--sft-danger-ring) !important; }
+.proto-radiofocus { outline: 2px solid var(--sft-focus-border); outline-offset: 2px; }
+.proto-btn-disabled { pointer-events: none; opacity: .4; }
+
+.proto-toggle {
+  position: fixed; top: 16px; right: 16px; z-index: 50;
+  font: inherit; font-size: 13px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 9999px; cursor: pointer;
+  border: 1px solid var(--sft-card-border); background: var(--sft-card-bg); color: var(--sft-text);
+  box-shadow: var(--sft-card-shadow);
+}
+
+/* =========================================================================
+   SHIPPED STARTER CLASSES reused by this feature (from style.scss)
+   ========================================================================= */
+.sft-input, .sft-select, .sft-btn, .sft-textarea, .sft-file-trigger, .sft-radio-option {
+  font-family: inherit;
+}
+
+/* field wrapper (FormField.vue) */
+.sft-field { display: flex; flex-direction: column; gap: 8px; }
+.sft-field.is-disabled { opacity: .6; }
+.sft-field-label { display: flex; justify-content: space-between; font-size: 14px; font-weight: 500; color: var(--sft-text-strong); }
+.sft-field-desc { margin: 0; font-size: 14px; line-height: 20px; color: var(--sft-text-subtle); }
+.sft-field-control-row { display: flex; align-items: flex-start; gap: 8px; }
+.sft-field-control-row > .sft-field-control { flex: 1 1 auto; }
+
+.sft-tag-optional {
+  display: inline-flex; align-items: center; border-radius: 9999px;
+  background: #f1f5f9; color: #45556c; padding: 2px 8px;
+  font-size: 12px; line-height: 16px; font-weight: 600;
+}
+:root.dark .sft-tag-optional { background: #314158; color: #90a1b9; }
+.sft-tag-required { color: #fb2c36; }
+:root.dark .sft-tag-required { color: #ff637e; }
+
+.sft-error { font-size: 14px; color: var(--sft-danger-text); }
+
+/* text input / select (TextInput.vue, SelectInput.vue) */
+.sft-input, .sft-select {
+  height: 40px; width: 100%; box-sizing: border-box;
+  border: 1px solid var(--sft-input-border); border-radius: 8px;
+  background: var(--sft-input-bg); color: var(--sft-text); padding: 8px 12px;
+  font-size: inherit;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+}
+@media (min-width: 768px) { .sft-input, .sft-select { font-size: 14px; } }
+.sft-input:focus, .sft-select:focus {
+  outline: none; border-color: var(--sft-focus-border); box-shadow: 0 0 0 2px var(--sft-focus-ring);
+}
+.sft-input:disabled, .sft-select:disabled {
+  cursor: not-allowed; background: var(--sft-input-disabled-bg); color: var(--sft-input-disabled-text);
+}
+.sft-input.is-invalid, .sft-select.is-invalid { border-color: var(--sft-danger-border); }
+.sft-input.is-invalid:focus, .sft-select.is-invalid:focus {
+  border-color: var(--sft-danger-focus-border); box-shadow: 0 0 0 2px var(--sft-danger-ring);
+}
+.sft-input::placeholder { color: var(--sft-placeholder); }
+
+/* buttons (AppButton.vue) reused by FileInput's trigger */
+.sft-btn {
+  display: inline-flex; align-items: center; gap: 8px; border-radius: 6px;
+  padding: 8px 12px; font-size: 14px; line-height: 20px; font-weight: 500; cursor: pointer;
+  border: 0; background: none;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.sft-btn:disabled { cursor: not-allowed; opacity: .4; }
+.sft-btn-default { border: 1px solid #cad5e2; background: var(--sft-card-bg); color: #314158; }
+:root.dark .sft-btn-default { border-color: #45556c; color: #cad5e2; }
+.sft-btn-default:hover { border-color: #90a1b9; background: #f8fafc; }
+:root.dark .sft-btn-default:hover { border-color: #62748e; background: #1d293d; }
+
+/* =========================================================================
+   NEW CLASSES this feature introduces (for the architect to add to style.scss)
+   ========================================================================= */
+
+/* ---- textarea (Textarea.vue) ---------------------------------------- */
+/* Same chrome tokens as .sft-input, but auto height with a min-height and a
+   vertical resize handle instead of the fixed 40px row. */
+.sft-textarea {
+  width: 100%; box-sizing: border-box; min-height: 104px;
+  border: 1px solid var(--sft-input-border); border-radius: 8px;
+  background: var(--sft-input-bg); color: var(--sft-text);
+  padding: 8px 12px; font-size: inherit; line-height: 1.5; resize: vertical;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+}
+@media (min-width: 768px) { .sft-textarea { font-size: 14px; } }
+.sft-textarea::placeholder { color: var(--sft-placeholder); }
+.sft-textarea:focus {
+  outline: none; border-color: var(--sft-focus-border); box-shadow: 0 0 0 2px var(--sft-focus-ring);
+}
+.sft-textarea:disabled {
+  cursor: not-allowed; background: var(--sft-input-disabled-bg); color: var(--sft-input-disabled-text); resize: none;
+}
+.sft-textarea.is-invalid { border-color: var(--sft-danger-border); }
+.sft-textarea.is-invalid:focus { border-color: var(--sft-danger-focus-border); box-shadow: 0 0 0 2px var(--sft-danger-ring); }
+
+/* ---- radio group (RadioGroup.vue) ----------------------------------- */
+/* A flat "pick one value" control, a sibling of select, NOT the structural
+   choice cards. It uses the sky accent (--sft-accent), reserving indigo for
+   DynamicFormItemChoice's branch cards, so the two read as different concepts.
+   Lighter than a choice card: small radio dot, no icon, no per-option desc. */
+.sft-radio-group { display: flex; flex-direction: column; gap: 8px; }
+.sft-radio-option {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--sft-input-border); border-radius: 8px;
+  background: var(--sft-input-bg); cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.sft-radio-option:not(.is-disabled):hover { border-color: var(--sft-focus-border); }
+.sft-radio-option.is-selected { border-color: var(--sft-accent); }
+.sft-radio-option.is-disabled { cursor: not-allowed; }
+/* the native input is the real control; kept accessible but visually replaced */
+.sft-radio-input {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.sft-radio-control {
+  display: grid; place-items: center; height: 16px; width: 16px; flex-shrink: 0;
+  border-radius: 9999px; border: 2px solid #cad5e2; transition: border-color .15s ease;
+}
+:root.dark .sft-radio-control { border-color: #45556c; }
+.sft-radio-option.is-selected .sft-radio-control { border-color: var(--sft-accent); }
+.sft-radio-input:focus-visible + .sft-radio-control { outline: 2px solid var(--sft-focus-border); outline-offset: 2px; }
+.sft-radio-dot {
+  height: 8px; width: 8px; border-radius: 9999px; background: var(--sft-accent);
+  transform: scale(0); transition: transform .15s ease;
+}
+.sft-radio-option.is-selected .sft-radio-dot { transform: scale(1); }
+.sft-radio-label { font-size: 14px; color: var(--sft-text); }
+/* invalid: echo the danger border on the resting radio circles */
+.sft-radio-group.is-invalid .sft-radio-control { border-color: var(--sft-danger-border); }
+
+/* ---- file input (FileInput.vue) ------------------------------------- */
+/* The one uncontrolled control: a native <input type="file"> cannot take a
+   :value, so the trigger is a <label> and the chosen filename is read from the
+   component's OWN local state (the File from the change event), not echoed from
+   the form model the way every other control echoes fieldContext.value. */
+.sft-file { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sft-file-native {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.sft-file-trigger { /* composes .sft-btn .sft-btn-default */ }
+.sft-file-name { font-size: 14px; color: var(--sft-text-strong); min-width: 0; overflow-wrap: anywhere; }
+.sft-file-name.is-empty { color: var(--sft-text-subtle); }
+.sft-file-clear {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 28px; width: 28px; border-radius: 6px; border: 0; background: none; cursor: pointer;
+  color: var(--sft-text-subtle);
+}
+.sft-file-clear:hover { background: var(--sft-muted-bg); color: var(--sft-text); }
+.sft-file.is-invalid .sft-file-trigger { border-color: var(--sft-danger-border); color: var(--sft-danger-text); }
+.sft-file.is-disabled { opacity: .6; }
+</style>
+</head>
+<body>
+<button class="proto-toggle" id="themeToggle" type="button" aria-pressed="false">
+  <span id="themeToggleLabel">Switch to dark</span>
+</button>
+
+<div class="proto-wrap">
+  <header class="proto-masthead">
+    <h1>Starter field types</h1>
+    <p>New leaf controls for <code>@bach.software/vue-dynamic-form-starter</code>. Every control lives inside the same <code>FormField</code> chrome the existing <code>text</code>, <code>select</code>, <code>checkbox</code> and <code>password</code> fields already get: label, optional/required tag, description, and one error line below the control. The running example is a job application form.</p>
+  </header>
+
+  <div class="proto-legend">
+    <b>How to read this:</b> three new rendered components (Textarea, RadioGroup, FileInput) each get the full state matrix below. The HTML5 text-mode types at the bottom add no component, they only reach the existing TextInput through a native <code>type</code> attribute. Use the top-right button to flip <code>.dark</code> on <code>&lt;html&gt;</code>, exactly as VitePress does; every section was walked in both modes. Cells marked <b>focus (simulated)</b> paint the real <code>:focus</code> ring on a resting element so it shows in this stacked view.
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TEXTAREA                                                     -->
+  <!-- ============================================================ -->
+  <section class="proto-section" id="textarea">
+    <div class="proto-divider">
+      <h2>Textarea</h2>
+      <span class="proto-mech">new component · slot <code>textarea-input</code></span>
+    </div>
+    <p class="proto-intro">Multi-line free text. Shares the input chrome tokens (border, focus ring, invalid, disabled) but grows vertically from a <code>min-height</code> and offers a resize handle. Chrome, validation and grid placement come from <code>FormField</code> unchanged.</p>
+
+    <div class="proto-panel">
+      <div class="proto-states">
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Empty (pristine)</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="ta-empty">Cover letter<span class="sft-tag-optional">Optional</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <textarea id="ta-empty" class="sft-textarea" placeholder="Share a few sentences on why this role is a fit."></textarea>
+            </div></div>
+            <p class="sft-field-desc">A short note to the hiring team.</p>
+          </div>
+          <p class="proto-note">No value, muted placeholder. No error line reserved; it appears only when needed.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Filled</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="ta-filled">Cover letter<span class="sft-tag-optional">Optional</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <textarea id="ta-filled" class="sft-textarea">I have led three design-system rebuilds and care about accessible, themeable form UI. Your headless engine is exactly the layer I enjoy working at, and I would love to help shape the starter template.</textarea>
+            </div></div>
+            <p class="sft-field-desc">A short note to the hiring team.</p>
+          </div>
+          <p class="proto-note">Value is the raw string from the field model (<code>fieldContext.value</code>), same binding as the text input.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Focus (simulated)</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="ta-focus">Cover letter<span class="sft-tag-optional">Optional</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <textarea id="ta-focus" class="sft-textarea proto-showfocus">I have led three design-system rebuilds and care about accessible form UI.</textarea>
+            </div></div>
+            <p class="sft-field-desc">A short note to the hiring team.</p>
+          </div>
+          <p class="proto-note">Sky focus ring (3px), identical to the text input's <code>:focus</code>. Shown via a helper class; real forms use <code>:focus</code>.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Invalid (with message)</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="ta-error">Cover letter<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <textarea id="ta-error" class="sft-textarea is-invalid" aria-invalid="true">Too short.</textarea>
+            </div></div>
+            <p class="sft-field-desc">A short note to the hiring team.</p>
+            <span class="sft-error">Your cover letter needs at least 50 characters.</span>
+          </div>
+          <p class="proto-note">Red border + one <code>sft-error</code> line. Message states the fix, driven by <code>xsd_minLength</code>.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Disabled</span>
+          <div class="sft-field is-disabled">
+            <label class="sft-field-label" for="ta-disabled">Cover letter<span class="sft-tag-optional">Optional</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <textarea id="ta-disabled" class="sft-textarea" disabled>Submitted applications cannot be edited.</textarea>
+            </div></div>
+            <p class="sft-field-desc">A short note to the hiring team.</p>
+          </div>
+          <p class="proto-note">Field dims to 60%, control greys out, resize handle removed.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- RADIO GROUP                                                  -->
+  <!-- ============================================================ -->
+  <section class="proto-section" id="radio">
+    <div class="proto-divider">
+      <h2>Radio group</h2>
+      <span class="proto-mech">new component · slot <code>radio-input</code></span>
+    </div>
+    <p class="proto-intro">A different rendering of the same flat <code>options: {`{ key, value }[]`}</code> that <code>select</code> already uses: "which one value does this field hold". It is a sibling of <code>select</code>, not the structural <code>choice</code> (those are indigo branch cards that each own their own sub-fields). To keep the two distinct, the radio uses the sky accent, a smaller dot, and no icons or per-option descriptions. Rows are full-width tap targets analogous to the switch and select chrome.</p>
+
+    <div class="proto-panel">
+      <div class="proto-states">
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Empty (no selection)</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="rad-1a">How did you hear about us?<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <div class="sft-radio-group" role="radiogroup" aria-label="How did you hear about us?">
+                <label class="sft-radio-option"><input id="rad-1a" class="sft-radio-input" type="radio" name="hear-empty"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A search engine</span></label>
+                <label class="sft-radio-option"><input class="sft-radio-input" type="radio" name="hear-empty"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A friend or colleague</span></label>
+                <label class="sft-radio-option"><input class="sft-radio-input" type="radio" name="hear-empty"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">Social media</span></label>
+                <label class="sft-radio-option"><input class="sft-radio-input" type="radio" name="hear-empty"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A conference or event</span></label>
+              </div>
+            </div></div>
+          </div>
+          <p class="proto-note">No dot filled. Hover a row to preview its sky border (try it).</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Selected</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="rad-2a">How did you hear about us?<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <div class="sft-radio-group" role="radiogroup" aria-label="How did you hear about us?">
+                <label class="sft-radio-option"><input id="rad-2a" class="sft-radio-input" type="radio" name="hear-sel"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A search engine</span></label>
+                <label class="sft-radio-option is-selected"><input class="sft-radio-input" type="radio" name="hear-sel" checked><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A friend or colleague</span></label>
+                <label class="sft-radio-option"><input class="sft-radio-input" type="radio" name="hear-sel"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">Social media</span></label>
+                <label class="sft-radio-option"><input class="sft-radio-input" type="radio" name="hear-sel"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A conference or event</span></label>
+              </div>
+            </div></div>
+          </div>
+          <p class="proto-note">Selected row carries <code>is-selected</code>: sky border + filled dot. The option's <code>key</code> becomes the field value.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Focus (simulated)</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="rad-3a">How did you hear about us?<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <div class="sft-radio-group" role="radiogroup" aria-label="How did you hear about us?">
+                <label class="sft-radio-option"><input id="rad-3a" class="sft-radio-input" type="radio" name="hear-focus"><span class="sft-radio-control proto-radiofocus"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A search engine</span></label>
+                <label class="sft-radio-option"><input class="sft-radio-input" type="radio" name="hear-focus"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A friend or colleague</span></label>
+              </div>
+            </div></div>
+          </div>
+          <p class="proto-note">Keyboard focus rings the radio circle (<code>:focus-visible</code> on the real input). Arrow keys move within the group natively.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Invalid (with message)</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="rad-4a">How did you hear about us?<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <div class="sft-radio-group is-invalid" role="radiogroup" aria-invalid="true" aria-label="How did you hear about us?">
+                <label class="sft-radio-option"><input id="rad-4a" class="sft-radio-input" type="radio" name="hear-err"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A search engine</span></label>
+                <label class="sft-radio-option"><input class="sft-radio-input" type="radio" name="hear-err"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A friend or colleague</span></label>
+                <label class="sft-radio-option"><input class="sft-radio-input" type="radio" name="hear-err"><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">Social media</span></label>
+              </div>
+            </div></div>
+            <span class="sft-error">Choose how you heard about us.</span>
+          </div>
+          <p class="proto-note">Resting radio circles pick up the danger border; one <code>sft-error</code> line below the whole group (not per option).</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Disabled</span>
+          <div class="sft-field is-disabled">
+            <label class="sft-field-label" for="rad-5a">How did you hear about us?<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <div class="sft-radio-group" role="radiogroup" aria-label="How did you hear about us?">
+                <label class="sft-radio-option is-disabled"><input id="rad-5a" class="sft-radio-input" type="radio" name="hear-dis" disabled><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A search engine</span></label>
+                <label class="sft-radio-option is-selected is-disabled"><input class="sft-radio-input" type="radio" name="hear-dis" checked disabled><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">A friend or colleague</span></label>
+                <label class="sft-radio-option is-disabled"><input class="sft-radio-input" type="radio" name="hear-dis" disabled><span class="sft-radio-control"><span class="sft-radio-dot"></span></span><span class="sft-radio-label">Social media</span></label>
+              </div>
+            </div></div>
+          </div>
+          <p class="proto-note">Field dims to 60%, rows become <code>not-allowed</code>, a pre-selected value still reads.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- FILE INPUT                                                   -->
+  <!-- ============================================================ -->
+  <section class="proto-section" id="file">
+    <div class="proto-divider">
+      <h2>File input</h2>
+      <span class="proto-mech">new component · slot <code>file-input</code> · uncontrolled</span>
+    </div>
+    <p class="proto-intro">The one uncontrolled control in the package. A native <code>&lt;input type="file"&gt;</code> cannot be given a <code>:value</code>, so the native element is visually hidden behind a labelled trigger button and the chosen filename is shown from the component's <b>own local state</b> (the <code>File</code> read off the change event), not echoed from the form model the way every other control echoes <code>fieldContext.value</code>. v1 is single-file (<code>File | undefined</code>); multi-file, drag-and-drop and previews are out of scope (see Open question 3).</p>
+
+    <div class="proto-panel">
+      <div class="proto-states">
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Empty (no file chosen)</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="file-empty">Resume<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <div class="sft-file">
+                <label class="sft-btn sft-btn-default sft-file-trigger" for="file-empty">Choose file<input id="file-empty" class="sft-file-native" type="file"></label>
+                <span class="sft-file-name is-empty">No file chosen</span>
+              </div>
+            </div></div>
+            <p class="sft-field-desc">PDF or Word document, up to 5&nbsp;MB.</p>
+          </div>
+          <p class="proto-note">Trigger reuses <code>sft-btn-default</code>. Placeholder text is subtle, not a real value.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>File selected</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="file-sel">Resume<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <div class="sft-file">
+                <label class="sft-btn sft-btn-default sft-file-trigger" for="file-sel">Change file<input id="file-sel" class="sft-file-native" type="file"></label>
+                <span class="sft-file-name">jeroen-bach-resume.pdf</span>
+                <button class="sft-file-clear" type="button" aria-label="Remove jeroen-bach-resume.pdf">&times;</button>
+              </div>
+            </div></div>
+            <p class="sft-field-desc">PDF or Word document, up to 5&nbsp;MB.</p>
+          </div>
+          <p class="proto-note">Filename is <code>File.name</code> from the component's local state. Trigger label becomes "Change file"; a clear button resets it.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Invalid (with message)</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="file-err">Resume<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <div class="sft-file is-invalid">
+                <label class="sft-btn sft-btn-default sft-file-trigger" for="file-err">Choose file<input id="file-err" class="sft-file-native" type="file"></label>
+                <span class="sft-file-name is-empty">No file chosen</span>
+              </div>
+            </div></div>
+            <p class="sft-field-desc">PDF or Word document, up to 5&nbsp;MB.</p>
+            <span class="sft-error">Attach your resume before submitting.</span>
+          </div>
+          <p class="proto-note">Danger border + text on the trigger, one <code>sft-error</code> line below.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>Disabled</span>
+          <div class="sft-field is-disabled">
+            <label class="sft-field-label" for="file-dis">Resume<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <div class="sft-file is-disabled">
+                <span class="sft-btn sft-btn-default sft-file-trigger proto-btn-disabled" aria-disabled="true">Choose file</span>
+                <span class="sft-file-name is-empty">No file chosen</span>
+              </div>
+            </div></div>
+            <p class="sft-field-desc">PDF or Word document, up to 5&nbsp;MB.</p>
+          </div>
+          <p class="proto-note">Field dims to 60%; the trigger label is inert (the native input carries <code>disabled</code>).</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- TEXT-MODE TYPES (type-only)                                  -->
+  <!-- ============================================================ -->
+  <section class="proto-section" id="text-modes">
+    <div class="proto-divider">
+      <h2>HTML5 text-mode types</h2>
+      <span class="proto-mech">type-only · existing TextInput + <code>default-input</code></span>
+    </div>
+    <p class="proto-intro">No new component and no new slot. These add entries to <code>StarterValueTypes</code> only; the existing <code>TextInput</code> already forwards <code>fieldMetadata.type</code> to the native <code>type</code> attribute, so the browser supplies the right affordance and keyboard. They inherit the exact <code>FormField</code> chrome shown above, so this section just confirms the native control renders inside that wrapper. The <code>number</code> type keeps the raw-string coercion guard: the model stays a string, validated by <code>xsd_minInclusive</code>/<code>xsd_maxInclusive</code>/<code>xsd_totalDigits</code>.</p>
+
+    <div class="proto-panel">
+      <div class="proto-states">
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>number</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="t-number">Years of experience<span class="sft-tag-optional">Optional</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <input id="t-number" class="sft-input" type="number" min="0" max="50" value="7">
+            </div></div>
+          </div>
+          <p class="proto-note">Native spinner; value stays a string in the model.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>email</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="t-email">Work email<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <input id="t-email" class="sft-input" type="email" placeholder="you@company.com" value="jeroen@bach.software">
+            </div></div>
+          </div>
+          <p class="proto-note">Email keyboard on mobile; <code>xsd_pattern</code> still owns explicit validation.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>tel</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="t-tel">Mobile number<span class="sft-tag-optional">Optional</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <input id="t-tel" class="sft-input" type="tel" placeholder="+31 6 1234 5678" value="+31 6 2468 1357">
+            </div></div>
+          </div>
+          <p class="proto-note">Numeric-telephone keyboard on mobile.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>url</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="t-url">Portfolio URL<span class="sft-tag-optional">Optional</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <input id="t-url" class="sft-input" type="url" placeholder="https://" value="https://bach.software">
+            </div></div>
+          </div>
+          <p class="proto-note">URL keyboard on mobile.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>date</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="t-date">Available from<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <input id="t-date" class="sft-input" type="date" value="2026-12-01">
+            </div></div>
+          </div>
+          <p class="proto-note">Native date picker; value is the browser's ISO string, parsing left to the consumer.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>time</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="t-time">Preferred call time<span class="sft-tag-optional">Optional</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <input id="t-time" class="sft-input" type="time" value="14:30">
+            </div></div>
+          </div>
+          <p class="proto-note">Native time picker.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>datetime-local</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="t-dt">Interview slot<span class="sft-tag-optional">Optional</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <input id="t-dt" class="sft-input" type="datetime-local" value="2026-12-04T10:00">
+            </div></div>
+          </div>
+          <p class="proto-note">Native combined date and time picker.</p>
+        </div>
+
+        <div class="proto-cell">
+          <span class="proto-caption"><span class="dot"></span>invalid + disabled</span>
+          <div class="sft-field">
+            <label class="sft-field-label" for="t-inv">Work email<span class="sft-tag-required">*</span></label>
+            <div class="sft-field-control-row"><div class="sft-field-control">
+              <input id="t-inv" class="sft-input is-invalid" type="email" aria-invalid="true" value="not-an-email">
+            </div></div>
+            <span class="sft-error">Enter a valid email address, like you@company.com.</span>
+          </div>
+          <p class="proto-note">Same invalid/disabled treatment as the <code>text</code> type: no new states, only new keyboards.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  var html = document.documentElement;
+  var btn = document.getElementById('themeToggle');
+  var label = document.getElementById('themeToggleLabel');
+  btn.addEventListener('click', function () {
+    var dark = html.classList.toggle('dark');
+    btn.setAttribute('aria-pressed', String(dark));
+    label.textContent = dark ? 'Switch to light' : 'Switch to dark';
+  });
+</script>
+</body>
+</html>

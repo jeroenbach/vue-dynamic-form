@@ -7,7 +7,7 @@ Read `CLAUDE.md` before acting (no em dashes in anything you write, camelCase in
 
 This command runs a research project with a durable folder as running memory, an explicit build-or-delegate decision, then either solo research or phased multi-agent workflows whose agents all report back in structured form and leave raw notes on disk.
 
-## 1. Scope with Jeroen
+## 1. Scope with the user
 
 Refine the raw question below into a researchable brief. If any of these genuinely change how the research is aimed, ask via AskUserQuestion (2 to 4 sharp questions, recommended option first):
 
@@ -26,7 +26,7 @@ Choose SOLO when most of these hold:
 - The question decomposes into roughly 3 or fewer search angles, or the angles depend on each other (each search informs the next).
 - Expected source volume fits comfortably in one context (roughly under 30 to 40 fetched pages).
 - Judgment quality matters more than coverage: nuanced weighing, a buy-vs-build call, a comparison with few candidates.
-- Speed of iteration with Jeroen matters (he is present and steering).
+- Speed of iteration with the user matters (they are present and steering).
 
 Solo advantages to weigh: no duplicated context across agents, full continuity of reasoning, Fable-level judgment on every source, typically 5 to 10x fewer tokens. Solo limits: one context window caps breadth, and there is no independent adversarial verification unless you spawn at least a couple of verifier agents.
 
@@ -44,7 +44,7 @@ Hybrid is allowed and often right: solo scouting to discover the angle list, the
 Create `research/<kebab-slug>/` with:
 
 - `README.md`: purpose (one paragraph), structure listing, method summary, a status checklist, resume instructions written for a fresh session that knows nothing ("read this file, then brief.md, then skim raw/, continue from Next steps"), and a dated log. Every workflow launch gets its run ID and resume command logged here immediately.
-- `brief.md`: the refined question, Jeroen's scoping answers (dated), the mode decision with reasoning, and the angle table (key + focus per angle).
+- `brief.md`: the refined question, the user's scoping answers (dated), the mode decision with reasoning, and the angle table (key + focus per angle).
 - `raw/`: empty; agents (or you, in solo mode) write per-angle notes here as work happens, not at the end. This is the insurance against token exhaustion: findings must land on disk continuously.
 
 Update README status and log after every phase. If a session dies, `raw/` is the source of truth; re-run only angles whose files are missing or empty.
@@ -79,6 +79,6 @@ Read the full structured output (paginate; do not synthesize from the truncated 
 
 Aim each next phase with the previous phase's conclusions (broad mapping first, targeted hunting second is the usual shape). Repeat sections 5 and 6. Finish with `final-report.md`: thesis in a few sentences, the recommended play in ordered steps, caveats, and a concrete first-week action table. Mark the README status COMPLETE with dated follow-up suggestions for future sessions.
 
-## 8. Reporting back to Jeroen
+## 8. Reporting back to the user
 
-After each phase, give a TLDR in chat: the headline finding first, then the two or three most decision-relevant results, then what launched next. Never make Jeroen read the folder to learn the outcome; the folder is the archive, the chat message is the deliverable of the moment. Do not commit anything; Jeroen handles git.
+After each phase, give a TLDR in chat: the headline finding first, then the two or three most decision-relevant results, then what launched next. Never make the user read the folder to learn the outcome; the folder is the archive, the chat message is the deliverable of the moment. Do not commit anything; the user handles git.

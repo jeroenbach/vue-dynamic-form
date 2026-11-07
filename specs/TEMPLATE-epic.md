@@ -23,7 +23,7 @@ Filled by product-owner. The candidate features this epic decomposes into: for e
 Cross-cutting constraints that apply to the whole initiative (public API compatibility, semver posture, sequencing, external deadlines, etc.).
 
 ## Open questions
-Questions for Jeroen. Must be resolved before approval.
+Questions for the maintainer. Must be resolved before approval.
 
 ## Features
 Filled as features are elaborated. Links to the `FEAT-XXX` folders that carry `epic: EPIC-XXX`, with a one-line status rollup (which are done, in progress, not yet started). This is the live index of the epic; the Feature breakdown above is the original plan.

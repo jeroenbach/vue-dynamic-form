@@ -6,7 +6,7 @@ model: opus
 
 Read `CLAUDE.md`, `specs/RESEARCH-AND-DECIDE.md`, and the referenced spec before acting.
 
-This command runs the phases between two approval gates unattended, so Jeroen types one command instead of several and comes back to a spec that has moved as far as it can without him. **It never crosses a gate.** It stops the moment the next thing needed is Jeroen's approval, and it never sets `status: approved`.
+This command runs the phases between two approval gates unattended, so the maintainer types one command instead of several and comes back to a spec that has moved as far as it can without them. **It never crosses a gate.** It stops the moment the next thing needed is the maintainer's approval, and it never sets `status: approved`. That holds even for a spec whose frontmatter carries `auto: true`: the delegated-gate variant is a separate command, `/spec:auto`, and only a run of that command may cross gates. When this command stops at a gate on a flagged spec, mention that `/spec:auto <id>` would carry it through.
 
 There are three chains, one for each stretch between gates. The same command runs all three; it works out which from the spec's status. A quick spec has the same gates but fewer phases, so it runs collapsed versions of chains 1 and 3 (see "Quick specs" below). An epic has one phase of its own (elaborating the next candidate feature) and is otherwise driven by looping the three chains over its child features (see "Epics" below).
 
@@ -16,7 +16,7 @@ There are three chains, one for each stretch between gates. The same command run
 | 2 | Story prep | feature in `approved` | split, then per story qa and review | every story `awaiting-approval`, bar any it had to park |
 | 3 | Implementation | feature in `in-progress` with an approved story | per story implement, verify, fix findings; then a final audit of the whole branch with its own fix loop | story `done`, bar any it had to park, plus the audit's Final review in the feature spec and the finished feature archived to `specs/archive/` |
 
-**Chains 2 and 3 run to the end.** Once the feature is approved Jeroen has stepped back, so these chains never halt the whole run over one item. Anything they cannot settle parks that **one** story at `awaiting-discussion` and the run continues with its siblings. See "Research and decide" below.
+**Chains 2 and 3 run to the end.** Once the feature is approved the maintainer has stepped back, so these chains never halt the whole run over one item. Anything they cannot settle parks that **one** story at `awaiting-discussion` and the run continues with its siblings. See "Research and decide" below.
 
 Locate the single `specs/**/spec.md` whose `id:` matches the argument. If the argument is ambiguous, list the candidates and stop instead of guessing.
 
@@ -29,58 +29,58 @@ Dispatch on the spec's current `status:`, and for a feature in `in-progress`, on
 1. `/spec:design FEAT-XXX` if the status is `design` and the Design section is not yet filled. Skip for a feature with no UI surface, noting the skip.
 2. `/spec:arch FEAT-XXX`
 3. `/spec:review FEAT-XXX`
-4. **Research and decide, pre-approval bar.** Take every open item the review left behind (unresolved Open questions and unresolved adversarial findings) and work it per `specs/RESEARCH-AND-DECIDE.md`, applying the **clear-winner bar** of step 2a, never the post-approval ladder. Research each item from primary sources (in parallel where independent), settle only the ones with a clear winner, record each inline as `DECIDED (research)` with its sources, and keep the "Decided without Jeroen (research)" rollup under the spec title current. Everything that fails the bar (a real tradeoff, public API, scope, taste, a fact only Jeroen has, inconclusive research) stays exactly as the reviewer left it, and no `ASSUMED` entry is ever written pre-approval. The point is that `/spec:discuss` can start discussing immediately instead of opening with a research pass.
+4. **Research and decide, pre-approval bar.** Take every open item the review left behind (unresolved Open questions and unresolved adversarial findings) and work it per `specs/RESEARCH-AND-DECIDE.md`, applying the **clear-winner bar** of step 2a, never the post-approval ladder. Research each item from primary sources (in parallel where independent), settle only the ones with a clear winner, record each inline as `DECIDED (research)` with its sources, and keep the "Decided without the maintainer (research)" rollup under the spec title current. Everything that fails the bar (a real tradeoff, public API, scope, taste, a fact only the maintainer has, inconclusive research) stays exactly as the reviewer left it, and no `ASSUMED` entry is ever written pre-approval. The point is that `/spec:discuss` can start discussing immediately instead of opening with a research pass.
 5. **Re-apply the reviewer's status rule after researching.** Use the same mechanical rule `/spec:review` uses: `awaiting-discussion` if any Open question, blocker, or should-fix without a `PROPOSED` edit is still unresolved, `awaiting-approval` otherwise. Research settling the last open item is the one way this chain reaches `awaiting-approval` for a typical feature.
 
-Ends at `awaiting-discussion` with only the items that genuinely need Jeroen still open, or at `awaiting-approval` when research settled everything. Close by telling him to run `/spec:discuss FEAT-XXX` (it opens by summarizing the research decisions, which he can override, before walking through what is left), or `/spec:approve FEAT-XXX` when nothing stayed open.
+Ends at `awaiting-discussion` with only the items that genuinely need the maintainer still open, or at `awaiting-approval` when research settled everything. Close by telling them to run `/spec:discuss FEAT-XXX` (it opens by summarizing the research decisions, which they can override, before walking through what is left), or `/spec:approve FEAT-XXX` when nothing stayed open.
 
 **Feature in `approved`** (chain 2, story prep, "take it from here"):
 
 1. `/spec:split FEAT-XXX`
 2. For each story produced, in dependency order: `/spec:qa ST-YY`, then `/spec:review ST-YY`.
 
-Ends with every story at `awaiting-approval` and the feature at `in-progress`. **This chain researches and decides**, per the section below, and it prepares every story even if an earlier one parked. Close by listing the stories with their paths, in dependency order, so Jeroen can approve them and start implementation, and name any parked story separately with the reason it parked.
+Ends with every story at `awaiting-approval` and the feature at `in-progress`. **This chain researches and decides**, per the section below, and it prepares every story even if an earlier one parked. Close by listing the stories with their paths, in dependency order, so the maintainer can approve them and start implementation, and name any parked story separately with the reason it parked.
 
 **Feature in `in-progress`** (mixed, so look at the stories). Walk the stories in dependency order and act on the **first one that is not `done`**:
 
 - story in `qa` or `adversarial-review` → finish chain 2 for it (`/spec:qa`, `/spec:review`), then continue to the next story.
 - story in `approved` → run chain 3 on it (see below).
 - story in `implementing` or `verifying` → resume chain 3 mid-flight for it, picking up at the phase it is in.
-- story in `awaiting-approval` → **skip it and keep going.** That is Jeroen's gate, so this run cannot advance that story, but it can still prep or implement the others. Note it and move to the next story.
-- story in `awaiting-discussion` → **skip it and keep going**, exactly the same way. It is parked pending a decision from Jeroen. Also skip any story that depends on it, naming the dependency; stories that do not depend on it carry on normally.
+- story in `awaiting-approval` → **skip it and keep going.** That is the maintainer's gate, so this run cannot advance that story, but it can still prep or implement the others. Note it and move to the next story.
+- story in `awaiting-discussion` → **skip it and keep going**, exactly the same way. It is parked pending a decision from the maintainer. Also skip any story that depends on it, naming the dependency; stories that do not depend on it carry on normally.
 - all stories `done` → run the final audit and its fix loop (steps 5 and 6 below) if the feature spec has no Final review section covering the current branch state, then the feature is finished. Say so, check whether the feature status should now be `done`, and archive it per step 7.
 
-Only when every remaining story is blocked on Jeroen (waiting at a gate, parked, or depending on one that is) does the run end. Report the whole set at once rather than stopping at the first one.
+Only when every remaining story is blocked on the maintainer (waiting at a gate, parked, or depending on one that is) does the run end. Report the whole set at once rather than stopping at the first one.
 
 **Feature in `architecture` or `adversarial-review`:** resume chain 1 from that phase.
 
-**Feature in `awaiting-approval` or `awaiting-discussion`:** stop. This is Jeroen's gate. Report what is waiting and point at `/spec:discuss <id>` to work through the open items (the right call from `awaiting-discussion`) or `/spec:approve <id>` to open the gate.
+**Feature in `awaiting-approval` or `awaiting-discussion`:** stop. This is the maintainer's gate. Report what is waiting and point at `/spec:discuss <id>` to work through the open items (the right call from `awaiting-discussion`) or `/spec:approve <id>` to open the gate.
 
 **A single `ST-YY` given directly:** run whatever chain that one story needs, by the same rules, and stop when it is `done` rather than moving on to its siblings.
 
-**Anything in `deferred`:** stop. Reviving it is Jeroen's call.
+**Anything in `deferred`:** stop. Reviving it is the maintainer's call.
 
 **Epics (`EPIC-XXX`):** an epic is a container, so continuing one means driving its child features. Dispatch on the epic's status:
 
 - `draft` → its creating command did not finish; report that rather than inventing a phase for it.
-- `awaiting-approval` or `awaiting-discussion` → stop. This is Jeroen's epic-direction gate, same as for a feature.
+- `awaiting-approval` or `awaiting-discussion` → stop. This is the maintainer's epic-direction gate, same as for a feature.
 - `approved` or `in-progress` → run the epic loop below.
 - `done` → archive the folder if it is still at the top level of `specs/`, otherwise report there is nothing to do.
 
 **The epic loop.** Walk the epic's Feature breakdown in its stated order. For each candidate feature:
 
-1. **Already elaborated** (a `FEAT-XXX` with `epic: EPIC-XXX` exists for it): advance that feature using the normal feature dispatch above, whatever chain its status calls for. When it stops at one of Jeroen's gates (`awaiting-approval` or `awaiting-discussion`), note it and treat later candidates that depend on it as blocked.
-2. **Not yet elaborated, and every feature it depends on (the breakdown's "Depends on" line) is `done`:** elaborate it now. Run `/spec:feature` (product-owner, sonnet) with the candidate's name and scope paragraph verbatim from the breakdown plus the parent `EPIC-XXX` id, so the product-owner reads the epic's decisions and builds on them. Then run chain 1 on the new feature, ending at Jeroen's gate. If this created the epic's first child feature, set the epic to `in-progress`.
+1. **Already elaborated** (a `FEAT-XXX` with `epic: EPIC-XXX` exists for it): advance that feature using the normal feature dispatch above, whatever chain its status calls for. When it stops at one of the maintainer's gates (`awaiting-approval` or `awaiting-discussion`), note it and treat later candidates that depend on it as blocked.
+2. **Not yet elaborated, and every feature it depends on (the breakdown's "Depends on" line) is `done`:** elaborate it now. Run `/spec:feature` (product-owner, sonnet) with the candidate's name and scope paragraph verbatim from the breakdown plus the parent `EPIC-XXX` id, so the product-owner reads the epic's decisions and builds on them. Then run chain 1 on the new feature, ending at the maintainer's gate. If this created the epic's first child feature, set the epic to `in-progress`.
 3. **Not yet elaborated with unmet dependencies:** skip it, naming the features it is waiting for.
 
-The run ends when every candidate is `done`, waiting at one of Jeroen's gates, or blocked on one that is. As with chains 2 and 3, advance everything that can advance before stopping, and report the whole set at once. When the last feature reaches `done`, chain 3's step 7 already closes and archives the epic; the loop adds nothing there.
+The run ends when every candidate is `done`, waiting at one of the maintainer's gates, or blocked on one that is. As with chains 2 and 3, advance everything that can advance before stopping, and report the whole set at once. When the last feature reaches `done`, chain 3's step 7 already closes and archives the epic; the loop adds nothing there.
 
-Features are deliberately elaborated **one dependency layer at a time**, not all up front: a feature's design and architecture must be built against the library as its predecessors actually left it, and specs written months ahead of their build go stale. So a typical epic run ends at exactly one new gate (the freshly elaborated feature at `awaiting-discussion`), and Jeroen drives the whole epic by alternating `/spec:continue EPIC-XXX` with the approvals it stops at.
+Features are deliberately elaborated **one dependency layer at a time**, not all up front: a feature's design and architecture must be built against the library as its predecessors actually left it, and specs written months ahead of their build go stale. So a typical epic run ends at exactly one new gate (the freshly elaborated feature at `awaiting-discussion`), and the maintainer drives the whole epic by alternating `/spec:continue EPIC-XXX` with the approvals it stops at.
 
 **Quick specs (`QUICK-XXX`):** the quick lane has no design, architecture, qa plan, or split, so the chains collapse to two short ones. Dispatch on the spec's status:
 
-- `draft` or `adversarial-review` → finish the lane's prep per `/spec:quick`: make sure Problem, Proposed change, Affected files, and Test impact are filled from the code (inspected, not guessed), then run `/spec:review QUICK-XXX` (lite mode). Apply the research step with the pre-approval clear-winner bar to anything the review left open, then re-apply the reviewer's status rule, exactly as chain 1 does. Ends at Jeroen's gate. A genuinely quick fix should land at `awaiting-approval`; landing at `awaiting-discussion` is a hint the change is not quick-lane material, so say that in the summary.
-- `awaiting-approval` or `awaiting-discussion` → stop. This is Jeroen's gate, same as for a feature.
+- `draft` or `adversarial-review` → finish the lane's prep per `/spec:quick`: make sure Problem, Proposed change, Affected files, and Test impact are filled from the code (inspected, not guessed), then run `/spec:review QUICK-XXX` (lite mode). Apply the research step with the pre-approval clear-winner bar to anything the review left open, then re-apply the reviewer's status rule, exactly as chain 1 does. Ends at the maintainer's gate. A genuinely quick fix should land at `awaiting-approval`; landing at `awaiting-discussion` is a hint the change is not quick-lane material, so say that in the summary.
+- `awaiting-approval` or `awaiting-discussion` → stop. This is the maintainer's gate, same as for a feature.
 - `approved`, `implementing`, or `verifying` → run chain 3 on the quick spec itself: `/spec:implement QUICK-XXX`, then `/spec:verify QUICK-XXX`, with the same fix loop and three-attempt cap, the same parking rule on repeated failure, and the same commit rule for the mode you are in. Skip `/spec:audit`: a quick spec is one small change and the verifier's pass is its final check. When it reaches `done`, archive the folder to `specs/archive/` per chain 3's step 7 (plain `mv`, nothing changed inside).
 - `done` → archive the folder if it is still at the top level of `specs/`, otherwise report there is nothing to do.
 
@@ -99,11 +99,11 @@ For each story, in dependency order:
 
 5. **After the last story of the feature verifies clean, run `/spec:audit FEAT-XXX`** (final-reviewer, fable). This is the one phase that looks at the branch as a whole rather than one story at a time: a deep bug hunt through the combined diff, a behaviour-level check for functionality not covered by tests, and a check that a human can exercise every new behaviour by hand (in this repo that usually means a Storybook story or docs example). It writes a Final review section into the feature spec and changes no status. Run it only when every story is `done` (skip it while anything is parked or waiting at a gate, and say so; a parked story means the branch is not final yet).
 
-6. **Fix what the audit found, then re-audit.** If the Final review lists blockers, should-fix findings, test gaps, or manual-test gaps, re-invoke the developer (sonnet) with that section as its work order, then re-run `/spec:audit` so the final-reviewer confirms each fix and reviews the fix diff itself. At most **two** fix rounds; whatever survives them stays documented in the Final review and goes at the top of the closing summary, right after any parked stories, for Jeroen to rule on. Nice-to-have findings are never auto-fixed; they stay documented for Jeroen. In autonomous mode, commit each fix round as one commit (e.g. `FEAT-XXX: final audit fixes`) with the audit's spec update included, or commit the spec update on its own when the audit came back clean.
+6. **Fix what the audit found, then re-audit.** If the Final review lists blockers, should-fix findings, test gaps, or manual-test gaps, re-invoke the developer (sonnet) with that section as its work order, then re-run `/spec:audit` so the final-reviewer confirms each fix and reviews the fix diff itself. At most **two** fix rounds; whatever survives them stays documented in the Final review and goes at the top of the closing summary, right after any parked stories, for the maintainer to rule on. Nice-to-have findings are never auto-fixed; they stay documented for the maintainer. In autonomous mode, commit each fix round as one commit (e.g. `FEAT-XXX: final audit fixes`) with the audit's spec update included, or commit the spec update on its own when the audit came back clean.
 
-7. **Archive the feature once it is `done`.** When the audit loop has closed, every story is `done`, and the feature's status is `done`, move the whole feature folder (spec, prototype, assets, stories) into `specs/archive/`, keeping its name: `mv specs/FEAT-XXX-<name> specs/archive/FEAT-XXX-<name>`. Use a plain `mv`, never `git mv` in interactive mode (that stages, which Jeroen does himself). Change nothing inside the folder. If the feature was the last open one of its epic, set the epic to `done` and archive the epic folder the same way. In autonomous mode, include the move in the audit's spec-update commit or as its own final commit; in interactive mode it stays uncommitted like everything else. Skip archiving while anything is parked or waiting at a gate, since the feature is not `done` yet.
+7. **Archive the feature once it is `done`.** When the audit loop has closed, every story is `done`, and the feature's status is `done`, move the whole feature folder (spec, prototype, assets, stories) into `specs/archive/`, keeping its name: `mv specs/FEAT-XXX-<name> specs/archive/FEAT-XXX-<name>`. Use a plain `mv`, never `git mv` in interactive mode (that stages, which the maintainer does themselves). Change nothing inside the folder. If the feature was the last open one of its epic, set the epic to `done` and archive the epic folder the same way. In autonomous mode, include the move in the audit's spec-update commit or as its own final commit; in interactive mode it stays uncommitted like everything else. Skip archiving while anything is parked or waiting at a gate, since the feature is not `done` yet.
 
-Keep your own context small: tell the developer and the qa-verifier to cap their final report at about 150 words and to put the detail in the story spec (Implementation notes, Verification report). For a long run over many stories, a `Workflow` script that loops the stories with structured, small results keeps the orchestrator's context from growing per story (only when Jeroen has asked for a workflow).
+Keep your own context small: tell the developer and the qa-verifier to cap their final report at about 150 words and to put the detail in the story spec (Implementation notes, Verification report). For a long run over many stories, a `Workflow` script that loops the stories with structured, small results keeps the orchestrator's context from growing per story (only when the maintainer has asked for a workflow).
 
 Never edit a verification report to make it pass, and never mark a story `done` yourself. `done` is the qa-verifier's call on a genuine pass.
 
@@ -111,7 +111,7 @@ Never edit a verification report to make it pass, and never mark a story `done` 
 
 `CLAUDE.md` already draws this line (see its "Interactive vs Autonomous Sessions" section), and chain 3 follows it exactly. The two modes differ only in what happens after a story verifies.
 
-**Interactive (running on Jeroen's machine): do every approved story, commit nothing.** Implement, verify, and fix findings for each story in dependency order, moving straight on to the next without stopping in between. Leave every change uncommitted and unstaged so Jeroen reviews and commits it himself; later stories are verified against a working tree that already contains the earlier ones. Stop early only for a parked story, a story waiting at an approval gate, or a story that depends on one of those. Close by listing the stories that are now `done`, the files touched, and anything parked or skipped.
+**Interactive (running on the maintainer's machine): do every approved story, commit nothing.** Implement, verify, and fix findings for each story in dependency order, moving straight on to the next without stopping in between. Leave every change uncommitted and unstaged so the maintainer reviews and commits it themselves; later stories are verified against a working tree that already contains the earlier ones. Stop early only for a parked story, a story waiting at an approval gate, or a story that depends on one of those. Close by listing the stories that are now `done`, the files touched, and anything parked or skipped.
 
 **Autonomous (your own environment, your own branch): do every story, committing each one.** After a story verifies clean, commit just that story's work, then continue straight to the next story, and repeat until all are `done`. The result is one branch with one commit per story.
 
@@ -119,14 +119,14 @@ In autonomous mode:
 
 - **Confirm you are not on `main` before the first commit.** If you are, create a feature branch first (named for the feature, e.g. `feat/FEAT-001-readonly-mode`). Never commit story work directly to the default branch.
 - **One commit per story, not one per fix.** The fix-the-findings loop is part of producing the story; it does not get its own commits. A story's changeset (`.changeset/*.md`, when `packages/core/src/` changed) belongs in that story's commit.
-- **Never squash these commits, and never rewrite the branch history.** The per-story commits are the point: they are how Jeroen reviews the PR, one story at a time. Note this repo's rule from `CLAUDE.md`: PRs are **merged with a merge commit, never squash-merged**, because Changesets depends on the preserved commit history. Your per-story commits therefore survive into `main`, which is one more reason each must pass `pnpm ci` on its own.
+- **Never squash these commits, and never rewrite the branch history.** The per-story commits are the point: they are how the maintainer reviews the PR, one story at a time. Note this repo's rule from `CLAUDE.md`: PRs are **merged with a merge commit, never squash-merged**, because Changesets depends on the preserved commit history. Your per-story commits therefore survive into `main`, which is one more reason each must pass `pnpm ci` on its own.
 - **Follow the commit conventions in `CLAUDE.md`**, in particular: no hard line breaks mid-sentence (one continuous line per paragraph or bullet, let the editor wrap), and no em dashes. Reference the story in the subject (e.g. `FEAT-001 ST-01: readonly setting on DynamicFormSettings`).
 - **Review what you are staging.** Run `git status` after staging and check the diff for anything unexpected, especially anything that could carry a secret, before committing.
 - **Do not push and do not open a PR** unless explicitly asked. Committing is as far as this goes.
 
 ### Deciding which mode you are in
 
-**Default to interactive.** Committing on Jeroen's machine unasked is the worse failure, and it is the one that is easy to trigger by mistake.
+**Default to interactive.** Committing on the maintainer's machine unasked is the worse failure, and it is the one that is easy to trigger by mistake.
 
 Treat the run as autonomous only when one of these clearly holds:
 
@@ -134,7 +134,7 @@ Treat the run as autonomous only when one of these clearly holds:
 - The command was invoked with an explicit `--autonomous` argument.
 - The instructions that started this session explicitly said to work unattended or finish the feature end to end.
 
-A git worktree (where `git rev-parse --git-dir` differs from `--git-common-dir`), especially on a detached HEAD, is a **supporting** signal that you are in an agent's isolated copy. It is not sufficient on its own, because Jeroen may be working in a worktree by hand. If a worktree is the only signal you have and a human can be reached, ask rather than assume.
+A git worktree (where `git rev-parse --git-dir` differs from `--git-common-dir`), especially on a detached HEAD, is a **supporting** signal that you are in an agent's isolated copy. It is not sufficient on its own, because the maintainer may be working in a worktree by hand. If a worktree is the only signal you have and a human can be reached, ask rather than assume.
 
 **Announce the detected mode and the reason for it in your first message, before running anything.** That way a wrong detection is visible immediately, while nothing irreversible has happened yet.
 
@@ -144,14 +144,14 @@ Follow `specs/RESEARCH-AND-DECIDE.md` in full. After each phase completes, take 
 
 **Chain 1 uses the pre-approval clear-winner bar** (step 2a of that file), as described in its step 4 above: settle only what has a clear winner, leave every genuine call open for `/spec:discuss`, and never write `ASSUMED` entries. The rest of this section is about chains 2 and 3.
 
-Chains 2 and 3 run **after** Jeroen has approved the feature, which means he has explicitly stepped back and does not want to be pulled in again before the PR. So the bar here is not the pre-approval clear-winner bar: it is the **post-approval tie-breaker ladder** in step 2b of that file. Research the point; if research produces a winner, record `DECIDED (research)`. If it does not, walk the ladder (approved feature spec → upstream standards and dependency docs → the existing codebase pattern → reversibility → smallest scope) and take the first rung that discriminates, recording a rung 4 or 5 outcome as `ASSUMED (story prep)` with its alternative and reversal cost.
+Chains 2 and 3 run **after** the maintainer has approved the feature, which means they have explicitly stepped back and do not want to be pulled in again before the PR. So the bar here is not the pre-approval clear-winner bar: it is the **post-approval tie-breaker ladder** in step 2b of that file. Research the point; if research produces a winner, record `DECIDED (research)`. If it does not, walk the ladder (approved feature spec → upstream standards and dependency docs → the existing codebase pattern → reversibility → smallest scope) and take the first rung that discriminates, recording a rung 4 or 5 outcome as `ASSUMED (story prep)` with its alternative and reversal cost.
 
-Lean hard on rungs 2 and 3. This library's validation model is XSD-inspired and built on vee-validate, so most questions about rule semantics or edge-case behaviour have a factual answer in the XSD specification or the vee-validate docs (at this project's installed versions), and most style or structure questions are answered by the existing codebase. "No clear winner" almost never means "only Jeroen can answer this".
+Lean hard on rungs 2 and 3. This library's validation model is XSD-inspired and built on vee-validate, so most questions about rule semantics or edge-case behaviour have a factual answer in the XSD specification or the vee-validate docs (at this project's installed versions), and most style or structure questions are answered by the existing codebase. "No clear winner" almost never means "only the maintainer can answer this".
 
-**When an open point genuinely is Jeroen's** (it needs a fact only he has, or answering it means contradicting something already approved, or the approved feature has a real gap), **park that one story and keep going. Do not stop the chain, and do not ask him mid-run.**
+**When an open point genuinely is the maintainer's** (it needs a fact only they have, or answering it means contradicting something already approved, or the approved feature has a real gap), **park that one story and keep going. Do not stop the chain, and do not ask them mid-run.**
 
 1. Set that story to `status: awaiting-discussion`.
-2. Record the item in its spec as `OPEN (needs Jeroen)` with the real options and the tradeoff, and one line naming which of the three cases it is. For a feature gap, name the feature section that is missing.
+2. Record the item in its spec as `OPEN (needs maintainer)` with the real options and the tradeoff, and one line naming which of the three cases it is. For a feature gap, name the feature section that is missing.
 3. Continue with the next story. Skip only those that genuinely depend on the parked one, and say which.
 4. List every parked story at the top of your closing summary, each with its one-line reason and the command to resolve it (`/spec:discuss ST-YY`).
 
@@ -159,11 +159,11 @@ Parking should be rare. At story level, most open points are implementation deta
 
 ## Rules for the whole run
 
-- **Never set `status: approved`,** never suggest it, never run `/spec:approve`. The three gates in `specs/README.md` belong to Jeroen alone. This command exists to reach a gate cleanly, not to pass one.
+- **Never set `status: approved`,** never suggest it, never run `/spec:approve`. The three gates in `specs/README.md` belong to the maintainer. This command exists to reach a gate cleanly, not to pass one; passing gates under their per-spec delegation is `/spec:auto`'s job alone, and an `auto: true` flag changes nothing about this command's behaviour.
 - **Invoke the real agents, don't reimplement their phases.** Each step means invoking that phase's agent exactly as its own `/spec:*` command does. See the model rules below.
 - **Respect each phase's own gate.** `/spec:split` refuses an unapproved feature and `/spec:implement` refuses an unapproved story; both refusals stand here too, and being mid-chain is never a reason to work around either. A gate refusal is not a run failure: skip that spec, note it, and carry on with the others. A phase that genuinely **fails** (a crashed tool, a missing file, a broken repo state) is different: stop the run and report which step failed and why, because continuing past a broken environment produces garbage.
 - **Report progress as you go,** naming each phase as it starts, so a long run is followable rather than silent.
-- **Close with a summary**, leading with anything that needs Jeroen: parked stories first, each with its reason and `/spec:discuss ST-YY`, then stories waiting at his approval gate. After that: the mode you ran in, the phases that ran and the model each was given, the `DECIDED (research)` and `ASSUMED (story prep)` rollups, any commits made, and the exact next command.
+- **Close with a summary**, leading with anything that needs the maintainer: parked stories first, each with its reason and `/spec:discuss ST-YY`, then stories waiting at their approval gate. After that: the mode you ran in, the phases that ran and the model each was given, the `DECIDED (research)` and `ASSUMED (story prep)` rollups, any commits made, and the exact next command.
 - **Report test and check results faithfully.** If the verifier fails, say so with its findings. Never describe a story as done when its checks did not pass.
 
 ## Model discipline
@@ -175,7 +175,7 @@ Claude Code does **not** honor the `model:` field in an agent's own frontmatter:
 - the phase's command file (`.claude/commands/spec/<phase>.md`), which states the model inline
 - the agent's own frontmatter (`.claude/agents/<agent>.md`), whose `model:` field is inert but is still the declared intent
 
-They should agree, and both should match the Model column of the command reference table in `specs/README.md`. **If any two disagree, stop before running anything** and report the mismatch with the file paths and the conflicting values. A disagreement means the config has drifted and nobody can say which model was intended; resolving that is a decision for Jeroen, not a guess for you. Do not fall back to a default.
+They should agree, and both should match the Model column of the command reference table in `specs/README.md`. **If any two disagree, stop before running anything** and report the mismatch with the file paths and the conflicting values. A disagreement means the config has drifted and nobody can say which model was intended; resolving that is a decision for the maintainer, not a guess for you. Do not fall back to a default.
 
 The expected mapping, to be confirmed rather than assumed: product-owner sonnet (epic loop only), ui-designer opus, architect opus, adversarial-reviewer opus, scrum-master sonnet, qa-planner sonnet, developer sonnet, qa-verifier sonnet, final-reviewer fable.
 
