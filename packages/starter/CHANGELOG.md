@@ -1,5 +1,27 @@
 # @bach.software/vue-dynamic-form-starter
 
+## 0.2.0
+
+### Minor Changes
+
+- 9351d55: Forms built with the starter template are now usable by keyboard-only and screen-reader users out of the box, so a consumer who drops in the template no longer unknowingly ships an inaccessible form to their own end users.
+
+  - Every field type gets a correct `aria-describedby` chain (description and error) and `aria-invalid` reflecting its real validation state: text in all its HTML5 modes, textarea, select, radio group, file upload, checkbox, toggle switch, and password. `ErrorMessage` now announces its text via `role="alert"`, and the password strength label announces changes without spamming every keystroke.
+  - Grouped controls are named correctly: the radio group is exposed as a `radiogroup` named by the field label (each radio keeps exactly one label, its own option text), and the file upload's hidden native input is named by the field label rather than its visible "Choose file" trigger text.
+  - Full keyboard operability: choice cards implement the standard radio-group arrow-key pattern (one Tab stop per group, arrow keys move selection, disabled cards are skipped), the password reveal toggle is a normal tab stop, the file upload's clear button hands focus back to the file input instead of dropping it, and a removed array item hands focus to a sensible neighbor instead of dropping it to the page body.
+  - Focus moves automatically to the new wizard step on navigation and to the first invalid field after a failed validation or submit, including radio and file fields.
+  - Visible, sufficiently contrasted focus indicators in both light and dark mode, including two new `--sft-focus-visible`/`--sft-focus-visible-choice` theming tokens for consumers who re-theme the package.
+
+- 3911a6e: The starter now ships textarea, radio, file upload, and the common HTML5 input modes out of the box, so a contact form, registration flow, checkout, or survey no longer needs a hand-built `extendMetadata` wrapper for these everyday field types.
+
+  - `textarea`: multi-line text input, auto-height with a vertical resize handle.
+  - `radio`: radio button group driven by the same `options` property `select` already reads.
+  - `number`, `email`, `tel`, `url`, `date`, `time`, `datetime-local`: native HTML5 input modes for the right mobile keyboard and browser affordance, with `number.min`/`number.max`/`number.step` forwarding native spinner/stepping hints.
+  - `file`: single-file upload with a styled trigger, filename display, and a clear button; `file.accept`/`file.clearAriaLabel` configure the native filter and the clear button's accessible name.
+
+- 3911a6e: A choice branch's picker card can now pitch itself in different words than the fuller explanation shown once it's selected. Set `choicePicker: { description }` on a branch to show that text on its explicit-choice picker card instead of `description`; `description` keeps describing the branch inside its own body, and `choicePicker.description` falls back to `description` when left unset.
+- 3911a6e: Typing a form against the built-in starter catalogue no longer requires the awkward `GetMetadataType<typeof starterMetadata>` dance with a type-only import of a runtime value. The new `StarterMetadata` and `StarterDynamicFormSettings` types are ready to use directly: `const metadata: StarterMetadata[] = [...]`. The `GetMetadataType` pattern is still the way to type an `extendMetadata` result.
+
 ## 0.1.0
 
 ### Minor Changes
