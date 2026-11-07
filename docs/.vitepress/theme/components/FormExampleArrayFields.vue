@@ -4,7 +4,7 @@ import { useDynamicForm } from '@bach.software/vue-dynamic-form';
 import AdvancedForm from './AdvancedForm.vue';
 
 // #region shared-types
-export interface DynamicFieldsValues {
+export interface ArrayFieldsValues {
   systems?: {
     systemName?: string
     purpose?: string
@@ -13,7 +13,7 @@ export interface DynamicFieldsValues {
 // #endregion shared-types
 
 // #region local-state
-const { values, meta } = useDynamicForm<DynamicFieldsValues>();
+const { values, meta } = useDynamicForm<ArrayFieldsValues>();
 // #endregion local-state
 
 // #region metadata

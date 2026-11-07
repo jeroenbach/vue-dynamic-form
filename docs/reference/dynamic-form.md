@@ -14,7 +14,7 @@
 
 ```vue
 <template>
-  <form @submit.prevent="onSubmit">
+  <form novalidate @submit.prevent="onSubmit">
     <DynamicForm
       :template="MyFormTemplate"
       :metadata="fields"

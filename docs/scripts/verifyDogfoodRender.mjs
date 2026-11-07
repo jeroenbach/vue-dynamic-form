@@ -22,7 +22,7 @@ const checks = [
     ],
   },
   {
-    route: '/examples/advanced',
+    route: '/examples/client-onboarding',
     assertions: [
       { selector: '.sft-input', property: 'border-width', expect: width => width !== '0px' },
       { selector: '.sft-btn-primary', property: 'background-color', expect: color => color !== 'rgba(0, 0, 0, 0)' },

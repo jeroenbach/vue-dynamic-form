@@ -32,6 +32,7 @@ const launchBranches = [
     type: 'text',
     fieldOptions: { label: 'Guided rollout' },
     description: 'A specialist plans kickoff, training and go-live with you.',
+    choicePicker: { description: 'Best for teams without release-engineering time.' },
   },
   {
     name: 'legacy',

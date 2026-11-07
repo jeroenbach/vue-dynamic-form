@@ -24,6 +24,10 @@ describe('starterMetadata', () => {
       .toEqualTypeOf<AllTrue<GoldenValueTypes>>();
   });
 
+  it('types the quoted datetime-local key as a string, same as every other HTML5 mode', () => {
+    expectTypeOf<StarterValueTypes['datetime-local']>().toEqualTypeOf<string>();
+  });
+
   it('keeps the exact set and types of the extended properties', () => {
     expectTypeOf<KeyByKeyEquality<StarterFieldProperties, GoldenFieldProperties, 'iconName'>>()
       .toEqualTypeOf<AllTrue<GoldenFieldProperties, 'iconName'>>();
@@ -57,6 +61,49 @@ describe('starterMetadata', () => {
       colSpan: true,
     };
     expect(invalid.name).toBe('country');
+  });
+
+  it('compiles a textarea field with no extendMetadata wrapper', () => {
+    type Field = GetMetadataType<typeof starterMetadata>;
+
+    const field: Field = { name: 'bio', type: 'textarea', fieldOptions: { label: 'Bio' } };
+    expect(field.type).toBe('textarea');
+  });
+
+  it('adds no rows/sizing group property for textarea', () => {
+    expectTypeOf<'textarea' extends keyof StarterFieldProperties ? true : false>().toEqualTypeOf<false>();
+  });
+
+  it('compiles a radio field with no extendMetadata wrapper, reusing the root options property', () => {
+    type Field = GetMetadataType<typeof starterMetadata>;
+
+    const field: Field = {
+      name: 'contactMethod',
+      type: 'radio',
+      fieldOptions: { label: 'How should we contact you?' },
+      options: [{ key: 'email', value: 'Email' }, { key: 'phone', value: 'Phone' }],
+    };
+    expect(field.type).toBe('radio');
+  });
+
+  it('adds no StarterFieldProperties group for radio: it reuses the existing root options property', () => {
+    expectTypeOf<'radio' extends keyof StarterFieldProperties ? true : false>().toEqualTypeOf<false>();
+  });
+
+  it('compiles a file field with no extendMetadata wrapper', () => {
+    type Field = GetMetadataType<typeof starterMetadata>;
+
+    const field: Field = {
+      name: 'resume',
+      type: 'file',
+      fieldOptions: { label: 'Resume' },
+      file: { accept: '.pdf,.doc,.docx' },
+    };
+    expect(field.type).toBe('file');
+  });
+
+  it('types the file value as File | undefined', () => {
+    expectTypeOf<StarterValueTypes['file']>().toEqualTypeOf<File | undefined>();
   });
 });
 
@@ -109,6 +156,19 @@ describe('extendMetadata', () => {
       expectTypeOf<KeyByKeyEquality<Values, GoldenValueTypes, 'text'>>().toEqualTypeOf<AllTrue<GoldenValueTypes, 'text'>>();
       expectTypeOf<KeyByKeyEquality<Properties, GoldenFieldProperties, 'description' | 'iconName'>>()
         .toEqualTypeOf<AllTrue<GoldenFieldProperties, 'description' | 'iconName'>>();
+    });
+  });
+
+  describe('when the consumer redefines one of the new HTML5 mode keys', () => {
+    type Ext = ReturnType<typeof extendMetadata<{ number: { raw: string } }>>;
+    type Values = Ext['valueTypes'];
+
+    it('replaces the value type instead of intersecting with it', () => {
+      expectTypeOf<Values['number']>().toEqualTypeOf<{ raw: string }>();
+    });
+
+    it('leaves every other built-in key unchanged', () => {
+      expectTypeOf<KeyByKeyEquality<Values, GoldenValueTypes, 'number'>>().toEqualTypeOf<AllTrue<GoldenValueTypes, 'number'>>();
     });
   });
 

@@ -104,7 +104,7 @@ function submit(e?: Event) {
 </script>
 
 <template>
-  <form @submit.prevent="submit">
+  <form novalidate @submit.prevent="submit">
     <div class="flex justify-end gap-2">
       <button v-if="!editMode" type="button" class="cursor-pointer mt-4 bg-blue-500 text-white px-4 py-2 rounded" data-testid="submit" @click="editMode = true">
         Edit

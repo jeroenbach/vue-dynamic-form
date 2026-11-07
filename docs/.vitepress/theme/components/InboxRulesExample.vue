@@ -250,7 +250,7 @@ function editRules() {
 
 <template>
   <div class="form-demo inbox-rules-layout">
-    <form class="flex flex-col gap-6" @submit="onSubmit">
+    <form class="flex flex-col gap-6" novalidate @submit.prevent="onSubmit">
       <DynamicForm :template="InboxRulesTemplate" :metadata :settings />
 
       <div v-if="!submitted" class="flex flex-col gap-3">

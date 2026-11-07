@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import type { GetDynamicFormSettingsType, GetMetadataType } from '@bach.software/vue-dynamic-form';
-import type { starterMetadata } from '@bach.software/vue-dynamic-form-starter';
+import type { StarterDynamicFormSettings, StarterMetadata } from '@bach.software/vue-dynamic-form-starter';
 import { DynamicForm } from '@bach.software/vue-dynamic-form';
 import { StarterFormTemplate } from '@bach.software/vue-dynamic-form-starter';
 import { computed } from 'vue';
 
-export type Metadata = GetMetadataType<typeof starterMetadata>;
+export type Metadata = StarterMetadata;
 
-export type DynamicFormSettings = GetDynamicFormSettingsType<typeof starterMetadata>;
+export type DynamicFormSettings = StarterDynamicFormSettings;
 
 export interface Props {
   metadata: Metadata[]
@@ -45,7 +44,7 @@ const settings = computed<DynamicFormSettings>(() => ({
 </script>
 
 <template>
-  <form @submit="emit('submit', $event)">
+  <form novalidate @submit.prevent="emit('submit', $event)">
     <DynamicForm
       :template="StarterFormTemplate"
       :metadata="metadata"

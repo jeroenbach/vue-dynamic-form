@@ -19,7 +19,7 @@ export async function mountInForm({ metadata, template = StarterFormTemplate, se
   const Host = defineComponent({
     setup(_, { expose }) {
       const form = useDynamicForm({ initialValues });
-      expose({ values: form.values, validate: form.validate });
+      expose({ values: form.values, validate: form.validate, setFieldValue: form.setFieldValue, resetForm: form.resetForm, resetField: form.resetField });
       return () => h(DynamicForm, { metadata: metadata as any, template, settings }, slots as any);
     },
   });
@@ -27,10 +27,19 @@ export async function mountInForm({ metadata, template = StarterFormTemplate, se
   const wrapper = mount(Host, { attachTo: document.body, global: { stubs } });
   await flushPromises();
 
-  const exposed = wrapper.vm as unknown as { values: Record<string, any>, validate: () => Promise<unknown> };
+  const exposed = wrapper.vm as unknown as {
+    values: Record<string, any>
+    validate: () => Promise<unknown>
+    setFieldValue: (path: string, value: unknown) => void
+    resetForm: (...args: unknown[]) => void
+    resetField: (path: string, ...args: unknown[]) => void
+  };
   return {
     wrapper,
     values: () => exposed.values,
     validate: () => exposed.validate(),
+    setFieldValue: (path: string, value: unknown) => exposed.setFieldValue(path, value),
+    resetForm: (...args: unknown[]) => exposed.resetForm(...args),
+    resetField: (path: string, ...args: unknown[]) => exposed.resetField(path, ...args),
   };
 }

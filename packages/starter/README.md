@@ -93,7 +93,7 @@ Use the wrapper as the template: `<DynamicForm :metadata="metadata" :template="M
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Structural             | `default`, `default-input`, `default-array`, `heading-array`, `heading-array-item`, `default-choice`, `heading-choice`, `heading-choice-array`, `default-choice-array-item`, `default-wizard`, `default-wizard-page`, `wizardSummaryPage` |
 | Field wrapper          | `heading`, `checkbox`                                                                                                                                                                                                                     |
-| Input, one per control | `select-input`, `checkbox-input`, `password-input`                                                                                                                                                                                        |
+| Input, one per control | `select-input`, `checkbox-input`, `password-input`, `textarea-input`, `radio-input`, `file-input`                                                                                                                                         |
 
 Slots are chosen with the priority fallback of the core `DynamicFormTemplate`: the dedicated per-type slot first, then the matching `default-*` slot, then `default`. Overriding `default-input` replaces every plain text-like control at once. Overriding a slot replaces only that slot; everything else keeps its default rendering.
 
@@ -181,6 +181,7 @@ Caveats:
 | `starterMetadata`                                                                         | the built-in catalogue, the default `metadataConfiguration`               |
 | `extendMetadata`                                                                          | function (type carrier)                                                   |
 | `StarterValueTypes`, `StarterFieldProperties`                                             | types of the built-in catalogue                                           |
+| `StarterMetadata`, `StarterDynamicFormSettings`                                           | ready-made field and settings types for the built-in catalogue            |
 | `StarterIcon`                                                                             | component, the Lucide-backed icon primitive                               |
 | `StarterIconName`, `starterIconNames`                                                     | the registry's name union and ordered list                                |
 | `SubmissionSuccess`                                                                       | component, a standalone post-submit screen (with its `TimelineItem` type) |

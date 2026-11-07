@@ -1,0 +1,68 @@
+# Validation Rules
+
+The library registers a set of XSD-inspired vee-validate rules globally. They are attached automatically from a field's `minOccurs`/`maxOccurs` and `restriction` properties; you never reference them by name unless writing custom `validation` expressions or overriding their messages.
+
+For how to use `restriction` in practice, see the [Validation guide](/guide/validation). For message overrides and placeholder syntax, see [Message Overrides](/reference/dynamic-form#message-overrides).
+
+## Rule Catalogue
+
+| Source                       | Rule                  |
+| ---------------------------- | --------------------- |
+| _(required field)_           | `xsd_required`        |
+| _(array `minOccurs`)_        | `xsd_minOccurs`       |
+| _(array `maxOccurs`)_        | `xsd_maxOccurs`       |
+| _(choice `minOccurs`)_       | `xsd_choiceMinOccurs` |
+| _(choice `maxOccurs`)_       | `xsd_choiceMaxOccurs` |
+| _(branch `maxOccursTotal`)_  | `vdf_maxOccursTotal`  |
+| `restriction.minLength`      | `xsd_minLength`       |
+| `restriction.maxLength`      | `xsd_maxLength`       |
+| `restriction.length`         | `xsd_length`          |
+| `restriction.pattern`        | `xsd_pattern`         |
+| `restriction.minInclusive`   | `xsd_minInclusive`    |
+| `restriction.maxInclusive`   | `xsd_maxInclusive`    |
+| `restriction.minExclusive`   | `xsd_minExclusive`    |
+| `restriction.maxExclusive`   | `xsd_maxExclusive`    |
+| `restriction.enumeration`    | `xsd_enumeration`     |
+| `restriction.whiteSpace`     | `xsd_whiteSpace`      |
+| `restriction.fractionDigits` | `xsd_fractionDigits`  |
+| `restriction.totalDigits`    | `xsd_totalDigits`     |
+
+## Message Resolution
+
+Messages resolve in this order:
+
+1. `settings.messages`
+2. vee-validate `configure({ generateMessage })`
+3. default rule output
+
+The resolver supports positional placeholders (`{0}`), named placeholders (`{min}`, `{length}`, `{digits}`), and context placeholders (`{field}`). See [Message Overrides](/reference/dynamic-form#message-overrides) for the settings keys.
+
+## Rule Notes
+
+### Array occurrence maximum (`xsd_maxOccurs`)
+
+An array field fails `xsd_maxOccurs` once it holds more raw items than `maxOccurs` allows, counting empty placeholders the same way the "Add" affordance's own cap does. This only matters for data that arrives already over the limit (loaded `initialValues`, a prop set programmatically, an API response), since the "Add" affordance already stops a user from reaching that state through the UI.
+
+XSD's `maxOccurs` has no `unbounded` representation in this library: `FieldMetadata.maxOccurs` is a plain `number` with a default of `1`, so an "unlimited" field needs a large finite number instead. That number is a hard cap enforced by `xsd_maxOccurs`, not only a UI suggestion, so a large placeholder value used as a stand-in for "no limit" behaves as a real ceiling once data can exceed it.
+
+If metadata mistakenly declares `minOccurs` above `maxOccurs`, the `xsd_maxOccurs` rule is skipped for that field: the engine auto-fills the array up to `minOccurs`, and applying the cap anyway would make the field permanently invalid with no way for the user to fix it.
+
+### Choice occurrence maximum (`xsd_choiceMaxOccurs`)
+
+A choice field fails `xsd_choiceMaxOccurs` once its `usedChoiceOccurrences` (the same choice-occurrence unit `xsd_choiceMinOccurs` and the "Add" affordance already use) exceeds the choice's own `maxOccurs`, in both automatic and explicit selection modes. As with the array rule, this only fires on data that arrives already over the limit.
+
+### The `maxOccursTotal` backstop (`vdf_maxOccursTotal`, non-XSD)
+
+The [`maxOccursTotal`](/reference/field-metadata#maxoccurstotal) metadata cap is backed by a registered validation rule named `vdf_maxOccursTotal`. It is a **non-XSD extension**: it carries the library's own `vdf_` prefix instead of `xsd_` because it has no `<xs:choice>` equivalent. Plain `<xs:choice>` can bound how many times the choice repeats and how large one branch's own batch is, but it has no way to say "at most N of this branch across the whole choice"; that gap is exactly what `maxOccursTotal` fills for a choice branch that opts in.
+
+The rule fires when any branch's raw occurrence count exceeds that branch's own `maxOccursTotal`. Three things to keep in mind when reading its message:
+
+- **It is a single choice-level aggregate, not a per-branch error.** `{field}` resolves to the choice's own anchor label, never the branch's, so the message cannot tell you which branch is over its cap. When several branches breach their own `maxOccursTotal` at once, `{max}`/`{0}` carry only the first offending branch's cap in declaration order, not every breached cap.
+- **It can fire alongside the branch's own `xsd_maxOccurs`.** In automatic mode (and in a `maxOccurs: 1` choice whose branch is itself an array), an over-limit branch renders as a real array field whose own headroom is clamped to `maxOccursTotal`, so its inline `xsd_maxOccurs` error can appear at the branch's own slot at the same time as the choice-level `vdf_maxOccursTotal` error at the choice's anchor. This is expected, not a duplicate or conflicting signal: the inline error renders at the offending branch itself, while the aggregate confirms the choice-level cap.
+- **A single-branch choice reports through the branch instead.** A choice with exactly one branch (and no `explicitChoiceSelection`) renders that branch directly and skips choice-level validation entirely; its `maxOccursTotal` still clamps the branch's headroom, so an over-limit load fails the branch's own `xsd_maxOccurs` rather than the choice-level rule.
+
+## Related
+
+- [Validation guide](/guide/validation): using `restriction` and custom `validation` expressions
+- [FieldMetadata](/reference/field-metadata): `minOccurs`, `maxOccurs`, `maxOccursTotal`, `restriction`, `validation`
+- [Message Overrides](/reference/dynamic-form#message-overrides): customizing every rule's message

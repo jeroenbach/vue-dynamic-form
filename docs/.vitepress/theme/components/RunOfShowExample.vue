@@ -418,7 +418,7 @@ function startNewProgram() {
 
 <template>
   <div class="form-demo run-of-show-layout">
-    <form class="flex flex-col gap-4" @submit="onSubmit">
+    <form class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
       <DynamicForm :template="RunOfShowTemplate" :metadata :settings />
 
       <div v-if="!submitted" class="flex flex-col gap-2">

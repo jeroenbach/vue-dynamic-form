@@ -93,7 +93,9 @@ const phoneNumbers = { name: 'phoneNumbers', maxOccurs: 3 }; // up to 3 entries
 const readOnly = { name: 'readOnly', maxOccurs: 0 }; // disabled
 ```
 
-Loading or programmatically setting data that already holds more items than `maxOccurs` now also fails `xsd_maxOccurs` validation, not only the "Add" affordance: see [Built-in Rules](/guide/validation#built-in-rules) in the validation guide. A choice branch's own opt-in `maxOccursTotal` cap has a matching validation backstop; see [Capping a branch's total count](/examples/choices#capping-a-branch-s-total-count-maxoccurstotal) in the Choice Fields example.
+Loading or programmatically setting data that already holds more items than `maxOccurs` now also fails `xsd_maxOccurs` validation, not only the "Add" affordance: see the [Validation Rules reference](/reference/validation-rules).
+
+**On a branch inside a `choice`, `maxOccurs` is a batch size, not an independent total.** Following XSD semantics, it is the number of items that branch consumes one choice slot with: a choice with `maxOccurs: 5` containing a branch with `maxOccurs: 2` allows up to 10 items of that branch, with every 2 items consuming 1 of the 5 shared slots. `xsd_choiceMinOccurs` counts in these slot units too, not in raw items. To cap a branch's raw item count use [`maxOccursTotal`](#maxoccurstotal).
 
 ### `autoAddMinOccurs`
 
@@ -109,6 +111,25 @@ const contacts = { name: 'contacts', minOccurs: 2, maxOccurs: 5, autoAddMinOccur
 ::: tip
 Setting `autoAddMinOccurs: false` also enables the remove button down to 0 items, since the automatic floor no longer applies.
 :::
+
+### `maxOccursTotal`
+
+Type: `number` | Default: none
+
+For a branch inside a `choice` only. A non-XSD opt-in that caps the branch's **raw item count** across the whole choice, because the branch's own `maxOccurs` is a batch size, not a ceiling (see [`maxOccurs`](#maxoccurs)). Use it to enforce "at most 3 of this kind":
+
+```ts
+const crmExportBranch = {
+  name: 'crmExport',
+  maxOccurs: 1,
+  maxOccursTotal: 3,
+  fieldOptions: { label: 'CRM export' },
+};
+```
+
+- `canAddChoiceOccurrence` turns `false` for the branch once the cap is reached, regardless of how much of the choice's shared budget remains. Works the same in automatic and explicit mode.
+- It can only tighten the branch's declared `maxOccurs`, never widen it: a `maxOccursTotal` above the branch's own `maxOccurs` has no effect.
+- The cap is not structural-only: a branch loaded or set programmatically with more raw items than its `maxOccursTotal` also fails the `vdf_maxOccursTotal` validation rule. Its message is a single choice-level aggregate that names no branch and, when several branches breach at once, reports only the first offending branch's cap in declaration order. See the [Validation Rules reference](/reference/validation-rules) for message customization.
 
 ## Validation
 
@@ -228,7 +249,11 @@ Combine `choice` with group branches (using `children`) for complex branching fo
 
 Type: `boolean` | Default: `false` (absent)
 
-Opts a `choice` field into selection-first rendering: no branch renders until the template calls `addChoiceOccurrence(branchKey)`, instead of the default automatic mode where every branch renders and siblings disable once one holds a value. Works for both `maxOccurs: 1` (pick exactly one branch) and `maxOccurs > 1` (add several occurrences, each one of several branches). See [Select first, then fill in](/examples/choices#select-first-then-fill-in) in the Choice Fields example for the full pattern, the slot props it adds to the `-choice` (`maxOccurs: 1`) and `-choice-array` (`maxOccurs > 1`) slots, and the clear-on-switch contract.
+Opts a `choice` field into selection-first rendering: no branch renders until the template calls `addChoiceOccurrence(branchKey)`, instead of the default automatic mode where every branch renders and siblings disable once one holds a value. Works for both `maxOccurs: 1` (pick exactly one branch) and `maxOccurs > 1` (add several occurrences, each one of several branches). The picker primitives (`addChoiceOccurrence`, `removeChoiceOccurrence`, `canAddChoiceOccurrence`, `activeChoiceOccurrences`, `usedChoiceOccurrences`) arrive as slot props on the `-choice` (`maxOccurs: 1`) and `-choice-array` (`maxOccurs > 1`) slots; see [Choice-Only Props](/reference/dynamic-form-template#choice-only-props). `branchKey` is always the branch's `name`, never its position. See [Select first, then fill in](/examples/choices#select-first-then-fill-in) in the Choice Fields example for the full pattern.
+
+Picking a branch satisfies the choice's `xsd_choiceMinOccurs` rule immediately; the required fields inside the branch still enforce their own values separately.
+
+**Switching branches clears the old branch.** Selecting a different branch sets the previous branch's data to `undefined`. Those `undefined` placeholders can linger in the raw `values` object, but they are harmless: validation and occurrence counting ignore them, and they disappear under `JSON.stringify`. If you need a fully clean object at submit time, run the exported `removeNullValues(values)` once. Set [`preserveOnSwitch`](#preserveonswitch) to keep a branch's data across switches.
 
 ```ts
 const choiceField = {
@@ -238,6 +263,23 @@ const choiceField = {
     { name: 'selfServe', fieldOptions: { label: 'Self-serve launch' } },
     { name: 'guidedRollout', fieldOptions: { label: 'Guided rollout' } },
   ],
+};
+```
+
+### `preserveOnSwitch`
+
+Type: `boolean` | Default: `false` (absent)
+
+For a `maxOccurs: 1` choice with `explicitChoiceSelection: true` only. Keeps a branch's filled-in data when the user switches to another branch and restores it when they switch back, without flashing errors on still-empty required fields.
+
+Switching away still clears the branch from the form values (submit only ever sees the active branch): the engine keeps an in-memory copy outside of `values`. The copy does not survive a page reload.
+
+```ts
+const choiceField = {
+  name: 'contactMethod',
+  explicitChoiceSelection: true,
+  preserveOnSwitch: true,
+  choice: [/* ... */],
 };
 ```
 
@@ -285,7 +327,9 @@ const choiceField = {
 
 Type: `boolean` | Default: `false` (absent)
 
-For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). The values stay contiguous `1..N` at all times: loaded data with missing or gapped `order` is normalized at mount (preserving its relative order) and removing an occurrence renumbers the survivors. Reactive: flipping it on mid-session seeds `order` into existing occurrences, flipping it off strips `order` from all of them; mounting with the flag absent never touches loaded data. Requires every branch to have `children`: one scalar-leaf branch disables it for the whole choice, with a development warning. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
+For a repeatable (`maxOccurs > 1`) `explicitChoiceSelection` choice only. Opts into writing an `order` field into each occurrence's own values as it is added, so add order survives a page reload or loaded saved data (unlike `displayOrder: 'added'` alone, which is ephemeral). The values stay contiguous `1..N` at all times: loaded data with missing or gapped `order` is normalized at mount (preserving its relative order) and removing an occurrence renumbers the survivors. Reactive: flipping it on mid-session seeds `order` into existing occurrences, flipping it off strips `order` from all of them; mounting with the flag absent never touches loaded data. Requires every branch to have `children`: one scalar-leaf branch disables it for the whole choice, with a development warning. Avoid declaring your own child field named `order` on branches that use it; the ordering owns that key and warns about the collision in development. See [Showing Occurrences in the Order They Were Added](/examples/choices#showing-occurrences-in-the-order-they-were-added) in the Choice Fields example.
+
+One visible side effect: a freshly added occurrence already holds a value (its `order`), so its required fields show their required indicator immediately instead of after the first touch. Validation outcomes are identical either way; only the indicator timing shifts.
 
 ```ts
 const choiceField = {
@@ -410,7 +454,7 @@ const fields = [
 
 **Read-only in `computedProps`:** `name`, `path`, `parent`, `children`, `choice`, `attributes`, `fieldOptions`, `maxOccurs`, `computedProps`, `isComplexType`, `computeOnChildValueChange`.
 
-See the [Dynamic Fields guide](/guide/dynamic-fields) for full examples.
+See the [Reactive Fields guide](/guide/reactive-fields) for full examples.
 
 ### `computeOnChildValueChange`
 

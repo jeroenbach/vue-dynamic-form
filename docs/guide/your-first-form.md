@@ -22,7 +22,7 @@ const fields: Metadata[] = [
 </script>
 
 <template>
-  <form @submit.prevent="onSubmit">
+  <form novalidate @submit.prevent="onSubmit">
     <DynamicForm :template="MyFormTemplate" :metadata="fields" />
   </form>
 
@@ -47,152 +47,42 @@ You can use all standard vee-validate utilities (`setValues`, `resetForm`, `setE
 | `useFieldValue(path)`   | Typed wrapper around vee-validate's `useFieldValue` — returns a `Ref` for the given field path   |
 | `validateSection(path)` | Validates only the fields whose path starts with the given prefix; useful for multi-step wizards |
 
-## Basic Field Properties
+## The Properties You'll Use Every Day
 
-### `name`
-
-Sets the key in the form values object. Together with parent names it builds a dot-notated path:
+A handful of `FieldMetadata` properties cover most forms. One annotated definition shows them all:
 
 ```ts
-const field = { name: 'email', type: 'text', fieldOptions: { label: 'Email' } };
-// → values.email
-```
-
-Nested under a parent:
-
-```ts
-const contactGroup = {
-  name: 'contact',
-  children: [
-    { name: 'email', type: 'text', fieldOptions: { label: 'Email' } },
-    { name: 'phone', type: 'text', fieldOptions: { label: 'Phone' } },
-  ],
-};
-// → values.contact.email, values.contact.phone
-```
-
-### `type`
-
-Determines which slot in your template handles this field. Use any type you declared in `defineMetadata()`:
-
-```ts
-const field = { name: 'agree', type: 'checkbox', fieldOptions: { label: 'I agree to the terms' } };
-```
-
-### `fieldOptions.label`
-
-Sets the display label. This value flows into the slot prop `fieldContext.label` and into vee-validate error messages as the field name.
-
-```ts
-const field = { name: 'dob', type: 'text', fieldOptions: { label: 'Date of birth' } };
-```
-
-For a label that changes at runtime, pass a `Ref`:
-
-```ts
-const labelRef = ref('Quantity');
-const field = { name: 'qty', type: 'text', fieldOptions: { label: labelRef } };
-
-// Later:
-labelRef.value = 'Number of seats';
-```
-
-### `minOccurs`
-
-Controls whether the field is required. The default is `1` (required). Set to `0` for optional:
-
-```ts
-const field = { name: 'middleName', type: 'text', minOccurs: 0, fieldOptions: { label: 'Middle name' } };
-```
-
-### `maxOccurs`
-
-Controls how many times a field can repeat. The default is `1`. Set to a higher number to enable an add/remove array interface:
-
-```ts
-const field = {
-  name: 'phoneNumbers',
-  type: 'text',
-  fieldOptions: { label: 'Phone number' },
-  minOccurs: 1,
-  maxOccurs: 3,
-};
-// → values.phoneNumbers[0], values.phoneNumbers[1], ...
-```
-
-### `restriction`
-
-Adds built-in validation constraints to a field without writing custom rules:
-
-```ts
-const username = {
-  name: 'username',
-  type: 'text',
-  fieldOptions: { label: 'Username' },
-  restriction: {
-    minLength: 3,
-    maxLength: 20,
-    pattern: '^[a-zA-Z0-9_]+$',
+const fields: Metadata[] = [
+  {
+    // `name` is the key in the values object; parent names build the path
+    name: 'contact',
+    fieldOptions: { label: 'Contact' },
+    // `children` turns a field into a group: values.contact.email, values.contact.phone
+    children: [
+      {
+        name: 'email',
+        // `type` picks the template slot that renders this field
+        type: 'text',
+        // `label` flows into fieldContext.label and error messages; pass a Ref for a dynamic label
+        fieldOptions: { label: 'Email' },
+        // `restriction` adds built-in validation without custom rules
+        restriction: { maxLength: 100, pattern: '^.+@.+$' },
+      },
+      {
+        name: 'phoneNumbers',
+        type: 'text',
+        fieldOptions: { label: 'Phone number' },
+        // `minOccurs: 0` makes a field optional (default is 1: required)
+        minOccurs: 0,
+        // `maxOccurs > 1` turns the field into an add/remove array: values.contact.phoneNumbers[0], ...
+        maxOccurs: 3,
+      },
+    ],
   },
-};
-
-const age = {
-  name: 'age',
-  type: 'text',
-  fieldOptions: { label: 'Age' },
-  restriction: {
-    minInclusive: 18,
-    maxInclusive: 120,
-  },
-};
-
-const price = {
-  name: 'price',
-  type: 'text',
-  fieldOptions: { label: 'Price' },
-  restriction: {
-    minExclusive: 0,
-    fractionDigits: 2,
-    totalDigits: 8,
-  },
-};
-
-const status = {
-  name: 'status',
-  type: 'text',
-  fieldOptions: { label: 'Status' },
-  restriction: {
-    enumeration: ['active', 'inactive', 'pending'],
-  },
-};
+];
 ```
 
-| Restriction                     | What it validates                                                                                   |
-| ------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `minLength` / `maxLength`       | String length                                                                                       |
-| `length`                        | Exact string length                                                                                 |
-| `pattern`                       | Regex pattern                                                                                       |
-| `minInclusive` / `maxInclusive` | Numeric range (inclusive)                                                                           |
-| `minExclusive` / `maxExclusive` | Numeric range (exclusive)                                                                           |
-| `enumeration`                   | Value must be one of the listed options                                                             |
-| `fractionDigits`                | Maximum number of decimal places                                                                    |
-| `totalDigits`                   | Maximum total significant digits                                                                    |
-| `whiteSpace`                    | `'preserve'`, `'replace'` (no tabs/newlines), or `'collapse'` (no leading/trailing/multiple spaces) |
-
-### `children`
-
-Turns a field into a group that holds nested fields. The group's own `name` becomes the parent path segment:
-
-```ts
-const addressGroup = {
-  name: 'address',
-  fieldOptions: { label: 'Address' },
-  children: [
-    { name: 'street', type: 'text', fieldOptions: { label: 'Street' } },
-    { name: 'city', type: 'text', fieldOptions: { label: 'City' } },
-  ],
-};
-```
+Every property (including `choice`, `attributes`, `computedProps`, and the path overrides) is documented in [FieldMetadata](/reference/field-metadata); the `restriction` keys are covered in the [Validation guide](/guide/validation).
 
 ## The Settings Object
 
@@ -200,64 +90,19 @@ Pass a `DynamicFormSettings` object to control validation timing and message tex
 
 ```ts
 const settings: DynamicFormSettings = {
-  // Validate every time the user types (default: true)
-  validateOnValueUpdate: true,
-
   // Switch to live validation only after the first submit attempt (default: false)
-  validateOnValueUpdateAfterSubmit: false,
-
-  // Validate when the user leaves a field (default: false)
-  validateOnBlur: false,
-
-  // Keep validating live once a field has an error (default: true)
-  validateWhenInError: true,
+  validateOnValueUpdateAfterSubmit: true,
 
   // Override the built-in error messages
   messages: {
     required: '{field} is required',
     minLength: '{field} must be at least {length} characters',
-    maxLength: '{field} may be at most {length} characters',
-    pattern: '{field} does not match the expected format',
   },
 };
 ```
 
-All `messages` entries accept a string template (with `{field}`, `{length}`, `{min}`, etc.) or a function `(ctx) => string`. See [Validation](/guide/validation) for the full list.
-
-### Extending Settings
-
-You can add custom properties to the settings object by declaring `ExtendedSettingsProperties` in `defineMetadata`. This is useful for template-level display flags that every slot can read:
-
-```ts
-// MyFormTemplate.vue
-const metadata = defineMetadata<
-  { text: string },
-  object,
-  object,
-  { showRequiredOrOptional?: 'optional' | 'required' }
->();
-```
-
-Every slot then receives the extended property via `settings`:
-
-```vue
-<DynamicFormTemplate>
-  <template #default="{ required, settings: { showRequiredOrOptional } }">
-    <span v-if="showRequiredOrOptional === 'optional' && !required">Optional</span>
-  </template>
-</DynamicFormTemplate>
-```
-
-Use `GetDynamicFormSettingsType` from your template file to get a typed settings alias for use in the form page:
-
-```ts
-import type { GetDynamicFormSettingsType } from '@bach.software/vue-dynamic-form';
-import { metadata } from './MyFormTemplate.vue';
-
-type FormSettings = GetDynamicFormSettingsType<typeof metadata>;
-const settings: FormSettings = { showRequiredOrOptional: 'optional' };
-```
+All timing flags, every `messages` key, and how to extend the settings object with your own properties are documented in [DynamicForm](/reference/dynamic-form#settings-reference).
 
 ---
 
-Continue to [Step 4: Dynamic Fields](/guide/dynamic-fields) to make fields react to user input.
+Continue to [Step 4: Reactive Fields](/guide/reactive-fields) to make fields react to user input.

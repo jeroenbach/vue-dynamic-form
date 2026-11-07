@@ -48,25 +48,15 @@ The `<slot />` inside `#default` is where the library injects the input (for lea
 
 ## How Slot Resolution Works
 
-The library appends a suffix to the field type to determine which slot to call, then walks a fallback chain until it finds one you've defined:
+The library appends a suffix to the field type to determine which slot to call (`select` → `#select-input` for the input control, `#select` for the wrapper), then walks a fallback chain until it finds one you've defined: the dedicated per-type slot first, then the matching `default-*` slot, then `default`. You only need to define slots for the cases that need special handling; everything else falls through automatically.
 
-| Situation                          | Slot tried first                                           | Fallback                                                                             |
-| ---------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Outer wrapper                      | `{type}` (e.g. `select`)                                   | `default`                                                                            |
-| Input control                      | `{type}-input` (e.g. `select-input`)                       | `default-input` → `default`                                                          |
-| Array container                    | `{type}-array` (e.g. `text-array`)                         | `default-array` → `default`                                                          |
-| Array item                         | `{type}-array-item` (e.g. `text-array-item`)               | `default-array-item` → `default`                                                     |
-| Choice container (`maxOccurs: 1`)  | `{type}-choice` (e.g. `select-choice`)                     | `default-choice` → `default`                                                         |
-| Choice container (`maxOccurs > 1`) | `{type}-choice-array` (e.g. `select-choice-array`)         | `default-choice-array` → `{type}-choice` → `default-choice` → `default`              |
-| Choice occurrence item             | `{type}-choice-array-item` (e.g. `text-choice-array-item`) | `default-choice-array-item` → `{type}-array-item` → `default-array-item` → `default` |
-
-You only need to define slots for the cases that need special handling. Everything else falls through automatically. Note that the two `-choice-array` families degrade into a related family before reaching `default`: a repeatable choice without its own slots renders through the `-choice` slots (same slot props), and a repeatable-choice occurrence renders through the `-array-item` slots (its props are a superset of theirs).
+The complete fallback table for all seven slot families (wrapper, input, array, array item, choice, repeatable choice, choice occurrence) is in [Slots Overview](/reference/dynamic-form-template#slots-overview) in the reference.
 
 ## Adding a Specific Input Control
 
 Add a `#select-input` slot to render a proper `<select>` element instead of the default text input:
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <template #select-input="{ fieldMetadata, fieldContext: { value, handleChange, handleBlur }, disabled }">
     <select
@@ -95,7 +85,7 @@ Add a `#select-input` slot to render a proper `<select>` element instead of the 
 
 A `heading` field might render a section title rather than a label + input. Give it its own slot:
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <template #heading="{ fieldContext: { label }, fieldMetadata }">
     <h2>{{ label }}</h2>
@@ -115,7 +105,7 @@ Array and choice containers have their own fallback slots. Both receive a limite
 
 **`#default-array`** — fallback outer container for any repeating field, renders once and wraps all occurrences:
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <template #default-array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
     <h3>{{ label }}<span v-if="required"> *</span></h3>
@@ -132,7 +122,7 @@ Use a type-specific slot (e.g. `#text-array`) to override just that type's conta
 
 **`#default-choice`** — fallback outer container for any single (`maxOccurs: 1`) choice field, renders once and wraps all branches (a repeatable choice renders through `#default-choice-array` when defined, with each explicit occurrence going through `#default-choice-array-item`; without those slots it falls back here and to the `-array-item` slots respectively):
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <template #default-choice="{ fieldContext: { label, errorMessage }, required }">
     <h3>{{ label }}<span v-if="required"> *</span></h3>
@@ -146,31 +136,11 @@ Each branch inside a choice goes through the normal slot resolution (`{type}` �
 
 **`#default-array-item`** — fallback for each individual occurrence inside an array. Receives the full slot props including `index`, `canRemoveItems`, and `removeItem`.
 
-## Full Slot Props Reference
-
-All named slots receive:
-
-| Prop             | Type                          | Description                                                                                       |
-| ---------------- | ----------------------------- | ------------------------------------------------------------------------------------------------- |
-| `fieldMetadata`  | `FieldMetadata`               | Full field config including extended properties                                                   |
-| `fieldContext`   | `FieldContext`                | vee-validate context: `value`, `handleChange`, `handleBlur`, `errors`, `errorMessage`, `hasValue` |
-| `required`       | `boolean`                     | `true` when `minOccurs >= 1` and field is not disabled                                            |
-| `disabled`       | `boolean`                     | `true` when `maxOccurs === 0`                                                                     |
-| `index`          | `number`                      | Position within the parent (array, children, choice, or attributes), 0-based                      |
-| `canAddItems`    | `boolean`                     | `true` when the array can accept more occurrences                                                 |
-| `canRemoveItems` | `boolean`                     | `true` when the current occurrence can be removed                                                 |
-| `addItem()`      | `() => void`                  | Appends a new array occurrence                                                                    |
-| `removeItem()`   | `() => void`                  | Removes the current array occurrence                                                              |
-| `settings`       | `DynamicFormSettings`         | The form settings object, including any extended properties declared in `defineMetadata`          |
-| `slotProps`      | `SlotProperties \| undefined` | Values threaded down from a parent slot's `<slot />` binding                                      |
-
-The array and choice container slots (`#default-array`, `#default-choice`, `#default-choice-array`, and their type-specific variants) receive all the same props except that `fieldContext` only exposes `errors`, `errorMessage`, and `label`.
-
 ## Accessing Settings in Templates
 
-Every slot receives a `settings` prop containing the form's `DynamicFormSettings` object. You can destructure it directly to access any setting — including extended properties declared in your metadata:
+Every slot receives a `settings` prop containing the form's `DynamicFormSettings` object, including any extended properties declared in your metadata. Destructure it to drive display logic (required/optional indicators, theme flags, mode toggles) without threading values through individual field metadata:
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <template #default="{ fieldMetadata, fieldContext: { label, errorMessage }, required, settings: { showRequiredOrOptional } }">
     <label :for="fieldMetadata.path">
@@ -184,58 +154,12 @@ Every slot receives a `settings` prop containing the form's `DynamicFormSettings
 </DynamicFormTemplate>
 ```
 
-This lets template display logic (like required/optional indicators, theme flags, or mode toggles) be driven by form settings without threading values through individual field metadata.
+Declaring your own settings properties is the fourth generic of `defineMetadata`; see [`ExtendedSettingsProperties`](/reference/define-metadata#extendedsettingsproperties).
 
-To declare extended settings properties, add the fourth generic to `defineMetadata`:
+## Going Further
 
-```ts
-const metadata = defineMetadata<
-  { text: string, select: string },
-  object, // ExtendedFieldProperties — per-field extras
-  object, // SlotProperties — values threaded through <slot />
-  { showRequiredOrOptional?: 'optional' | 'required' }
->();
-```
-
-Then pass the setting when using the form:
-
-```vue
-<DynamicForm
-  :template="MyFormTemplate"
-  :metadata="fields"
-  :settings="{ showRequiredOrOptional: 'optional' }"
-/>
-```
-
-All slots — `#default`, `#default-input`, `#default-array`, `#default-choice`, and every type-specific slot — receive the same `settings` object.
-
-## Passing Data to Child Slots
-
-You can push extra values down through the field tree by binding them to `<slot />`:
-
-```vue
-<DynamicFormTemplate>
-  <!-- In your #default slot -->
-  <template #default="{ fieldMetadata }">
-    <div :class="{ 'col-span-2': fieldMetadata.fullWidth }">
-      <slot :isInsideGroup="true" />
-    </div>
-  </template>
-</DynamicFormTemplate>
-```
-
-Any field rendered inside this wrapper receives `slotProps` containing `{ isInsideGroup: true }`:
-
-```vue
-<DynamicFormTemplate>
-  <!-- A child field's slot sees it via slotProps -->
-  <template #default="{ slotProps }">
-    <div v-if="!slotProps?.isInsideGroup">
-      ...
-    </div>
-  </template>
-</DynamicFormTemplate>
-```
+- **Every slot prop** (`fieldMetadata`, `fieldContext`, `required`, `disabled`, `index`, the add/remove primitives, `settings`, `slotProps`) is documented with its exact type in [DynamicFormTemplate](/reference/dynamic-form-template#slot-props-regular-slots).
+- **Passing data from an outer slot to inner slots** (binding values on `<slot />`, reading them via `slotProps`) is covered in [Passing Data to Child Slots](/reference/dynamic-form-template#passing-data-to-child-slots).
 
 ---
 

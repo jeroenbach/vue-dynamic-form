@@ -40,7 +40,7 @@ const secondaryContact = {
 
 Your `#default` slot handles both groups and plain inputs. Check `fieldMetadata.children?.length` to distinguish them:
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <template #default="{ fieldMetadata, fieldContext: { label, errorMessage }, required, canRemoveItems, removeItem }">
     <!-- Group rendering -->
@@ -109,7 +109,7 @@ The rendering splits into two roles:
 1. **`#default-array`** (or `#<type>-array`, e.g. `#text-array`) — rendered once; the outer container. Its `<slot />` yields all current occurrences.
 2. **`#default-array-item`** (or `#<type>-array-item`, e.g. `#text-array-item`) — rendered once per occurrence; the item wrapper. Falls back to `#default` if neither is defined.
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <!-- Outer container -->
   <template #default-array="{ fieldContext: { label, errorMessage }, required, canAddItems, addItem }">
@@ -135,14 +135,7 @@ The rendering splits into two roles:
 </DynamicFormTemplate>
 ```
 
-### Add/Remove Control Props
-
-| Prop             | When `true`                                                                  |
-| ---------------- | ---------------------------------------------------------------------------- |
-| `canAddItems`    | Current count is below `maxOccurs`                                           |
-| `canRemoveItems` | Current count is above `minOccurs` (or item has a value that can be cleared) |
-| `addItem()`      | Call to append a new occurrence                                              |
-| `removeItem()`   | Call to remove the current occurrence                                        |
+The add/remove primitives (`canAddItems`, `canRemoveItems`, `addItem()`, `removeItem()`) arrive as slot props on every slot; their exact semantics are in [DynamicFormTemplate](/reference/dynamic-form-template#slot-props-regular-slots).
 
 ## Choices (Mutually Exclusive Branches)
 
@@ -215,7 +208,7 @@ The rendering splits the same way as arrays:
 
 A choice with `maxOccurs > 1` renders its outer wrapper through `#default-choice-array` (or `#<type>-choice-array`) instead, so a template can lay out "pick exactly one" and "add several" choices independently. When no `-choice-array` slot is defined, a repeatable choice falls back to the `-choice` slots, which receive the same slot props.
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <!-- Outer wrapper -->
   <template #default-choice="{ fieldContext: { label, errorMessage }, required, disabled }">

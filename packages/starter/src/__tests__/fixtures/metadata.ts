@@ -21,7 +21,27 @@ export const headingMetadata = {
 
 export const checkboxMetadata = { name: 'subscribe', type: 'checkbox', fieldOptions: { label: 'Subscribe' } };
 
+export const numberMetadata = { name: 'age', type: 'number', fieldOptions: { label: 'Age' } };
+
+export const emailMetadata = { name: 'email', type: 'email', fieldOptions: { label: 'Email' } };
+
 export const passwordMetadata = { name: 'password', type: 'password', fieldOptions: { label: 'Password' }, password: { showStrengthBar: true } };
+
+export const textareaMetadata = { name: 'bio', type: 'textarea', fieldOptions: { label: 'Bio' } };
+
+export const radioMetadata = {
+  name: 'contactMethod',
+  type: 'radio',
+  fieldOptions: { label: 'How should we contact you?' },
+  options: [{ key: 'email', value: 'Email' }, { key: 'phone', value: 'Phone' }],
+};
+
+export const fileMetadata = {
+  name: 'resume',
+  type: 'file',
+  fieldOptions: { label: 'Resume' },
+  file: { accept: '.pdf,.doc,.docx' },
+};
 
 export const richTextMetadataConfiguration = extendMetadata<object, { toolbar?: boolean }>();
 

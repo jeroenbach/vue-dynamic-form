@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkboxMetadata, textMetadata } from './fixtures/metadata';
+import { checkboxMetadata, fileMetadata, textMetadata } from './fixtures/metadata';
 import { mountInForm } from './fixtures/mountInForm';
 
 describe('component StarterFormTemplate - optional/required tag and error message states', () => {
@@ -60,5 +60,33 @@ describe('component StarterFormTemplate - optional/required tag and error messag
 
     expect(wrapper.find('.sft-switch-field').classes()).toContain('is-invalid');
     expect(wrapper.find('.sft-switch-field .sft-error').exists()).toBe(true);
+  });
+
+  it('puts the danger border on the file trigger, not the hidden native input, with exactly one error line below the control', async () => {
+    const { wrapper, validate } = await mountInForm({ metadata: { ...fileMetadata, minOccurs: 1 } });
+
+    await validate();
+
+    expect(wrapper.find('.sft-file').classes()).toContain('is-invalid');
+    expect(wrapper.find('.sft-file-native').classes()).not.toContain('is-invalid');
+    const errors = wrapper.findAll('.sft-error');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].element.closest('.sft-file')).toBeNull();
+  });
+
+  it('never shows a success/valid class on a filled, error-free file field', async () => {
+    const { wrapper, validate } = await mountInForm({
+      metadata: { ...fileMetadata, minOccurs: 1 },
+      settings: { showValidState: true },
+    });
+
+    const native = wrapper.find('input[type="file"]');
+    const file = new File(['x'], 'resume.pdf');
+    Object.defineProperty(native.element, 'files', { value: [file], configurable: true });
+    await native.trigger('change');
+    await validate();
+
+    expect(wrapper.find('.sft-error').exists()).toBe(false);
+    expect(wrapper.html()).not.toMatch(/is-valid|is-success/);
   });
 });

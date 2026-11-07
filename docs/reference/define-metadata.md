@@ -80,7 +80,7 @@ defineMetadata<
 
 Slots can then destructure the setting directly:
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <template #default="{ required, settings: { showRequiredOrOptional } }">
     <span v-if="showRequiredOrOptional === 'optional' && !required">Optional</span>
@@ -115,7 +115,7 @@ Pass it to `DynamicFormTemplate` via `:metadata-configuration`.
 When a `default-*` slot is missing too, resolution keeps walking: the `-choice-array` families degrade into the `-choice` and `-array-item` families before landing on `#default`. See the full fallback chain in [DynamicFormTemplate](/reference/dynamic-form-template#slots-overview).
 
 ::: tip Naming advice
-Avoid names ending in `-input`, `-array`, `-array-item`, `-choice`, `-choice-array`, or `-choice-array-item` — they are valid but will generate ambiguous slot names. For example, declaring `my-array` as a type produces `#my-array` (wrapper) and `#my-array-array` (array container), which is hard to distinguish from the generated slots.
+`default` and the seven `default-*` names above are reserved: never declare them as field type keys. Also avoid names ending in `-input`, `-array`, `-array-item`, `-choice`, `-choice-array`, or `-choice-array-item` — they are valid but will generate ambiguous slot names. For example, declaring `my-array` as a type produces `#my-array` (wrapper) and `#my-array-array` (array container), which is hard to distinguish from the generated slots.
 :::
 
 ## GetDynamicFormSettingsType

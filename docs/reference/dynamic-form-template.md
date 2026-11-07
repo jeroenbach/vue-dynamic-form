@@ -42,7 +42,7 @@ The two `-choice-array` families degrade into a related family before reaching `
 
 This means you can define just `#default` and `#default-input` to handle every field type, then progressively opt into more specific slots as needed.
 
-## Slot Props — Regular Slots
+## Slot Props: Regular Slots
 
 `#default`, `#default-input`, `#default-array-item`, `#default-choice-array-item`, and all named `#T`, `#T-input`, `#T-array-item`, `#T-choice-array-item` slots receive:
 
@@ -52,7 +52,7 @@ Type: `FieldMetadata` (with your extended properties)
 
 The complete metadata object for this field as it was defined — including every property you set plus your extended properties. In `computedProps` this is the already-computed version, so mutations made in `computedProps` are visible here.
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <template #select-input="{ fieldMetadata }">
     <!-- fieldMetadata.options typed from your ExtendedFieldProperties -->
@@ -90,7 +90,7 @@ Type: `boolean`
 
 `true` when `minOccurs >= 1` and the field is not disabled. Use it to conditionally show a required indicator.
 
-```vue
+```vue-html
 <label>
 {{ label }}<span v-if="required"> *</span>
 </label>
@@ -100,7 +100,7 @@ Type: `boolean`
 
 Type: `boolean`
 
-`true` when `maxOccurs === 0`. Indicates that the field (and its children) has been disabled, either by declaring `maxOccurs: 0` in the metadata or because a disabled ancestor propagates it down. `maxOccurs` is not writable from `computedProps`, so this slot prop cannot flip at runtime; to disable a field dynamically, declare an extended metadata property and handle it in your template (see [Dynamic Fields](/guide/dynamic-fields)).
+`true` when `maxOccurs === 0`. Indicates that the field (and its children) has been disabled, either by declaring `maxOccurs: 0` in the metadata or because a disabled ancestor propagates it down. `maxOccurs` is not writable from `computedProps`, so this slot prop cannot flip at runtime; to disable a field dynamically, declare an extended metadata property and handle it in your template (see [Reactive Fields](/guide/reactive-fields)).
 
 ### `index`
 
@@ -147,7 +147,7 @@ Type: `SlotProperties | undefined`
 
 Extra data passed down from the parent slot via `<slot :my-prop="value" />`. Access it as `slotProps?.myProp`. The type is `SlotProperties` when declared as the third generic of `defineMetadata()`, otherwise `object | undefined`. See [Passing Data to Child Slots](#passing-data-to-child-slots) below.
 
-## Slot Props — Array and Choice Container Slots
+## Slot Props: Array and Choice Container Slots
 
 `#default-array`, `#default-choice`, `#default-choice-array`, and all named `#T-array`, `#T-choice`, `#T-choice-array` slots receive the same props as regular slots **except** that `fieldContext` is reduced to:
 
@@ -215,7 +215,7 @@ Like at every other template level, attributes bound on this `<slot />` arrive i
 
 ::: warning Gate visibility with `v-show`, never `v-if`
 
-```vue
+```vue-html
 <!-- Correct: page stays mounted, values and validation state survive navigation -->
 <DynamicFormTemplate>
   <template #default-wizard-page="{ isCurrent }">
@@ -236,7 +236,7 @@ Like at every other template level, attributes bound on this `<slot />` arrive i
 A `v-if` here unmounts the page's `DynamicFormItem` subtree when it stops being current. That clears the page's values (unless `keepValuesOnUnmount` is set) **and** deregisters its fields from vee-validate, so a later "Submit" would send that page's data unvalidated even if the value happened to survive. `v-if` is acceptable only for a genuinely field-less page — a static summary or review step with nothing to lose.
 :::
 
-```vue
+```vue-html
 <DynamicFormTemplate>
   <template #default-wizard="{ pages, currentStepIndex, isFirst, isLast, isValidating, wizardConfig, next, prev, gotoStep }">
     <nav>
@@ -284,7 +284,7 @@ Inside `#default` (or any named wrapper slot), rendering `<slot />` tells the li
 
 Bind extra values to `<slot />` to make them available to all slots rendered below:
 
-```vue
+```vue-html
 <!-- Parent's #default slot -->
 <DynamicFormTemplate>
   <template #default="{ fieldMetadata }">
@@ -297,7 +297,7 @@ Bind extra values to `<slot />` to make them available to all slots rendered bel
 
 Any field slot rendered inside this wrapper receives the extra values through `slotProps`:
 
-```vue
+```vue-html
 <!-- Child field's slot -->
 <DynamicFormTemplate>
   <template #default="{ fieldContext: { label }, slotProps }">

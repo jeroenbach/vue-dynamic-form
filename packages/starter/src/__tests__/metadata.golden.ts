@@ -2,13 +2,23 @@ import type { WizardGotoStepOptions } from '@bach.software/vue-dynamic-form';
 
 /** Independently written value types of the built-in catalogue. Drift in the source types must fail a test. */
 export interface GoldenValueTypes {
-  wizardSummaryPage: never
-  heading: never
-  grid: never
-  text: string
-  select: string
-  checkbox: boolean | undefined
-  password: string
+  'wizardSummaryPage': never
+  'heading': never
+  'grid': never
+  'text': string
+  'select': string
+  'checkbox': boolean | undefined
+  'password': string
+  'textarea': string
+  'radio': string
+  'number': string
+  'email': string
+  'tel': string
+  'url': string
+  'date': string
+  'time': string
+  'datetime-local': string
+  'file': File | undefined
 }
 
 /** Independently written mirror of the responsive-value shape. */
@@ -45,6 +55,7 @@ export interface GoldenFieldProperties {
     addButtonText?: string
     limitReachedText?: string
     ariaLabel?: string
+    description?: string
   }
   password?: {
     showStrengthBar?: boolean
@@ -54,6 +65,15 @@ export interface GoldenFieldProperties {
   }
   checkbox?: {
     falseAsUndefined?: boolean
+  }
+  number?: {
+    min?: number
+    max?: number
+    step?: number
+  }
+  file?: {
+    accept?: string
+    clearAriaLabel?: string
   }
   wizardSummary?: {
     groups?: { title: string, rows: [label: string, value: string][], editButtonText?: string, dataTestid?: string }[]

@@ -1,6 +1,6 @@
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import { textMetadata } from './fixtures/metadata';
+import { textareaMetadata, textMetadata } from './fixtures/metadata';
 import { mountInForm } from './fixtures/mountInForm';
 
 describe('component StarterFormTemplate - opt-in valid-state border', () => {
@@ -51,6 +51,55 @@ describe('component StarterFormTemplate - opt-in valid-state border', () => {
 
     expect(wrapper.find('input.sft-input').attributes('data-field-state')).toBe('valid');
     expect(wrapper.find('input.sft-input').classes()).toContain('is-valid');
+  });
+
+  it('textarea: sets no data-field-state when showValidState is off', async () => {
+    const { wrapper } = await mountInForm({ metadata: { ...textareaMetadata, minOccurs: 1 } });
+
+    const textarea = wrapper.find('textarea.sft-textarea');
+    await textarea.trigger('blur');
+    await flushPromises();
+
+    expect(textarea.attributes('data-field-state')).toBeUndefined();
+    expect(textarea.classes()).not.toContain('is-valid');
+  });
+
+  it('textarea: marks an untouched field pristine when showValidState is on', async () => {
+    const { wrapper } = await mountInForm({
+      metadata: { ...textareaMetadata, minOccurs: 1 },
+      settings: { showValidState: true },
+    });
+
+    expect(wrapper.find('textarea.sft-textarea').attributes('data-field-state')).toBe('pristine');
+  });
+
+  it('textarea: marks a touched, empty required field invalid, with no is-valid class', async () => {
+    const { wrapper } = await mountInForm({
+      metadata: { ...textareaMetadata, minOccurs: 1 },
+      settings: { showValidState: true, validateOnValueUpdate: false, validateOnBlur: true },
+    });
+
+    await wrapper.find('textarea.sft-textarea').trigger('blur');
+    await flushPromises();
+
+    const textarea = wrapper.find('textarea.sft-textarea');
+    expect(textarea.attributes('data-field-state')).toBe('invalid');
+    expect(textarea.classes()).not.toContain('is-valid');
+  });
+
+  it('textarea: marks a touched, valid field valid, with the is-valid class', async () => {
+    const { wrapper } = await mountInForm({
+      metadata: { ...textareaMetadata, minOccurs: 1 },
+      settings: { showValidState: true, validateOnValueUpdate: false, validateOnBlur: true },
+    });
+
+    const textarea = wrapper.find('textarea.sft-textarea');
+    await textarea.setValue('A few sentences about why this role is a fit.');
+    await textarea.trigger('blur');
+    await flushPromises();
+
+    expect(wrapper.find('textarea.sft-textarea').attributes('data-field-state')).toBe('valid');
+    expect(wrapper.find('textarea.sft-textarea').classes()).toContain('is-valid');
   });
 });
 

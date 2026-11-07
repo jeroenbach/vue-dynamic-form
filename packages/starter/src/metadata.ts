@@ -1,17 +1,30 @@
-import type { WizardGotoStepOptions } from '@bach.software/vue-dynamic-form';
+import type { GetDynamicFormSettingsType, GetMetadataType, WizardGotoStepOptions } from '@bach.software/vue-dynamic-form';
 import type { StarterIconName } from '@/icons';
 import type { Props as ReviewGroupProps } from '@/ReviewGroup.vue';
 import { defineMetadata } from '@bach.software/vue-dynamic-form';
 
 export interface StarterValueTypes {
-  wizardSummaryPage: never
-  heading: never
+  'wizardSummaryPage': never
+  'heading': never
   /** A bare layout container: renders its children in a plain CSS-grid div, no card chrome. */
-  grid: never
-  text: string
-  select: string
-  checkbox: boolean | undefined
-  password: string
+  'grid': never
+  'text': string
+  'select': string
+  'checkbox': boolean | undefined
+  'password': string
+  'textarea': string
+  /** Flat, mutually exclusive option list rendered as radio buttons; reuses the root `options` property `select` also reads. */
+  'radio': string
+  /** Native number input. The model stays a string, never a coerced JS number; see `number`'s group property for its native min/max/step hints. */
+  'number': string
+  'email': string
+  'tel': string
+  'url': string
+  'date': string
+  'time': string
+  'datetime-local': string
+  /** Single-file upload; `undefined` when no file is held. */
+  'file': File | undefined
 }
 
 /**
@@ -75,6 +88,14 @@ export interface StarterFieldProperties {
    * The branch picker of an explicit choice (the click-to-select cards, or the per-branch add
    * bar of a repeatable choice). Named `choicePicker` because the core engine already owns the
    * `choice` property (the branches themselves).
+   *
+   * `show`, `addButtonText`, `limitReachedText`, and `ariaLabel` configure the picker as a whole
+   * and belong on the parent choice field. `description` is different: it is set on a branch
+   * itself (like the item texts under `array`), and overrides that one branch's card text,
+   * falling back to the branch's own `description` when unset. Use it when the picker card
+   * should pitch the option in different words than the fuller explanation shown in the branch
+   * body once it's selected, e.g. a short pitch on the card ("Fastest to launch") versus a
+   * longer explanation once picked.
    */
   choicePicker?: {
     /** Renders the picker; without it an explicit choice shows no selection UI of its own. */
@@ -85,6 +106,8 @@ export interface StarterFieldProperties {
     limitReachedText?: string
     /** Aria label of the radiogroup when the field has no label. Defaults to "Choose an option". */
     ariaLabel?: string
+    /** Set on a branch to override its own picker-card description; falls back to the branch's `description`. */
+    description?: string
   }
 
   /** Extras of a `password` field. */
@@ -102,6 +125,25 @@ export interface StarterFieldProperties {
   checkbox?: {
     /** Store `undefined` instead of `false` when the toggle is off. */
     falseAsUndefined?: boolean
+  }
+
+  /**
+   * Native spinner/stepping hints of a `number` field, forwarded as plain `min`/`max`/`step`
+   * attributes. These are affordance only: they do not enforce anything on submit, so pair
+   * them with a matching `restriction` (`minInclusive`/`maxInclusive`) for real validation.
+   */
+  number?: {
+    min?: number
+    max?: number
+    step?: number
+  }
+
+  /** Extras of a `file` field. */
+  file?: {
+    /** Native accept filter forwarded to the input, e.g. ".pdf,.doc,.docx". */
+    accept?: string
+    /** Aria label of the clear button; `{name}` is the chosen filename. Defaults to "Remove {name}". */
+    clearAriaLabel?: string
   }
 
   /** The review page of a wizard (a `wizardSummaryPage` field). */
@@ -149,6 +191,12 @@ export interface StarterSettingsProperties {
 
 /** The built-in starter field types and their extended properties. */
 export const starterMetadata = defineMetadata<StarterValueTypes, StarterFieldProperties, StarterSlotProperties, StarterSettingsProperties>();
+
+/** A field in a metadata tree built on the starter catalogue; type your `metadata` arrays with `StarterMetadata[]`. */
+export type StarterMetadata = GetMetadataType<typeof starterMetadata>;
+
+/** The `DynamicForm` settings shape when using the starter template, including the starter's own settings. */
+export type StarterDynamicFormSettings = GetDynamicFormSettingsType<typeof starterMetadata>;
 
 /**
  * Layers your own field types, field properties, slot properties, and settings on top of

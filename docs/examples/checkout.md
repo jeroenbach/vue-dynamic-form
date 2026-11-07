@@ -21,7 +21,7 @@ Everything in the live form below is rendered by the library from one metadata t
 
 The first decision is a `choice`: check out with an express wallet, or enter details manually. Picking a branch is all it takes for the engine to mount that branch and relax validation on the other. From there the form walks through contact details, a delivery address with per-country postal validation, an optional business and VAT section, shipping, payment, and an optional gift message, with a sticky order summary reacting live on the right.
 
-This checkout intentionally stays one page, matching the benchmark it rebuilds. For a page that validates one step at a time with `validateSection()` instead, see the [Wizard](/examples/wizard) and [Client Onboarding Wizard](/examples/advanced) examples.
+This checkout intentionally stays one page, matching the benchmark it rebuilds. For a page that validates one step at a time with `validateSection()` instead, see the [Wizard](/examples/wizard) and [Client Onboarding Wizard](/examples/client-onboarding) examples.
 
 <CheckoutFormExample />
 
@@ -115,4 +115,4 @@ Moving a remainder-covering source (card or PayPal) above a fixed source can pus
 - [CheckoutFormExample.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/CheckoutFormExample.vue) (the metadata tree)
 - [CheckoutFormTemplate.vue](https://github.com/jeroenbach/dynamic-form/blob/main/docs/.vitepress/theme/components/CheckoutFormTemplate.vue) (the checkout's own neutral template component)
 - [Choices](/examples/choices) for the repeatable ordered choice mechanics
-- [Wizard](/examples/wizard) and [Client Onboarding Wizard](/examples/advanced) for the `validateSection()` step pattern (this page is intentionally one page, matching the benchmark it rebuilds)
+- [Wizard](/examples/wizard) and [Client Onboarding Wizard](/examples/client-onboarding) for the `validateSection()` step pattern (this page is intentionally one page, matching the benchmark it rebuilds)
