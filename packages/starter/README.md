@@ -129,6 +129,10 @@ import { MyIcon } from './MyIcon.vue';
 
 `ReviewGroup` and `SubmissionSuccess`, when used standalone with no `StarterFormTemplate` ancestor, always render the Lucide default: there is no template above them to provide an override.
 
+## Accessibility
+
+Every control this template renders meets WCAG 2.2 AA for keyboard and screen-reader use, by default, with no setting to turn it off: label/description/error association on every control, error and password-strength announcements, full keyboard operability (including the password reveal toggle and an ARIA APG roving-tabindex pattern on choice cards), and automatic focus management on wizard navigation and validation failure. For a non-wizard form, call the exported `focusFirstInvalid(containerEl)` helper from your own `onInvalidSubmit` so a failed submit still takes the user to the first invalid field. See the [full guide section](https://vue-dynamic-form.bach.software/guide/starter-template#accessibility) for details and a wiring example.
+
 ## Customization guidance
 
 - **Retheme with CSS variables.** Every colour the stylesheet uses is a `--sft-*` custom property declared on `:root` (and re-declared under `:root.dark`). Override the variables in your own CSS to retheme the whole template without touching a single `sft-` rule.

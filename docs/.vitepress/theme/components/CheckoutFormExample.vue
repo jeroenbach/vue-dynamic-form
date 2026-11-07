@@ -3,6 +3,7 @@ import type { Path } from 'vee-validate';
 import type { DynamicFormSettings, Metadata } from './CheckoutFormTemplate.vue';
 import type { SplitPaymentBranchShape } from './splitPaymentLedgerMath';
 import { DynamicForm, removeNullValues, useDynamicForm } from '@bach.software/vue-dynamic-form';
+import { focusFirstInvalid } from '@bach.software/vue-dynamic-form-starter';
 import { computed, ref } from 'vue';
 import CheckoutFormTemplate from './CheckoutFormTemplate.vue';
 import OrderSummary from './OrderSummary.vue';
@@ -166,6 +167,7 @@ const {
 
 const isSubmitting = ref(false);
 const submitted = ref<CheckoutFormValues>();
+const formRoot = ref<HTMLElement>();
 
 // `explicitChoiceSelection` clears a deselected branch's key entirely, so the key's mere presence
 // (not its value) is what marks a branch active. This also covers the empty `homeDelivery`
@@ -523,7 +525,14 @@ const metadata: Metadata[] = [
 ];
 // #endregion metadata
 
-const onSubmit = handleSubmit(() => submitOrder());
+// A failed submit focuses the first invalid field, including a required choice group like
+// "How would you like to check out?", the same focus move the wizard example makes.
+function onSubmit(event?: Event) {
+  handleSubmit(
+    () => submitOrder(),
+    () => focusFirstInvalid(formRoot.value),
+  )(event);
+}
 
 async function submitOrder() {
   // The button disables while submitting, but an Enter-key submit can still fire.
@@ -735,7 +744,7 @@ function createAddressFields(): Metadata[] {
 
 <template>
   <div class="form-demo checkout-layout">
-    <form class="flex flex-col gap-6" novalidate @submit.prevent="onSubmit">
+    <form ref="formRoot" class="flex flex-col gap-6" novalidate @submit="onSubmit">
       <DynamicForm :template="CheckoutFormTemplate" :metadata :settings />
 
       <div v-if="!submitted" class="flex flex-col gap-3">

@@ -28,4 +28,25 @@ describe('component ChoiceCard', () => {
 
     expect(wrapper.emitted('select')).toBeUndefined();
   });
+
+  it('defaults tabindex to 0 and accepts an override', () => {
+    const defaultWrapper = mount(ChoiceCard, { props: { title: 'Alpha' } });
+    expect(defaultWrapper.attributes('tabindex')).toBe('0');
+
+    const rovedOut = mount(ChoiceCard, { props: { title: 'Alpha', tabindex: -1 } });
+    expect(rovedOut.attributes('tabindex')).toBe('-1');
+  });
+
+  it('activates on Space and on Enter while focused', async () => {
+    const wrapper = mount(ChoiceCard, { props: { title: 'Alpha' }, attachTo: document.body });
+    wrapper.element.focus();
+
+    await wrapper.trigger('keydown.space');
+    expect(wrapper.emitted('select')).toHaveLength(1);
+
+    await wrapper.trigger('keydown.enter');
+    expect(wrapper.emitted('select')).toHaveLength(2);
+
+    wrapper.unmount();
+  });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { h } from 'vue';
-import { choiceCard } from './choice.test-helpers';
-import { explicitChoiceMetadata } from './fixtures/choiceMetadata';
+import { choiceCard, focusElement } from './choice.test-helpers';
+import { explicitChoiceMetadata, explicitChoiceWithDisabledBranchMetadata } from './fixtures/choiceMetadata';
 import { createConsumerWrapper } from './fixtures/createConsumerWrapper';
 import { mountInForm } from './fixtures/mountInForm';
 
@@ -42,6 +42,28 @@ describe('component StarterFormTemplate - the #icon slot reaches choice-card gly
     expect(custom.exists()).toBe(true);
     expect(custom.attributes('data-name')).toBe('rocket');
     expect(card.find('svg').exists()).toBe(false);
+  });
+});
+
+describe('component StarterFormTemplate - choice-card arrow-key roving reaches the real engine', () => {
+  it('moves selection to the next branch on ArrowRight and reflects it in the active card', async () => {
+    const { wrapper } = await mountInForm({ metadata: explicitChoiceMetadata });
+
+    focusElement(choiceCard(wrapper, 'launch', 'selfServe'));
+    await choiceCard(wrapper, 'launch', 'selfServe').trigger('keydown.right');
+
+    expect(choiceCard(wrapper, 'launch', 'guided').classes()).toContain('is-selected');
+    expect(choiceCard(wrapper, 'launch', 'selfServe').classes()).not.toContain('is-selected');
+  });
+
+  it('skips a branch disabled through real field metadata, not just a directly-constructed option', async () => {
+    const { wrapper } = await mountInForm({ metadata: explicitChoiceWithDisabledBranchMetadata });
+
+    focusElement(choiceCard(wrapper, 'launch', 'selfServe'));
+    await choiceCard(wrapper, 'launch', 'selfServe').trigger('keydown.right');
+
+    expect(choiceCard(wrapper, 'launch', 'legacy').classes()).toContain('is-selected');
+    expect(choiceCard(wrapper, 'launch', 'guided').attributes('tabindex')).toBe('-1');
   });
 });
 

@@ -35,16 +35,18 @@ const emits = defineEmits<Emits>();
     class="sft-switch-field"
     :class="[{ 'is-disabled': disabled, 'is-invalid': !!errorMessage }, gridItemClasses(colSpan, colStart)]"
   >
-    <label :for="inputId" @click="emits('click')">
-      <p class="sft-switch-field-label">
-        {{ label }}
-        <OptionalRequiredTag :required :show-required-or-optional :optionalText />
-      </p>
-      <p v-if="description" class="sft-switch-field-desc">
+    <div class="sft-switch-field-text">
+      <label :for="inputId" @click="emits('click')">
+        <p class="sft-switch-field-label">
+          {{ label }}
+          <OptionalRequiredTag :required :show-required-or-optional :optionalText />
+        </p>
+      </label>
+      <p v-if="description" :id="inputId ? `${inputId}-desc` : undefined" class="sft-switch-field-desc">
         {{ description }}
       </p>
-      <ErrorMessage :errorMessage="errorMessage" :dataTestid="dataTestid" />
-    </label>
+      <ErrorMessage :id="errorMessage && inputId ? `${inputId}-error` : undefined" :errorMessage="errorMessage" :dataTestid="dataTestid" />
+    </div>
     <slot />
   </div>
 </template>

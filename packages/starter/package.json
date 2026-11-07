@@ -65,6 +65,7 @@
     "@vitejs/plugin-vue": "catalog:build",
     "@vitest/coverage-v8": "catalog:test",
     "@vue/test-utils": "catalog:test",
+    "axe-core": "catalog:test",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
     "jsdom": "catalog:test",

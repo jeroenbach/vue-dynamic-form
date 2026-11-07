@@ -2,7 +2,7 @@
 import type { ReviewGroupProps } from '@bach.software/vue-dynamic-form-starter';
 import type { Metadata } from './AdvancedForm.vue';
 import { removeNullValues, useDynamicForm } from '@bach.software/vue-dynamic-form';
-import { SubmissionSuccess } from '@bach.software/vue-dynamic-form-starter';
+import { focusFirstInvalid, SubmissionSuccess } from '@bach.software/vue-dynamic-form-starter';
 import { computed, ref } from 'vue';
 import AdvancedForm from './AdvancedForm.vue';
 
@@ -28,6 +28,7 @@ const { values, meta, handleSubmit, resetForm } = useDynamicForm<EventRegistrati
 
 const formName = 'Event Registration';
 const submitted = ref<EventRegistrationValues | undefined>(undefined);
+const formRoot = ref<HTMLElement>();
 
 const ticketOptions = [
   { key: 'standard', value: 'Standard' },
@@ -176,20 +177,21 @@ function reset() {
 }
 
 // The wizard's last-page button is a native type="submit" control, so AdvancedForm forwards the
-// form's own submit event here for handleSubmit to take over.
+// form's own submit event here for handleSubmit to take over. A failed submit focuses the first
+// invalid field, the same focus move the wizard already makes for a blocked step.
 function onSubmit(event?: Event) {
   handleSubmit(
     (values) => {
       submitted.value = removeNullValues(values);
     },
-    () => {},
+    () => focusFirstInvalid(formRoot.value),
   )(event);
 }
 // #endregion submit
 </script>
 
 <template>
-  <div class="form-demo flex flex-col gap-6 max-w-3xl mx-auto">
+  <div ref="formRoot" class="form-demo flex flex-col gap-6 max-w-3xl mx-auto">
     <AdvancedForm v-if="!submitted" :metadata @submit="onSubmit" />
     <SubmissionSuccess
       v-else

@@ -1,7 +1,7 @@
 ---
 id: FEAT-011
 type: feature
-status: in-progress
+status: done
 approved_by: Jeroen
 epic: ""
 ---
@@ -152,6 +152,7 @@ No new Vue component is required: `FormWizard` already owns navigation state, so
 ### Public API impact
 
 - **Exports:** one added. `DECIDED (Jeroen, Open question 7)`: `index.ts` exports a `focusFirstInvalid(containerEl)` helper (backed by `focus.ts`'s `firstInvalidWithin`) so a consumer can wire it into their own non-wizard form's `onInvalidSubmit`. Everything else is unchanged.
+- **Exported type shape:** `DECIDED (Jeroen, ST-06)`: the exported `ChoiceOption` type (`ChoiceSectionCard.vue`, re-exported from `index.ts`, used to type a consumer's own choice-card option list) gains one new optional field, `disabled?: boolean`, forwarded from the engine's existing per-branch `FieldMetadata.disabled` (`StarterFormTemplate.vue`'s `heading-choice` mapping, which drops it today). Additive: an existing consumer's `ChoiceOption` literals keep satisfying the type unchanged. This closes an asymmetry where the group-level `disabled` was already forwarded but the per-branch one was not, and makes ST-06's disabled-skip roving behavior (AC3) reachable end-to-end by a real consumer, not only by synthetic component props.
 - **`StarterFormTemplate` slot contract:** unchanged. Slot prop shapes and `defineMetadata` generics are unchanged. The new behavior is internal chrome + attributes.
 - **`defineMetadata` / `FieldMetadata` / `DynamicFormSettings`:** no new metadata or settings property, per Open question 4's decision (no opt-out). If Open question 5 wants the password timing consumer-configurable, it is one optional property under the existing `starterMetadata` `password` group (`password.announce`), again additive.
 - **Validation rules:** none changed.
@@ -204,7 +205,7 @@ sequenceDiagram
 ### axe-core test integration plan
 
 - **Engine:** `axe-core` `4.14.0` (MPL-2.0, zero runtime dependencies) added as a **devDependency of `packages/starter`** only, so it never reaches consumers. Chosen over `vitest-axe`: the stable `vitest-axe` is `0.1.0` (stale, peer `vitest >=0.16.0`, pulls `chalk`/`lodash-es`/`redent`); a ~15-line in-repo matcher/helper over `axe-core.run(container)` avoids that transitive surface and the pre-release gamble, and runs cleanly under the existing `jsdom` + `vitest 3.2.6` setup (added to `src/tests/test-setup.ts` or a dedicated helper).
-- **jsdom limitation (verified):** axe's `color-contrast` rule cannot run under jsdom (no layout engine) and auto-disables there. Therefore the two contrast corrections and focus-ring visibility are **not** covered by the axe unit tests; they are verified by `prototype.html`, the existing `prototypeParity.test.ts`, and a Playwright screenshot in both modes. The axe suite covers roles, names, `aria-*` validity, idref integrity, and the describedby chain.
+- **jsdom limitation (verified):** axe's `color-contrast` rule cannot be computed under jsdom (no layout engine), so the test helper disables it explicitly in the run options. It does not auto-disable: left enabled it returns `incomplete` results and can error (corrected per ST-07 adversarial review finding 1; `jest-axe` applies the same explicit disable). Therefore the two contrast corrections and focus-ring visibility are **not** covered by the axe unit tests; they are verified by `prototype.html`, the existing `prototypeParity.test.ts`, and a Playwright screenshot in both modes. The axe suite covers roles, names, `aria-*` validity, idref integrity, and the describedby chain.
 - **Shape is Open question 6.** Designed for either: a per-component assertion inside the relevant `*.test.ts`, and/or a whole-template `StarterFormTemplate` render with representative metadata (closest to what ships). `DECIDED (research)`: the blocking half of Q6 is settled, axe violations fail `pnpm ci` outright. Why: the feature's own goal statement and Functional overview already promise that a regression "fails CI instead of shipping silently"; a warn-only mode would contradict the spec's stated goal. Source: this spec's Problem & goal, Functional overview.
 - `DECIDED (research)`, from adversarial review finding 2 — behavioural focus/keyboard tests, not only axe: axe under jsdom asserts static ARIA only. It cannot verify the behaviour that is the bulk of this feature: focus moving on step change, focus after an array remove, focus-first-invalid, roving tabindex, or that `Space`/`Enter`/arrow keys operate a control. So the "regression caught by `pnpm ci`" promise only covers the attribute layer unless the automated-check story *also* mandates behavioural unit tests: `@vue/test-utils` with `document.activeElement` assertions after each focus move, and `trigger('keydown.*')` for the keyboard handlers. These run cleanly in jsdom (no layout needed) and belong alongside the axe assertions. The contrast/focus-ring visibility remains screenshot-only, as already stated.
 
@@ -295,3 +296,151 @@ Split along the seven slicing seams above, with seam 4 (focus util + wizard focu
 8. **[ST-08: Document the starter template's accessibility guarantees](stories/ST-08-accessibility-docs/spec.md)** - the guide's Accessibility section, the two retheme tokens, the `focusFirstInvalid` example, and the README mirror. Depends on ST-01 through ST-07 for final, accurate behavior to describe.
 
 **Deviation from the feature's own seam grouping:** `docs/examples/wizard.md` (listed under the feature's Documentation impact) is assigned to **ST-04**, not bundled with ST-08, because the split's own rule is to assign each documentation page to the story that ships the behavior it describes, and that page documents wizard step-change and first-invalid focus exactly as ST-04 implements it. ST-08 covers the remaining two pages (`docs/guide/starter-template.md`, `packages/starter/README.md`), which are general cross-cutting summaries that do need all prior stories to be final.
+
+## Final review
+
+Filled by the final-reviewer after all stories reached `done`. Branch-level audit of the combined diff; story-level acceptance criteria were not re-walked.
+
+**Verdict: findings.** Three should-fix bugs (all in the seams between stories, none inside a single story's ACs), four test gaps, one manual-test gap, one docs nit. The whole suite (672 tests, 81 files), `vue-tsc`, and `eslint` are green on the branch.
+
+### Bugs
+
+| # | Severity | Where | Failure scenario | Evidence | Suggested fix |
+| --- | --- | --- | --- | --- | --- |
+| 1 | should-fix | `StarterFormTemplate.vue`, `handleRemoveItem` | The array section is resolved with `document.querySelector('[data-testid="<arrayPath>"]')`, so when two forms (or two templates) on one page render the same array path, removing an item in the second form moves focus into the **first** form's section. | Reproduced in a scratch test: two `mountInForm` instances with `headingArrayMetadata`; after removing the middle item of form B, `document.activeElement` is inside form A (`first.wrapper.element.contains(target) === true`). | Resolve the section from the triggering button instead of the document: `const sectionRoot = (document.activeElement as HTMLElement | null)?.closest(\`[data-testid="${arrayPath}"]\`) ?? document.querySelector(...)`. The remove button is always a descendant of its own section's chrome root, so `closest` stays inside the right form. |
+| 2 | should-fix | `focus.ts` `firstInvalidWithin` + `ChoiceSectionCard.vue` / `ArrayField.vue` / section chrome | A blocked `next()` (and a consumer's `focusFirstInvalid`) never moves focus when the page's only invalid control is a required choice group or array/group section: nothing in that chrome carries `aria-invalid="true"` except the stepper's step **button**, which `firstInvalidWithin` deliberately skips. The feature's Functional overview promises focus moves "to what needs fixing" for every validation failure. | Reproduced in a scratch test: a wizard page whose only field is a required `explicitChoiceSelection` group; after a blocked Continue, the only `[aria-invalid="true"]` in the DOM is a `BUTTON` (stepper) and `document.activeElement` stays on `body`. The `role="alert"` error still announces, but focus does not move. | Set `:aria-invalid` on the `role="radiogroup"` element (the role supports it) when `errorMessage` is present, and teach `focusFirstInvalid` / the wizard's failed-next path that a matched element that is not itself focusable gets `firstFocusableWithin(el)` focused instead (which lands on the group's roving tab stop card). Same treatment can cover array sections if desired. |
+| 3 | should-fix | `focus.ts` `firstInvalidWithin` / `focusFirstInvalid` | `querySelector('[aria-invalid="true"]')` can match a field inside a `v-show`-hidden wizard page (pages never unmount). Browsers refuse to focus an element with `display: none`, so focus silently stays on the submit button, and a hidden invalid field **shadows** a later visible one. Reachable through the shipped docs example: `FormExampleWizard.vue` combines `allowForwardJump: true` with `focusFirstInvalid` on failed submit, so jumping past an untouched required page and submitting hits exactly this path. | Static trace: `DynamicFormItemWizard` keeps pages mounted with `v-show`; the WHATWG focus steps make `focus()` a no-op for an element that is not being rendered. jsdom focuses hidden elements, so the existing tests cannot see it. | In `firstInvalidWithin`, iterate `querySelectorAll` and skip candidates where `el.checkVisibility?.() === false` (guarded call keeps jsdom working; `v-show` writes an inline `display: none`, which jsdom's `checkVisibility` does evaluate). Add a unit test with one hidden and one visible invalid field. |
+| 4 | nice-to-have | `PasswordStrengthBar.vue` | The `announce?: 'blur'` prop is declared, defaulted, documented, and passed by the template (`announce="blur"`), but never read at runtime; the behaviour is driven entirely by the exposed `announce()` method. Dead API surface that suggests a configurability that does not exist. | Code read: `props.announce` has no usage in the component. | Either drop the prop (the exposed method is the real contract) or read it so a future `'input'`/`'off'` value has a seam. |
+
+**Unverified questions** (not substantiated, listed for awareness, no action required):
+
+- Choice-array remove focus: `handleRemoveItem` uses `item.index`, which for a `default-choice-array-item` is the branch-local occurrence index, against `removeButtonsOf`'s DOM-ordered list. This is believed consistent because the stripped `arrayPath` is itself branch-scoped, but no test pins the choice-array shape down (see test gap 1), so it was not traced to the end.
+- `[data-page]:focus-visible` after a mouse-driven step change: browsers derive `:focus-visible` for programmatic focus from the preceding input modality, so the ring may intentionally not paint after a mouse click on Continue while painting after a keyboard Enter. Likely the desired behaviour; worth one manual glance, not a code change.
+
+### Test gaps
+
+1. **Remove-focus is untested for two of the three array shapes ST-05's own algorithm names.** `StarterFormTemplate.arrayRemoveFocus.logic.test.ts` covers only `heading-array` (`RepeaterCard` in `ArraySectionCard`). The `default-choice-array-item` shape (no single Add button; must fall back to `firstFocusableWithin` → first per-option add-bar button) and the `GroupField` `#default` array shape (header Add button) have no test. Suggested: two cases in the same file, one mounting `explicitChoiceArrayMetadata` and removing an occurrence, one mounting a `default`-slot array, asserting where `document.activeElement` lands.
+2. **Bug 1's scenario:** after fixing, add a case mounting two forms with identical array paths and asserting focus stays inside the form the removal happened in.
+3. **Bug 2's scenario:** after fixing, a wizard page whose only invalid control is a required choice group; blocked Continue must move focus into the group.
+4. **Bug 3's scenario:** after fixing, `focusFirstInvalid` on a container holding a hidden (`display: none`) invalid field and a visible one must focus the visible one.
+
+### Manual test gaps
+
+1. **`focusFirstInvalid` on a plain non-wizard form has no live surface.** It exists as a guide code snippet and is wired only into the wizard example (`FormExampleWizard.vue`). Suggested: wire it into one plain-form docs example with a submit button (e.g. give `docs/.vitepress/theme/components/FormExampleValidation.vue` a submit that calls `handleSubmit(onValid, () => focusFirstInvalid(formRoot.value))`), so a human can hand-test the non-wizard path the guide documents. Everything else on the branch is hand-reachable through the existing docs examples: wizard focus moves (`examples/wizard`), array remove focus and roving choice cards (`examples/advanced`, checkout example incl. a disabled choice card), password strength live region (`examples/validation`), and every focus ring on any example plus `prototype.html`.
+
+### Docs gaps
+
+1. (nice-to-have) The exported `ChoiceOption` type's new `disabled?: boolean` field, and the fact that a choice **branch**'s `disabled` metadata now greys out and skips its card, is only implied by the guide's "skipping any disabled card" line. Suggested: one sentence in `docs/guide/starter-template.md` under the field-properties paragraph (or the Accessibility section) stating that `disabled` on a choice branch disables that card and removes it from the arrow-key rotation.
+
+### What was reviewed
+
+- Merge base `43a5a82` (origin/main); one branch commit (`a03856a`, spec/research cleanup) plus the entire uncommitted working tree, including the five untracked test files (`StarterFormTemplate.axe.test.ts`, `axeHelper.logic.test.ts`, `helpers/axe.ts`, `fixtures/axeMetadata.ts`, `PasswordStrengthBar.test.ts`).
+- Code surface read in full with context: all 17 changed `packages/starter/src` source files plus `focus.ts`, `index.ts`, `style.scss`, the engine's `DynamicFormItemWizard.vue` (unchanged, consumer context), all new/changed test files, docs pages, changeset, `specs/components.md`, and the workspace/package manifests.
+- Verified by execution: full starter suite (672 passing), `vue-tsc --noEmit`, `eslint`, and two scratch probe tests for bugs 1 and 2 (removed afterwards).
+- Deliberately skipped: the spec-only churn in `a03856a` (new FEAT-012/013/014 spec documents, research folder deletions, FEAT-007 archive moves) — no runtime code; and re-running the per-story AC walks already done by the qa-verifier. Coverage baseline, docs preview build, and screenshots remain pre-push steps for the developer.
+
+### Fix round 1
+
+1. (should-fix, bug 1) Resolved the array section from the button that triggered the removal (`document.activeElement` at click time, via `closest()`), falling back to the document-wide lookup only when there is no such triggering element. `packages/starter/src/StarterFormTemplate.vue` (`handleRemoveItem`). This stops two forms rendering the same array path from stealing focus into each other's section. Verified the suggested fix is load-bearing by reverting it locally and re-running the new test, which failed as expected, then restoring it.
+2. (should-fix, bug 2) `ChoiceSectionCard.vue`'s `role="radiogroup"` wrapper now carries `aria-invalid="true"` when the choice has a validation error (read via `useAttrs()`, since `errorMessage` reaches this component through attrs fallthrough, not through its own declared props). `focus.ts`'s `firstInvalidWithin` is unchanged in what it matches, but `focusFirstInvalid` now focuses the nearest focusable descendant (`firstFocusableWithin`) when the matched invalid element is not itself focusable, landing on the group's roving tab stop card instead of nowhere. `FormWizard.vue`'s `handleNext` now calls `focusFirstInvalid` directly instead of duplicating the old focus-the-match-only logic, so the wizard's failed-Continue path gets the same fallback for free. `packages/starter/src/ChoiceSectionCard.vue`, `packages/starter/src/focus.ts`, `packages/starter/src/FormWizard.vue`.
+3. (should-fix, bug 3) `firstInvalidWithin` now skips a candidate hidden by `display: none` on itself or an ancestor. `checkVisibility()` is used where available; the actual jsdom version pinned in this workspace (26.0.0) does not implement `checkVisibility` at all, so a fallback walks the ancestor chain checking `getComputedStyle(...).display`, which correctly reads the inline `display: none` a `v-show`-hidden wizard page writes. Confirmed this fallback is necessary, not cosmetic: without it the new jsdom-based tests cannot see the bug either, since `checkVisibility` being simply absent would make the guard a no-op under this test setup. `packages/starter/src/focus.ts`.
+4. Test gap 2 (bug 1): added a case in `StarterFormTemplate.arrayRemoveFocus.logic.test.ts` mounting two separate forms with the identical array path and asserting a removal in the second form never moves focus into the first.
+5. Test gap 3 (bug 2): added a case in `StarterFormTemplate.wizard.logic.test.ts` building a two-page wizard whose first page's only field is a required explicit-choice group (`explicitChoiceMetadata`); a blocked Continue now focuses into the group's roving tab stop card. Added matching lower-level cases in `focus.logic.test.ts` (`firstInvalidWithin`/`focusFirstInvalid` against a synthetic non-focusable `aria-invalid` wrapper) and `FormWizard.logic.test.ts` (the same shape via raw slot HTML), plus a direct `ChoiceSectionCard.test.ts` case asserting the new `aria-invalid` attribute.
+6. Test gap 4 (bug 3): added cases in `focus.logic.test.ts` (a hidden and a visible invalid candidate in the same container) and `FormWizard.logic.test.ts` (the same shape inside a real wizard page, via a blocked Continue).
+7. Test gap 1 (lower priority, partially addressed): added one of the two named cases, a default-slot (`GroupField`) array in `StarterFormTemplate.arrayRemoveFocus.logic.test.ts` (new `groupArrayMetadata` fixture), confirming the remove-focus algorithm also works when the chrome is `GroupField` rather than `RepeaterCard`. The second named case (`explicitChoiceArrayMetadata`) surfaced a real, previously unverified bug outside this round's three: `handleRemoveItem`'s stripped, branch-scoped `arrayPath` (e.g. `channels.email`) never matches any element's `data-testid` for a choice-array section (only the unscoped `channels` exists), so `sectionRoot` resolves to `null` and focus is dropped entirely (lands on `document.body`) after removing a choice-array item, worse than the "last resort" fallback the Unverified questions note assumed. Left unfixed as out of this round's scope; flagging for Jeroen to decide whether it needs its own follow-up fix.
+8. Manual test gap 1 and the docs nit: left to Jeroen, as instructed.
+9. Nice-to-have (dead `announce` prop on `PasswordStrengthBar`): left to Jeroen, as instructed.
+
+Full gate set re-run after the fixes: `pnpm run ci:test` (core 973, starter 685 — up from the pre-round 672 — docs 78, all green), `pnpm run ci:lint`, `pnpm run ci:typecheck` (all three workspace packages plus the Storybook playground), and `pnpm -r ci:test:coverage` (starter 99.65/94.93/95.71/99.65, no drop against the pre-round baseline; the one new branch gap is `focus.ts`'s native `checkVisibility` call, which this jsdom version cannot exercise).
+
+### Final review (round 2)
+
+Re-audit of the branch after fix round 1. The three should-fix bugs were re-verified against the actual diff, not the fix notes; this was the second and final fix round, so everything below marked still-open goes to Jeroen.
+
+**Verdict: findings.** Round 1's three should-fix bugs are genuinely resolved. One confirmed should-fix bug remains open (surfaced by the developer during the fix round, deliberately not fixed), plus the round-1 nice-to-have, manual-test gap, and docs nit, all awaiting Jeroen.
+
+#### Round-1 findings, re-verified
+
+- **Bug 1 (cross-form focus hijack) — resolved.** `handleRemoveItem` now resolves the section via `closest()` from the triggering button, falling back to the document-wide lookup only when no element is focused. Verified load-bearing by reverting the `closest()` line and re-running `StarterFormTemplate.arrayRemoveFocus.logic.test.ts`: the two-forms test fails without it, passes with it. The fallback path (no focused trigger, e.g. a browser that does not focus buttons on click) degrades to the old behaviour, which is acceptable.
+- **Bug 2 (invalid choice group invisible to `firstInvalidWithin`) — resolved.** The `role="radiogroup"` wrapper now carries `aria-invalid="true"` when the choice has an error, and `focusFirstInvalid` falls back to `firstFocusableWithin` when the matched element is not itself focusable, landing on the group's roving tab stop card. The `useAttrs()` reactivity concern (does `aria-invalid` appear when the error arrives *after* mount?) is settled by the new end-to-end wizard test: a blocked Continue on a page whose only field is a required explicit choice produces `aria-invalid="true"` on the grid and focuses the first card. `FormWizard.handleNext` now routes through `focusFirstInvalid`, so the wizard failure path and the consumer helper share one code path.
+- **Bug 3 (hidden wizard-page fields shadowing visible invalid fields) — resolved.** `firstInvalidWithin` skips candidates hidden by `display: none` on themselves or an ancestor. Confirmed the installed jsdom 26.0.0 has no `checkVisibility` implementation at all (grep of its `lib/`), so the `getComputedStyle` ancestor-walk fallback is the path the new tests actually exercise, exactly as the fix notes claim; the native `checkVisibility` branch is the one uncovered line.
+- **Test gaps 2-4 — resolved** (two-forms case, blocked-Continue-into-choice-group case at three levels, hidden-vs-visible invalid case at two levels). **Test gap 1 — half resolved**: the `GroupField` default-slot array case was added (`groupArrayMetadata`); the choice-array case was not, because it exposes the still-open bug below.
+- **Bug 4 (dead `announce` prop), manual test gap 1, docs gap 1 — still open by instruction**, for Jeroen.
+
+#### Bugs (round 2)
+
+| # | Severity | Where | Failure scenario | Evidence | Suggested fix |
+| --- | --- | --- | --- | --- | --- |
+| 5 | should-fix (still open, deferred by the developer in fix round 1) | `StarterFormTemplate.vue`, `handleRemoveItem` | Removing a choice-array occurrence drops focus to `document.body`: the stripped `arrayPath` is branch-scoped (`channels.email`), but no element carries that `data-testid` (the section is `channels`, the items `channels.email[0]`...), so `sectionRoot` resolves to `null` and `focusAfterArrayRemove` bails out. Hand-reachable in the shipped docs examples (`FormExampleChoiceExplicitRepeatable.vue` and others with per-branch Add buttons). | Reproduced in a scratch probe test: mount `explicitChoiceArrayMetadata`, add two email occurrences, focus and click the second occurrence's remove button; `document.activeElement` ends on `BODY`, and the dumped `data-testid` list contains no `channels.email`. | When the `arrayPath` lookup finds nothing, retry with the branch segment stripped (`channels.email` → `channels`), both in the `closest()` and the fallback lookup. `removeButtonsOf` already filters by the branch-scoped pattern, so the previous-occurrence math keeps working inside the wider section, and the existing `firstFocusableWithin` last resort covers the per-branch add bar. Add the missing `explicitChoiceArrayMetadata` case to `StarterFormTemplate.arrayRemoveFocus.logic.test.ts` with the fix. |
+
+**Unverified question** (not substantiated, no action required): a `default`-shape choice (`ChoiceField`) whose only error is the group-level `xsd_choiceMinOccurs` has no `aria-invalid` carrier either (the fix covered `ChoiceSectionCard` only). This looks unreachable in practice, because a default-shape choice has no picker cards and its active branch's own fields carry their own `aria-invalid`, but it was not traced through every choice mode.
+
+#### Test gaps (round 2)
+
+1. The choice-array remove-focus case (`explicitChoiceArrayMetadata` in `StarterFormTemplate.arrayRemoveFocus.logic.test.ts`) is still missing; it belongs with the fix for bug 5 above.
+
+#### Manual test gaps (round 2)
+
+1. Round-1 manual gap 1 (no live surface for `focusFirstInvalid` on a plain non-wizard form) is still open and now also carries bug 2's fix: no docs example lets a human see focus land on a choice card when the invalid control is a required choice group (the wizard example has no choice; the checkout example has required explicit choices but no `focusFirstInvalid` wiring). Wiring `focusFirstInvalid` into `CheckoutFormExample.vue`'s submit would cover both in one place.
+2. Accepted as test-only: bug 1's two-forms-same-path scenario (an artificial edge state; a dedicated docs example would demonstrate nothing a consumer needs) and bug 3's hidden-field skip (already hand-reachable via the wizard example's `allowForwardJump` + failed submit).
+
+#### Docs gaps (round 2)
+
+None new. The fix round adds no public surface (`aria-invalid` on the radiogroup is internal chrome already covered by the guide's association guarantees). Round-1 docs gap 1 (`ChoiceOption.disabled` sentence) remains open for Jeroen.
+
+#### What was reviewed (round 2)
+
+- Same merge base (`43a5a82`); the full fix-round delta on the four fixed source files (`StarterFormTemplate.vue`, `focus.ts`, `ChoiceSectionCard.vue`, `FormWizard.vue`, each re-read in full) and all new/changed test files (`arrayRemoveFocus`, `wizard.logic`, `FormWizard.logic`, `focus.logic`, `ChoiceSectionCard`, `fixtures/metadata.ts`).
+- Verified by execution: the seven affected test files (75 passing), the full starter suite (685 passing, 81 files), `pnpm run ci:lint`, `pnpm run ci:typecheck`, the fix-1 revert check, and the bug-5 reproduction probe (both scratch artifacts removed afterwards).
+- Not redone: the round-1 full-branch audit (unchanged files), per-story AC walks, coverage baseline, docs preview build, and screenshots.
+
+### Fix round 2
+
+Second and final fix round, scoped to bug 5 and the two lower-priority gaps the round-2 review left open for a developer rather than for Jeroen.
+
+1. (should-fix, bug 5) `StarterFormTemplate.vue`'s `handleRemoveItem` now retries the section lookup with the trailing branch segment stripped (`channels.email` to `channels`) whenever the branch-scoped `data-testid` lookup finds nothing, in both the `closest()`-scoped lookup and the document-wide fallback. The branch-scoped `arrayPath` itself is unchanged and still passed on to `focusAfterArrayRemove`, so `removeButtonsOf`'s previous-occurrence matching keeps working inside the wider section, and the existing `firstFocusableWithin` last resort still covers the per-branch add bar when there is no previous occurrence to land on. `packages/starter/src/StarterFormTemplate.vue`. Verified the fix is load-bearing by reverting it and re-running the new test, which failed exactly as the round-2 reproduction described (`document.activeElement` on `BODY`), then restoring it.
+2. Test gap round 2, #1: added a case to `StarterFormTemplate.arrayRemoveFocus.logic.test.ts` mounting `explicitChoiceArrayMetadata`, adding two occurrences of the same branch through its add button, removing one, and asserting focus lands inside the section's chrome root rather than on `document.body`.
+3. Manual test gap round 2, #1: wired `focusFirstInvalid` into `docs/.vitepress/theme/components/CheckoutFormExample.vue`'s submit handler, following the same pattern `FormExampleWizard.vue` already uses (a `formRoot` template ref on the `<form>`, `handleSubmit(onValid, onInvalid)` calling `focusFirstInvalid(formRoot.value)` on a failed submit). The checkout example's top-level "How would you like to check out?" choice is a required explicit choice group, so a human can now submit the checkout form empty and see focus land on that group's first card, giving the gap a real, hand-reachable docs example instead of only test coverage.
+4. Left open for Jeroen, as instructed: bug 4 (the dead `announce` prop on `PasswordStrengthBar`) and docs gap 1 (the `ChoiceOption.disabled` sentence).
+
+Full gate set re-run after the fixes: `pnpm run ci:test` (core 973, starter 686, up from round 1's 685, docs 78, all green), `pnpm run ci:lint`, `pnpm run ci:typecheck` (all three workspace packages plus the Storybook playground and `docs/` directly), and `pnpm run ci:test:coverage` (core unchanged at 98.47/92.93/98.37/98.47; starter 99.65/94.78/97.18/99.65, statements and lines unchanged against round 1's baseline, functions up, branches essentially flat; the single remaining gap in `StarterFormTemplate.vue` is the same last-resort `firstFocusableWithin` fallback line that was already uncovered before this round, not a new one the fix introduced). `pnpm docs:build` succeeds against the changed `CheckoutFormExample.vue`; `docs/` typecheck and lint were also run directly and are clean.
+
+### Final review (round 3)
+
+Final confirmation audit after fix round 2, the second and last fix round for this feature. Scope: the fix-round-2 delta only (`StarterFormTemplate.vue`'s branch-segment-stripped section lookup, the new choice-array case in `StarterFormTemplate.arrayRemoveFocus.logic.test.ts`, and `CheckoutFormExample.vue`'s `focusFirstInvalid` wiring). The rest of the branch is unchanged since the round 2 audit and was not re-walked.
+
+**Verdict: clean.** Bug 5 is genuinely resolved, the fix delta introduces no new bugs, and both manual-test gaps are closed by the checkout wiring. Everything still open is listed at the end for Jeroen; nothing left qualifies for a further fix round.
+
+#### Round-2 findings, re-verified
+
+- **Bug 5 (choice-array remove drops focus to `document.body`): resolved.** `handleRemoveItem` retries the section lookup with the trailing branch segment stripped (`channels.email` to `channels`), in both the `closest()`-scoped lookup and the document-wide fallback, while `focusAfterArrayRemove` still receives the branch-scoped path, so `removeButtonsOf`'s occurrence math stays branch-filtered inside the wider section. Verified three ways. (1) An independent revert check: removing only the retry expression makes exactly the new choice-array test fail (`document.activeElement` on `BODY`) and nothing else; restoring it leaves the file byte-identical and the suite green. (2) The committed test covers the previous-occurrence branch (removing occurrence 1 of 2 keeps focus inside the `channels` section). (3) A scratch probe for the branch the test does not pin down, removing a branch's sole occurrence, lands on that branch's own add-bar button (`channels-add-email`), the designed `firstFocusableWithin` last resort and arguably the ideal target; probe removed afterwards. The retry also cannot regress the plain shapes: a dot-less top-level array skips the retry entirely (`unscopedArrayPath === arrayPath`), a nested regular array matches its own branch-scoped testid first so the retry never runs, and if it ever did run, the branch-filtered button pattern keeps the focus math correct inside the wider root.
+- **Test gap round 2, #1: resolved.** The `explicitChoiceArrayMetadata` case is in `StarterFormTemplate.arrayRemoveFocus.logic.test.ts` (ten cases, all passing). One non-actionable nit: the assertion is containment (inside the section, not body) rather than pinning the exact target button, but the revert check proves it fails without the fix, so it does its job.
+- **Manual test gaps round 2, #1 and round 1, #1: both resolved by one change.** `CheckoutFormExample.vue`, embedded on `docs/examples/checkout.md`, now calls `focusFirstInvalid(formRoot.value)` from its `handleSubmit` failure path, same pattern as the wizard example. The checkout form is itself a plain non-wizard form with its own submit button, so this closes round 1's "no live surface for `focusFirstInvalid` on a non-wizard form" and round 2's "no example shows focus landing on a choice card" in one place. Chain verified end to end in code: the checkout template wraps `StarterFormTemplate`, so the required "How would you like to check out?" explicit choice renders `ChoiceSectionCard` with the round-1 `aria-invalid` fix, and `focusFirstInvalid` falls through to the group's roving tab stop card; the helper is a safe no-op when the ref is unset; the submit wrapper still forwards the event so `preventDefault` fires; and the docs' linked starter dist exports `focusFirstInvalid` (symlink to `packages/starter`, export present in the built bundle). A human can open the checkout example, submit it empty, and watch focus land on the first choice card.
+
+#### Bugs (round 3)
+
+None. A hostile pass over the fix delta found no new defects.
+
+#### Test gaps (round 3)
+
+None (the containment-assertion nit above is noted, not actionable).
+
+#### Manual test and docs gaps (round 3)
+
+None new. `CheckoutFormExample.vue` is example code under `docs/.vitepress/`, which does not count as documentation, but it was closing a manual-test gap (a hand-reachable surface), not a docs gap, so no prose change was owed for it.
+
+#### What was reviewed (round 3)
+
+- Same merge base (`43a5a82`). The fix-round-2 delta read in full with context: `StarterFormTemplate.vue`'s whole script region around `handleRemoveItem`, the complete `StarterFormTemplate.arrayRemoveFocus.logic.test.ts`, and the `CheckoutFormExample.vue` diff plus `focus.ts` and `CheckoutFormTemplate.vue` as its consumers.
+- Verified by execution: the remove-focus test file (10 passing), the full starter suite (686 passing, 81 files), eslint on the three changed files (starter and docs configs, clean), the independent revert check, and the sole-occurrence scratch probe (all scratch artifacts removed).
+- Not redone: rounds 1 and 2's full-branch audit (no other file changed since), per-story AC walks, the coverage baseline and docs build (developer-reported green in Fix round 2; the only docs change this round is example code), and screenshots.
+
+#### Open for Jeroen (final)
+
+Both fix rounds are used; these are the only items still open, all previously reported, none a blocker:
+
+1. **Bug 4 (nice-to-have):** the dead `announce` prop on `PasswordStrengthBar.vue`. Declared, defaulted, documented, and passed by the template, but never read; the behaviour is driven entirely by the exposed `announce()` method. Drop it or read it.
+2. **Docs gap 1 (nice-to-have):** one sentence in `docs/guide/starter-template.md` stating that `disabled` on a choice branch (`ChoiceOption.disabled`) greys out its card and removes it from the arrow-key rotation.
+3. **Round-2 unverified question, unchanged:** whether a `default`-shape choice can ever surface a group-level-only error with no `aria-invalid` carrier (believed unreachable in practice).
+
+The feature is otherwise ready for Jeroen's final call. The remaining pre-push steps (screenshots, coverage check against main, Cloudflare preview) are the standard workflow, not findings.

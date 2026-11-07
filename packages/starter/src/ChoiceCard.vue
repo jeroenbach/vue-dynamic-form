@@ -5,9 +5,13 @@ export interface Props {
   selected?: boolean
   disabled?: boolean
   dataTestid?: string
+  /** Roving tabindex seat: the group keeps exactly one card at `0`, every other card at `-1`. */
+  tabindex?: number
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  tabindex: 0,
+});
 defineEmits<{ select: [] }>();
 </script>
 
@@ -18,9 +22,12 @@ defineEmits<{ select: [] }>();
     :data-testid="dataTestid"
     :aria-checked="selected"
     :disabled="disabled"
+    :tabindex="tabindex"
     class="sft-choice-card"
     :class="{ 'is-selected': selected, 'is-disabled': disabled }"
     @click="$emit('select')"
+    @keydown.space.prevent="$emit('select')"
+    @keydown.enter.prevent="$emit('select')"
   >
     <div class="sft-choice-body">
       <span class="sft-choice-radio">

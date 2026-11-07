@@ -24,7 +24,7 @@ const valueExports = collect(/export\s*\{([^}]+)\}\s*from/g).sort();
 const typeExports = collect(/export\s+type\s*\{([^}]+)\}\s*from/g).sort();
 
 describe('public api surface matches the architecture exactly', () => {
-  it('exports exactly the nine runtime values', () => {
+  it('exports exactly the ten runtime values', () => {
     expect(valueExports).toEqual([
       'AppButton',
       'ChoiceArraySectionCard',
@@ -33,6 +33,7 @@ describe('public api surface matches the architecture exactly', () => {
       'StarterIcon',
       'SubmissionSuccess',
       'extendMetadata',
+      'focusFirstInvalid',
       'starterIconNames',
       'starterMetadata',
     ].sort());

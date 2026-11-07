@@ -2,7 +2,7 @@
 id: ST-02
 type: story
 feature: FEAT-011
-status: approved
+status: done
 approved_by: Jeroen
 pr: ""
 ---
@@ -140,3 +140,62 @@ STORY mode (lite): blockers first, with should-fixes routed as `PROPOSED (advers
 3. **(should-fix) Superseded heading-focus CSS shipped; the `[data-page]` container ring is omitted.** The story reproduces the prototype's `.sft-wizard-title`/`.sft-section-title:focus-visible` rings, but the feature's Open-question-2 decision superseded the heading target: focus moves to the `[data-page]` container, and the feature states "the heading-focus ring styling carries over to the container instead." That container (`StarterFormTemplate.vue:574`) has no `.sft-*` class and gets no ring from this story, so ST-04's container focus would be invisible while the heading rules sit dead. The story's claim "no delta left open" is therefore not met. Resolution routed as a `PROPOSED` edit into the Architecture reference.
 
    `DECIDED (Jeroen)`: accepted as proposed. The Architecture reference now ships the `[data-page]:focus-visible` ring and drops the superseded heading rules.
+
+## Implementation notes
+
+Pure `style.scss` delta, exactly as scoped. Summary of the edit:
+
+- Two new tokens, `--sft-focus-visible` and `--sft-focus-visible-choice`, added next to the existing sky/indigo accent tokens on `:root`, with dark-mode values re-declared under `:root.dark` (the file's established convention for every other theme token; no reopened `:root` block was needed).
+- `.sft-sr-only` and the genuinely new `:focus-visible` rules (password toggle, shared `.sft-btn`, stepper dot, `[data-page]` container) live under one `FEAT-011 ADDITIONS` comment banner near the end of the file, right before the grid-utility loops.
+- The three pre-existing focus rules findings 2/3 required (input/select border-color, switch-track outline, the primary-button double ring) were edited in place next to where they already lived, not shadowed by a new rule. The choice-card ring (`.sft-choice-card:focus-visible`) was also edited in place, since AC1 requires the indigo token there even though finding 2 only named three rules explicitly.
+- No `.sft-wizard-title:focus-visible` / `.sft-section-title:focus-visible` rules exist in the shipped stylesheet (they never did); the architecture's "drop the superseded heading rules" direction is satisfied by never adding them, in favor of `[data-page]:focus-visible`.
+
+Deviations:
+- **No changeset added.** CLAUDE.md's general rule asks for one whenever `packages/starter/src` changes, but the feature spec explicitly assigns the feature's single changeset to ST-06 ("carries the feature's single changeset as the last story to change shipped runtime behavior"), and this story's own text does not call for one. Following the feature's explicit batching decision over the general rule.
+- **Test helpers duplicated, not imported.** `focusVisible.test.ts` reimplements small `blocksOf`/`variableIn`-shaped helpers rather than importing the non-exported consts of the same name from `themeScope.test.ts`, since those aren't exported and extracting them to a shared module was out of this story's scope. `blocksOf` is more robust than the existing pattern (it tolerates sass-embedded's line breaks after a selector comma, and it concatenates every matching block instead of only the first, which the two-token check needed since `--sft-focus-visible*` keeps being redeclared under later `:root.dark` content as the file grows).
+- **`prototypeParity.test.ts`'s new fixture slice.** The prototype's own explanatory header comment also contains the literal string "FEAT-011 ADDITIONS", so the extension slices from `lastIndexOf`, not `indexOf`, to land on the actual banner at the bottom of the file (line 345), not the top-of-file mention (line 12).
+
+Verification performed:
+- `pnpm run ci:test`, `pnpm run ci:lint`, `pnpm run ci:typecheck` (root `pnpm ci` is shadowed by pnpm's built-in command) all pass across `packages/core`, `packages/starter`, and `docs`.
+- `TZ=Europe/Amsterdam pnpm -r ci:test:coverage` passes with no coverage drop (`style.scss` is not instrumented; the new/extended test files are test code, not covered code).
+- Playwright screenshots (docs dev server, built against the freshly-built `packages/core`/`packages/starter` `dist/`) confirm the password-reveal button, a stepper dot, a primary button, an `.sft-input`, and a choice card all paint a visible keyboard-focus ring in both light and dark mode, and that the choice-card ring (indigo) and the input/button ring (sky) are visibly distinct accent families side by side, matching the edge case in the Functional section.
+
+Verification command for Jeroen: `cd packages/starter && npx vitest run src/__tests__/focusVisible.test.ts src/__tests__/prototypeParity.test.ts`, plus `pnpm run ci:test` / `ci:lint` / `ci:typecheck` and `TZ=Europe/Amsterdam pnpm -r ci:test:coverage` from the repo root.
+
+## Verification report
+
+### Pipeline checks
+- `pnpm run ci:test` (all three packages): 73 test files / 568 tests pass in `packages/starter` (includes `focusVisible.test.ts`, 28 tests, and the extended `prototypeParity.test.ts`, 122 tests); `packages/core` and `docs` suites unaffected and green.
+- `pnpm run ci:lint`: clean across `packages/core` and `packages/starter`.
+- `pnpm run ci:typecheck`: clean across `packages/core`, `packages/starter`, and `playgrounds/storybook`.
+- `TZ=Europe/Amsterdam pnpm -r ci:test:coverage`: 568 tests pass; `packages/starter` overall 99.68% statements / 94.17% branch / 95% functions. `style.scss` is not instrumented (confirmed, no `.ts`/`.vue` source changed besides the two test files), so there is no coverage-impacting source change in this story and no drop versus baseline.
+- `docs/` content did not change in this story, so `pnpm docs:build` was not required; skipped per the gate-check instructions.
+
+### Acceptance criteria
+
+| AC | Verdict | Evidence |
+| --- | --- | --- |
+| 1. Every control shows the correct, scoped focus treatment (outline group / input-select / choice-card split) | Pass | `style.scss` diff: `.sft-password-toggle:focus-visible`, `.sft-btn:focus-visible`, `.sft-step:focus-visible .sft-step-dot`, `.sft-switch:focus-visible .sft-switch-track` all use `outline: 2px solid var(--sft-focus-visible)` (2px offset, 3px on the step dot). `.sft-input:focus`/`.sft-select:focus` kept as plain `:focus`, sets `border-color`+`box-shadow`, no outline. `.sft-choice-card:focus-visible` sets `box-shadow: 0 0 0 2px var(--sft-focus-visible-choice)`, no outline. Confirmed by `focusVisible.test.ts`'s full suite and by my own Playwright screenshots (input, password toggle, choice card, stepper dot, `[data-page]`, primary button) in both light and dark mode against the rebuilt `dist/style.css` served through the docs site. |
+| 2. Two tokens, correctly scoped | Pass | `:root` declares `--sft-focus-visible: #0084d1` / `--sft-focus-visible-choice: #4f39f6`; `:root.dark` redeclares `#38bdf8` / `#a3b3ff`. `focusVisible.test.ts`'s `it.each` pins the exact values; a second test confirms only `.sft-choice-card` references the choice token and every other site references the sky token. |
+| 3. Light-mode contrast corrections meet 3:1 | Pass (manual, as scoped) | Not CI-testable per the story's own untestable-criteria note (jsdom has no color-math engine). Token values match the prototype's stated corrected hex codes exactly (pinned by AC2's test); visually confirmed both rings read as a solid, clearly visible outline against the white card in my screenshots. |
+| 4. Dark mode needs no overrides beyond the two tokens | Pass | `focusVisible.test.ts`'s "dark mode needs no overrides" suite asserts no `:root.dark <selector>` block exists for any of the seven touched selectors; manual diff of `style.scss` confirms every corrected/new rule references `var(--sft-*)` only. Dark-mode screenshots (input, password toggle, choice card, stepper, `[data-page]`, primary button) all render the same ring, just the dark-mode token color. |
+| 5. `.sft-sr-only` exists, visually hidden but accessible | Pass | `position: absolute`, zero-size clip (`width/height: 1px`, `clip: rect(0 0 0 0)`, `overflow: hidden`), no `display:none`/`visibility:hidden`. Confirmed by `focusVisible.test.ts`'s `.sft-sr-only` suite and by direct inspection of the compiled CSS. |
+| 6. `prototypeParity.test.ts` stays green with the new block present | Pass | Extended `describe('stylesheet covers the FEAT-011 focus-visible CSS delta')` passes; it slices the prototype's `FEAT-011 ADDITIONS` banner via `lastIndexOf` (correctly skipping the unrelated top-of-file mention) and asserts every class/token exists in the shipped stylesheet. |
+
+### Prototype comparison
+Rebuilt `packages/core` and `packages/starter` (`dist/` was briefly stale from an earlier build; rebuilding and restarting the VitePress dev server, consistent with the known linked-dist-staleness pitfall, was required before screenshots reflected the real change). Took Playwright screenshots against the docs site (`examples/validation.html`, `examples/choices.html`, `examples/wizard.html`) in both light and dark mode for: text input focus, the password reveal toggle (previously had no focus style at all — now shows a clear ring), a choice card (indigo ring, visibly distinct accent family from the sky input/button ring, satisfying the edge case), the stepper dot (sky ring outside the pre-existing pale "is-current" halo), the `[data-page]` wizard container (new 4px-offset ring, confirming finding 3's resolution renders), and the primary "Continue" button (single ring, confirming the double-ring regression from finding 2 is gone). All matched the prototype's painted rings and the feature's states policy; no visual drift found.
+
+One investigation note for the record, not a defect: an early automated screenshot of the stepper dot, taken via a synchronous `element.focus()` immediately followed by a screenshot with no settle delay, appeared to show no ring. Root-caused to `.sft-step-dot`'s own pre-existing `transition: all .2s ease` animating the newly-applied `outline-color`/`outline-width` from their pre-focus (no-outline) state; the style's `outline-style` flips to `solid` instantly (a discrete property) while width/color are still interpolating at t≈0, producing a transient, misleading computed style. A settle delay (or a real keyboard `Tab`, confirmed in isolation) resolves to exactly the authored `2px solid var(--sft-focus-visible)`, offset 3px. The shipped CSS is correct; this was purely an artifact of my verification method.
+
+### Process compliance
+- `specs/components.md`: updated with an accurate paragraph describing `.sft-sr-only`, the two new tokens (values, scope, which selectors consume which token), and the three corrected/replaced focus colors (input/select border, switch track outline, primary button double-ring removal).
+- Changeset: none added, correctly. The feature spec explicitly assigns the feature's single changeset to ST-06; `.changeset/` contains no new `.md` file, matching the story's stated deviation and rationale.
+- No undocumented spec deviations found. The two documented deviations (no changeset; test helpers duplicated rather than imported from `themeScope.test.ts`) are both reasoned and scoped correctly.
+- No new exports, no `packages/core` change, no library-API-rule violations; this is a pure `style.scss` delta as scoped.
+- Test naming: `focusVisible.test.ts` is a plain `*.test.ts` (no `.vue` render, no `computedProps`, no vee-validate wiring), matching the story's own QA-plan rationale for skipping `.logic`/`.validation`/`.analytics` suffixes.
+
+### Verdict: pass
+
+No issues found. Status set to `done`. This is not the feature's last open story (ST-03 through ST-08 remain), so FEAT-011 stays `in-progress`.
+
+Reminder for Jeroen: link the PR in this story's `pr:` frontmatter field once opened.

@@ -51,6 +51,10 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   --sft-accent-hover: #0069a8;
   --sft-focus-border: #00a6f4;
   --sft-focus-ring: #b8e6fe;
+  /* keyboard focus indicator for inputs, selects, buttons, toggle, stepper
+     and the password toggle; chosen to clear the 3:1 non-text-contrast bar
+     against a white card (the shipped --sft-focus-border does not) */
+  --sft-focus-visible: #0084d1;
 
   /* choice accent (indigo) */
   --sft-choice: #4f39f6;
@@ -58,6 +62,9 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   --sft-choice-ring: #a3b3ff;
   --sft-choice-grad-top: #eef2ff;
   --sft-choice-grad-bottom: #ffffff;
+  /* keyboard focus indicator for choice cards only, kept separate from
+     --sft-focus-visible so the two accent families stay visually distinct */
+  --sft-focus-visible-choice: #4f39f6;
 
   /* accent pill (indigo soft) - intentionally identical in both modes */
   --sft-pill-bg: #eef2ff;
@@ -104,6 +111,11 @@ $breakpoint-lg: 1024px; // widest grid utility tier
      variant for the resting input border. Preserved as a faithful port. */
   --sft-input-disabled-bg: #1d293d;
   --sft-input-disabled-text: #90a1b9;
+
+  /* dark mode can run a brighter ring: the near-black card gives plenty of
+     headroom (8:1+), so these are not the same values as the light tokens */
+  --sft-focus-visible: #38bdf8;
+  --sft-focus-visible-choice: #a3b3ff;
 
   /* no dark variant in the source: the choice-card hover border stays indigo-300 in both modes */
   --sft-choice-grad-top: #1e1a4d;
@@ -353,7 +365,9 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 
   &:focus {
     outline: none;
-    border-color: var(--sft-focus-border);
+    /* --sft-focus-border fails the 3:1 non-text-contrast bar on a white card;
+       the focus state uses the corrected --sft-focus-visible token instead */
+    border-color: var(--sft-focus-visible);
     box-shadow: 0 0 0 2px var(--sft-focus-ring);
   }
 
@@ -426,7 +440,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 
   &:focus {
     outline: none;
-    border-color: var(--sft-focus-border);
+    border-color: var(--sft-focus-visible);
     box-shadow: 0 0 0 2px var(--sft-focus-ring);
   }
 
@@ -526,7 +540,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 }
 .sft-radio-input:focus-visible + .sft-radio-control {
-  outline: 2px solid var(--sft-focus-border);
+  outline: 2px solid var(--sft-focus-visible);
   outline-offset: 2px;
 }
 /* invalid: the resting circles pick up the danger border, and a focused
@@ -582,7 +596,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 }
 .sft-file-trigger:focus-within {
   outline: none;
-  border-color: var(--sft-focus-border);
+  border-color: var(--sft-focus-visible);
   box-shadow: 0 0 0 2px var(--sft-focus-ring);
 }
 .sft-file-name {
@@ -750,6 +764,11 @@ $breakpoint-lg: 1024px; // widest grid utility tier
     opacity: 0.6;
   }
 }
+/* Groups the label, description, and error together as one flex item, so the
+   switch itself keeps its place as the second, right-aligned column. */
+.sft-switch-field-text {
+  display: block;
+}
 .sft-switch-field-label {
   font-size: 14px;
   line-height: 20px;
@@ -775,12 +794,13 @@ $breakpoint-lg: 1024px; // widest grid utility tier
     opacity: 0.5;
   }
 
-  /* keyboard focus ring on the track (matches the source's peer-focus-visible outline) */
+  /* keyboard focus ring on the track, routed through the shared focus token
+     so light mode clears the 3:1 contrast bar (the shipped hardcoded color did not) */
   &:focus-visible {
     outline: none;
 
     .sft-switch-track {
-      outline: 2px solid #00a6f4;
+      outline: 2px solid var(--sft-focus-visible);
       outline-offset: 2px;
     }
   }
@@ -876,12 +896,8 @@ $breakpoint-lg: 1024px; // widest grid utility tier
     background: var(--sft-accent-hover);
   }
 
-  &:focus-visible {
-    outline: none;
-    box-shadow:
-      0 0 0 2px #fff,
-      0 0 0 4px #74d4ff;
-  }
+  /* no rule here: the shared .sft-btn:focus-visible outline below covers every
+     button variant, including this one; a second ring here would double up */
 }
 .sft-btn-danger {
   border: 1px solid #ffc9c9;
@@ -1060,17 +1076,23 @@ $breakpoint-lg: 1024px; // widest grid utility tier
     opacity: 0.5;
   }
 
+  /* an offset outline instead of a box-shadow ring: arrow keys select the
+     card they land on, so the focused card is usually also the selected one.
+     The outline sits outside the card with a gap, so it reads as a separate
+     keyboard cursor instead of a thicker selected border.
+     --sft-choice-ring is the pale hover color and fails the 3:1 contrast
+     bar on a white card; the outline uses the stronger choice token */
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--sft-choice-ring);
+    outline: 2px solid var(--sft-focus-visible-choice);
+    outline-offset: 2px;
   }
 
+  /* selection is carried by the colored border, gradient and radio dot; no
+     extra ring, so only keyboard focus ever paints one */
   &.is-selected {
     border-color: var(--sft-choice);
     background: var(--sft-card-bg) linear-gradient(to bottom, var(--sft-choice-grad-top), var(--sft-choice-grad-bottom));
-    box-shadow:
-      0 0 0 1px var(--sft-choice),
-      var(--sft-card-shadow);
+    box-shadow: var(--sft-card-shadow);
   }
 }
 .sft-choice-body {
@@ -1637,6 +1659,71 @@ $breakpoint-lg: 1024px; // widest grid utility tier
     color: var(--sft-text-subtle);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
+}
+
+/* =========================================================================
+   FEAT-011 ADDITIONS
+   A screen-reader-only utility and the :focus-visible rules for controls
+   that had no keyboard focus style before. The two new focus tokens
+   (--sft-focus-visible, --sft-focus-visible-choice) are declared with every
+   other theme token on :root/:root.dark near the top of this file, not
+   repeated here. Edits to focus rules that already shipped (the
+   input/select border color, the switch track outline, the primary button
+   ring, the choice-card ring) live next to the rule they correct, above;
+   only genuinely new rules are grouped here.
+   ========================================================================= */
+
+/* Hides content visually while keeping it in the accessibility tree: no
+   display:none or visibility:hidden, both of which a screen reader skips too. */
+.sft-sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* password reveal button: was keyboard-unreachable (tabindex="-1") and had no
+   focus style at all; now a normal tab stop with a visible ring */
+.sft-password-toggle:focus-visible {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 2px;
+}
+
+/* every button variant (Add / Remove / Back / Continue / Submit): one shared
+   ring, so a button that previously had no focus style gets one too */
+.sft-btn:focus-visible {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 2px;
+}
+
+/* file-input clear button: a plain icon button outside the .sft-btn family,
+   so it needs its own ring to be findable by keyboard */
+.sft-file-clear:focus-visible {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 2px;
+}
+
+/* stepper step buttons: native buttons, but no focus style before */
+.sft-step:focus-visible {
+  outline: none;
+}
+.sft-step:focus-visible .sft-step-dot {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 3px;
+}
+
+/* wizard page container: the landing target focus moves to on step change.
+   Not an interactive control, so the ring only ever shows when focus is
+   moved there programmatically (tabindex="-1"), never from a click. */
+[data-page]:focus-visible {
+  outline: 2px solid var(--sft-focus-visible);
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 /* ---- grid utility classes ------------------------------------------- */

@@ -54,6 +54,17 @@ export const explicitChoiceMetadata = {
   choice: launchBranches,
 };
 
+/** Same as `explicitChoiceMetadata`, but the middle branch is disabled via real field metadata, not the section-wide prop. */
+export const explicitChoiceWithDisabledBranchMetadata = {
+  name: 'launch',
+  type: 'heading',
+  fieldOptions: { label: 'Launch approach' },
+  description: 'How do you want to go live?',
+  explicitChoiceSelection: true,
+  choicePicker: { show: true },
+  choice: launchBranches.map(branch => branch.name === 'guided' ? { ...branch, disabled: true } : branch),
+};
+
 /** Explicit, repeatable: one Add button per branch, each capped independently via maxOccursTotal. */
 export const explicitChoiceArrayMetadata = {
   name: 'channels',

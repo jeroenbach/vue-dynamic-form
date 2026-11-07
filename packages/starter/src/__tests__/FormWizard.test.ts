@@ -1,7 +1,9 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
+import { h } from 'vue';
 
 import FormWizard from '@/FormWizard.vue';
+import { expectNoAxeViolations } from './helpers/axe';
 
 const baseProps = {
   currentStepIndex: 0,
@@ -100,5 +102,17 @@ describe('component FormWizard', () => {
     });
 
     expect(wrapper.find('.sft-wizard-alert').exists()).toBe(false);
+  });
+
+  describe('accessibility', () => {
+    it('has no violations in the default step-1 render', async () => {
+      const wrapper = mount(FormWizard, {
+        props: { ...baseProps, title: 'Client Onboarding', subTitle: 'Your profile', steps: [{ title: 'One' }, { title: 'Two' }] },
+        slots: { default: () => h('div', { 'data-page': '0' }, [h('label', { for: 'field0' }, 'Field 1'), h('input', { id: 'field0' })]) },
+        attachTo: document.body,
+      });
+
+      await expectNoAxeViolations(wrapper.element);
+    });
   });
 });

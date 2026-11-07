@@ -28,6 +28,11 @@ export function isDisabled(element: { attributes: (name: string) => string | und
   return element.attributes('disabled') !== undefined;
 }
 
+/** `DOMWrapper<Element>.element` is typed as the base DOM `Element`, which has no `focus()`. */
+export function focusElement(wrapper: { element: Element }) {
+  (wrapper.element as HTMLElement).focus();
+}
+
 export async function click(wrapper: { trigger: (event: string) => Promise<unknown> }) {
   await wrapper.trigger('click');
   await flushPromises();

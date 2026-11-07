@@ -6,9 +6,11 @@ export interface RadioOption {
 
 export interface Props {
   // Sourced from the field path, the same way TextInput/SelectInput/PasswordInput receive it.
-  // Applied to the first option's native id (so the field label associates with a real
-  // element) and to every option's native name (so the browser groups them for single
-  // selection and arrow-key navigation). One prop, two jobs.
+  // Applied to the group element's own id and to every option's native name (so the browser
+  // groups them for single selection and arrow-key navigation). It is never an option's id:
+  // each radio already has its wrapping option label, and a field-level `label for` pointing
+  // at one of them would give that radio two labels. The field label names the whole group
+  // through aria-labelledby instead (passed through by the template as a plain attribute).
   id?: string
   value?: string
   options?: RadioOption[]
@@ -29,6 +31,7 @@ defineEmits<{
 
 <template>
   <div
+    :id="id"
     role="radiogroup"
     :data-testid="dataTestid"
     class="sft-radio-group"
@@ -36,13 +39,12 @@ defineEmits<{
     :aria-invalid="!!errorMessage"
   >
     <label
-      v-for="(option, index) in options"
+      v-for="option in options"
       :key="option.key"
       class="sft-radio-option"
       :class="{ 'is-selected': value === option.key, 'is-disabled': disabled }"
     >
       <input
-        :id="index === 0 ? id : undefined"
         type="radio"
         class="sft-radio-input"
         :name="id"

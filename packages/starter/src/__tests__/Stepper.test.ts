@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import Stepper from '@/Stepper.vue';
+import { expectNoAxeViolations } from './helpers/axe';
 
 const steps = [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }];
 
@@ -13,6 +14,14 @@ describe('component Stepper', () => {
 
     await wrapper.findAll('button')[0].trigger('click');
     expect(wrapper.emitted('goto')).toEqual([[0]]);
+  });
+
+  it('gives every step label a real id even when no dataTestid or stepLabelIdPrefix is given', () => {
+    const wrapper = mount(Stepper, { props: { steps, currentStep: 1 } });
+
+    const ids = wrapper.findAll('.sft-step-label').map(label => label.attributes('id'));
+    expect(ids.every(id => !!id)).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('marks only the clicked step as clickable when forward jumps are disabled', () => {
@@ -48,5 +57,13 @@ describe('component Stepper', () => {
     expect(button.classes()).not.toContain('is-error');
     expect(button.attributes('aria-invalid')).toBeUndefined();
     expect(button.attributes('aria-label')).toBe('Step 2: Two');
+  });
+
+  describe('accessibility', () => {
+    it('has no violations in the default render', async () => {
+      const wrapper = mount(Stepper, { props: { steps, currentStep: 1 }, attachTo: document.body });
+
+      await expectNoAxeViolations(wrapper.element);
+    });
   });
 });

@@ -13,6 +13,7 @@ describe('package readme', () => {
       '## Bare usage',
       '## Overriding a control',
       '## Icons',
+      '## Accessibility',
       '## Customization guidance',
     ];
     for (const heading of headings)
@@ -37,5 +38,10 @@ describe('package readme', () => {
 
   it('lists the file-input slot among the supported input slots', () => {
     expect(readme).toContain('file-input');
+  });
+
+  it('states that every control is keyboard-operable with no opt-out', () => {
+    expect(readme).toContain('full keyboard operability');
+    expect(readme).toContain('with no setting to turn it off');
   });
 });

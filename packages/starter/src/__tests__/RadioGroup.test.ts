@@ -29,15 +29,29 @@ describe('component RadioGroup', () => {
     expect(wrapper.findAll('.sft-radio-option')).toHaveLength(0);
   });
 
-  it('shares one name across every option and gives only the first option a native id', () => {
+  it('shares one name across every option and puts the id on the group, never on an option', () => {
     const wrapper = mount(RadioGroup, { props: { id: 'contactMethod', options } });
 
     const inputs = wrapper.findAll('input[type="radio"]');
-    for (const input of inputs)
+    for (const input of inputs) {
       expect(input.attributes('name')).toBe('contactMethod');
+      // An option id would associate a field-level `label for` with that one radio, giving it
+      // a second label on top of its own option label.
+      expect(input.attributes('id')).toBeUndefined();
+    }
 
-    expect(inputs[0].attributes('id')).toBe('contactMethod');
-    expect(inputs[1].attributes('id')).toBeUndefined();
+    expect(wrapper.find('.sft-radio-group').attributes('id')).toBe('contactMethod');
+  });
+
+  it('passes aria-labelledby and aria-describedby through to the radiogroup element', () => {
+    const wrapper = mount(RadioGroup, {
+      props: { id: 'contactMethod', options },
+      attrs: { 'aria-labelledby': 'contactMethod-label', 'aria-describedby': 'contactMethod-desc' },
+    });
+
+    const group = wrapper.find('.sft-radio-group');
+    expect(group.attributes('aria-labelledby')).toBe('contactMethod-label');
+    expect(group.attributes('aria-describedby')).toBe('contactMethod-desc');
   });
 
   it('derives the checked option from the value prop, never from local state', async () => {

@@ -13,6 +13,7 @@ const expectedDevDependencyKeys = [
   '@vitejs/plugin-vue',
   '@vitest/coverage-v8',
   '@vue/test-utils',
+  'axe-core',
   'eslint',
   'eslint-plugin-format',
   'jsdom',

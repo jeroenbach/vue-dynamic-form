@@ -59,3 +59,48 @@ describe('stylesheet covers the file-input prototype section\'s class inventory'
     expect(existsInStylesheet(className)).toBe(true);
   });
 });
+
+const feat011PrototypePath = path.join(packageDirectory, '../../specs/archive/FEAT-011-starter-accessibility/prototype.html');
+const feat011Prototype = readFileSync(feat011PrototypePath, 'utf8');
+const feat011StyleBlock = /<style>([\s\S]*?)<\/style>/.exec(feat011Prototype)?.[1] ?? '';
+// "FEAT-011 ADDITIONS" also names the file's own explanatory header comment, so the LAST
+// occurrence (the actual banner marking the design delta) is the one that bounds the slice.
+const feat011Additions = feat011StyleBlock.slice(feat011StyleBlock.lastIndexOf('FEAT-011 ADDITIONS'));
+
+// The prototype's heading-focus rings and the `.demo-focus` static stand-in are superseded by
+// the shipped [data-page] container ring and are never meant to exist in the real stylesheet.
+const supersededFeat011Classes = new Set(['sft-wizard-title', 'sft-section-title']);
+
+function existsInStylesheetUnlessDemoOnly(token: string) {
+  if (token.startsWith('demo-focus'))
+    return true;
+  return existsInStylesheet(token);
+}
+
+function variableTokensIn(source: string) {
+  const tokens = new Set<string>();
+  for (const match of source.matchAll(/(--sft-[\w-]+):/g))
+    tokens.add(match[1]);
+  return [...tokens];
+}
+
+describe('stylesheet covers the FEAT-011 focus-visible CSS delta', () => {
+  const additionClasses = classTokensIn(feat011Additions).filter(token => !supersededFeat011Classes.has(token));
+  const additionVariables = variableTokensIn(feat011Additions);
+
+  it('extracts a non-empty class inventory from the prototype addition', () => {
+    expect(additionClasses.length).toBeGreaterThan(0);
+  });
+
+  it.each(additionClasses)('ships an equivalent rule for %s', (className) => {
+    expect(existsInStylesheetUnlessDemoOnly(className)).toBe(true);
+  });
+
+  it.each(additionVariables)('declares %s on both :root and :root.dark', (name) => {
+    const escaped = name.replace(/-/g, '\\-');
+    const rootPattern = new RegExp(`:root\\s*\\{[^}]*${escaped}:`);
+    const darkPattern = new RegExp(`:root\\.dark\\s*\\{[^}]*${escaped}:`);
+    expect(stylesheet).toMatch(rootPattern);
+    expect(stylesheet).toMatch(darkPattern);
+  });
+});

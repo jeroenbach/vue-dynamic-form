@@ -3,7 +3,8 @@ import type { Component } from 'vue';
 import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import { flushPromises, mount } from '@vue/test-utils';
 import { vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, ref } from 'vue';
+import { focusFirstInvalid } from '@/focus';
 import StarterFormTemplate from '@/StarterFormTemplate.vue';
 
 type Wrapper = VueWrapper<any>;
@@ -12,10 +13,12 @@ interface MountWizardFormOptions {
   template?: Component
   settings?: Record<string, unknown>
   initialValues?: Record<string, unknown>
+  /** Wires handleSubmit's invalid-submit callback to focusFirstInvalid, the pattern a consumer uses for a wizard's final submit. */
+  focusFirstInvalidOnSubmit?: boolean
 }
 
 /** Mounts the engine inside a consumer-owned native form, so the submit button has something to submit. */
-export async function mountWizardForm(metadata: unknown, { template = StarterFormTemplate as unknown as Component, settings, initialValues }: MountWizardFormOptions = {}) {
+export async function mountWizardForm(metadata: unknown, { template = StarterFormTemplate as unknown as Component, settings, initialValues, focusFirstInvalidOnSubmit = false }: MountWizardFormOptions = {}) {
   const onSubmit = vi.fn();
   const Host = defineComponent({
     setup(_, { expose }) {
@@ -23,10 +26,18 @@ export async function mountWizardForm(metadata: unknown, { template = StarterFor
       // The path state is vee-validate's private registry of fields; it is not on the public form type.
       const getPathState = (form as unknown as { getPathState: (path: string) => unknown }).getPathState;
       expose({ values: form.values, errors: form.errors, getPathState, validate: form.validate });
-      return () => h('form', { onSubmit: (event: Event) => {
-        event.preventDefault();
-        onSubmit();
-      } }, [h(DynamicForm, { metadata: metadata as any, template: template as any, settings })]);
+
+      const formEl = ref<HTMLFormElement>();
+      function handleSubmitEvent(event: Event) {
+        if (!focusFirstInvalidOnSubmit) {
+          event.preventDefault();
+          onSubmit();
+          return;
+        }
+        form.handleSubmit(() => onSubmit(), () => focusFirstInvalid(formEl.value))(event);
+      }
+
+      return () => h('form', { ref: formEl, onSubmit: handleSubmitEvent }, [h(DynamicForm, { metadata: metadata as any, template: template as any, settings })]);
     },
   });
 

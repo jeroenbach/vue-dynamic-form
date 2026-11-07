@@ -47,7 +47,6 @@ const showPassword = ref(false);
     >
     <button
       type="button"
-      tabindex="-1"
       class="sft-password-toggle"
       :data-testid="dataTestid ? `${dataTestid}-toggle` : undefined"
       :aria-label="showPassword ? hidePasswordAriaLabel : showPasswordAriaLabel"

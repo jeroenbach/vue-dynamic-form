@@ -98,6 +98,38 @@ describe('component FileInput', () => {
     expect(wrapper.find('.sft-file-native').attributes('aria-invalid')).toBe('true');
   });
 
+  it('puts ariaLabelledby and ariaDescribedby on the native input, where a screen reader reads them on focus', () => {
+    const wrapper = mount(FileInput, {
+      props: { ariaLabelledby: 'resume-label', ariaDescribedby: 'resume-desc resume-error' },
+    });
+
+    const native = wrapper.find('.sft-file-native');
+    expect(native.attributes('aria-labelledby')).toBe('resume-label');
+    expect(native.attributes('aria-describedby')).toBe('resume-desc resume-error');
+  });
+
+  it('omits both aria association attributes when the props are unset', () => {
+    const wrapper = mount(FileInput);
+
+    const native = wrapper.find('.sft-file-native');
+    expect(native.attributes('aria-labelledby')).toBeUndefined();
+    expect(native.attributes('aria-describedby')).toBeUndefined();
+  });
+
+  it('hands focus to the native input when the clear button is clicked, instead of dropping it to the body', async () => {
+    const file = new File(['x'], 'resume.pdf');
+    const wrapper = mount(FileInput, { props: { value: file }, attachTo: document.body });
+
+    const clear = wrapper.find('.sft-file-clear');
+    (clear.element as HTMLButtonElement).focus();
+    await clear.trigger('click');
+
+    expect(wrapper.emitted('change')?.[0]).toEqual([undefined]);
+    expect(document.activeElement).toBe(wrapper.find('.sft-file-native').element);
+
+    wrapper.unmount();
+  });
+
   it('reaches document.activeElement when the native input is focused directly, with the trigger label reachable via :focus-within', async () => {
     const wrapper = mount(FileInput, { attachTo: document.body });
 

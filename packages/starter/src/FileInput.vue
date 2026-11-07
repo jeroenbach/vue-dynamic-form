@@ -9,16 +9,28 @@ export interface Props {
   errorMessage?: string
   /** Aria label of the clear button; `{name}` is the chosen filename. Defaults to "Remove {name}". */
   clearAriaLabel?: string
+  // Explicit props rather than attrs fallthrough: attrs would land on the wrapper div, and
+  // these two must sit on the native input for a screen reader to pick them up on focus.
+  ariaLabelledby?: string
+  ariaDescribedby?: string
   dataTestid?: string
 }
 
 const props = defineProps<Props>();
-defineEmits<{
+const emit = defineEmits<{
   change: [file: File | undefined]
   blur: [event: FocusEvent]
 }>();
 
 const nativeInput = ref<HTMLInputElement>();
+
+// The clear button unmounts itself when clicked (it only renders while a file is held), which
+// would silently drop keyboard focus to the page body. Handing focus to the native input keeps
+// the user inside the field, ready to pick a new file.
+function clear(): void {
+  emit('change', undefined);
+  nativeInput.value?.focus();
+}
 
 // The native element's own value can never be data-bound. Whenever the model drops to
 // undefined, whether that came from our own clear button or an outside reset, the native
@@ -41,6 +53,8 @@ watch(() => props.value, (value) => {
         :accept="accept"
         :disabled="disabled"
         :aria-invalid="!!errorMessage"
+        :aria-labelledby="ariaLabelledby"
+        :aria-describedby="ariaDescribedby"
         @change="$emit('change', ($event.target as HTMLInputElement).files?.[0])"
         @blur="$emit('blur', $event)"
       >
@@ -51,7 +65,7 @@ watch(() => props.value, (value) => {
       type="button"
       class="sft-file-clear"
       :aria-label="(clearAriaLabel ?? 'Remove {name}').replace('{name}', value.name)"
-      @click="$emit('change', undefined)"
+      @click="clear"
     >
       &times;
     </button>

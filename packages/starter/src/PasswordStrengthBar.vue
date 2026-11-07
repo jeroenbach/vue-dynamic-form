@@ -1,12 +1,16 @@
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   password?: string | unknown
   /** Overrides the tier labels shown under the bar. */
   labels?: { weak?: string, fair?: string, good?: string, strong?: string }
+  /** When the live region text is refreshed. Only 'blur' is supported today: the caller must call announce() itself, since this component cannot observe the real input's blur. */
+  announce?: 'blur'
   dataTestid?: string
-}>();
+}>(), {
+  announce: 'blur',
+});
 
 type Strength = 'empty' | 'weak' | 'fair' | 'good' | 'strong';
 
@@ -50,11 +54,22 @@ function segmentClass(index: number) {
 }
 
 const labelClass = computed(() => config.value.tier ? `is-${config.value.tier}` : '');
+
+// Snapshot, not a computed: the live region must only change when announce()
+// runs, not on every keystroke, or a screen reader would be talked over.
+const announcedLabel = ref(config.value.label);
+const announcedText = computed(() => announcedLabel.value ? `Password strength: ${announcedLabel.value}` : '');
+
+function announce() {
+  announcedLabel.value = config.value.label;
+}
+
+defineExpose({ announce });
 </script>
 
 <template>
   <Transition name="sft-fade">
-    <div v-if="password" :data-testid="dataTestid" class="sft-strength">
+    <div v-if="password" :data-testid="dataTestid" class="sft-strength" aria-hidden="true">
       <div class="sft-strength-track">
         <span
           v-for="i in 4"
@@ -72,4 +87,9 @@ const labelClass = computed(() => config.value.tier ? `is-${config.value.tier}` 
       </p>
     </div>
   </Transition>
+  <span
+    class="sft-sr-only"
+    aria-live="polite"
+    :data-testid="dataTestid ? `${dataTestid}-strength-announcement` : undefined"
+  >{{ announcedText }}</span>
 </template>

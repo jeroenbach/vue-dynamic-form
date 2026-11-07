@@ -87,4 +87,74 @@ describe('component StarterFormTemplate - password field with the strength bar a
 
     expect(wrapper.find('.sft-error').exists()).toBe(true);
   });
+
+  it('mirrors the tier into the live region at mount, before any blur', async () => {
+    const { wrapper } = await mountInForm({ metadata: passwordMetadata, initialValues: { password: 'Abcdefg1!' } });
+
+    expect(wrapper.find('.sft-sr-only').text()).toBe('Password strength: Strong');
+  });
+
+  it('only updates the live region text on blur, not while typing', async () => {
+    const { wrapper } = await mountInForm({ metadata: passwordMetadata });
+
+    const input = wrapper.find('input.sft-input');
+    const liveRegion = () => wrapper.find('.sft-sr-only').text();
+
+    expect(liveRegion()).toBe('');
+
+    await input.setValue('abc');
+    expect(liveRegion()).toBe('');
+
+    await input.setValue('Abcdefg1!');
+    expect(liveRegion()).toBe('');
+
+    await input.trigger('blur');
+    expect(liveRegion()).toBe('Password strength: Strong');
+  });
+
+  it('announces an empty string after clearing the password and blurring', async () => {
+    const { wrapper } = await mountInForm({ metadata: passwordMetadata, initialValues: { password: 'Abcdefg1!' } });
+
+    const input = wrapper.find('input.sft-input');
+    await input.trigger('blur');
+    expect(wrapper.find('.sft-sr-only').text()).toBe('Password strength: Strong');
+
+    await input.setValue('');
+    await input.trigger('blur');
+
+    expect(wrapper.find('.sft-sr-only').text()).toBe('');
+  });
+
+  it('blurring an untouched, empty field announces nothing', async () => {
+    const { wrapper } = await mountInForm({ metadata: passwordMetadata });
+
+    await wrapper.find('input.sft-input').trigger('blur');
+
+    expect(wrapper.find('.sft-sr-only').text()).toBe('');
+  });
+
+  it('scopes the blur-triggered announcement to its own field when two password fields are rendered', async () => {
+    const { wrapper } = await mountInForm({
+      metadata: {
+        name: 'root',
+        path: '',
+        children: [
+          { ...passwordMetadata, name: 'password' },
+          { ...passwordMetadata, name: 'confirmPassword', fieldOptions: { label: 'Confirm password' } },
+        ],
+      },
+      initialValues: { password: 'abc', confirmPassword: 'abc' },
+    });
+
+    const inputs = wrapper.findAll('input.sft-input');
+    const liveRegions = wrapper.findAll('.sft-sr-only');
+
+    await inputs[0].setValue('Abcdefg1!');
+    await inputs[1].setValue('Abcdefgh');
+
+    await inputs[0].trigger('blur');
+
+    expect(liveRegions[0].text()).toBe('Password strength: Strong');
+    expect(liveRegions[1].text()).toBe('Password strength: Weak');
+  });
 });

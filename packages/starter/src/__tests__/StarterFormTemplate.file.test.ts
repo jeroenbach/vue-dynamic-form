@@ -10,7 +10,7 @@ describe('component StarterFormTemplate - file field', () => {
 
     const field = wrapper.find('.sft-field');
     expect(field.exists()).toBe(true);
-    expect(field.find('label.sft-field-label').text()).toContain('Resume');
+    expect(field.find('.sft-field-label').text()).toContain('Resume');
     expect(field.find('.sft-file').exists()).toBe(true);
     expect(field.find('.sft-file-native[type="file"]').exists()).toBe(true);
   });
