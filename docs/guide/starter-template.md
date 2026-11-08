@@ -115,12 +115,14 @@ const onSubmit = handleSubmit(
 
 Three layers of customisation, each documented in the reference:
 
-1. **Retheme with CSS variables.** Every colour is a `--sft-*` custom property; override a handful in your own CSS and the whole template follows:
+1. **Retheme with CSS variables.** Colour, corner radius, and typography are all `--sft-*` custom properties; override a handful in your own CSS and the whole template follows, so a brand that wants sharper corners or a different font gets them with no extra work:
 
    ```css
    :root {
      --sft-accent: #7c3aed;
      --sft-accent-hover: #6d28d9;
+     --sft-radius-xl: 4px;
+     --sft-font-size-md: 15px;
    }
    ```
 

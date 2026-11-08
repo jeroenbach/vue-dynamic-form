@@ -2,7 +2,7 @@
 id: ST-03
 type: story
 feature: FEAT-013
-status: approved
+status: done
 approved_by: Jeroen
 pr: ""
 ---
@@ -143,7 +143,49 @@ Lite (story level): blockers only. Facts re-verified against the live tree: `Sta
 Status rationale: no unresolved Open questions (the feature's six are all `DECIDED`; this story has none) and no blockers. The single should-fix (finding 1) is routed as a `PROPOSED (adversarial review)` edit to AC1, which per the status rule does not force discussion. Findings 2 and 3 are nits. This lands at `awaiting-approval`.
 
 ## Implementation notes
-Filled by developer during implementation: deviations from plan and why. Deviations that affect the feature design/architecture are also propagated to the feature spec.
+- Added `docs/reference/starter-template.md`: Props, Field types (7-row table), Field properties (root list + grouped-property table + grid-layout property table), Settings, Slots (built-in chrome slots, escape-hatch slots, priority fallback), `extendMetadata` (signature + both caveats), and a Theming contract section carrying the full 55-row `--sft-*` table mirrored verbatim from `packages/starter/README.md` plus the semver rule.
+- Added the page to `docs/reference/index.md`'s table and, per AC1's `PROPOSED (adversarial review)` edit, to `docs/.vitepress/config.ts`'s `/reference/` sidebar `items` array.
+- Trimmed `docs/guide/starter-template.md`: "What you get" lost its field-type table and full field-property list (now a short summary plus a link to the reference page); "Theming with CSS variables" lost nothing it didn't already have (it was already a short how-to, see Implementation note below) and gained a link to the reference page's theming contract; "Overriding parts of the template" and "Adding your own field types" each gained a link to the matching reference section. All seven walkthrough headings (Install, Stylesheet, Basic usage, Grid layout, Overriding parts of the template, Icons, Adding your own field types) are unchanged.
+- Deviation, not affecting architecture: while trimming "Theming with CSS variables," corrected its opening sentence from "Every colour the stylesheet uses is a `--sft-*` custom property" to "Colour, corner radius, and typography are all `--sft-*` custom properties," since ST-01 already extended the tokens beyond colour and the old sentence was stale. A factual accuracy fix made while touching the section anyway, not a scope change.
+- Added `docs/.vitepress/theme/__tests__/starterTemplateDocs.test.ts` (framework-free, matches `pnpm docs:test`'s existing scope): covers the reference-index row (AC1), the reference page's props/slots/field-types/`extendMetadata` presence (AC2), the README-vs-reference `--sft-*` name-set equality plus both semver directions (AC3), the guide's trimmed theming section (AC4), and the guide's kept headings plus their reference links (AC6). All 13 assertions pass; `docs/` suite (91 tests total) and `pnpm docs:build` are both clean with no dead-link warnings.
+- Manual checks from the QA plan's checklist: read the new reference page end to end against `StarterFormTemplate.vue` and `metadata.ts` (confirmed `grid` also has its own chrome slot, included in the Field-wrapper slot family even though `packages/starter/README.md`'s own "Supported slots" table omits it, a pre-existing README gap outside this story's scope); diffed the old guide content against the new reference page and found every fact a home (field-type table, structural shapes, field-property groups, settings, full `--sft-*` list); confirmed the kept CSS-override example stands alone; visually checked `docs/reference/index.md` in both color modes via the built docs site.
+- **Deviation, unrelated to this story, not fixed:** `pnpm ci:test`/`ci:test:coverage` fails in `packages/starter` on `src/__tests__/prototypeParity.test.ts` (`ENOENT` on `specs/FEAT-007-starter-form-template/prototype.html`). Confirmed pre-existing and unrelated to this story: `git show b5271aa --name-status` shows that commit moved `specs/FEAT-007-starter-form-template/` to `specs/archive/FEAT-007-starter-form-template/` without updating this test's path. This story is docs-only and does not touch `packages/starter/src/`, so fixing a `packages/starter/src/__tests__` path is out of this story's scope; flagging it for Jeroen rather than silently patching an unrelated package during a docs-only story.
 
 ## Verification report
-Filled by qa-verifier after implementation.
+
+### Pipeline results
+- `pnpm run ci:test` (workspace): `packages/core` 37 files / 973 tests passed. `packages/starter` 66 files / 414 tests passed, 1 suite failed: `src/__tests__/prototypeParity.test.ts` with `ENOENT` on `specs/FEAT-007-starter-form-template/prototype.html`. Confirmed pre-existing and unrelated: `git show b5271aa --name-status` moved that spec folder to `specs/archive/FEAT-007-starter-form-template/` without updating this test's hardcoded path. This story is docs-only and touches nothing under `packages/*/src`, so it cannot be the cause. Does not block this story's verdict; flagged for Jeroen separately.
+- `pnpm run ci:lint`: clean on `packages/core` and `packages/starter`.
+- `pnpm run ci:typecheck`: clean on `packages/core`, `packages/starter`, and `playgrounds/storybook`.
+- `pnpm -r ci:test:coverage`: `packages/core` 98.47%/92.93%/98.37%/98.47% (stmt/branch/func/line), consistent with baseline. `packages/starter` coverage table did not print because the same pre-existing `prototypeParity.test.ts` ENOENT aborts the run before the report step; all 414 real tests pass. This story touches zero files under `packages/*/src`, so the workspace coverage baseline is mechanically unaffected regardless, per the story's own Coverage section.
+- `pnpm docs:test`: 5 files / 91 tests passed, including the new `starterTemplateDocs.test.ts` (13 tests).
+- `pnpm docs:build`: clean, no errors, no dead-link warnings.
+
+### Acceptance criteria
+| AC | Verdict | Evidence |
+| --- | --- | --- |
+| 1. New reference page linked from index table and `/reference/` sidebar | Pass | `docs/reference/index.md` gained the "Starter Template" row; `docs/.vitepress/config.ts`'s `/reference/` sidebar `items` gained `{ text: 'Starter Template', link: '/reference/starter-template' }`, confirmed by diff. `starterTemplateDocs.test.ts`'s index-row test passes. |
+| 2. Reference page documents props, slots + fallback, field-type catalogue, `extendMetadata` generics + caveats | Pass | Read `docs/reference/starter-template.md` end to end: `## Props` section with `metadataConfiguration`; `## Slots` with built-in/escape-hatch tables and the fallback chain; 7-row field-type table; `extendMetadata<...>()` signature matches `packages/starter/src/metadata.ts:159-171` verbatim (four generics, same names and defaults); both caveats ("wins on a collision", "`input` is reserved") present. Cross-checked the `grid` field-wrapper slot claim against `StarterFormTemplate.vue:89,104,225-226`: confirmed `grid` is a real chrome slot, correctly included even though the README's older table omits it. `starterTemplateDocs.test.ts` presence assertions pass. |
+| 3. Complete 55-row `--sft-*` contract table, mirrored, same semver rule | Pass | Diffed `docs/reference/starter-template.md`'s Theming contract table against `packages/starter/README.md`'s table: identical 55 rows (name, purpose, default), identical reused-variables note and semver rule sentence. `starterTemplateDocs.test.ts`'s name-set-equality test confirms exactly 55 entries and an identical sorted set; both semver direction strings present. |
+| 4. Guide trimmed: theming section drops the full list, keeps short how-to + link | Pass | Diff of `docs/guide/starter-template.md` shows the theming section unchanged in size (it was already a short how-to, never carried the full list) plus a new link to `/reference/starter-template#theming-contract`. Automated test confirms no `--sft-radius-`/`--sft-font-size-` tokens in that section and the kept `--sft-accent:` example. |
+| 5. No API-reference fact silently dropped | Pass | Diffed the guide's old "What you get" and "Theming" content against the new reference page: field-type table, structural-shapes list, field-property groups, settings line, and full variable list each have a home on the reference page. One minor framing nuance: the old guide's `wizardTexts` note "which also makes the template translatable" is not restated on the reference page; the underlying catalog fact (every wizard label is covered by `wizardTexts`) is preserved, only the rationale phrase is dropped. Not a lost fact in the sense AC5 means (field/property/variable coverage), so this does not fail the criterion; noting it for completeness. |
+| 6. Guide keeps its seven walkthrough headings, linking to the reference page where fuller | Pass | All seven headings (Install, Stylesheet, Basic usage, Grid layout, Overriding parts of the template, Icons, Adding your own field types) present and unchanged in narrative content. "What you get," "Overriding parts of the template," and "Adding your own field types" each link to `/reference/starter-template`. Automated test confirms both facts. |
+| 7. `pnpm docs:build` clean, no dead-link warnings | Pass | Ran `pnpm docs:build`: "building client + server bundles" and "rendering pages" both succeeded, "build complete," no errors or warnings in output. |
+
+### Prototype comparison
+Not applicable, per the story's Design reference: no prototype exists for this feature, and this story is a docs table/prose restructure, not a UI change.
+
+### Process compliance
+- `specs/components.md`: diff shows only the pre-existing single-row edit from ST-01/ST-02 (new CSS variable coverage in the starter package's export-surface notes); ST-03 adds no new library export, so no further edit was needed, matching its own "Public API surface touched: none" claim.
+- Documentation impact: both named `docs/` bullets from the feature architecture are implemented (`docs/reference/starter-template.md` added and linked; `docs/guide/starter-template.md` trimmed to a how-to). No `packages/core/src/` or `packages/starter/src/` change, so no further VitePress update was required beyond what shipped.
+- Changeset: none added, correctly, since nothing under `packages/*/src` changed in this story. The one changeset present in the tree (`radius-typography-tokens.md`) belongs to ST-01, not this story.
+- Test naming: `docs/.vitepress/theme/__tests__/starterTemplateDocs.test.ts` is a plain `*.test.ts`, framework-free, matching the existing `pnpm docs:test` scope and the `dogfood.test.ts`/`readme.test.ts` pattern it was modeled on.
+- No undocumented spec deviations: the one deviation recorded (correcting the stale "every colour" opening sentence) is a factual accuracy fix disclosed in the Implementation notes, not a silent change.
+- No code comments reference spec IDs; checked the new test file and the two touched `.md` files.
+- Sidebar-nav gap (adversarial review finding 1, routed as a `PROPOSED` AC1 edit): implemented, confirmed above.
+
+### Overall verdict: Pass
+
+This was the last open story of FEAT-013; with ST-01, ST-02, and ST-03 all now `done`, the feature is ready for its final audit (`/spec:audit FEAT-013`, not run by this agent).
+
+Reminder for Jeroen: fill in the `pr` field in this story's frontmatter once the PR is opened.

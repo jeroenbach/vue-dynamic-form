@@ -91,6 +91,25 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   --sft-confirm-text: #004f3b;
   --sft-success-badge-bg: #d0fae5;
   --sft-success-badge-text: #009966;
+
+  /* radius */
+  --sft-radius-xs: 4px;
+  --sft-radius-sm: 6px;
+  --sft-radius-md: 8px;
+  --sft-radius-lg: 10px;
+  --sft-radius-xl: 12px;
+  --sft-radius-pill: 9999px;
+
+  /* typography */
+  --sft-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sft-font-size-xs: 11px;
+  --sft-font-size-sm: 12px;
+  --sft-font-size-md: 14px;
+  --sft-font-size-lg: 18px;
+  --sft-font-size-xl: 20px;
+  --sft-font-size-2xl: 24px;
+  --sft-font-weight-medium: 500;
+  --sft-font-weight-semibold: 600;
 }
 
 :root.dark {
@@ -144,7 +163,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-section {
   border: 1px solid var(--sft-card-border);
   background: var(--sft-card-bg);
-  border-radius: 12px;
+  border-radius: var(--sft-radius-xl);
   padding: 24px;
   box-shadow: var(--sft-card-shadow);
 
@@ -161,14 +180,14 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 }
 .sft-section-title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--sft-font-size-lg);
   line-height: 28px;
-  font-weight: 600;
+  font-weight: var(--sft-font-weight-semibold);
   color: var(--sft-heading);
 }
 .sft-section-desc {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 24px;
   color: var(--sft-text-muted);
 }
@@ -176,12 +195,12 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   background: var(--sft-pill-bg);
   color: var(--sft-pill-text);
   padding: 2px 10px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--sft-font-size-sm);
+  font-weight: var(--sft-font-weight-semibold);
 }
 /* responsive two-column field grid: one column on small screens, two columns at >=768px.
    The `sft-cols-*` utilities at the end of this file override the column count. */
@@ -267,7 +286,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 }
 .sft-field-desc {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
   color: var(--sft-text-subtle);
 }
@@ -284,13 +303,13 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-tag-optional {
   display: inline-flex;
   align-items: center;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   background: #f1f5f9;
   color: #45556c;
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: var(--sft-font-size-sm);
   line-height: 16px;
-  font-weight: 600;
+  font-weight: var(--sft-font-weight-semibold);
 
   :root.dark & {
     background: #314158;
@@ -313,7 +332,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 }
 
 .sft-error {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   color: var(--sft-danger-text);
 }
 
@@ -323,8 +342,8 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   place-items: center;
   border: 1px dashed var(--sft-muted-border);
   background: var(--sft-muted-bg);
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: var(--sft-radius-md);
+  font-size: var(--sft-font-size-sm);
   color: var(--sft-text-subtle);
 }
 
@@ -347,7 +366,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--sft-input-border);
-  border-radius: 8px;
+  border-radius: var(--sft-radius-md);
   background: var(--sft-input-bg);
   color: var(--sft-text);
   padding: 8px 12px;
@@ -360,7 +379,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
     border-color 0.15s ease;
 
   @media (min-width: $breakpoint-md) {
-    font-size: 14px;
+    font-size: var(--sft-font-size-md);
   }
 
   &:focus {
@@ -406,7 +425,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 }
 .sft-input-suffix {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   color: var(--sft-text-muted);
   white-space: nowrap;
 }
@@ -414,15 +433,13 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 /* ---- textarea --------------------------------------------------------
    Same chrome tokens as .sft-input (border, radius, background, text, focus
    ring, invalid, disabled), but auto height with a min-height and a vertical
-   resize handle instead of the fixed 40px row.
-   TODO: switch border-radius/font-size below to the starter theme radius and font
-   tokens once that work ships; those tokens do not exist in this file yet. */
+   resize handle instead of the fixed 40px row. */
 .sft-textarea {
   width: 100%;
   box-sizing: border-box;
   min-height: 104px;
   border: 1px solid var(--sft-input-border);
-  border-radius: 8px;
+  border-radius: var(--sft-radius-md);
   background: var(--sft-input-bg);
   color: var(--sft-text);
   padding: 8px 12px;
@@ -435,7 +452,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
     border-color 0.15s ease;
 
   @media (min-width: $breakpoint-md) {
-    font-size: 14px;
+    font-size: var(--sft-font-size-md);
   }
 
   &:focus {
@@ -474,9 +491,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
    reads: "which one value does this field hold". A sibling of `select`, not
    the structural choice concept (choice cards stay indigo); this one uses
    the sky accent, a smaller dot, no icon, no per-option description. Rows
-   are full-width tap targets, analogous to the switch/select chrome.
-   TODO: switch border-radius below to the starter theme radius token once
-   that work ships; it does not exist in this file yet. */
+   are full-width tap targets, analogous to the switch/select chrome. */
 .sft-radio-group {
   display: flex;
   flex-direction: column;
@@ -488,7 +503,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--sft-input-border);
-  border-radius: 8px;
+  border-radius: var(--sft-radius-md);
   background: var(--sft-input-bg);
   cursor: pointer;
   transition:
@@ -525,7 +540,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   height: 16px;
   width: 16px;
   flex-shrink: 0;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   border: 2px solid #cad5e2;
   transition: border-color 0.15s ease;
 
@@ -554,7 +569,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-radio-dot {
   height: 8px;
   width: 8px;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   background: var(--sft-accent);
   transform: scale(0);
   transition: transform 0.15s ease;
@@ -564,7 +579,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 }
 .sft-radio-label {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   color: var(--sft-text);
 }
 
@@ -573,9 +588,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
    :value, so it is visually hidden and a styled label stands in as the
    trigger. The displayed filename always comes from the field value, never
    from state local to this component, so a reset never leaves a stale name
-   on screen; only the native element's own value is reset imperatively.
-   TODO: switch border-radius below to the starter theme radius token once
-   that work ships; it does not exist in this file yet. */
+   on screen; only the native element's own value is reset imperatively. */
 .sft-file {
   display: flex;
   align-items: center;
@@ -600,7 +613,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   box-shadow: 0 0 0 2px var(--sft-focus-ring);
 }
 .sft-file-name {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   color: var(--sft-text-strong);
   min-width: 0;
   overflow-wrap: anywhere;
@@ -614,7 +627,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   justify-content: center;
   height: 28px;
   width: 28px;
-  border-radius: 6px;
+  border-radius: var(--sft-radius-sm);
   border: 0;
   background: none;
   cursor: pointer;
@@ -697,7 +710,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-strength-seg {
   height: 6px;
   flex: 1;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   background: var(--sft-track);
   transition: background 0.3s ease;
 
@@ -724,8 +737,8 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   opacity: 0;
 }
 .sft-strength-label {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--sft-font-size-sm);
+  font-weight: var(--sft-font-weight-medium);
   transition: color 0.3s ease;
 
   &.is-weak {
@@ -753,7 +766,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   justify-content: space-between;
   gap: 16px;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--sft-radius-xl);
   background: var(--sft-muted-bg);
   border: 1px solid var(--sft-card-border);
 
@@ -770,14 +783,14 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   display: block;
 }
 .sft-switch-field-label {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
-  font-weight: 500;
+  font-weight: var(--sft-font-weight-medium);
   color: var(--sft-text-strong);
   margin: 0;
 }
 .sft-switch-field-desc {
-  font-size: 12px;
+  font-size: var(--sft-font-size-sm);
   line-height: 16px;
   color: var(--sft-text-subtle);
   margin: 2px 0 0;
@@ -808,7 +821,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-switch-track {
   height: 24px;
   width: 44px;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   background: #cad5e2;
   transition: background 0.15s ease;
 
@@ -828,7 +841,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   top: 2px;
   height: 20px;
   width: 20px;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   background: #ffffff;
   box-shadow:
     0 1px 3px 0 rgba(0, 0, 0, 0.1),
@@ -849,11 +862,11 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 6px;
+  border-radius: var(--sft-radius-sm);
   padding: 8px 12px;
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
-  font-weight: 500;
+  font-weight: var(--sft-font-weight-medium);
   cursor: pointer;
   transition:
     background-color 0.15s ease,
@@ -957,7 +970,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-repeater {
   border: 1px solid var(--sft-card-border);
   background: var(--sft-card-bg);
-  border-radius: 12px;
+  border-radius: var(--sft-radius-xl);
   padding: 16px;
 }
 .sft-repeater-header {
@@ -976,16 +989,16 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   place-items: center;
   height: 28px;
   width: 28px;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   background: var(--sft-pill-bg);
   color: var(--sft-pill-text);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--sft-font-size-sm);
+  font-weight: var(--sft-font-weight-semibold);
 }
 .sft-repeater-title {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
-  font-weight: 600;
+  font-weight: var(--sft-font-weight-semibold);
   color: var(--sft-text-strong);
   margin: 0;
 }
@@ -993,7 +1006,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-empty {
   border: 1px dashed var(--sft-muted-border);
   background: var(--sft-muted-bg);
-  border-radius: 12px;
+  border-radius: var(--sft-radius-xl);
   padding: 32px;
   text-align: center;
 
@@ -1011,8 +1024,8 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 }
 .sft-empty-title {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--sft-font-size-md);
+  font-weight: var(--sft-font-weight-medium);
   color: #314158;
   margin: 0;
 
@@ -1021,7 +1034,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 }
 .sft-empty-hint {
-  font-size: 12px;
+  font-size: var(--sft-font-size-sm);
   color: var(--sft-text-subtle);
   margin: 4px 0 0;
 }
@@ -1058,7 +1071,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   align-items: flex-start;
   border: 1px solid var(--sft-card-border);
   background: var(--sft-card-bg);
-  border-radius: 12px;
+  border-radius: var(--sft-radius-xl);
   padding: 16px;
   text-align: left;
   cursor: pointer;
@@ -1108,7 +1121,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   height: 16px;
   width: 16px;
   flex-shrink: 0;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   border: 2px solid #cad5e2;
   transition: border-color 0.15s ease;
 
@@ -1125,7 +1138,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-choice-radio-dot {
   height: 8px;
   width: 8px;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   background: var(--sft-choice);
   transform: scale(0);
   transition: transform 0.15s ease;
@@ -1147,15 +1160,15 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   display: inline-flex;
 }
 .sft-choice-title {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
-  font-weight: 600;
+  font-weight: var(--sft-font-weight-semibold);
   color: var(--sft-text);
   margin: 0;
 }
 .sft-choice-desc {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--sft-font-size-sm);
   line-height: 1.625;
   color: var(--sft-text-muted);
 }
@@ -1164,15 +1177,15 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-choice-group {
   border: 1px dashed var(--sft-muted-border);
   background: var(--sft-muted-bg);
-  border-radius: 8px;
+  border-radius: var(--sft-radius-md);
   padding: 16px;
   grid-column: 1 / -1;
 }
 .sft-choice-group-title {
   display: block;
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
-  font-weight: 600;
+  font-weight: var(--sft-font-weight-semibold);
   color: var(--sft-text);
 
   &.is-disabled {
@@ -1184,7 +1197,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 }
 .sft-choice-group-desc {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
   color: var(--sft-text-muted);
   margin: 4px 0 0;
@@ -1213,7 +1226,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   gap: 4px;
 }
 .sft-choice-addbar-reason {
-  font-size: 12px;
+  font-size: var(--sft-font-size-sm);
   line-height: 16px;
   color: var(--sft-text-subtle);
   margin: 0;
@@ -1224,7 +1237,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   margin-bottom: 24px;
 }
 .sft-wizard-eyebrow {
-  font-size: 12px;
+  font-size: var(--sft-font-size-sm);
   line-height: 16px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1232,9 +1245,9 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   margin: 0;
 }
 .sft-wizard-title {
-  font-size: 24px;
+  font-size: var(--sft-font-size-2xl);
   line-height: 32px;
-  font-weight: 600;
+  font-weight: var(--sft-font-weight-semibold);
   color: var(--sft-heading);
   margin: 0;
 }
@@ -1278,9 +1291,9 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   place-items: center;
   height: 32px;
   width: 32px;
-  border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: var(--sft-radius-pill);
+  font-size: var(--sft-font-size-sm);
+  font-weight: var(--sft-font-weight-semibold);
   transition: all 0.2s ease;
   background: #e2e8f0;
   color: #62748e;
@@ -1315,7 +1328,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 }
 .sft-step-label {
-  font-size: 12px;
+  font-size: var(--sft-font-size-sm);
   line-height: 16px;
   color: #90a1b9;
 
@@ -1332,7 +1345,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 
   .sft-step.is-current & {
-    font-weight: 600;
+    font-weight: var(--sft-font-weight-semibold);
     color: var(--sft-text);
   }
 
@@ -1365,9 +1378,9 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 
 .sft-wizard-alert {
   margin-top: 32px;
-  border-radius: 8px;
+  border-radius: var(--sft-radius-md);
   padding: 12px;
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   border: 1px solid var(--sft-danger-soft-border);
   background: var(--sft-danger-soft-bg);
   color: var(--sft-danger-soft-text);
@@ -1393,7 +1406,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   padding-right: 16px;
 }
 .sft-wizard-helper {
-  font-size: 12px;
+  font-size: var(--sft-font-size-sm);
   line-height: 16px;
   color: var(--sft-text-subtle);
   margin: 0;
@@ -1408,7 +1421,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   margin-bottom: 16px;
   overflow: hidden;
   border: 1px solid var(--sft-card-border);
-  border-radius: 12px;
+  border-radius: var(--sft-radius-xl);
   grid-column: 1 / -1;
 }
 .sft-review-header {
@@ -1420,9 +1433,9 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   padding: 8px 16px;
 }
 .sft-review-title {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
-  font-weight: 600;
+  font-weight: var(--sft-font-weight-semibold);
   color: var(--sft-text-strong);
   margin: 0;
 }
@@ -1447,13 +1460,13 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-review-key {
   width: 144px;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--sft-font-size-sm);
   line-height: 16px;
   color: var(--sft-text-subtle);
   margin: 0;
 }
 .sft-review-val {
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
   color: var(--sft-text-strong);
   margin: 0;
@@ -1461,9 +1474,9 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 .sft-confirm {
   grid-column: 1 / -1;
   margin-top: 24px;
-  border-radius: 12px;
+  border-radius: var(--sft-radius-xl);
   padding: 16px;
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   line-height: 20px;
   border: 1px solid var(--sft-confirm-border);
   background: var(--sft-confirm-bg);
@@ -1478,7 +1491,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 }
 .sft-confirm-strong {
-  font-weight: 500;
+  font-weight: var(--sft-font-weight-medium);
 }
 
 /* ---- submission success --------------------------------------------- */
@@ -1494,24 +1507,24 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   place-items: center;
   height: 64px;
   width: 64px;
-  border-radius: 9999px;
+  border-radius: var(--sft-radius-pill);
   background: var(--sft-success-badge-bg);
   color: var(--sft-success-badge-text);
 }
 .sft-success-title {
   margin: 16px 0 0;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--sft-font-size-xl);
+  font-weight: var(--sft-font-weight-semibold);
   color: var(--sft-heading);
 }
 .sft-success-ref {
   margin: 4px 0 0;
-  font-size: 14px;
+  font-size: var(--sft-font-size-md);
   color: var(--sft-text-muted);
 
   code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-weight: 500;
+    font-family: var(--sft-font-mono);
+    font-weight: var(--sft-font-weight-medium);
     color: var(--sft-text-strong);
   }
 }
@@ -1520,7 +1533,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   margin-top: 32px;
   border: 1px solid var(--sft-card-border);
   background: var(--sft-muted-bg);
-  border-radius: 12px;
+  border-radius: var(--sft-radius-xl);
   padding: 20px;
 
   ul {
@@ -1536,7 +1549,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 14px;
+    font-size: var(--sft-font-size-md);
     color: var(--sft-text-strong);
     transition: color 0.15s ease;
 
@@ -1546,8 +1559,8 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   }
 }
 .sft-timeline-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--sft-font-size-md);
+  font-weight: var(--sft-font-weight-semibold);
   color: var(--sft-text-strong);
   margin: 0 0 12px;
 }
@@ -1609,8 +1622,8 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   grid-column: 1 / -1;
   overflow: auto;
   padding: 16px;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--sft-radius-md);
+  font-size: var(--sft-font-size-md);
   background: #f3f4f6;
   color: var(--sft-text);
 
@@ -1650,14 +1663,14 @@ $breakpoint-lg: 1024px; // widest grid utility tier
   gap: 6px;
   padding: 14px 8px;
   border: 1px solid var(--sft-card-border);
-  border-radius: 10px;
+  border-radius: var(--sft-radius-lg);
   background: var(--sft-card-bg);
   color: var(--sft-text-muted);
 
   code {
-    font-size: 11px;
+    font-size: var(--sft-font-size-xs);
     color: var(--sft-text-subtle);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: var(--sft-font-mono);
   }
 }
 
@@ -1723,7 +1736,7 @@ $breakpoint-lg: 1024px; // widest grid utility tier
 [data-page]:focus-visible {
   outline: 2px solid var(--sft-focus-visible);
   outline-offset: 4px;
-  border-radius: 4px;
+  border-radius: var(--sft-radius-xs);
 }
 
 /* ---- grid utility classes ------------------------------------------- */
@@ -1733,8 +1746,10 @@ $breakpoint-lg: 1024px; // widest grid utility tier
    column), `-lg-` from 1024px up. Declared last so they win over the component defaults
    above by order. The `sft-col-start-*` group sits after the `sft-span-*` group so an
    explicit start line always wins over the start a span shorthand sets. To change the tier
-   widths, redeclare these media blocks in your own CSS with your widths; every rule is
-   single-class, so yours win by order. */
+   widths, redeclare these media blocks (and the built-in grids above that switch at
+   $breakpoint-md) in your own CSS with your widths; every rule is low-specificity, so yours
+   win by order. Moving a tier up also needs a reset of the old range; the "Breakpoint
+   widths" section of the theming docs shows the full recipe. */
 $grid-tiers: (
   'base-': null,
   '': $breakpoint-md,

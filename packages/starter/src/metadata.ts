@@ -30,8 +30,8 @@ export interface StarterValueTypes {
 /**
  * A plain value, or one value per breakpoint tier. Tiers are mobile-first: a tier applies at
  * its width and up until a larger tier overrides it (`base` from 0, `md` from 768px, `lg` from
- * 1024px). The widths are fixed in the stylesheet; see the grid-layout guide for the short CSS
- * override that changes them.
+ * 1024px). The widths are fixed in the stylesheet; the "Breakpoint widths" section of the
+ * theming docs shows the CSS override that changes them.
  */
 export type Responsive<T> = T | { base?: T, md?: T, lg?: T };
 

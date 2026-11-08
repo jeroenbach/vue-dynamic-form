@@ -1,10 +1,18 @@
 <script setup lang="ts">
+import type { DynamicFormSettings } from '@bach.software/vue-dynamic-form';
 import type { Metadata } from './ProjectFormTemplate';
 import { DynamicForm, useDynamicForm } from '@bach.software/vue-dynamic-form';
 import ProjectFormTemplate from './ProjectFormTemplate.vue';
 
 // #region local-state
 const { values, meta } = useDynamicForm();
+
+// Recommended pattern: don't show an error until the user leaves the field, then keep
+// validating live so a correction clears the error without another blur.
+const settings: DynamicFormSettings = {
+  validateOnValueUpdate: false,
+  validateOnBlur: true,
+};
 // #endregion local-state
 
 // #region metadata
@@ -25,7 +33,7 @@ const metadata: Metadata[] = [
 
 <template>
   <div class="form-demo flex flex-col gap-6 max-w-3xl mx-auto">
-    <DynamicForm :metadata="metadata" :template="ProjectFormTemplate" />
+    <DynamicForm :metadata="metadata" :template="ProjectFormTemplate" :settings />
     <pre
       class="bg-gray-100 dark:bg-slate-800 p-4 rounded-lg text-sm overflow-auto"
     >

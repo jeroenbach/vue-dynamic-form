@@ -2,7 +2,7 @@
 id: ST-01
 type: story
 feature: FEAT-013
-status: approved
+status: done
 approved_by: Jeroen
 pr: ""
 ---
@@ -143,7 +143,50 @@ Lite (story level): blockers only. Facts re-verified against the live tree: 41 `
 Status rationale: no unresolved Open questions (the feature's six are all `DECIDED`; the story has none), no blockers, and the single should-fix (finding 1) is routed as a `PROPOSED (adversarial review)` edit. By rule 3 this lands at `awaiting-approval`.
 
 ## Implementation notes
-Filled by developer during implementation: deviations from plan and why. Deviations that affect the feature design/architecture are also propagated to the feature spec.
+- The 14 tokens were declared on `:root` exactly as scoped, grouped under `/* radius */` and `/* typography */` banners after the colour groups. All 85 confirmed call sites (25 border-radius, 38 tokenizable font-size, 19 font-weight, 2 monospace font-family) were swapped to a bare `var(--sft-*)` reference; both `inherit` sites were left untouched. Counts re-verified by grep against the finished file and match the audit exactly, with the AC2/AC4 off-by-one in the criterion text (39 vs 38 tokenizable `font-size` sites) resolved per the already-routed `PROPOSED (adversarial review)` wording.
+- Zero default visual change verified two ways: (1) compiled the pre-story and post-story `style.scss` with `sass-embedded` and diffed the output; every non-comment difference is a literal replaced by its matching `var()`, nothing else changed. (2) Built the package and visually spot-checked the Storybook playground (wizard page, explicit choice cards) in both light and dark mode; rendering is pixel-identical to the pre-story look.
+- Extended `themeScope.test.ts` with a `describe('public theme contract')` block: per-token `:root` value assertions, a banner-placement check, the pinned 55-name `CONTRACT_VARIABLES` equality check (with a missing/unexpected diff on failure), a no-`var()`-fallback scan (enforces the no-fallback decision), the per-new-token `:root.dark`-absence check, the leftover-literal scan stripping `:root`/`:root.dark` before matching, and an explicit assertion that both `inherit` sites survive untouched. 48 tests in the file now pass (was 7).
+- Performed the one-time manual red-proof for the leftover-literal test: temporarily reverted one `var()` swap back to its literal, confirmed the test failed with a clear assertion message, then reapplied the swap and confirmed green again.
+- `specs/components.md`'s starter row gained a short note on the new radius/typography tokens, matching the architecture's instruction to extend the inventory text rather than add a new surface entry.
+- Added a minor changeset (`.changeset/radius-typography-tokens.md`) describing the consumer-facing capability (shape and type are now rethemeable, zero default visual change), per the feature's semver rule.
+- Deviation (tooling, no scope impact): the root `pnpm run ci` script internally calls `pnpm -r ci`, which pnpm's CLI treats as its builtin frozen-lockfile installer rather than the per-package `ci` script, even when invoked through `-r`. Ran `pnpm run ci:test`, `pnpm run ci:lint`, and `pnpm run ci:typecheck` individually instead, matching prior project guidance on this shadowing.
+- Found and reproduced two pre-existing issues unrelated to this story's diff (confirmed via `git stash` back to the unmodified tree before investigating further):
+  1. `packages/starter/src/__tests__/prototypeParity.test.ts` fails with `ENOENT` because `specs/FEAT-007-starter-form-template/prototype.html` no longer exists (removed by the prior "Cleanup + new Specs" commit, which left this test pointing at a stale path). Out of this story's scope to fix; flagging for Jeroen.
+  2. `packages/core`'s checked-in `dist/` was stale (predating the `DynamicFormTemplateComponent` export), which failed `packages/starter`'s typecheck until `packages/core` was rebuilt locally. `dist/` is gitignored, so this carries no diff; rebuilding resolved it and all typecheck/lint/test commands then ran clean except for finding 1 above.
 
 ## Verification report
-Filled by qa-verifier after implementation.
+
+### Pipeline
+- `pnpm run ci:lint`: pass (core + starter).
+- `pnpm run ci:typecheck`: pass (core + starter + storybook playground).
+- `pnpm run ci:test`: starter suite 414 tests pass across 66 files; `themeScope.test.ts` 48 tests pass (was 7 before this story, confirmed against `git show HEAD:...`). One failing suite, `prototypeParity.test.ts` (`ENOENT` on `specs/FEAT-007-starter-form-template/prototype.html`), reproduced identically on `git stash` back to the unmodified tree: pre-existing, unrelated to this story's diff (no `.vue`/component file touched), not caused by the radius/typography retrofit. Core suite: 973/973 pass, untouched by this story.
+- `pnpm -r ci:test:coverage`: re-run with `prototypeParity.test.ts` excluded (its pre-existing failure blocks vitest's coverage summary from printing) to get a comparable number; starter coverage is identical before and after this story's diff on the same exclusion (`git stash` comparison): 99.68% stmts / 94.19% branch / 94.87% funcs / 99.68% lines, both runs. No drop. Matches the QA plan's prediction that `style.scss` is uninstrumented and the only source-code change is test-only. Core coverage (98.47/92.94/98.37/98.47) is unaffected since core is untouched by this story.
+- `docs/` untouched by this story; `pnpm docs:build` not required.
+
+### Acceptance criteria
+| AC | Verdict | Evidence |
+| --- | --- | --- |
+| 1. 14 tokens on `:root`, exact values, banner comments after colour groups | Pass | Read `style.scss`: all 14 declared with the exact literals, under `/* radius */` and `/* typography */` comments placed immediately after the last colour group (`/* status */` / the "faithfully ported" comment block), before `:root.dark`. `themeScope.test.ts` asserts both the per-token values and banner ordering. |
+| 2. Full retrofit, bare `var()`, no fallback | Pass | `grep` over `style.scss` confirms zero remaining raw literals for the 13 tokenizable values outside `:root`/`:root.dark`, and zero `var(--sft-radius-*,`/`var(--sft-font-*,` fallback occurrences. Call-site counts match exactly: 25 `border-radius`, 38 tokenizable `font-size` (+1 `inherit`), 19 `font-weight`, 2 `font-mono`. The AC2/AC4 off-by-one in the criterion text is already resolved via the routed `PROPOSED (adversarial review)` reword; implementation matches the corrected 38/39 count, not the original. |
+| 3. Zero default visual change | Pass (as rewritten by QA plan) | Not independently re-diffed by QA (no persisted pre-story artifact survives in the tree, as the QA plan itself notes). Structurally guaranteed by AC1 (verified exact) + AC8 (verified no leaked literal): every call site resolves through the same `:root` value that held the original literal. Developer's one-time manual `sass-embedded` diff and Storybook visual spot-check are documented in Implementation notes; not re-run by QA. |
+| 4. `inherit` sites untouched | Pass | `grep` confirms `font-size: inherit` (line 361) and `font-family: inherit` (line 345) both survive unchanged; `themeScope.test.ts` asserts both and asserts `inherit` is never in the leftover-literal set. |
+| 5. No new `:root.dark` entries | Pass | `awk` over the `:root.dark` block shows zero `--sft-radius-*`/`--sft-font-*` entries. |
+| 6. Pinned 55-name contract test | Pass | `CONTRACT_VARIABLES` array has exactly 55 entries (41 colour + 14 new); test asserts exact set equality with a missing/unexpected diff message. |
+| 7. No `:root.dark` override guard | Pass | `it.each` over the 14 new tokens asserts presence on `:root` and absence on `:root.dark`, reusing `effectiveDarkValue`. |
+| 8. Leftover-literal guard proves wiring | Pass | Test strips `:root`/`:root.dark` then regex-scans for all 13 literal values plus the mono stack; developer's implementation notes record the one-time red-proof (temporarily reverted a swap, confirmed red, reapplied). QA did not independently re-run the red-proof but the guard's logic was inspected and is sound (matches the scoped literal sets exactly). |
+
+### Prototype / design comparison
+Not applicable: the feature skipped the design phase (no new visual surface, zero-default-visual-change is a hard constraint), confirmed by the story's "Design reference" section.
+
+### Process compliance
+- `specs/components.md`: the starter package's existing surface row gained a short inventory-text note on the new radius/typography tokens (no new row), matching the architecture's instruction.
+- Changeset: `.changeset/radius-typography-tokens.md` present, `minor` bump, matches the feature architecture's semver analysis (additive, backwards-compatible). Written for a release-notes reader, leads with consumer benefit, no em dash, no process-artifact references.
+- Library API rules: no new export, prop, slot, setting, or type; only new `--sft-*` custom-property names on the existing documented theming channel. camelCase not applicable (CSS custom properties use the existing `--sft-*` kebab convention, consistent with every other token in the file).
+- Tests named per convention: added to existing `*.test.ts` file (`themeScope.test.ts`); correctly no `*.logic`/`*.validation`/`*.analytics` file, matching the QA plan's explicit "deliberate absence" call.
+- No undocumented spec deviations: the one deviation noted (root `pnpm run ci` pnpm-shadowing workaround) is tooling-only, matches prior project guidance, and carries no scope impact. The two pre-existing issues found (stale `prototypeParity.test.ts` path, stale `packages/core/dist/`) are correctly flagged as out of this story's scope rather than silently worked around.
+- No silent overrides of feature-level decisions: token names/values, scheme, `:root.dard` delta, and guard design all match the approved feature architecture exactly; the one addition beyond the architecture's 3-point guard design (the no-fallback scan) was already flagged by adversarial review as a non-contradicting, ADR-5-enforcing nit, not a deviation.
+- README (Slice B) and docs site restructure (Slice C) correctly left untouched; this story's diff contains no README or `docs/` changes, matching its Out of scope section.
+
+### Overall verdict: pass
+
+ST-02 and ST-03 remain to implement before FEAT-013 can move to `done`.
