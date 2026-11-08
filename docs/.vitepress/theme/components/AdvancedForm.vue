@@ -22,6 +22,10 @@ const { metadata, settings: _settings } = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const settings = computed<DynamicFormSettings>(() => ({
+  // Recommended pattern: don't show an error until the user leaves the field, then keep
+  // validating live so a correction clears the error without another blur.
+  validateOnValueUpdate: false,
+  validateOnBlur: true,
   messages: {
     required: '{field} is required',
     minOccurs: 'At least {min} items required',

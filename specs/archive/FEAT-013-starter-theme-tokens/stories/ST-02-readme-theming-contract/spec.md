@@ -2,7 +2,7 @@
 id: ST-02
 type: story
 feature: FEAT-013
-status: approved
+status: done
 approved_by: Jeroen
 pr: ""
 ---
@@ -125,7 +125,43 @@ Lite (story level): blockers only. Facts re-verified against the live tree: the 
 Status rationale: no unresolved Open questions (the feature's six are all `DECIDED`; this story has none) and no blockers. Finding 1 was a should-fix requiring a feature-spec amendment; resolved during story prep via the post-approval ladder (`DECIDED (research)`, see above) without needing Jeroen, and the feature spec's Guard test design wording is corrected accordingly. Nothing remains unresolved, so this lands at `awaiting-approval`.
 
 ## Implementation notes
-Filled by developer during implementation: deviations from plan and why. Deviations that affect the feature design/architecture are also propagated to the feature spec.
+Added the full 55-row `--sft-*` contract table and the semver rule to `packages/starter/README.md`'s "Customization guidance" section, immediately after the existing bullets. Row names, order, and default values were generated and checked against `packages/starter/src/__tests__/themeScope.test.ts`'s `CONTRACT_VARIABLES` array and `packages/starter/src/style.scss`'s `:root` block with a throwaway script (not committed): exact name-set match (55/55) and exact default-value match (55/55) confirmed. Purpose text was derived from grepping each variable's actual `var()` call sites in `style.scss`, generically worded where a token serves several unrelated roles (`--sft-radius-md`/`-xl`/`-pill`), per the story's edge case, plus a one-line callout naming the three most heavily shared tokens.
+
+No deviations from the plan. One observation outside this story's scope, flagged for visibility rather than fixed: `--sft-danger-soft-hover-bg` is declared on `:root`/`:root.dark` but its two call sites (`.sft-btn-danger-light:hover`) use the matching literal colors directly instead of `var(--sft-danger-soft-hover-bg)`, so the token is currently documented as themeable but not wired. This predates ST-01/ST-02 (it is one of the 41 pre-existing colour tokens, not a new one) and fixing it means editing `packages/starter/src/style.scss`, which this story's Out of scope forbids; the README purpose cell still states the token's intended effect, which is accurate as a purpose statement even though the wiring gap means overriding it today has no visible effect.
+
+Separately, `pnpm -r ci:test:coverage` and `pnpm run ci:test` both fail in `packages/starter/src/__tests__/prototypeParity.test.ts` with `ENOENT` on `specs/FEAT-007-starter-form-template/prototype.html`. That spec folder was deleted by the "Cleanup + new Specs" commit (`b5271aa`, the branch's current HEAD) before this story started; the failure is unrelated to this story's diff (confirmed: it fails identically with only the pre-existing ST-01 working-tree changes present, before this story's README edit). All 414 other starter tests pass. Flagging for Jeroen; out of scope for a README-only story to fix.
+
+Lint required one `npx eslint --fix packages/starter/README.md` pass to re-pad the new table's column widths to Prettier's column-aligned markdown table style; content was unaffected (verified again afterward: 55/55 name and default-value match still holds).
 
 ## Verification report
-Filled by qa-verifier after implementation.
+
+### Pipeline results
+- `pnpm run ci:test` (note: bare `pnpm ci` is shadowed by pnpm's own install-ci builtin in this repo; the scoped `ci:test`/`ci:lint`/`ci:typecheck` scripts are the correct invocation): `packages/core` 973/973 tests pass (37 files). `packages/starter` 414/414 tests pass (66 files); one suite, `src/__tests__/prototypeParity.test.ts`, fails with `ENOENT` on the deleted `specs/FEAT-007-starter-form-template/prototype.html`. Reproduced independently on the unmodified tree (confirmed by checking out the working tree with only ST-01's changes present); pre-existing, caused by the "Cleanup + new Specs" commit (`b5271aa`) removing that spec folder, unrelated to this story's README-only diff. `docs/` suite: 4 files, 78 tests pass.
+- `pnpm run ci:lint`: clean, no errors in either package.
+- `pnpm run ci:typecheck`: clean, `packages/core`, `packages/starter`, and `playgrounds/storybook` all pass.
+- `pnpm -r ci:test:coverage`: `packages/core` 98.47% stmts / 92.93% branch / 98.37% funcs / 98.47% lines, consistent with the existing baseline (no source file in `packages/core` changed by this story). `packages/starter` coverage report did not print because the same pre-existing `prototypeParity.test.ts` ENOENT aborts the suite before the v8 summary is generated; this is a reporting artifact of the pre-existing gap, not a regression caused by this story (`README.md` is not instrumented, no source file under `packages/starter/src/` changed). `docs/build` not run: no `docs/` content changed by this story.
+
+### Acceptance criteria
+| AC | Check | Result |
+| --- | --- | --- |
+| 1. Complete 55-row contract table (name, purpose, default) | Parsed the README table programmatically: exactly 55 rows. Cross-checked every default value against `packages/starter/src/style.scss`'s `:root` block literal-by-literal: 55/55 exact matches, including compound values (`--sft-card-shadow`, `--sft-font-mono`). Every purpose cell is non-empty and specific. | Pass |
+| 2. Table names match `CONTRACT_VARIABLES` exactly | Extracted `CONTRACT_VARIABLES` from `packages/starter/src/__tests__/themeScope.test.ts` (55 entries) and the README table's name column (55 entries), both sorted. Diffed programmatically: zero missing, zero extra, identical sets. | Pass |
+| 3. Stated semver rule | README "Customization guidance" section states: "adding a new `--sft-*` variable is a minor change. Renaming or removing one is a major change." Both directions present, unambiguous prose. | Pass |
+| 4. Install/usage sections stay intact | `git diff main -- packages/starter/README.md`: all changed lines fall inside "Customization guidance" (one wording tweak to the existing first bullet, plus the new table/callout/semver-rule block, immediately before "## Adding a field type or a property"). Install, Stylesheet, Bare usage, Overriding a control, Supported slots, Icons, Adding a field type, and Exports sections are untouched in the diff. | Pass |
+
+Edge case: spot-checked `--sft-radius-md` ("input, dependent placeholder, choice group, wizard alert, JSON panel") and `--sft-radius-xl`/`--sft-radius-pill` rows, plus the added callout sentence naming the three as shared; wording is generic, names no single call site exclusively. Confirmed.
+
+### Prototype comparison
+Not applicable, per the story's Design reference: no prototype exists for this feature, and this story is a documentation table with no render surface.
+
+### Process compliance
+- `specs/components.md`: no edit required or made by this story; ST-02 adds no new export or public API, only documents already-shipped (ST-01) surface. The `components.md` diff present in the working tree belongs to ST-01's scope, not this story's.
+- VitePress docs: out of scope for this story (ST-03 owns the `docs/reference/starter-template.md` mirror); no `docs/` content was touched, consistent with the story's Out of scope section.
+- Changeset: none added, correctly, since only `packages/starter/README.md` changed and it sits outside `packages/starter/src/`.
+- No new exports, no library API rule violations: this story touches no `.ts`/`.vue` source.
+- No undocumented spec deviations: the Implementation notes' one flagged item (`--sft-danger-soft-hover-bg` declared but not wired at its call site) is a pre-existing gap in one of the 41 original colour tokens, outside this story's scope (fixing it would require editing `style.scss`, forbidden by Out of scope), and is noted here for Jeroen's awareness only; it does not affect AC1's default-value check (the documented default and purpose are accurate regardless of the wiring gap) and does not block this story's verdict.
+- Lint required one `eslint --fix` pass for markdown table column alignment; confirmed re-verified by the developer and independently reproduced via this session's own `pnpm run ci:lint` pass (clean).
+
+### Overall verdict: pass
+
+All four acceptance criteria verified with direct evidence (programmatic name-set and default-value diffs, not just a visual read). Pipeline green except for the pre-existing, unrelated `prototypeParity.test.ts` ENOENT, independently reproduced as pre-existing and out of scope for this story. No process-compliance gaps for a README-only change of this shape.

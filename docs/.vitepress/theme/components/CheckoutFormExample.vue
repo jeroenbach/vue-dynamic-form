@@ -205,6 +205,10 @@ const canSubmit = computed(() => meta.value.valid);
 // A computed, not a plain object: the ledger and its coverage messages reconcile against the
 // shipping-inclusive total, which changes live with the shipping method.
 const settings = computed<DynamicFormSettings>(() => ({
+  // Recommended pattern: don't show an error until the user leaves the field, then keep
+  // validating live so a correction clears the error without another blur.
+  validateOnValueUpdate: false,
+  validateOnBlur: true,
   orderTotal: total.value,
   showValidState: true,
   messages: MESSAGES,

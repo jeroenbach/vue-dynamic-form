@@ -232,8 +232,11 @@ const programSpanLabel = computed(() =>
   `${formatTime(eventStartMinutes.value)} to ${formatTime(timeline.value.programEndMinutes)}`);
 
 const settings: DynamicFormSettings = {
-  // The speaker field's required check (and every other field here) needs to fail the moment a
-  // reader tabs away from an empty field, not wait for a later value change or submit attempt.
+  // Recommended pattern: don't show an error until the user leaves the field, then keep
+  // validating live so a correction clears the error without another blur. The speaker field's
+  // required check (and every other field here) needs to fail the moment a reader tabs away
+  // from an empty field, not wait for a later value change or submit attempt.
+  validateOnValueUpdate: false,
   validateOnBlur: true,
   messages: MESSAGES,
   showValidState: true,
